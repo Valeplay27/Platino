@@ -1,0 +1,80 @@
+:root {
+  --green-dark: #073b2b;
+  --green: #0c4a38;
+  --green-light: #e9f0eb;
+  --cream: #f6f2e9;
+  --gold: #b99a5b;
+  --white: #ffffff;
+  --black: #1b1b1b;
+  --gray: #777777;
+}
+
+.top-bar { background: var(--green-dark); color: white; height: 27px; font-size: 10px; }
+.top-bar-content { max-width: 1280px; height: 100%; margin: auto; display: flex; align-items: center; justify-content: center; gap: 40px; }
+.navbar { width: 100%; background: rgba(255, 255, 255, 0.96); border-bottom: 1px solid #eeeeee; position: sticky; top: 0; z-index: 1000; }
+.navbar-container { max-width: 1280px; height: 70px; margin: auto; padding: 0 25px; display: flex; align-items: center; justify-content: space-between; }
+.navbar-logo, .footer-logo { text-decoration: none; color: var(--green-dark); display: flex; flex-direction: column; line-height: 1; }
+.logo-name { font-family: Georgia, serif; font-size: 25px; letter-spacing: -1px; }
+.logo-subtitle { font-size: 7px; letter-spacing: 5px; text-align: center; margin-top: 4px; }
+.navbar-menu { display: flex; align-items: center; gap: 30px; }
+.navbar-menu > a, .nav-dropdown > a { position: relative; text-decoration: none; color: var(--black); font-size: 12px; font-weight: 500; transition: .3s ease; }
+.navbar-menu > a:hover, .nav-dropdown > a:hover { color: var(--green); }
+.nav-dropdown { position: relative; }
+.nav-dropdown > a { display: flex; align-items: center; gap: 5px; }
+.nav-dropdown i { font-size: 8px; }
+.dropdown-menu { position: absolute; top: 30px; left: -100px; width: 700px; background: white; padding: 30px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 30px; box-shadow: 0 15px 40px rgba(0, 0, 0, .1); opacity: 0; visibility: hidden; transform: translateY(10px); transition: .3s ease; }
+.nav-dropdown:hover .dropdown-menu { opacity: 1; visibility: visible; transform: translateY(0); }
+.dropdown-column { display: flex; flex-direction: column; gap: 10px; }
+.dropdown-column h4 { color: var(--green-dark); font-family: Georgia, serif; font-size: 14px; margin: 0 0 8px; }
+.dropdown-column a { color: #666; text-decoration: none; font-size: 11px; transition: .2s; }
+.dropdown-column a:hover { color: var(--green); transform: translateX(3px); }
+.navbar-actions { display: flex; align-items: center; gap: 18px; }
+.nav-icon { position: relative; background: none; border: none; color: var(--green-dark); font-size: 17px; text-decoration: none; cursor: pointer; padding: 0; }
+.nav-icon:hover { color: var(--gold); }
+.cart-count { position: absolute; top: -8px; right: -9px; width: 15px; height: 15px; border-radius: 50%; background: var(--green-dark); color: white; font-size: 8px; display: flex; align-items: center; justify-content: center; }
+.menu-toggle { display: none; border: none; background: transparent; color: var(--green-dark); font-size: 25px; }
+.footer { background: var(--green-dark); color: white; margin-top: 80px; }
+.footer-main { max-width: 1280px; margin: auto; padding: 70px 30px; display: grid; grid-template-columns: 1.5fr 1fr 1fr 1.2fr; gap: 60px; }
+.footer-logo { color: white; margin-bottom: 25px; }
+.footer-brand p { max-width: 280px; color: rgba(255, 255, 255, .7); font-size: 13px; line-height: 1.7; }
+.footer-social { display: flex; gap: 15px; margin-top: 25px; }
+.footer-social a { width: 35px; height: 35px; border: 1px solid rgba(255, 255, 255, .3); border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; text-decoration: none; transition: .3s; }
+.footer-social a:hover { background: white; color: var(--green-dark); }
+.footer-column { display: flex; flex-direction: column; gap: 13px; }
+.footer-column h3 { font-family: Georgia, serif; font-size: 17px; margin: 0 0 10px; }
+.footer-column a { color: rgba(255, 255, 255, .7); text-decoration: none; font-size: 12px; transition: .3s; }
+.footer-column a:hover { color: white; padding-left: 3px; }
+.footer-contact p { display: flex; align-items: center; gap: 10px; color: rgba(255, 255, 255, .7); font-size: 12px; }
+.footer-contact i { color: var(--gold); font-size: 15px; }
+.footer-newsletter { max-width: 1280px; margin: auto; padding: 35px 30px; border-top: 1px solid rgba(255, 255, 255, .15); border-bottom: 1px solid rgba(255, 255, 255, .15); display: flex; justify-content: space-between; align-items: center; gap: 40px; }
+.footer-newsletter span { color: var(--gold); font-size: 9px; letter-spacing: 2px; }
+.footer-newsletter h2 { font-family: Georgia, serif; font-size: 22px; font-weight: normal; margin-top: 8px; }
+.newsletter-form { display: flex; min-width: 400px; }
+.newsletter-form input { flex: 1; height: 45px; border: none; padding: 0 15px; outline: none; }
+.newsletter-form button { border: none; background: var(--gold); color: white; padding: 0 20px; cursor: pointer; display: flex; align-items: center; gap: 10px; }
+.footer-bottom { max-width: 1280px; margin: auto; padding: 20px 30px; display: flex; justify-content: space-between; align-items: center; color: rgba(255, 255, 255, .5); font-size: 10px; }
+.footer-bottom div { display: flex; gap: 20px; }
+.footer-bottom a { color: rgba(255, 255, 255, .5); text-decoration: none; }
+.footer-bottom a:hover { color: white; }
+
+@media (max-width: 900px) {
+  .navbar-menu { display: none; position: absolute; top: 70px; left: 0; width: 100%; background: white; padding: 25px; flex-direction: column; align-items: flex-start; gap: 20px; box-shadow: 0 10px 30px rgba(0, 0, 0, .08); }
+  .navbar-menu.active { display: flex; }
+  .menu-toggle { display: block; }
+  .dropdown-menu { position: static; width: 100%; display: none; box-shadow: none; padding: 20px; }
+  .nav-dropdown:hover .dropdown-menu { display: grid; }
+  .navbar-actions { margin-left: auto; margin-right: 20px; }
+  .footer-main { grid-template-columns: repeat(2, 1fr); }
+  .footer-newsletter { flex-direction: column; align-items: flex-start; }
+  .newsletter-form { width: 100%; min-width: auto; }
+}
+
+@media (max-width: 600px) {
+  .top-bar-content span:nth-child(n + 2) { display: none; }
+  .navbar-container { height: 60px; }
+  .navbar-menu { top: 60px; }
+  .navbar-actions { gap: 12px; }
+  .footer-main { grid-template-columns: 1fr; gap: 40px; }
+  .footer-bottom { flex-direction: column; gap: 15px; text-align: center; }
+  .footer-bottom div { flex-direction: column; gap: 8px; }
+}
