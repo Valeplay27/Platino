@@ -303,11 +303,12 @@ export default function Home() {
               Selecciona la forma de tu gema
             </h2>
 
-            <div className="gem-ring-preview">
+            <div className="gem-preview-box">
               <img
-                src={homeImages.ringRender?.image || "/images/gem-shapes/solitaire-ring.png"}
-                alt={`Sortija en platino con diamante corte ${selectedCut.name}`}
-                className="gem-ring-img"
+                key={selectedCut.id}
+                src={selectedCut.image}
+                alt={`Diamante corte ${selectedCut.name}`}
+                className="gem-main-preview-img"
               />
             </div>
 

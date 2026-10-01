@@ -35,7 +35,7 @@ function App() {
 
   return (
     <AuthProvider>
-      <BrowserRouter>
+      <BrowserRouter basename={import.meta.env.BASE_URL}>
         <Navbar cartCount={cart.reduce((total, item) => total + item.quantity, 0)} />
         <main>
           <Routes>
