@@ -1,4 +1,4 @@
-import { getAssetUrl } from "../utils/assetHelper";
+import { getAssetUrl, toCleanAssetPath } from "../utils/assetHelper";
 
 const STORAGE_KEY_HOME_IMAGES = "platino_home_images_v1";
 
@@ -254,10 +254,17 @@ export const getHomeImages = () => {
   return resolved;
 };
 
-// Guardar y notificar cambios
+// Guardar y notificar cambios (guardando siempre rutas relativas limpias para que no dependan del host)
 export const saveHomeImages = (data) => {
   try {
-    localStorage.setItem(STORAGE_KEY_HOME_IMAGES, JSON.stringify(data));
+    const toStore = {};
+    for (const [key, item] of Object.entries(data)) {
+      toStore[key] = {
+        ...item,
+        image: item?.image ? toCleanAssetPath(item.image) : item?.image,
+      };
+    }
+    localStorage.setItem(STORAGE_KEY_HOME_IMAGES, JSON.stringify(toStore));
     window.dispatchEvent(
       new CustomEvent("home_images_updated", { detail: { images: data } })
     );
