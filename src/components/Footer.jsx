@@ -135,32 +135,35 @@ const Footer = () => {
           {/* Social Links on the left */}
           <div className="footer-social-group">
             <a
-              href="https://tiktok.com"
+              href="https://www.tiktok.com/@platinoperu?_r=1&_t=ZS-9ABLUyhWnPG"
               target="_blank"
               rel="noreferrer"
               className="social-text-link"
+              title="TikTok Platino Perú"
             >
               TIKTOK
             </a>
             <a
-              href="https://instagram.com"
+              href="https://www.instagram.com/platinoperu?stkn=ajRldHlmOWhhMXdo"
               target="_blank"
               rel="noreferrer"
               className="social-icon-badge"
-              aria-label="Instagram"
+              aria-label="Instagram Platino Perú"
+              title="Instagram @platinoperu"
             >
               <i className="bi bi-instagram"></i>
             </a>
             <a
-              href="https://facebook.com"
+              href="https://www.facebook.com/share/1F3P6htAJB/?mibextid=wwXIfr"
               target="_blank"
               rel="noreferrer"
               className="social-icon-badge"
-              aria-label="Facebook"
+              aria-label="Facebook Platino Perú"
+              title="Facebook Platino Perú"
             >
               <i className="bi bi-facebook"></i>
             </a>
-            <span className="social-handle">PlatinoPeru</span>
+            <span className="social-handle">@platinoperu</span>
           </div>
 
           {/* Center Brand Logo */}

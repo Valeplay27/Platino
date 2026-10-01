@@ -1,3 +1,5 @@
+import { getAssetUrl } from "../utils/assetHelper";
+
 export const sedesData = [
   {
     id: "lima-centro",
@@ -13,7 +15,7 @@ export const sedesData = [
     whatsappDisplay: "927 357 217",
     hours: "Lunes a Sábado: 10:00 am - 7:00 pm",
     breakTime: "Refrigerio: 1:00 pm - 2:00 pm",
-    image: "/images/showroom.jpg",
+    image: getAssetUrl("/images/showroom.jpg"),
     services: [
       "Exhibición exclusiva de aros de boda y compromiso",
       "Asesoría personalizada con gemólogos certificados",
@@ -35,7 +37,7 @@ export const sedesData = [
     whatsappDisplay: "984281116",
     hours: "Lunes a Sábado: 10:00 am - 7:00 pm",
     breakTime: "Refrigerio: 1:00 pm - 2:00 pm",
-    image: "/images/hero-matrimonio.jpg",
+    image: getAssetUrl("/images/hero-matrimonio.jpg"),
     services: [
       "Atención nupcial privada y personalizada",
       "Muestrario completo de diamantes y piedras preciosas",

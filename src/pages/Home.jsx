@@ -3,17 +3,18 @@ import { Link } from "react-router-dom";
 import AsesoriaOnlineModal from "../components/AsesoriaOnlineModal";
 import { sedesData } from "../data/sedes";
 import { getHomeImages } from "../services/homeImagesService";
+import { getAssetUrl } from "../utils/assetHelper";
 import "../../styles/home.css";
 
 const GEM_SHAPES = [
-  { id: "oval", name: "Oval", image: "/images/gem-shapes/oval.png", desc: "Silueta alargada que estiliza la mano con brillo suave y elegante.", ratio: "1.35 - 1.50", popularCarat: "1.25 ct" },
-  { id: "redondo", name: "Round", image: "/images/gem-shapes/redondo.png", desc: "El corte clásico por excelencia, diseñado para maximizar el fuego y refracción.", ratio: "1.00", popularCarat: "1.00 ct" },
-  { id: "esmeralda", name: "Emerald", image: "/images/gem-shapes/esmeralda.png", desc: "Corte escalonado de gran claridad con reflejos tipo sala de espejos.", ratio: "1.30 - 1.45", popularCarat: "1.50 ct" },
-  { id: "marquesa", name: "Marquise", image: "/images/gem-shapes/marquesa.png", desc: "Silueta regia de puntas afiladas con máxima superficie visual por quilate.", ratio: "1.75 - 2.15", popularCarat: "1.05 ct" },
-  { id: "radiante", name: "Radiant", image: "/images/gem-shapes/radiante.png", desc: "Esquinas truncadas con patrón de facetas brillantes de destello vibrante.", ratio: "1.20 - 1.35", popularCarat: "1.20 ct" },
-  { id: "pera", name: "Pear", image: "/images/gem-shapes/pera.png", desc: "Lágrima luminosa que fusiona la suavidad del redondo con el corte marquesa.", ratio: "1.50 - 1.70", popularCarat: "1.20 ct" },
-  { id: "cojin", name: "Cushion", image: "/images/gem-shapes/cojin.png", desc: "Bordes redondeados de inspiración vintage con facetas profundas y luminosas.", ratio: "1.00 - 1.05", popularCarat: "1.30 ct" },
-  { id: "princesa", name: "Princess", image: "/images/gem-shapes/princesa.png", desc: "Corte cuadrado contemporáneo de líneas puras con destello geométrico.", ratio: "1.00 - 1.03", popularCarat: "1.10 ct" },
+  { id: "oval", name: "Oval", image: getAssetUrl("/images/gem-shapes/oval.png"), desc: "Silueta alargada que estiliza la mano con brillo suave y elegante.", ratio: "1.35 - 1.50", popularCarat: "1.25 ct" },
+  { id: "redondo", name: "Round", image: getAssetUrl("/images/gem-shapes/redondo.png"), desc: "El corte clásico por excelencia, diseñado para maximizar el fuego y refracción.", ratio: "1.00", popularCarat: "1.00 ct" },
+  { id: "esmeralda", name: "Emerald", image: getAssetUrl("/images/gem-shapes/esmeralda.png"), desc: "Corte escalonado de gran claridad con reflejos tipo sala de espejos.", ratio: "1.30 - 1.45", popularCarat: "1.50 ct" },
+  { id: "marquesa", name: "Marquise", image: getAssetUrl("/images/gem-shapes/marquesa.png"), desc: "Silueta regia de puntas afiladas con máxima superficie visual por quilate.", ratio: "1.75 - 2.15", popularCarat: "1.05 ct" },
+  { id: "radiante", name: "Radiant", image: getAssetUrl("/images/gem-shapes/radiante.png"), desc: "Esquinas truncadas con patrón de facetas brillantes de destello vibrante.", ratio: "1.20 - 1.35", popularCarat: "1.20 ct" },
+  { id: "pera", name: "Pear", image: getAssetUrl("/images/gem-shapes/pera.png"), desc: "Lágrima luminosa que fusiona la suavidad del redondo con el corte marquesa.", ratio: "1.50 - 1.70", popularCarat: "1.20 ct" },
+  { id: "cojin", name: "Cushion", image: getAssetUrl("/images/gem-shapes/cojin.png"), desc: "Bordes redondeados de inspiración vintage con facetas profundas y luminosas.", ratio: "1.00 - 1.05", popularCarat: "1.30 ct" },
+  { id: "princesa", name: "Princess", image: getAssetUrl("/images/gem-shapes/princesa.png"), desc: "Corte cuadrado contemporáneo de líneas puras con destello geométrico.", ratio: "1.00 - 1.03", popularCarat: "1.10 ct" },
 ];
 
 const TRUST_BADGES = [
@@ -48,12 +49,12 @@ export default function Home() {
   }, []);
 
   const categories = [
-    { name: homeImages.catCompromiso?.name || "ANILLO DE COMPROMISO", img: homeImages.catCompromiso?.image || "/images/cat-compromiso.jpg", path: "/categoria/anillos-compromiso" },
-    { name: homeImages.catBoda?.name || "AROS DE BODA", img: homeImages.catBoda?.image || "/images/cat-boda.jpg", path: "/categoria/aros-boda" },
-    { name: homeImages.catPromesa?.name || "ANILLO DE PROMESA", img: homeImages.catPromesa?.image || "/images/cat-promesa.jpg", path: "/categoria/anillos-promesa" },
-    { name: homeImages.catAlianzas?.name || "AROS DE ALIANZAS", img: homeImages.catAlianzas?.image || "/images/cat-alianzas.jpg", path: "/categoria/alianzas" },
-    { name: homeImages.catPulseras?.name || "PULSERAS", img: homeImages.catPulseras?.image || "/images/cat-pulseras.jpg", path: "/categoria/pulseras" },
-    { name: homeImages.catCollares?.name || "COLLARES", img: homeImages.catCollares?.image || "/images/cat-collares.jpg", path: "/categoria/collares" },
+    { name: homeImages.catCompromiso?.name || "ANILLO DE COMPROMISO", img: getAssetUrl(homeImages.catCompromiso?.image || "/images/cat-compromiso.jpg"), path: "/categoria/anillos-compromiso" },
+    { name: homeImages.catBoda?.name || "AROS DE BODA", img: getAssetUrl(homeImages.catBoda?.image || "/images/cat-boda.jpg"), path: "/categoria/aros-boda" },
+    { name: homeImages.catPromesa?.name || "ANILLO DE PROMESA", img: getAssetUrl(homeImages.catPromesa?.image || "/images/cat-promesa.jpg"), path: "/categoria/anillos-promesa" },
+    { name: homeImages.catAlianzas?.name || "AROS DE ALIANZAS", img: getAssetUrl(homeImages.catAlianzas?.image || "/images/cat-alianzas.jpg"), path: "/categoria/alianzas" },
+    { name: homeImages.catPulseras?.name || "PULSERAS", img: getAssetUrl(homeImages.catPulseras?.image || "/images/cat-pulseras.jpg"), path: "/categoria/pulseras" },
+    { name: homeImages.catCollares?.name || "COLLARES", img: getAssetUrl(homeImages.catCollares?.image || "/images/cat-collares.jpg"), path: "/categoria/collares" },
   ];
 
   // Cuadruplicamos las categorías para permitir un bucle infinito continuo sin fin
@@ -162,32 +163,32 @@ export default function Home() {
   const ringStyles = [
     {
       name: homeImages.styleNaturaleza?.name || "Anillos inspirados en la naturaleza",
-      img: homeImages.styleNaturaleza?.image || "/images/style-naturaleza.jpg",
+      img: getAssetUrl(homeImages.styleNaturaleza?.image || "/images/style-naturaleza.jpg"),
       path: "/categoria/anillos-naturaleza",
     },
     {
       name: homeImages.styleVintage?.name || "Anillos antiguos y vintage",
-      img: homeImages.styleVintage?.image || "/images/style-vintage.jpg",
+      img: getAssetUrl(homeImages.styleVintage?.image || "/images/style-vintage.jpg"),
       path: "/categoria/anillos-vintage",
     },
     {
       name: homeImages.styleTresPiedras?.name || "Anillos de tres piedras",
-      img: homeImages.styleTresPiedras?.image || "/images/style-tres-piedras.jpg",
+      img: getAssetUrl(homeImages.styleTresPiedras?.image || "/images/style-tres-piedras.jpg"),
       path: "/categoria/anillos-tres-piedras",
     },
     {
       name: homeImages.styleSolitarios?.name || "Anillos solitarios",
-      img: homeImages.styleSolitarios?.image || "/images/style-solitarios.jpg",
+      img: getAssetUrl(homeImages.styleSolitarios?.image || "/images/style-solitarios.jpg"),
       path: "/categoria/anillos-solitarios",
     },
     {
       name: homeImages.styleNupciales?.name || "Conjuntos nupciales",
-      img: homeImages.styleNupciales?.image || "/images/style-nupciales.jpg",
+      img: getAssetUrl(homeImages.styleNupciales?.image || "/images/style-nupciales.jpg"),
       path: "/categoria/conjuntos-nupciales",
     },
     {
       name: homeImages.styleBisel?.name || "Anillos de bisel",
-      img: homeImages.styleBisel?.image || "/images/style-bisel.jpg",
+      img: getAssetUrl(homeImages.styleBisel?.image || "/images/style-bisel.jpg"),
       path: "/categoria/anillos-bisel",
     },
   ];
@@ -199,7 +200,7 @@ export default function Home() {
         {/* Banner Izquierdo: Compromiso */}
         <Link to="/categoria/anillos-compromiso" className="hero-banner-card">
           <img
-            src={homeImages.heroCompromiso?.image || "/images/hero-compromiso.jpg"}
+            src={getAssetUrl(homeImages.heroCompromiso?.image || "/images/hero-compromiso.jpg")}
             alt="Anillos de Compromiso Platino Perú"
             className="hero-banner-bg"
             loading="eager"
@@ -214,7 +215,7 @@ export default function Home() {
         {/* Banner Derecho: Matrimonio */}
         <Link to="/categoria/aros-boda" className="hero-banner-card">
           <img
-            src={homeImages.heroMatrimonio?.image || "/images/hero-matrimonio.jpg"}
+            src={getAssetUrl(homeImages.heroMatrimonio?.image || "/images/hero-matrimonio.jpg")}
             alt="Aros de Matrimonio Platino Perú"
             className="hero-banner-bg"
             loading="eager"
@@ -384,7 +385,7 @@ export default function Home() {
           {/* Lado Izquierdo: The Fall Edit */}
           <div className="editorial-left">
             <img
-              src={homeImages.editorialFall?.image || "/images/editorial-fall.jpg"}
+              src={getAssetUrl(homeImages.editorialFall?.image || "/images/editorial-fall.jpg")}
               alt="The Fall Edit - Platino Perú"
               className="editorial-left-img"
               loading="lazy"
@@ -401,33 +402,16 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Lado Derecho: The New Classics con Mosaico */}
+          {/* Lado Derecho: The New Classics con piezas pegadas continuas */}
           <div className="editorial-right">
-            <div className="mosaic-grid">
-              <div className="mosaic-item">
-                <img src={homeImages.mosaic1?.image || "/images/mosaic-1.jpg"} alt={homeImages.mosaic1?.alt || "Diamond Tennis Necklace"} loading="lazy" />
-              </div>
-              <div className="mosaic-item">
-                <img src={homeImages.mosaic2?.image || "/images/mosaic-2.jpg"} alt={homeImages.mosaic2?.alt || "Emerald Solitaire Pendant"} loading="lazy" />
-              </div>
-              <div className="mosaic-item">
-                <img src={homeImages.mosaic3?.image || "/images/mosaic-3.jpg"} alt={homeImages.mosaic3?.alt || "Sapphire & Diamond Band"} loading="lazy" />
-              </div>
-              <div className="mosaic-item">
-                <img src={homeImages.mosaic4?.image || "/images/mosaic-4.jpg"} alt={homeImages.mosaic4?.alt || "Cocktail Gemstone Rings"} loading="lazy" />
-              </div>
-              <div className="mosaic-item">
-                <img src={homeImages.mosaic5?.image || "/images/mosaic-5.jpg"} alt={homeImages.mosaic5?.alt || "Ruby Eternity Band"} loading="lazy" />
-              </div>
-              <div className="mosaic-item">
-                <img src={homeImages.mosaic6?.image || "/images/mosaic-6.jpg"} alt={homeImages.mosaic6?.alt || "Bridal Diamond Collection"} loading="lazy" />
-              </div>
-            </div>
-
-            {/* Script Elegante Superpuesto */}
-            <div className="mosaic-script-overlay">
-              <span className="script-text">The New Classics</span>
-            </div>
+            <Link to="/categoria/joyeria" className="classics-banner-link" title="Ver colección The New Classics">
+              <img
+                src={getAssetUrl(homeImages.editorialClassics?.image || "/images/the-new-classics.jpg")}
+                alt="The New Classics - Platino Perú"
+                className="classics-seamless-img"
+                loading="lazy"
+              />
+            </Link>
           </div>
         </div>
       </section>
@@ -438,7 +422,7 @@ export default function Home() {
           {/* Izquierda: Imagen del Showroom */}
           <div className="showroom-image-box">
             <img
-              src={homeImages.showroom?.image || "/images/showroom.jpg"}
+              src={getAssetUrl(homeImages.showroom?.image || "/images/showroom.jpg")}
               alt="Boutique y Showroom Platino Perú"
               className="showroom-img"
               loading="lazy"

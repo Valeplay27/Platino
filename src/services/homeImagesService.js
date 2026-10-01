@@ -1,3 +1,5 @@
+import { getAssetUrl } from "../utils/assetHelper";
+
 const STORAGE_KEY_HOME_IMAGES = "platino_home_images_v1";
 
 export const DEFAULT_HOME_IMAGES = {
@@ -32,6 +34,14 @@ export const DEFAULT_HOME_IMAGES = {
     image: "/images/editorial-fall.jpg",
     title: "The Fall Edit",
     subtitle: "Some designs never go out of style. Discover new classics for the season ahead.",
+    link: "/categoria/joyeria",
+  },
+  editorialClassics: {
+    id: "editorialClassics",
+    label: "Editorial: The New Classics",
+    section: "Secciones Editoriales",
+    description: "Imagen de la colección The New Classics con piezas pegadas continuas.",
+    image: "/images/the-new-classics.jpg",
     link: "/categoria/joyeria",
   },
   showroom: {
@@ -196,18 +206,27 @@ export const DEFAULT_HOME_IMAGES = {
 
 // Obtener la configuración actual de imágenes del Inicio
 export const getHomeImages = () => {
+  let data = { ...DEFAULT_HOME_IMAGES };
   try {
     const stored = localStorage.getItem(STORAGE_KEY_HOME_IMAGES);
     if (stored) {
       const parsed = JSON.parse(stored);
       // Combinar con los valores por defecto en caso de llaves nuevas
-      return { ...DEFAULT_HOME_IMAGES, ...parsed };
+      data = { ...DEFAULT_HOME_IMAGES, ...parsed };
     }
-    return { ...DEFAULT_HOME_IMAGES };
   } catch (error) {
     console.error("Error loading home images from localStorage", error);
-    return { ...DEFAULT_HOME_IMAGES };
   }
+
+  // Resolver rutas relativas para soportar GitHub Pages (BASE_URL)
+  const resolved = {};
+  for (const [key, item] of Object.entries(data)) {
+    resolved[key] = {
+      ...item,
+      image: item?.image ? getAssetUrl(item.image) : item?.image,
+    };
+  }
+  return resolved;
 };
 
 // Guardar y notificar cambios

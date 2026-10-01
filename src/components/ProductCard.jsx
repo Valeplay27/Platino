@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { formatPrice } from "../data/products";
+import { getAssetUrl } from "../utils/assetHelper";
 
 function ProductCard({ product }) {
   const [isFav, setIsFav] = useState(false);
@@ -10,7 +11,7 @@ function ProductCard({ product }) {
       <div className="card-image-wrapper">
         <Link to={`/producto/${product.id}`} aria-label={`Ver ${product.name}`}>
           <img
-            src={product.image}
+            src={getAssetUrl(product.image)}
             alt={product.name}
             className="card-img"
             loading="lazy"

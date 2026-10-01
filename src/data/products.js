@@ -1,3 +1,5 @@
+import { getAssetUrl } from "../utils/assetHelper";
+
 export const METALS = [
   { id: "plata-925", name: "Plata 925", color: "#e4e7e7", border: "#cfd3d3" },
   { id: "plata-950", name: "Plata 950", color: "#f2f4f4", border: "#d5dada" },
@@ -27,7 +29,7 @@ export const GEM_SHAPES_PRODUCT = [
   { id: "princesa", name: "Princesa", icon: "bi bi-bounding-box" },
 ];
 
-export const CATEGORY_INFO = {
+const RAW_CATEGORY_INFO = {
   "todas": {
     title: "Catálogo Completo de Joyas",
     eyebrow: "Alta Joyería Platino Perú",
@@ -120,7 +122,14 @@ export const CATEGORY_INFO = {
   }
 };
 
-export const products = [
+export const CATEGORY_INFO = Object.fromEntries(
+  Object.entries(RAW_CATEGORY_INFO).map(([k, v]) => [
+    k,
+    { ...v, banner: getAssetUrl(v.banner) }
+  ])
+);
+
+const RAW_PRODUCTS = [
   // 1. COLLAR CRISTAL (Screenshot 1: Accesorios)
   {
     id: "collar-cristal",
@@ -382,6 +391,12 @@ export const products = [
     hasDoubleSizes: true
   }
 ];
+
+export const products = RAW_PRODUCTS.map((p) => ({
+  ...p,
+  image: getAssetUrl(p.image),
+  gallery: (p.gallery || []).map((img) => getAssetUrl(img)),
+}));
 
 export const formatPrice = (price) => `S/. ${price.toLocaleString("es-PE")}`;
 

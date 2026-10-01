@@ -7,6 +7,7 @@ import {
   FAQS,
 } from "../data/products";
 import { getProductById, getCatalogProducts } from "../services/catalogService";
+import { getAssetUrl } from "../utils/assetHelper";
 import "../../styles/product.css";
 
 export default function Product({ addToCart }) {
@@ -474,7 +475,7 @@ export default function Product({ addToCart }) {
           <div className="presentacion-card-inner">
             <div className="presentacion-img-box">
               <img
-                src="/images/box-presentation.jpg"
+                src={getAssetUrl("/images/box-presentation.jpg")}
                 alt="Estuche y Presentación de Lujo Platino Perú"
                 className="presentacion-img"
               />
@@ -519,7 +520,7 @@ export default function Product({ addToCart }) {
           <div className="platino-care-card">
             <div className="platino-care-img-box">
               <img
-                src="/images/platino-care-emerald.jpg"
+                src={getAssetUrl("/images/platino-care-emerald.jpg")}
                 alt="Platino Care Joyería Fina"
                 className="platino-care-img"
               />
