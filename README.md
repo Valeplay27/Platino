@@ -1,4 +1,4 @@
-# Aurelia E-commerce
+# Platino E-commerce
 
 Primera fase de una tienda online de joyería construida con React y Vite.
 

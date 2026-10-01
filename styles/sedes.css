@@ -1,0 +1,407 @@
+/* Platino Perú - Sedes Boutique Page Styling */
+
+.sedes-page {
+  background-color: #faf9f6;
+  min-height: 80vh;
+  color: var(--platino-text-dark);
+  font-family: var(--font-sans);
+  padding-bottom: 90px;
+}
+
+/* Header Banner */
+.sedes-hero {
+  background: linear-gradient(135deg, #0e2920 0%, #153a2e 100%);
+  color: #ffffff;
+  padding: 65px 24px;
+  text-align: center;
+  position: relative;
+}
+
+.sedes-hero-container {
+  max-width: 860px;
+  margin: 0 auto;
+}
+
+.sedes-eyebrow {
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--platino-gold);
+  margin-bottom: 12px;
+}
+
+.sedes-hero-title {
+  font-family: var(--font-serif);
+  font-size: clamp(34px, 4vw, 50px);
+  font-weight: 500;
+  margin: 0 0 14px 0;
+  letter-spacing: 0.03em;
+}
+
+.sedes-hero-subtitle {
+  font-size: 14px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0 auto;
+  max-width: 620px;
+}
+
+/* Sedes Container */
+.sedes-main-container {
+  max-width: 1280px;
+  margin: -30px auto 0;
+  padding: 0 24px;
+  position: relative;
+  z-index: 10;
+}
+
+/* Grid of 2 Sedes */
+.sedes-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+}
+
+.sede-card {
+  background: #ffffff;
+  border-radius: 4px;
+  border: 1px solid var(--platino-border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.sede-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.08);
+}
+
+.sede-card-img-box {
+  position: relative;
+  width: 100%;
+  height: 240px;
+  overflow: hidden;
+  background: #11281f;
+}
+
+.sede-card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+
+.sede-card:hover .sede-card-img {
+  transform: scale(1.05);
+}
+
+.sede-badge {
+  position: absolute;
+  top: 16px;
+  left: 16px;
+  background: rgba(14, 41, 32, 0.88);
+  backdrop-filter: blur(6px);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 6px 12px;
+  border-radius: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.sede-card-body {
+  padding: 30px;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+
+.sede-header-row {
+  margin-bottom: 20px;
+  border-bottom: 1px solid #f0eee9;
+  padding-bottom: 16px;
+}
+
+.sede-title {
+  font-family: var(--font-serif);
+  font-size: 27px;
+  font-weight: 600;
+  color: var(--platino-green-dark);
+  margin: 0 0 4px 0;
+}
+
+.sede-subtitle {
+  font-size: 12px;
+  color: #727c76;
+  font-weight: 500;
+  margin: 0;
+}
+
+.sede-info-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+
+.sede-info-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  font-size: 13px;
+  color: #3f4742;
+  line-height: 1.5;
+}
+
+.sede-info-item i {
+  color: var(--platino-gold);
+  font-size: 17px;
+  margin-top: 1px;
+  flex-shrink: 0;
+}
+
+.sede-info-item strong {
+  color: #1a221e;
+  font-weight: 600;
+}
+
+.sede-services-box {
+  background: #fbfaf7;
+  border-left: 3px solid var(--platino-gold);
+  padding: 14px 16px;
+  margin-bottom: 26px;
+  border-radius: 0 4px 4px 0;
+}
+
+.sede-services-title {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--platino-green-dark);
+  margin: 0 0 8px 0;
+}
+
+.sede-services-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+}
+
+.sede-services-list li {
+  font-size: 12px;
+  color: #555f59;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.sede-services-list li::before {
+  content: "•";
+  color: var(--platino-gold);
+  font-size: 14px;
+}
+
+.sede-actions {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.btn-maps-primary {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background-color: var(--platino-green-dark);
+  color: #ffffff;
+  padding: 13px 20px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border-radius: 2px;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 12px rgba(10, 39, 31, 0.2);
+}
+
+.btn-maps-primary:hover {
+  background-color: #184235;
+  transform: translateY(-2px);
+  color: #ffffff;
+}
+
+.btn-maps-primary i {
+  font-size: 15px;
+  color: var(--platino-gold-light);
+}
+
+.sede-secondary-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.btn-whatsapp-outline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #25d366;
+  color: #166e37;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+.btn-whatsapp-outline:hover {
+  background-color: #25d366;
+  color: #ffffff;
+}
+
+.btn-cita-outline {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #233129;
+  color: #233129;
+  padding: 10px 14px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  border-radius: 2px;
+  transition: all 0.2s ease;
+}
+
+.btn-cita-outline:hover {
+  background-color: #233129;
+  color: #ffffff;
+}
+
+/* Map Preview Card */
+.map-preview-section {
+  max-width: 1280px;
+  margin: 55px auto 0;
+  padding: 0 24px;
+}
+
+.map-card-container {
+  background: white;
+  border: 1px solid var(--platino-border);
+  border-radius: 4px;
+  overflow: hidden;
+  padding: 24px;
+}
+
+.map-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 18px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.map-card-title {
+  font-family: var(--font-serif);
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--platino-green-dark);
+  margin: 0;
+}
+
+.sede-tab-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.sede-tab-btn {
+  background: #f4f3ee;
+  border: 1px solid #e2ded5;
+  color: #4b5550;
+  padding: 8px 18px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.sede-tab-btn.active {
+  background: var(--platino-green-dark);
+  color: #ffffff;
+  border-color: var(--platino-green-dark);
+}
+
+.interactive-map-frame {
+  width: 100%;
+  height: 380px;
+  border: 0;
+  border-radius: 3px;
+  background: #e5e3df;
+}
+
+/* Appointment CTA Bottom */
+.sedes-appointment-cta {
+  background: #ffffff;
+  border-top: 1px solid var(--platino-border);
+  margin-top: 70px;
+  padding: 55px 24px;
+  text-align: center;
+}
+
+.sedes-appointment-container {
+  max-width: 650px;
+  margin: 0 auto;
+}
+
+.sedes-cta-title {
+  font-family: var(--font-serif);
+  font-size: 30px;
+  font-weight: 600;
+  color: var(--platino-green-dark);
+  margin: 0 0 10px 0;
+}
+
+.sedes-cta-desc {
+  font-size: 13.5px;
+  color: #616c66;
+  line-height: 1.6;
+  margin: 0 0 24px 0;
+}
+
+.sedes-cta-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 900px) {
+  .sedes-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .interactive-map-frame {
+    height: 300px;
+  }
+}

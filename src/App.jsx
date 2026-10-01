@@ -8,6 +8,12 @@ import Category from './pages/Category'
 import Product from './pages/Product'
 import Cart from './pages/Cart'
 import Checkout from './pages/Checkout'
+import Sedes from './pages/Sedes'
+import AgendarCita from './pages/AgendarCita'
+import AdminCitas from './pages/AdminCitas'
+import GemstonesCatalog from './pages/GemstonesCatalog'
+import { AuthProvider } from './context/AuthContext'
+import AuthModal from './components/AuthModal'
 import './App.css'
 
 function App() {
@@ -28,20 +34,28 @@ function App() {
   }
 
   return (
-    <BrowserRouter>
-      <Navbar cartCount={cart.reduce((total, item) => total + item.quantity, 0)} />
-      <main>
-        <Routes>
-          <Route path="/" element={<Home addToCart={addToCart} />} />
-          <Route path="/catalogo" element={<Catalog addToCart={addToCart} />} />
-          <Route path="/categoria/:category" element={<Category addToCart={addToCart} />} />
-          <Route path="/producto/:productId" element={<Product addToCart={addToCart} />} />
-          <Route path="/carrito" element={<Cart cart={cart} updateQuantity={updateQuantity} />} />
-          <Route path="/checkout" element={<Checkout cart={cart} />} />
-        </Routes>
-      </main>
-      <Footer />
-    </BrowserRouter>
+    <AuthProvider>
+      <BrowserRouter>
+        <Navbar cartCount={cart.reduce((total, item) => total + item.quantity, 0)} />
+        <main>
+          <Routes>
+            <Route path="/" element={<Home addToCart={addToCart} />} />
+            <Route path="/catalogo" element={<Catalog addToCart={addToCart} />} />
+            <Route path="/categoria/:category" element={<Category addToCart={addToCart} />} />
+            <Route path="/producto/:productId" element={<Product addToCart={addToCart} />} />
+            <Route path="/carrito" element={<Cart cart={cart} updateQuantity={updateQuantity} />} />
+            <Route path="/checkout" element={<Checkout cart={cart} />} />
+            <Route path="/sedes" element={<Sedes />} />
+            <Route path="/agendar-cita" element={<AgendarCita />} />
+            <Route path="/catalogo-gemas" element={<GemstonesCatalog />} />
+            <Route path="/gemas" element={<GemstonesCatalog />} />
+            <Route path="/admin/citas" element={<AdminCitas />} />
+          </Routes>
+        </main>
+        <Footer />
+        <AuthModal />
+      </BrowserRouter>
+    </AuthProvider>
   )
 }
 

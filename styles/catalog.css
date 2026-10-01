@@ -1,0 +1,258 @@
+/* Platino Perú - Dynamic Category Catalog Styles */
+
+.catalog-page {
+  background-color: #faf9f6;
+  min-height: 85vh;
+  padding-bottom: 90px;
+  font-family: var(--font-sans);
+  color: var(--platino-text-dark);
+}
+
+/* Category Hero Banner */
+.catalog-hero-banner {
+  background: linear-gradient(135deg, #0e2920 0%, #15392d 100%);
+  color: white;
+  padding: 60px 24px;
+  text-align: center;
+  position: relative;
+  overflow: hidden;
+}
+
+.catalog-hero-content {
+  max-width: 800px;
+  margin: 0 auto;
+  position: relative;
+  z-index: 2;
+}
+
+.catalog-eyebrow {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--platino-gold);
+  margin-bottom: 12px;
+}
+
+.catalog-title {
+  font-family: var(--font-serif);
+  font-size: clamp(34px, 4vw, 52px);
+  font-weight: 500;
+  margin: 0 0 14px 0;
+  letter-spacing: 0.03em;
+}
+
+.catalog-desc {
+  font-size: 13.5px;
+  line-height: 1.7;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0 auto;
+}
+
+/* Toolbar & Filter Bar */
+.catalog-container {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 30px 28px 0;
+}
+
+.catalog-filter-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e8e4db;
+  padding-bottom: 20px;
+  margin-bottom: 35px;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.catalog-count-text {
+  font-size: 13px;
+  color: #657069;
+}
+
+.catalog-filter-group {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.catalog-filter-select {
+  border: 1px solid var(--platino-border);
+  background: white;
+  padding: 8px 14px;
+  border-radius: 2px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  color: #2b332e;
+  outline: none;
+  cursor: pointer;
+}
+
+/* Product Grid */
+.catalog-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 28px;
+}
+
+/* Luxury Product Card */
+.platino-product-card {
+  background: white;
+  border: 1px solid #ebe7df;
+  border-radius: 2px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  position: relative;
+  text-decoration: none;
+}
+
+.platino-product-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
+}
+
+.card-image-wrapper {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1 / 1.05;
+  background: #f7f6f2;
+  overflow: hidden;
+}
+
+.card-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+
+.platino-product-card:hover .card-img {
+  transform: scale(1.06);
+}
+
+.card-badge-pill {
+  position: absolute;
+  top: 14px;
+  left: 14px;
+  background: rgba(14, 41, 32, 0.88);
+  color: white;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 2px;
+  backdrop-filter: blur(4px);
+}
+
+.card-wishlist-btn {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  color: #3b4640;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.card-wishlist-btn:hover {
+  color: #b9423c;
+  background: white;
+  transform: scale(1.1);
+}
+
+.card-wishlist-btn.active {
+  color: #b9423c;
+}
+
+.card-info {
+  padding: 22px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+
+.card-subtitle {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #838e88;
+  margin: 0;
+}
+
+.card-title {
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--platino-green-dark);
+  margin: 0;
+  line-height: 1.25;
+}
+
+.card-price {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 700;
+  color: #1a221e;
+  margin-top: 4px;
+}
+
+.card-action-btn {
+  margin-top: auto;
+  padding-top: 14px;
+  border-top: 1px solid #f1eee6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--platino-green-dark);
+}
+
+.card-action-btn i {
+  font-size: 13px;
+  color: var(--platino-gold);
+  transition: transform 0.2s;
+}
+
+.platino-product-card:hover .card-action-btn i {
+  transform: translateX(4px);
+}
+
+/* Empty State */
+.catalog-empty-state {
+  text-align: center;
+  padding: 60px 20px;
+  color: #657069;
+}
+
+@media (max-width: 992px) {
+  .catalog-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 576px) {
+  .catalog-grid {
+    grid-template-columns: 1fr;
+  }
+}

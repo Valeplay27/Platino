@@ -1,0 +1,1013 @@
+/* Platino Perú - Luxury Home Page Styling */
+
+.home-page {
+  background-color: #ffffff;
+  color: var(--platino-text-dark);
+  font-family: var(--font-sans);
+  overflow-x: hidden;
+}
+
+/* ========================================================
+   1. HERO SPLIT SECTION (Compromiso & Matrimonio)
+   ======================================================== */
+.hero-split-section {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  min-height: 520px;
+  background-color: #0b1a14;
+}
+
+.hero-banner-card {
+  position: relative;
+  height: 520px;
+  overflow: hidden;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 60px;
+  text-decoration: none;
+}
+
+.hero-banner-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center;
+  transition: transform 0.7s cubic-bezier(0.25, 1, 0.5, 1);
+  filter: brightness(0.92);
+}
+
+.hero-banner-card:hover .hero-banner-bg {
+  transform: scale(1.04);
+}
+
+.hero-banner-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0.05) 0%,
+    rgba(0, 0, 0, 0.15) 50%,
+    rgba(0, 0, 0, 0.55) 100%
+  );
+  pointer-events: none;
+}
+
+.hero-banner-content {
+  position: relative;
+  z-index: 2;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.hero-banner-title {
+  font-family: var(--font-serif);
+  font-size: clamp(38px, 4vw, 54px);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  margin: 0;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.45);
+}
+
+.hero-banner-btn {
+  display: inline-block;
+  background-color: #ffffff;
+  color: #1a2720;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 12px 28px;
+  border-radius: 2px;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  border: 1px solid transparent;
+}
+
+.hero-banner-card:hover .hero-banner-btn {
+  background-color: var(--platino-green-dark);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.4);
+  transform: translateY(-2px);
+}
+
+/* ========================================================
+   2. CATEGORIES SECTION (Comprar joyas por categoría)
+   ======================================================== */
+.categories-section {
+  padding: 65px 0 55px;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding-left: 28px;
+  padding-right: 28px;
+}
+
+.section-header-left {
+  margin-bottom: 28px;
+}
+
+.section-title {
+  font-family: var(--font-serif);
+  font-size: clamp(26px, 2.5vw, 34px);
+  font-weight: 500;
+  color: #1c2721;
+  margin: 0 0 6px 0;
+  letter-spacing: 0.02em;
+}
+
+.section-subtitle {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  color: #647069;
+  margin: 0;
+  font-weight: 400;
+}
+
+.categories-carousel-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+  overflow: hidden;
+  padding: 10px 0 16px 0;
+}
+
+.categories-carousel-wrapper::before,
+.categories-carousel-wrapper::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 45px;
+  z-index: 5;
+  pointer-events: none;
+}
+
+.categories-carousel-wrapper::before {
+  left: 0;
+  background: linear-gradient(to right, rgba(255, 255, 255, 0.95), transparent);
+}
+
+.categories-carousel-wrapper::after {
+  right: 0;
+  background: linear-gradient(to left, rgba(255, 255, 255, 0.95), transparent);
+}
+
+.categories-track {
+  display: flex;
+  gap: 20px;
+  width: max-content;
+  will-change: transform;
+  cursor: grab;
+  user-select: none;
+}
+
+.categories-track.is-dragging {
+  cursor: grabbing;
+}
+
+.category-card {
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 215px;
+  flex-shrink: 0;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.category-card img {
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-drag: none;
+}
+
+.category-img-box {
+  width: 100%;
+  aspect-ratio: 1 / 1.05;
+  overflow: hidden;
+  background-color: #f5f4ef;
+  position: relative;
+  border-radius: 4px;
+}
+
+.category-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+
+.category-card:hover .category-img {
+  transform: scale(1.06);
+}
+
+.category-name {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: #28322c;
+  text-align: center;
+  text-transform: uppercase;
+  transition: color 0.2s;
+  line-height: 1.4;
+}
+
+.category-card:hover .category-name {
+  color: var(--platino-green-dark);
+}
+
+.carousel-prev-arrow,
+.carousel-next-arrow {
+  position: absolute;
+  top: calc(50% - 24px);
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid var(--platino-border);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.14);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 10;
+  color: #1e2e26;
+  font-size: 16px;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(6px);
+}
+
+.carousel-prev-arrow {
+  left: 12px;
+}
+
+.carousel-next-arrow {
+  right: 12px;
+}
+
+.carousel-prev-arrow:hover,
+.carousel-next-arrow:hover {
+  background-color: var(--platino-green-dark);
+  color: white;
+  transform: scale(1.08);
+}
+
+/* ========================================================
+   3. GEM SHAPE SELECTOR (Selecciona la forma de tu gema)
+   ======================================================== */
+.gem-selector-section {
+  padding: 60px 28px;
+  max-width: 1280px;
+  margin: 0 auto;
+  border-top: 1px solid #f0ede8;
+}
+
+.gem-selector-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.35fr;
+  gap: 50px;
+  align-items: center;
+}
+
+.gem-preview-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.gem-section-heading {
+  font-family: var(--font-serif);
+  font-size: clamp(28px, 2.7vw, 38px);
+  font-weight: 500;
+  line-height: 1.15;
+  color: #1a251f;
+  margin: 0 0 24px;
+  max-width: 320px;
+}
+
+.gem-ring-preview {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  aspect-ratio: 1 / 0.85;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.gem-ring-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 15px 25px rgba(0, 0, 0, 0.1));
+  transition: transform 0.4s ease;
+}
+
+.gem-active-badge {
+  margin-top: 14px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--platino-green-dark);
+  background: #eef6f1;
+  padding: 5px 14px;
+  border-radius: 20px;
+  border: 1px solid #d4e6db;
+}
+
+.gem-view-toggle {
+  display: flex;
+  background: #ede8de;
+  padding: 4px;
+  border-radius: 24px;
+  gap: 4px;
+  margin-bottom: 18px;
+}
+
+.gem-toggle-btn {
+  border: none;
+  background: transparent;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #4a5c52;
+  border-radius: 20px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.gem-toggle-btn.active {
+  background: white;
+  color: var(--platino-green-dark);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+}
+
+.gem-stone-card-preview {
+  width: 100%;
+  max-width: 360px;
+  background: radial-gradient(circle at center, #ffffff 30%, #f4f3ed 100%);
+  border: 1px solid #e5e0d4;
+  border-radius: 12px;
+  padding: 24px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.04);
+}
+
+.gem-stone-desc {
+  font-size: 12.5px;
+  color: #55665e;
+  line-height: 1.45;
+  margin: 12px 0 8px;
+  text-align: center;
+}
+
+.gem-stone-specs-mini {
+  display: flex;
+  gap: 12px;
+  font-size: 11.5px;
+  color: #64756c;
+  background: #fdfdfc;
+  padding: 6px 12px;
+  border-radius: 20px;
+  border: 1px solid #eae5db;
+}
+
+.gem-stone-specs-mini span strong {
+  color: #13241b;
+}
+
+.btn-go-gemstones-catalog {
+  margin-top: 14px;
+  width: 100%;
+  max-width: 360px;
+  background: var(--platino-green-dark);
+  color: white;
+  text-decoration: none;
+  padding: 13px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  letter-spacing: 0.04em;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 12px rgba(10, 39, 31, 0.15);
+}
+
+.btn-go-gemstones-catalog:hover {
+  background: var(--platino-green);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 18px rgba(10, 39, 31, 0.25);
+  color: white;
+}
+
+.gem-grid-col {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 20px 16px;
+}
+
+.gem-cut-btn {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 16px 8px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  color: #434e47;
+}
+
+.gem-cut-btn:hover {
+  background-color: #faf9f6;
+  border-color: #e5e2db;
+  color: var(--platino-green-dark);
+  transform: translateY(-2px);
+}
+
+.gem-cut-btn.active {
+  background-color: #ffffff;
+  border-color: var(--platino-gold);
+  box-shadow: 0 6px 20px rgba(197, 160, 89, 0.18);
+  color: var(--platino-green-dark);
+}
+
+.gem-icon-container {
+  width: 58px;
+  height: 58px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #2b3530;
+  transition: transform 0.3s ease;
+}
+
+.gem-cut-btn:hover .gem-icon-container {
+  transform: scale(1.1);
+  color: var(--platino-gold);
+}
+
+.gem-cut-btn.active .gem-icon-container {
+  color: var(--platino-green-dark);
+}
+
+.gem-cut-label {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+/* ========================================================
+   4. RING STYLES (Anillos dignos de obsesión)
+   ======================================================== */
+.ring-styles-section {
+  padding: 60px 28px 70px;
+  max-width: 1360px;
+  margin: 0 auto;
+}
+
+.ring-styles-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 16px;
+  margin-top: 28px;
+}
+
+.ring-style-card {
+  text-decoration: none;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.ring-style-img-wrapper {
+  width: 100%;
+  aspect-ratio: 1 / 1.15;
+  overflow: hidden;
+  background-color: #f7f6f2;
+}
+
+.ring-style-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+}
+
+.ring-style-card:hover .ring-style-img {
+  transform: scale(1.06);
+}
+
+.ring-style-title {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.4;
+  color: #37433c;
+  transition: color 0.2s ease;
+}
+
+.ring-style-card:hover .ring-style-title {
+  color: var(--platino-green-dark);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+/* ========================================================
+   5. EDITORIAL SECTION (The Fall Edit & The New Classics)
+   ======================================================== */
+.editorial-section {
+  background-color: #123026;
+  color: #ffffff;
+  width: 100%;
+  overflow: hidden;
+}
+
+.editorial-layout {
+  display: grid;
+  grid-template-columns: 1fr 1.15fr;
+  min-height: 560px;
+  max-width: 1440px;
+  margin: 0 auto;
+}
+
+/* Editorial Left */
+.editorial-left {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  padding: 50px 45px;
+  min-height: 480px;
+}
+
+.editorial-left-img {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 25%;
+  filter: brightness(0.9);
+}
+
+.editorial-left-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(18, 48, 38, 0.1) 0%,
+    rgba(18, 48, 38, 0.4) 40%,
+    rgba(18, 48, 38, 0.92) 100%
+  );
+}
+
+.editorial-left-content {
+  position: relative;
+  z-index: 2;
+  max-width: 420px;
+}
+
+.editorial-title {
+  font-family: var(--font-serif);
+  font-size: clamp(34px, 3.2vw, 46px);
+  font-weight: 400;
+  color: #ffffff;
+  margin: 0 0 12px 0;
+  letter-spacing: 0.02em;
+}
+
+.editorial-text {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 300;
+  line-height: 1.6;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0 0 24px 0;
+}
+
+.editorial-btn {
+  display: inline-block;
+  background-color: #163e31;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  padding: 12px 26px;
+  text-decoration: none;
+  transition: all 0.3s ease;
+}
+
+.editorial-btn:hover {
+  background-color: #ffffff;
+  color: #123026;
+  border-color: #ffffff;
+}
+
+/* Editorial Right - The New Classics Mosaic */
+.editorial-right {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  background-color: #123026;
+}
+
+.mosaic-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 12px;
+  width: 100%;
+  height: 100%;
+}
+
+.mosaic-item {
+  position: relative;
+  overflow: hidden;
+  aspect-ratio: 1;
+  background-color: #0c231b;
+}
+
+.mosaic-item img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.6s ease;
+  filter: brightness(0.95);
+}
+
+.mosaic-item:hover img {
+  transform: scale(1.08);
+}
+
+.mosaic-script-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.script-text {
+  font-family: var(--font-serif);
+  font-style: italic;
+  font-size: clamp(40px, 4.5vw, 65px);
+  font-weight: 400;
+  color: #ffffff;
+  text-shadow: 0 3px 20px rgba(0, 0, 0, 0.7);
+  letter-spacing: 0.03em;
+  transform: rotate(-3deg);
+}
+
+/* ========================================================
+   6. SHOWROOM & APPOINTMENT SECTION
+   ======================================================== */
+.showroom-section {
+  padding: 80px 28px;
+  max-width: 1320px;
+  margin: 0 auto;
+}
+
+.showroom-layout {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr;
+  gap: 60px;
+  align-items: center;
+}
+
+.showroom-image-box {
+  width: 100%;
+  aspect-ratio: 16 / 11;
+  overflow: hidden;
+  border-radius: 2px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.08);
+}
+
+.showroom-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.showroom-info {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.showroom-heading {
+  font-family: var(--font-serif);
+  font-size: clamp(30px, 2.8vw, 42px);
+  font-weight: 600;
+  color: #17241e;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.showroom-desc {
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  color: #5c6861;
+  line-height: 1.7;
+  margin: 0;
+}
+
+.showroom-sedes-preview {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 2px;
+}
+
+.showroom-sede-card {
+  background: #fbfaf7;
+  border: 1px solid #eae6dc;
+  border-radius: 4px;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  transition: all 0.25s ease;
+  text-decoration: none;
+}
+
+.showroom-sede-card:hover {
+  background: #ffffff;
+  border-color: var(--platino-gold);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.06);
+  transform: translateY(-2px);
+}
+
+.showroom-sede-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--platino-green-dark);
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.showroom-sede-tag i {
+  color: var(--platino-gold);
+  font-size: 12px;
+}
+
+.showroom-sede-address {
+  font-size: 11.5px;
+  color: #555f59;
+  line-height: 1.4;
+  margin: 0;
+}
+
+.showroom-sede-link {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--platino-green);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.showroom-sede-card:hover .showroom-sede-link {
+  color: var(--platino-gold);
+}
+
+.showroom-buttons-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.showroom-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px 18px;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border-radius: 2px;
+  transition: all 0.25s ease;
+  cursor: pointer;
+  text-align: center;
+}
+
+.showroom-btn.outline {
+  background: transparent;
+  color: #17241e;
+  border: 1px solid #17241e;
+}
+
+.showroom-btn.outline:hover {
+  background-color: #17241e;
+  color: #ffffff;
+}
+
+.showroom-btn.filled {
+  background-color: #133328;
+  color: #ffffff;
+  border: 1px solid #133328;
+}
+
+.showroom-btn.filled:hover {
+  background-color: #0b221a;
+  border-color: #0b221a;
+  box-shadow: 0 4px 14px rgba(19, 51, 40, 0.3);
+}
+
+/* ========================================================
+   7. RESPALDO PLATINO (Value Proposition Trust Bar)
+   ======================================================== */
+.respaldo-section {
+  background-color: #113127;
+  color: #ffffff;
+  padding: 55px 28px;
+}
+
+.respaldo-container {
+  max-width: 1360px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.respaldo-heading {
+  font-family: var(--font-serif);
+  font-size: clamp(26px, 2.5vw, 34px);
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  color: #ffffff;
+  margin: 0 0 40px 0;
+}
+
+.respaldo-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 24px;
+}
+
+.respaldo-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+.respaldo-icon-circle {
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  color: #ffffff;
+  transition: all 0.3s ease;
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.respaldo-item:hover .respaldo-icon-circle {
+  border-color: var(--platino-gold);
+  color: var(--platino-gold);
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.respaldo-label {
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.9);
+  text-transform: uppercase;
+  line-height: 1.4;
+  max-width: 150px;
+}
+
+/* ========================================================
+   RESPONSIVE QUERIES
+   ======================================================== */
+@media (max-width: 1100px) {
+  .category-card {
+    flex: 0 0 185px;
+  }
+
+  .ring-styles-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+  }
+
+  .editorial-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .respaldo-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 30px;
+  }
+
+  .showroom-layout {
+    grid-template-columns: 1fr;
+    gap: 40px;
+  }
+}
+
+@media (max-width: 768px) {
+  .carousel-prev-arrow {
+    left: -8px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .carousel-next-arrow {
+    right: -8px;
+    width: 32px;
+    height: 32px;
+  }
+
+  .hero-split-section {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .hero-banner-card {
+    height: 400px;
+  }
+
+  .gem-selector-layout {
+    grid-template-columns: 1fr;
+    gap: 35px;
+  }
+
+  .gem-grid-col {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 12px;
+  }
+
+  .ring-styles-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .respaldo-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .showroom-buttons-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .category-card {
+    flex: 0 0 155px;
+  }
+
+  .gem-grid-col {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .respaldo-grid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,171 +1,192 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
+import { useAuth } from "../context/useAuth";
+import { getAnnouncementText } from "../services/homeImagesService";
+import UserMenuDropdown from "./UserMenuDropdown";
 import "../../styles/layout.css";
 
-const Navbar = () => {
+const Navbar = ({ cartCount = 0 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [announcementText, setAnnouncementText] = useState(getAnnouncementText);
+  const { user, openAuthModal } = useAuth();
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setAnnouncementText(getAnnouncementText());
+    };
+    window.addEventListener("announcement_updated", handleUpdate);
+    return () => window.removeEventListener("announcement_updated", handleUpdate);
+  }, []);
 
   return (
     <>
-      {/* Barra superior verde */}
-      <div className="top-bar">
-        <div className="top-bar-content">
-          <span>Envíos seguros a todo el país</span>
-          <span>Compra segura</span>
-          <span>Atención personalizada</span>
+      {/* 1. Top Announcement Bar (Línea Verde Superior) */}
+      {announcementText && (
+        <div className="announcement-bar">
+          <div className="announcement-content">
+            <span>{announcementText}</span>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* Navbar */}
-      <header className="navbar">
-        <div className="navbar-container">
+      {/* 2. Main Header / Navigation */}
+      <header className="platino-header">
+        {/* Row 1: Contact/Sedes on Left, Logo Center, Actions Right */}
+        <div className="header-top-row">
+          <div className="header-contact-links">
+            <a href="tel:011654435" className="top-phone">
+              <i className="bi bi-telephone"></i> 011 654 435
+            </a>
+            <span className="divider-dot">•</span>
+            <Link to="/sedes" className="top-utility-link">
+              Sedes
+            </Link>
+            <span className="divider-dot">•</span>
+            <Link to="/agendar-cita" className="top-utility-link">
+              Agendar Cita
+            </Link>
+          </div>
 
-          {/* Logo */}
-          <Link to="/" className="navbar-logo">
-            <span className="logo-name">Platino</span>
-            <span className="logo-subtitle">PERÚ</span>
+          {/* Logo Center */}
+          <Link to="/" className="brand-logo" aria-label="Platino Perú Inicio">
+            <span className="brand-name">PLATINO</span>
+            <span className="brand-gem">❖</span>
+            <span className="brand-country">PERÚ</span>
           </Link>
 
-          {/* Botón móvil */}
-          <button
-            className="menu-toggle"
-            onClick={() => setMenuOpen(!menuOpen)}
-            aria-label="Abrir menú"
-          >
-            <i className="bi bi-list"></i>
-          </button>
-
-          {/* Navegación */}
-          <nav className={`navbar-menu ${menuOpen ? "active" : ""}`}>
-
-            <Link to="/" onClick={() => setMenuOpen(false)}>
-              Inicio
-            </Link>
-
-            <div className="nav-dropdown">
-              <Link to="/categoria/novios">
-                Joyas
-                <i className="bi bi-chevron-down"></i>
-              </Link>
-
-              <div className="dropdown-menu">
-
-                <div className="dropdown-column">
-                  <h4>Novios</h4>
-
-                  <Link to="/categoria/anillos-compromiso">
-                    Anillos de compromiso
-                  </Link>
-
-                  <Link to="/categoria/anillos-promesa">
-                    Anillos de promesa
-                  </Link>
-
-                  <Link to="/categoria/alianzas">
-                    Alianzas de amor
-                  </Link>
-                </div>
-
-                <div className="dropdown-column">
-                  <h4>Matrimonio</h4>
-
-                  <Link to="/categoria/aros-matrimonio">
-                    Aros de matrimonio
-                  </Link>
-
-                  <Link to="/categoria/plata">
-                    Plata 950
-                  </Link>
-
-                  <Link to="/categoria/oro">
-                    Oro 18K
-                  </Link>
-                </div>
-
-                <div className="dropdown-column">
-                  <h4>Accesorios</h4>
-
-                  <Link to="/categoria/aretes">
-                    Aretes
-                  </Link>
-
-                  <Link to="/categoria/collares">
-                    Collares
-                  </Link>
-
-                  <Link to="/categoria/pulseras">
-                    Pulseras
-                  </Link>
-
-                  <Link to="/categoria/cadenas">
-                    Cadenas
-                  </Link>
-                </div>
-
-                <div className="dropdown-column">
-                  <h4>Piedras</h4>
-
-                  <Link to="/categoria/esmeralda">
-                    Esmeralda
-                  </Link>
-
-                  <Link to="/categoria/rubi">
-                    Rubí
-                  </Link>
-
-                  <Link to="/categoria/zafiro">
-                    Zafiro
-                  </Link>
-
-                  <Link to="/categoria/amatista">
-                    Amatista
-                  </Link>
-                </div>
-
-              </div>
-            </div>
-
-            <Link to="/colecciones" onClick={() => setMenuOpen(false)}>
-              Colecciones
-            </Link>
-
-            <Link to="/nosotros" onClick={() => setMenuOpen(false)}>
-              Nosotros
-            </Link>
-
-            <Link to="/contacto" onClick={() => setMenuOpen(false)}>
-              Contacto
-            </Link>
-
-          </nav>
-
-          {/* Acciones */}
-          <div className="navbar-actions">
-
-            <button className="nav-icon" aria-label="Buscar">
+          {/* User Actions & Currency Right */}
+          <div className="header-actions">
+            <button
+              className="action-icon-btn"
+              onClick={() => setSearchOpen(!searchOpen)}
+              aria-label="Buscar"
+              title="Buscar"
+            >
               <i className="bi bi-search"></i>
             </button>
 
+            {user ? (
+              <UserMenuDropdown />
+            ) : (
+              <button
+                type="button"
+                className="action-icon-btn"
+                onClick={() => openAuthModal("login")}
+                aria-label="Iniciar sesión o registrarse"
+                title="Iniciar sesión"
+              >
+                <i className="bi bi-person"></i>
+              </button>
+            )}
+
             <Link
               to="/favoritos"
-              className="nav-icon"
-              aria-label="Favoritos"
+              className="action-icon-btn"
+              aria-label="Lista de Deseos"
+              title="Favoritos"
             >
               <i className="bi bi-heart"></i>
             </Link>
 
             <Link
               to="/carrito"
-              className="nav-icon cart-icon"
-              aria-label="Carrito"
+              className="action-icon-btn cart-btn"
+              aria-label="Carrito de compras"
+              title="Carrito"
             >
               <i className="bi bi-bag"></i>
-              <span className="cart-count">0</span>
+              {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
             </Link>
 
+            {/* Mobile hamburger button */}
+            <button
+              className="mobile-menu-btn"
+              onClick={() => setMenuOpen(!menuOpen)}
+              aria-label="Menú principal"
+            >
+              <i className={menuOpen ? "bi bi-x-lg" : "bi bi-list"}></i>
+            </button>
           </div>
-
         </div>
+
+        {/* Collapsible search bar */}
+        {searchOpen && (
+          <div className="header-search-drawer">
+            <div className="search-input-wrapper">
+              <i className="bi bi-search"></i>
+              <input
+                type="text"
+                placeholder="Buscar anillos de compromiso, aros de boda, diamantes..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+              />
+              <button
+                className="close-search-btn"
+                onClick={() => setSearchOpen(false)}
+              >
+                <i className="bi bi-x"></i>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Row 2: Centered Category Navigation Menu */}
+        <nav className={`header-nav-menu ${menuOpen ? "open" : ""}`}>
+          <ul className="nav-list">
+            <li className="nav-item">
+              <Link to="/" onClick={() => setMenuOpen(false)}>
+                INICIO
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link to="/categoria/aros-boda" onClick={() => setMenuOpen(false)}>
+                AROS DE BODA
+              </Link>
+            </li>
+            <li className="nav-item has-dropdown">
+              <Link
+                to="/categoria/anillo-compromiso"
+                onClick={() => setMenuOpen(false)}
+              >
+                ANILLO DE COMPROMISO
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link
+                to="/categoria/anillo-promesa"
+                onClick={() => setMenuOpen(false)}
+              >
+                ANILLO DE PROMESA
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link
+                to="/categoria/aros-alianzas"
+                onClick={() => setMenuOpen(false)}
+              >
+                AROS DE ALIANZAS
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link to="/categoria/joyeria" onClick={() => setMenuOpen(false)}>
+                JOYERÍA
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link to="/categoria/regalos" onClick={() => setMenuOpen(false)}>
+                REGALOS
+              </Link>
+            </li>
+            <li className="nav-item">
+              <Link to="/nosotros" onClick={() => setMenuOpen(false)}>
+                NOSOTROS
+              </Link>
+            </li>
+          </ul>
+        </nav>
       </header>
     </>
   );
