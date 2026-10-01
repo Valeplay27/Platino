@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
-import { getAnnouncementText } from "../services/homeImagesService";
+import { getAnnouncementText, getAnnouncementActive } from "../services/homeImagesService";
 import UserMenuDropdown from "./UserMenuDropdown";
 import "../../styles/layout.css";
 
@@ -10,11 +10,13 @@ const Navbar = ({ cartCount = 0 }) => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [announcementText, setAnnouncementText] = useState(getAnnouncementText);
+  const [announcementActive, setAnnouncementActive] = useState(getAnnouncementActive);
   const { user, openAuthModal } = useAuth();
 
   useEffect(() => {
     const handleUpdate = () => {
       setAnnouncementText(getAnnouncementText());
+      setAnnouncementActive(getAnnouncementActive());
     };
     window.addEventListener("announcement_updated", handleUpdate);
     return () => window.removeEventListener("announcement_updated", handleUpdate);
@@ -23,7 +25,7 @@ const Navbar = ({ cartCount = 0 }) => {
   return (
     <>
       {/* 1. Top Announcement Bar (Línea Verde Superior) */}
-      {announcementText && (
+      {announcementActive && announcementText && (
         <div className="announcement-bar">
           <div className="announcement-content">
             <span>{announcementText}</span>

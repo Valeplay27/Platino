@@ -250,6 +250,31 @@
   color: var(--platino-gold-light);
 }
 
+.service-anticipacion-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.03em;
+  padding: 3px 10px;
+  border-radius: 12px;
+  margin-bottom: 6px;
+  width: fit-content;
+}
+
+.service-anticipacion-tag.gemologo {
+  background: #fdf5e6;
+  color: #a47012;
+  border: 1px solid #fae6be;
+}
+
+.service-anticipacion-tag.general {
+  background: #eef6f1;
+  color: #1a563f;
+  border: 1px solid #d4e8dd;
+}
+
 .service-info-title {
   font-family: var(--font-serif);
   font-size: 18px;
@@ -888,6 +913,76 @@
   justify-content: space-between;
   align-items: center;
 }
+
+/* Service / Role Badges & Selectors for Schedule Management */
+.block-service-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: 12px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.block-service-badge.gemologo {
+  background: #eef2ff;
+  color: #3730a3;
+  border: 1px solid #c7d2fe;
+}
+
+.block-service-badge.asesoria {
+  background: #fdf4ff;
+  color: #86198f;
+  border: 1px solid #f5d0fe;
+}
+
+.block-service-badge.all {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.service-selector-group {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.service-selector-btn {
+  flex: 1;
+  min-width: 140px;
+  background: white;
+  border: 1.5px solid #d4ded8;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a5951;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.2s;
+}
+
+.service-selector-btn:hover {
+  border-color: var(--platino-green-dark);
+  background: #f7faf8;
+}
+
+.service-selector-btn.active {
+  border-color: var(--platino-green-dark);
+  background: #f0f7f3;
+  color: var(--platino-green-dark);
+  box-shadow: 0 2px 6px rgba(26, 46, 36, 0.08);
+  font-weight: 700;
+}
+
 
 /* ========================================================
    ADMIN CATALOG & IMAGE MANAGEMENT STYLES

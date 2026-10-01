@@ -358,8 +358,12 @@ export default function Home() {
       {/* 4. ANILLOS DE COMPROMISO DIGNOS DE OBSESIÓN */}
       <section className="ring-styles-section">
         <div className="section-header-left">
-          <h2 className="section-title">Anillos de compromiso dignos de obsesión</h2>
-          <p className="section-subtitle">Arte y artesanía en cada detalle.</p>
+          <h2 className="section-title">
+            {homeImages.sectionRingStyles?.title || "Anillos de compromiso dignos de obsesión"}
+          </h2>
+          <p className="section-subtitle">
+            {homeImages.sectionRingStyles?.subtitle || "Arte y artesanía en cada detalle."}
+          </p>
         </div>
 
         <div className="ring-styles-grid">
@@ -402,15 +406,32 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Lado Derecho: The New Classics con piezas pegadas continuas */}
+          {/* Lado Derecho: The New Classics con piezas pegadas continuas (6 fotos configurables) */}
           <div className="editorial-right">
             <Link to="/categoria/joyeria" className="classics-banner-link" title="Ver colección The New Classics">
-              <img
-                src={getAssetUrl(homeImages.editorialClassics?.image || "/images/the-new-classics.jpg")}
-                alt="The New Classics - Platino Perú"
-                className="classics-seamless-img"
-                loading="lazy"
-              />
+              <div className="mosaic-grid">
+                {[
+                  homeImages.mosaic1?.image || "/images/mosaic-1.jpg",
+                  homeImages.mosaic2?.image || "/images/mosaic-2.jpg",
+                  homeImages.mosaic3?.image || "/images/mosaic-3.jpg",
+                  homeImages.mosaic4?.image || "/images/mosaic-4.jpg",
+                  homeImages.mosaic5?.image || "/images/mosaic-5.jpg",
+                  homeImages.mosaic6?.image || "/images/mosaic-6.jpg",
+                ].map((src, idx) => (
+                  <div key={idx} className="mosaic-item">
+                    <img
+                      src={getAssetUrl(src)}
+                      alt={`The New Classics pieza ${idx + 1}`}
+                      loading="lazy"
+                    />
+                  </div>
+                ))}
+              </div>
+              <div className="mosaic-script-overlay">
+                <span className="script-text">
+                  {homeImages.editorialClassics?.title || "The New Classics"}
+                </span>
+              </div>
             </Link>
           </div>
         </div>
@@ -419,23 +440,46 @@ export default function Home() {
       {/* 6. ESTAMOS AQUÍ PARA TI, EN PERSONA Y EN LÍNEA */}
       <section className="showroom-section">
         <div className="showroom-layout">
-          {/* Izquierda: Imagen del Showroom */}
+          {/* Izquierda: Imagen del Showroom (1 o 2 imágenes opcionales) */}
           <div className="showroom-image-box">
-            <img
-              src={getAssetUrl(homeImages.showroom?.image || "/images/showroom.jpg")}
-              alt="Boutique y Showroom Platino Perú"
-              className="showroom-img"
-              loading="lazy"
-            />
+            {homeImages.showroomSecondary?.image ? (
+              <div className="showroom-dual-grid">
+                <div className="showroom-dual-pane">
+                  <img
+                    src={getAssetUrl(homeImages.showroom?.image || "/images/showroom.jpg")}
+                    alt="Sede 1"
+                    className="showroom-img"
+                    loading="lazy"
+                  />
+                  <span className="showroom-dual-label">Sede Lima Centro</span>
+                </div>
+                <div className="showroom-dual-pane">
+                  <img
+                    src={getAssetUrl(homeImages.showroomSecondary?.image)}
+                    alt="Sede 2"
+                    className="showroom-img"
+                    loading="lazy"
+                  />
+                  <span className="showroom-dual-label">Sede Miraflores</span>
+                </div>
+              </div>
+            ) : (
+              <img
+                src={getAssetUrl(homeImages.showroom?.image || "/images/showroom.jpg")}
+                alt="Boutique y Showroom Platino Perú"
+                className="showroom-img"
+                loading="lazy"
+              />
+            )}
           </div>
 
           {/* Derecha: Texto, Sedes y Botones de Cita */}
           <div className="showroom-info">
             <h2 className="showroom-heading">
-              Estamos aquí para ti, en persona y en línea
+              {homeImages.showroom?.title || "Estamos aquí para ti, en persona y en línea"}
             </h2>
             <p className="showroom-desc">
-              Ya sea en una tienda cercana a usted o en línea, seleccionamos su cita solo para usted.
+              {homeImages.showroom?.subtitle || "Ya sea en una tienda cercana a usted o en línea, seleccionamos su cita solo para usted."}
             </p>
 
             {/* Tarjetas rápidas de las 2 Sedes con enlaces a Google Maps */}

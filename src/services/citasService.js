@@ -54,16 +54,18 @@ const INITIAL_BLOCKED = [
   {
     id: "block-1",
     sedeId: "lima-centro",
-    date: new Date(Date.now() + 86400000).toISOString().split("T")[0],
+    date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
     time: "10:00 AM",
-    reason: "Capacitación interna de gemología",
+    serviceType: "gemologo",
+    reason: "Gemólogo en laboratorio gemológico",
     createdAt: new Date().toISOString(),
   },
   {
     id: "block-2",
     sedeId: "miraflores",
-    date: new Date(Date.now() + 86400000).toISOString().split("T")[0],
+    date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
     time: "03:00 PM",
+    serviceType: "all",
     reason: "Mantenimiento y auditoría de vitrinas",
     createdAt: new Date().toISOString(),
   },
@@ -125,13 +127,36 @@ export const getBlockedSlots = () => {
   }
 };
 
-export const isSlotBlocked = (sedeId, dateStr, timeStr) => {
+export const isSlotBlocked = (sedeId, dateStr, timeStr, serviceType = "all") => {
   // 1. Revisar si hay un bloqueo administrativo manual
   const blocked = getBlockedSlots();
-  const isManuallyBlocked = blocked.some(
-    (b) => b.sedeId === sedeId && b.date === dateStr && (b.time === timeStr || b.time === "FULL_DAY")
-  );
-  if (isManuallyBlocked) return { blocked: true, reason: "Bloqueado por administración" };
+  const manualBlock = blocked.find((b) => {
+    if (b.sedeId !== sedeId || b.date !== dateStr) return false;
+    if (b.time !== timeStr && b.time !== "FULL_DAY") return false;
+    // Si el bloqueo aplica a toda la sede (serviceType === "all" o indefinido)
+    if (!b.serviceType || b.serviceType === "all") return true;
+    // Si se consulta un servicio específico ("gemologo" o "asesoria")
+    if (serviceType !== "all" && b.serviceType === serviceType) return true;
+    // Si se consulta sin serviceType específico ("all") pero hay bloqueo en ese slot
+    if (serviceType === "all") return true;
+    return false;
+  });
+
+  if (manualBlock) {
+    const isGem = manualBlock.serviceType === "gemologo";
+    const isAse = manualBlock.serviceType === "asesoria";
+    const defaultReason = isGem
+      ? "No disponible para Gemólogo"
+      : isAse
+      ? "No disponible para Asesoría General"
+      : "Bloqueado por administración";
+    return {
+      blocked: true,
+      reason: manualBlock.reason || defaultReason,
+      blockId: manualBlock.id,
+      serviceType: manualBlock.serviceType || "all",
+    };
+  }
 
   // 2. Revisar si ya existe una cita confirmada o pendiente en ese horario y sede
   const citas = getCitas();
@@ -140,24 +165,55 @@ export const isSlotBlocked = (sedeId, dateStr, timeStr) => {
       c.sedeId === sedeId &&
       c.date === dateStr &&
       c.time === timeStr &&
-      c.status !== "cancelada"
+      c.status !== "cancelada" &&
+      (serviceType === "all" || c.serviceType === serviceType || !c.serviceType)
   );
-  if (booked) return { blocked: true, reason: "Horario reservado por otro cliente" };
+
+  if (booked) {
+    const bookedLabel =
+      booked.serviceType === "gemologo"
+        ? `Cita con Gemólogo reservada (${booked.clientName || "Cliente"})`
+        : `Horario reservado (${booked.clientName || "Cliente"})`;
+    return {
+      blocked: true,
+      reason: bookedLabel,
+      bookedCitaId: booked.id,
+      serviceType: booked.serviceType || "all",
+    };
+  }
 
   return { blocked: false, reason: null };
 };
 
-export const blockSlot = (sedeId, dateStr, timeStr, reason = "Reservado / Bloqueo administrativo") => {
+export const blockSlot = (
+  sedeId,
+  dateStr,
+  timeStr,
+  reason = "Horario no disponible",
+  serviceType = "all"
+) => {
   const blocked = getBlockedSlots();
+  // Evitar duplicados del mismo tipo
+  const filtered = blocked.filter(
+    (b) =>
+      !(
+        b.sedeId === sedeId &&
+        b.date === dateStr &&
+        b.time === timeStr &&
+        (b.serviceType || "all") === (serviceType || "all")
+      )
+  );
+
   const newBlock = {
     id: `block-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
     sedeId,
     date: dateStr,
     time: timeStr,
+    serviceType: serviceType || "all",
     reason,
     createdAt: new Date().toISOString(),
   };
-  const updated = [newBlock, ...blocked];
+  const updated = [newBlock, ...filtered];
   localStorage.setItem(BLOCKED_SLOTS_KEY, JSON.stringify(updated));
   window.dispatchEvent(new Event("citas_updated"));
   return updated;
@@ -171,12 +227,34 @@ export const unblockSlot = (blockId) => {
   return updated;
 };
 
-export const unblockBySlotDetails = (sedeId, dateStr, timeStr) => {
+export const unblockFullDay = (sedeId, dateStr, serviceType = "all") => {
   const blocked = getBlockedSlots();
   const updated = blocked.filter(
-    (b) => !(b.sedeId === sedeId && b.date === dateStr && b.time === timeStr)
+    (b) =>
+      !(
+        b.sedeId === sedeId &&
+        b.date === dateStr &&
+        (serviceType === "all" || !b.serviceType || b.serviceType === "all" || b.serviceType === serviceType)
+      )
   );
   localStorage.setItem(BLOCKED_SLOTS_KEY, JSON.stringify(updated));
   window.dispatchEvent(new Event("citas_updated"));
   return updated;
 };
+
+export const unblockBySlotDetails = (sedeId, dateStr, timeStr, serviceType = "all") => {
+  const blocked = getBlockedSlots();
+  const updated = blocked.filter(
+    (b) =>
+      !(
+        b.sedeId === sedeId &&
+        b.date === dateStr &&
+        b.time === timeStr &&
+        (serviceType === "all" || !b.serviceType || b.serviceType === "all" || b.serviceType === serviceType)
+      )
+  );
+  localStorage.setItem(BLOCKED_SLOTS_KEY, JSON.stringify(updated));
+  window.dispatchEvent(new Event("citas_updated"));
+  return updated;
+};
+

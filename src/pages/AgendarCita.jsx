@@ -4,10 +4,13 @@ import { sedesData } from "../data/sedes";
 import { TIME_SLOTS, isSlotBlocked, saveCita } from "../services/citasService";
 import "../../styles/citas.css";
 
-// Función para obtener la fecha mínima permitida (un día después de hoy en hora local)
-const getTomorrowLocalDateString = () => {
+// Función para obtener la fecha mínima permitida según el tipo de servicio:
+// - Cita con Gemólogo: 3 días de anticipación
+// - Cita de Asesoría General: 1 día de anticipación (a partir de mañana)
+const getMinBookingDateString = (type = "asesoria") => {
+  const daysAdvance = type === "gemologo" ? 3 : 1;
   const d = new Date();
-  d.setDate(d.getDate() + 1);
+  d.setDate(d.getDate() + daysAdvance);
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -31,10 +34,21 @@ export default function AgendarCita() {
     initialTipoParam === "gemologo" ? "gemologo" : "asesoria"
   );
 
-  // Fecha mínima permitida (estrictamente a partir de mañana)
-  const minBookingDate = getTomorrowLocalDateString();
-  const [selectedDate, setSelectedDate] = useState(() => getTomorrowLocalDateString());
+  // Fecha mínima permitida (3 días para gemólogo, 1 día para asesoría general)
+  const minBookingDate = getMinBookingDateString(serviceType);
+  const [selectedDate, setSelectedDate] = useState(() =>
+    getMinBookingDateString(initialTipoParam === "gemologo" ? "gemologo" : "asesoria")
+  );
   const [selectedTime, setSelectedTime] = useState("");
+
+  const handleServiceTypeChange = (newType) => {
+    setServiceType(newType);
+    const newMin = getMinBookingDateString(newType);
+    if (selectedDate < newMin) {
+      setSelectedDate(newMin);
+      setSelectedTime("");
+    }
+  };
 
   // Verificar si la fecha seleccionada cae domingo
   const isSunday = new Date(selectedDate + "T00:00:00").getDay() === 0;
@@ -62,7 +76,11 @@ export default function AgendarCita() {
     e.preventDefault();
 
     if (selectedDate < minBookingDate) {
-      alert("Por favor selecciona una fecha válida a partir de mañana. Las citas requieren al menos un día de anticipación.");
+      alert(
+        serviceType === "gemologo"
+          ? "Por favor selecciona una fecha válida. Las citas con Gemólogo requieren al menos 3 días de anticipación para la preparación de instrumental y muestras."
+          : "Por favor selecciona una fecha válida a partir de mañana. Las citas de Asesoría General requieren al menos 1 día de anticipación."
+      );
       setSelectedDate(minBookingDate);
       setSelectedTime("");
       return;
@@ -82,8 +100,8 @@ export default function AgendarCita() {
       return;
     }
 
-    // Verificar si sigue libre en ese instante
-    const check = isSlotBlocked(selectedSedeId, selectedDate, selectedTime);
+    // Verificar si sigue libre en ese instante para este tipo de servicio
+    const check = isSlotBlocked(selectedSedeId, selectedDate, selectedTime, serviceType);
     if (check.blocked) {
       alert(`Lo sentimos, este horario acaba de ser reservado o bloqueado (${check.reason}). Por favor elige otra hora.`);
       setSelectedTime("");
@@ -254,16 +272,19 @@ export default function AgendarCita() {
             </p>
 
             <div className="service-type-grid">
-              {/* Opción 1: Gemología */}
+              {/* Opción 1: Gemología (3 días de anticipación) */}
               <button
                 type="button"
                 className={`service-type-btn ${serviceType === "gemologo" ? "selected" : ""}`}
-                onClick={() => setServiceType("gemologo")}
+                onClick={() => handleServiceTypeChange("gemologo")}
               >
                 <div className="service-icon-circle">
                   <i className="bi bi-gem"></i>
                 </div>
                 <div>
+                  <span className="service-anticipacion-tag gemologo">
+                    <i className="bi bi-clock-history"></i> Mínimo 3 días de anticipación
+                  </span>
                   <h4 className="service-info-title">Cita con Gemólogo</h4>
                   <p className="service-info-desc">
                     Asesoría técnica y gemológica especializada: certificación GIA, análisis de diamantes, quilates, pureza y selección de cortes y gemas naturales.
@@ -271,16 +292,19 @@ export default function AgendarCita() {
                 </div>
               </button>
 
-              {/* Opción 2: Asesoría General */}
+              {/* Opción 2: Asesoría General (1 día de anticipación) */}
               <button
                 type="button"
                 className={`service-type-btn ${serviceType === "asesoria" ? "selected" : ""}`}
-                onClick={() => setServiceType("asesoria")}
+                onClick={() => handleServiceTypeChange("asesoria")}
               >
                 <div className="service-icon-circle">
                   <i className="bi bi-heart"></i>
                 </div>
                 <div>
+                  <span className="service-anticipacion-tag general">
+                    <i className="bi bi-clock-history"></i> 1 día de anticipación (desde mañana)
+                  </span>
                   <h4 className="service-info-title">Cita de Asesoría General</h4>
                   <p className="service-info-desc">
                     Orientación para aros de matrimonio, anillos de promesa, regalos de aniversario, catálogo exclusivo y prueba de medidas y entallado en tienda.
@@ -303,7 +327,11 @@ export default function AgendarCita() {
               {/* Selector de Fecha */}
               <div className="date-picker-box">
                 <label htmlFor="cita-date">
-                  <i className="bi bi-calendar3"></i> Fecha de la cita (a partir de mañana):
+                  <i className="bi bi-calendar3"></i> Fecha de la cita (
+                  {serviceType === "gemologo"
+                    ? "mínimo 3 días de anticipación"
+                    : "mínimo 1 día de anticipación, a partir de mañana"}
+                  ):
                 </label>
                 <input
                   id="cita-date"
@@ -313,7 +341,11 @@ export default function AgendarCita() {
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val < minBookingDate) {
-                      alert("Las citas deben reservarse con al menos 1 día de anticipación (a partir de mañana).");
+                      alert(
+                        serviceType === "gemologo"
+                          ? "Las citas con Gemólogo requieren al menos 3 días de anticipación para la preparación de instrumental y muestras."
+                          : "Las citas de Asesoría General deben reservarse con al menos 1 día de anticipación (a partir de mañana)."
+                      );
                       setSelectedDate(minBookingDate);
                       setSelectedTime("");
                       return;
@@ -329,7 +361,9 @@ export default function AgendarCita() {
                   required
                 />
                 <span className="form-field-hint">
-                  ⏳ Reservas habilitadas a partir de mañana ({minBookingDate}). Mínimo 24h de anticipación.
+                  {serviceType === "gemologo"
+                    ? `⏳ Citas con Gemólogo disponibles a partir del ${minBookingDate} (3 días de anticipación requeridos).`
+                    : `⏳ Citas de Asesoría General disponibles a partir de mañana (${minBookingDate}).`}
                 </span>
               </div>
 
@@ -358,7 +392,7 @@ export default function AgendarCita() {
                   <>
                     <div className="slots-grid">
                       {TIME_SLOTS.map((slot) => {
-                        const blockCheck = isSlotBlocked(selectedSedeId, selectedDate, slot);
+                        const blockCheck = isSlotBlocked(selectedSedeId, selectedDate, slot, serviceType);
                         const isSelected = selectedTime === slot;
 
                         return (
@@ -374,7 +408,9 @@ export default function AgendarCita() {
                           >
                             {slot}
                             {blockCheck.blocked && (
-                              <span className="slot-status-hint">Bloqueado</span>
+                              <span className="slot-status-hint">
+                                {serviceType === "gemologo" ? "No disponible" : "Bloqueado"}
+                              </span>
                             )}
                           </button>
                         );

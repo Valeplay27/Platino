@@ -9,6 +9,7 @@ import {
   getBlockedSlots,
   blockSlot,
   unblockSlot,
+  unblockFullDay,
   isSlotBlocked,
 } from "../services/citasService";
 import {
@@ -25,15 +26,21 @@ import {
   getAnnouncementText,
   saveAnnouncementText,
   resetAnnouncementText,
+  getAnnouncementActive,
+  saveAnnouncementActive,
   DEFAULT_ANNOUNCEMENT,
+  HOME_SECTIONS,
 } from "../services/homeImagesService";
 import { useAuth } from "../context/useAuth";
 import "../../styles/citas.css";
 
-// Función para obtener fecha local de mañana
-const getTomorrowLocalDateString = () => {
+// Función para obtener la fecha mínima según el tipo de servicio:
+// - Gemólogo: 3 días de anticipación
+// - Asesoría: 1 día de anticipación (mañana)
+const getMinBlockDateString = (type = "gemologo") => {
+  const daysAdvance = type === "gemologo" ? 3 : 1;
   const d = new Date();
-  d.setDate(d.getDate() + 1);
+  d.setDate(d.getDate() + daysAdvance);
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -82,11 +89,14 @@ export default function AdminCitas() {
 
   // Estado para gestión de Bloqueos
   const [blockSedeId, setBlockSedeId] = useState(sedesData[0].id);
-  const [blockDate, setBlockDate] = useState(() => getTomorrowLocalDateString());
+  const [blockServiceType, setBlockServiceType] = useState("gemologo"); // "gemologo" | "asesoria"
+  const [blockDate, setBlockDate] = useState(() => getMinBlockDateString("gemologo"));
   const [blockReason, setBlockReason] = useState("");
+  const [filterBlockService, setFilterBlockService] = useState("todos"); // "todos" | "gemologo" | "asesoria"
 
   // Estado para la Línea Verde Superior (Barra de Anuncios)
   const [announcementInput, setAnnouncementInput] = useState(() => getAnnouncementText());
+  const [announcementActive, setAnnouncementActive] = useState(() => getAnnouncementActive());
 
   // Cargar datos
   const loadData = () => {
@@ -104,6 +114,7 @@ export default function AdminCitas() {
 
   const loadAnnouncementData = () => {
     setAnnouncementInput(getAnnouncementText());
+    setAnnouncementActive(getAnnouncementActive());
   };
 
   useEffect(() => {
@@ -133,19 +144,37 @@ export default function AdminCitas() {
     }
   };
 
-  // Bloquear un slot específico
+  // Bloquear un slot específico para el servicio/rol seleccionado
   const handleBlockSlot = (time) => {
-    const reason = blockReason.trim() || "Bloqueo por administración";
-    blockSlot(blockSedeId, blockDate, time, reason);
+    const defaultReason =
+      blockServiceType === "gemologo"
+        ? "No disponible para Gemólogo"
+        : blockServiceType === "asesoria"
+        ? "No disponible para Asesoría General"
+        : "Bloqueo por administración";
+    const reason = blockReason.trim() || defaultReason;
+    blockSlot(blockSedeId, blockDate, time, reason, blockServiceType);
     setBlockReason("");
     loadData();
   };
 
-  // Bloquear día completo
+  // Bloquear día completo para el servicio/rol seleccionado
   const handleBlockFullDay = () => {
-    const reason = blockReason.trim() || "Día no laborable / Evento privado";
-    blockSlot(blockSedeId, blockDate, "FULL_DAY", reason);
+    const defaultReason =
+      blockServiceType === "gemologo"
+        ? "Gemólogo no atiende este día"
+        : blockServiceType === "asesoria"
+        ? "Sin asesoría este día"
+        : "Día no laborable / Evento privado";
+    const reason = blockReason.trim() || defaultReason;
+    blockSlot(blockSedeId, blockDate, "FULL_DAY", reason, blockServiceType);
     setBlockReason("");
+    loadData();
+  };
+
+  // Desbloquear día completo para el servicio seleccionado
+  const handleUnblockFullDay = () => {
+    unblockFullDay(blockSedeId, blockDate, blockServiceType);
     loadData();
   };
 
@@ -153,6 +182,17 @@ export default function AdminCitas() {
   const handleUnblock = (blockId) => {
     unblockSlot(blockId);
     loadData();
+  };
+
+  // Fecha mínima permitida para bloquear según especialidad
+  const minBlockDate = getMinBlockDateString(blockServiceType);
+
+  const handleServiceTypeChange = (newType) => {
+    setBlockServiceType(newType);
+    const newMin = getMinBlockDateString(newType);
+    if (blockDate < newMin) {
+      setBlockDate(newMin);
+    }
   };
 
   // Handlers para gestión de Catálogo y Fotos
@@ -281,18 +321,14 @@ export default function AdminCitas() {
     if (!editingHomeKey) return;
 
     const extras = {};
-    if (formHomeImageTitle) {
-      if (homeImagesData[editingHomeKey]?.name !== undefined) {
-        extras.name = formHomeImageTitle;
-      }
-      if (homeImagesData[editingHomeKey]?.title !== undefined) {
-        extras.title = formHomeImageTitle;
-      }
+    if (formHomeImageTitle !== undefined) {
+      extras.name = formHomeImageTitle;
+      extras.title = formHomeImageTitle;
     }
-    if (formHomeImageSubtitle && homeImagesData[editingHomeKey]?.subtitle !== undefined) {
+    if (formHomeImageSubtitle !== undefined) {
       extras.subtitle = formHomeImageSubtitle;
     }
-    if (formHomeImageButtonText && homeImagesData[editingHomeKey]?.buttonText !== undefined) {
+    if (formHomeImageButtonText !== undefined) {
       extras.buttonText = formHomeImageButtonText;
     }
 
@@ -300,8 +336,37 @@ export default function AdminCitas() {
     setHomeImagesData(updated);
     setHomeImageModalOpen(false);
     setFeedbackMsg(
-      `Imagen de "${homeImagesData[editingHomeKey]?.label || editingHomeKey}" actualizada correctamente.`
+      `"${homeImagesData[editingHomeKey]?.label || formHomeImageTitle || editingHomeKey}" actualizado correctamente.`
     );
+    setTimeout(() => setFeedbackMsg(""), 4000);
+  };
+
+  const handleSaveSectionHeader = (key, title, subtitle) => {
+    const updated = updateSingleHomeImage(key, undefined, { title, subtitle });
+    setHomeImagesData(updated);
+    setFeedbackMsg("¡Textos de la sección actualizados correctamente!");
+    setTimeout(() => setFeedbackMsg(""), 4000);
+  };
+
+  const handleSaveFallEditTexts = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    updateSingleHomeImage("editorialFall", undefined, {
+      title: homeImagesData.editorialFall?.title || "The Fall Edit",
+      subtitle: homeImagesData.editorialFall?.subtitle || "",
+      buttonText: homeImagesData.editorialFall?.buttonText || "SHOP NOW",
+    });
+    const updated = updateSingleHomeImage("editorialClassics", undefined, {
+      title: homeImagesData.editorialClassics?.title || "The New Classics",
+    });
+    setHomeImagesData(updated);
+    setFeedbackMsg("¡Todos los textos de 'The Fall Edit & The New Classics' fueron guardados!");
+    setTimeout(() => setFeedbackMsg(""), 4500);
+  };
+
+  const handleRemoveSecondaryShowroom = () => {
+    const updated = updateSingleHomeImage("showroomSecondary", "", {});
+    setHomeImagesData(updated);
+    setFeedbackMsg("Segunda fotografía del showroom eliminada.");
     setTimeout(() => setFeedbackMsg(""), 4000);
   };
 
@@ -319,6 +384,18 @@ export default function AdminCitas() {
   };
 
   // Handlers para Barra Verde Superior de Anuncios
+  const handleToggleAnnouncementActive = () => {
+    const nextState = !announcementActive;
+    saveAnnouncementActive(nextState);
+    setAnnouncementActive(nextState);
+    setFeedbackMsg(
+      nextState
+        ? "¡Barra superior activada! Ahora es visible en toda la tienda."
+        : "Barra superior desactivada. Se ocultó de la tienda."
+    );
+    setTimeout(() => setFeedbackMsg(""), 4500);
+  };
+
   const handleSaveAnnouncement = (e) => {
     if (e && e.preventDefault) e.preventDefault();
     const clean = announcementInput.trim();
@@ -339,13 +416,15 @@ export default function AdminCitas() {
     ) {
       const defaultText = resetAnnouncementText();
       setAnnouncementInput(defaultText);
-      setFeedbackMsg("Se restauró el texto original de la barra verde superior.");
+      setAnnouncementActive(true);
+      setFeedbackMsg("Se restauró el texto original y se reactivó la barra verde superior.");
       setTimeout(() => setFeedbackMsg(""), 4500);
     }
   };
 
-  // Filtrado de elementos del Inicio
-  const filteredHomeItems = Object.entries(homeImagesData).filter(([, item]) => {
+  // Filtrado de elementos del Inicio (se omiten encabezados meta y texto del collage)
+  const filteredHomeItems = Object.entries(homeImagesData).filter(([key, item]) => {
+    if (item.isSectionHeader || key === "editorialClassics" || key === "sectionRingStyles") return false;
     if (homeSectionFilter !== "todas" && item.section !== homeSectionFilter) {
       return false;
     }
@@ -952,7 +1031,7 @@ export default function AdminCitas() {
                   Bloquear u Habilitar Horarios de Atención ({blockedList.length} activos)
                 </h3>
                 <p style={{ fontSize: "14px", color: "#4f5f56", margin: 0, lineHeight: "1.5" }}>
-                  Selecciona la sede y la fecha para inspeccionar los horarios. Puedes bloquear horas puntuales o el día completo para que ningún cliente pueda agendar en esos momentos.
+                  Configura la disponibilidad del Gemólogo o de Asesoría General por cada sede. Puedes bloquear horarios puntuales o días completos para controlar cuándo los clientes pueden reservar.
                 </p>
               </div>
 
@@ -960,10 +1039,10 @@ export default function AdminCitas() {
                 {/* Lado Izquierdo: Configuración del Bloqueo */}
                 <div className="blocking-config-box">
                   <h3 className="blocking-config-title">
-                    Configurar Bloqueo
+                    Configurar Disponibilidad y Horarios
                   </h3>
                   <p style={{ fontSize: "13.5px", color: "#66726b", marginBottom: "18px" }}>
-                    Cierra turnos de atención para capacitaciones, feriados o mantenimiento.
+                    Define la disponibilidad de horarios por sede y especialidad (Gemólogo vs Asesoría General).
                   </p>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "16px" }}>
@@ -987,10 +1066,14 @@ export default function AdminCitas() {
 
                   <div className="form-field">
                     <label style={{ display: "block", fontSize: "13.5px", fontWeight: "600", color: "#1e2e26", marginBottom: "6px" }}>
-                      Fecha:
+                      Fecha:{" "}
+                      <span style={{ fontWeight: "500", fontSize: "12px", color: blockServiceType === "gemologo" ? "#312e81" : "#55635b" }}>
+                        ({blockServiceType === "gemologo" ? "Mín. 3 días de anticipación" : "Mín. 1 día de anticipación"})
+                      </span>
                     </label>
                     <input
                       type="date"
+                      min={minBlockDate}
                       value={blockDate}
                       onChange={(e) => setBlockDate(e.target.value)}
                       className="filter-select"
@@ -999,13 +1082,52 @@ export default function AdminCitas() {
                   </div>
                 </div>
 
+                {/* Selector de Servicio / Rol (Gemólogo vs Asesoría) */}
+                <div style={{ marginBottom: "16px" }}>
+                  <label style={{ display: "block", fontSize: "13.5px", fontWeight: "600", color: "#1e2e26", marginBottom: "8px" }}>
+                    Especialidad / Servicio a Configurar:
+                  </label>
+                  <div className="service-selector-group">
+                    <button
+                      type="button"
+                      className={`service-selector-btn ${blockServiceType === "gemologo" ? "active" : ""}`}
+                      onClick={() => handleServiceTypeChange("gemologo")}
+                    >
+                      <span>💎</span> Cita con Gemólogo
+                    </button>
+                    <button
+                      type="button"
+                      className={`service-selector-btn ${blockServiceType === "asesoria" ? "active" : ""}`}
+                      onClick={() => handleServiceTypeChange("asesoria")}
+                    >
+                      <span>💍</span> Asesoría General
+                    </button>
+                  </div>
+                </div>
+
+                {/* Banner contextual explicativo según rol */}
+                {blockServiceType === "gemologo" && (
+                  <div style={{ background: "#eef2ff", border: "1px solid #c7d2fe", borderRadius: "6px", padding: "11px 14px", marginBottom: "16px", fontSize: "12.5px", color: "#312e81", lineHeight: "1.5" }}>
+                    <i className="bi bi-gem"></i> <strong>Modo Gemólogo:</strong> Aquí configuras los horarios en que el gemólogo atiende en <strong>{sedesData.find((s) => s.id === blockSedeId)?.name}</strong>. Bloquear una hora aquí solo inhabilita citas de gemología; las asesorías generales se mantendrán abiertas. (Citas de gemología requieren 3 días de anticipación).
+                  </div>
+                )}
+                {blockServiceType === "asesoria" && (
+                  <div style={{ background: "#fdf4ff", border: "1px solid #f5d0fe", borderRadius: "6px", padding: "11px 14px", marginBottom: "16px", fontSize: "12.5px", color: "#701a75", lineHeight: "1.5" }}>
+                    <i className="bi bi-clock-history"></i> <strong>Modo Asesoría General:</strong> Configuras turnos para aros de compromiso y joyería comercial en <strong>{sedesData.find((s) => s.id === blockSedeId)?.name}</strong> (citas requieren 1 día de anticipación).
+                  </div>
+                )}
+
                 <div className="form-field" style={{ marginBottom: "18px" }}>
                   <label style={{ display: "block", fontSize: "13.5px", fontWeight: "600", color: "#1e2e26", marginBottom: "6px" }}>
                     Motivo del Bloqueo (Opcional):
                   </label>
                   <input
                     type="text"
-                    placeholder="Ej. Capacitación de gemología, Auditoría, Feriado..."
+                    placeholder={
+                      blockServiceType === "gemologo"
+                        ? "Ej. Capacitación de gemología, Salida a campo, No atiende..."
+                        : "Ej. Mantenimiento de vitrinas, Ausencia de asesor..."
+                    }
                     value={blockReason}
                     onChange={(e) => setBlockReason(e.target.value)}
                     className="filter-select"
@@ -1013,30 +1135,55 @@ export default function AdminCitas() {
                   />
                 </div>
 
-                <button
-                  type="button"
-                  onClick={handleBlockFullDay}
-                  className="btn-toggle-slot block"
-                  style={{ width: "100%", padding: "12px", fontSize: "13.5px", borderRadius: "6px" }}
-                >
-                  <i className="bi bi-calendar-x"></i> Bloquear Día Completo para esta Sede
-                </button>
+                {(() => {
+                  const isFullDayBlocked = blockedList.some(
+                    (b) =>
+                      b.sedeId === blockSedeId &&
+                      b.date === blockDate &&
+                      b.time === "FULL_DAY" &&
+                      (!b.serviceType || b.serviceType === "all" || b.serviceType === blockServiceType)
+                  );
 
-                {/* Grilla interactiva de horas para la sede y fecha seleccionada */}
+                  return (
+                    <div style={{ display: "grid", gridTemplateColumns: isFullDayBlocked ? "1fr 1fr" : "1fr", gap: "10px", marginBottom: "18px" }}>
+                      <button
+                        type="button"
+                        onClick={handleBlockFullDay}
+                        className="btn-toggle-slot block"
+                        style={{ width: "100%", padding: "11px", fontSize: "13px", borderRadius: "6px" }}
+                      >
+                        <i className="bi bi-calendar-x"></i> Bloquear Día ({blockServiceType === "gemologo" ? "Gemólogo" : "Asesoría"})
+                      </button>
+                      {isFullDayBlocked && (
+                        <button
+                          type="button"
+                          onClick={handleUnblockFullDay}
+                          className="btn-toggle-slot unblock"
+                          style={{ width: "100%", padding: "11px", fontSize: "13px", borderRadius: "6px" }}
+                        >
+                          <i className="bi bi-unlock"></i> Desbloquear Día
+                        </button>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Grilla interactiva de horas para la sede, fecha y especialidad seleccionada */}
                 <h4 style={{ margin: "24px 0 12px 0", fontSize: "15px", fontWeight: "700", color: "#1c2822" }}>
-                  Horarios del día ({blockDate}):
+                  Horarios del día ({blockDate}) — {blockServiceType === "gemologo" ? "💎 Gemólogo" : "💍 Asesoría"}:
                 </h4>
                 <div className="admin-slots-grid">
                   {TIME_SLOTS.map((time) => {
-                    const statusCheck = isSlotBlocked(blockSedeId, blockDate, time);
+                    const statusCheck = isSlotBlocked(blockSedeId, blockDate, time, blockServiceType);
                     const isBlocked = statusCheck.blocked;
 
-                    // Verificar si es un bloqueo manual de la lista
+                    // Verificar si es un bloqueo manual de la lista aplicable al servicio actual
                     const specificBlock = blockedList.find(
                       (b) =>
                         b.sedeId === blockSedeId &&
                         b.date === blockDate &&
-                        (b.time === time || b.time === "FULL_DAY")
+                        (b.time === time || b.time === "FULL_DAY") &&
+                        (!b.serviceType || b.serviceType === "all" || b.serviceType === blockServiceType)
                     );
 
                     return (
@@ -1047,12 +1194,12 @@ export default function AdminCitas() {
                         <div>
                           <div className="slot-time-text">{time}</div>
                           {isBlocked ? (
-                            <span style={{ fontSize: "11.5px", color: "#b9423c", fontWeight: "500" }}>
+                            <span style={{ fontSize: "11.5px", color: "#b9423c", fontWeight: "500", display: "block", marginTop: "2px" }}>
                               {statusCheck.reason}
                             </span>
                           ) : (
-                            <span style={{ fontSize: "11.5px", color: "#1e7048", fontWeight: "600" }}>
-                              Disponible
+                            <span style={{ fontSize: "11.5px", color: "#1e7048", fontWeight: "600", display: "block", marginTop: "2px" }}>
+                              ✓ {blockServiceType === "gemologo" ? "Gemólogo Disponible" : "Asesoría Disponible"}
                             </span>
                           )}
                         </div>
@@ -1062,9 +1209,9 @@ export default function AdminCitas() {
                             type="button"
                             onClick={() => handleUnblock(specificBlock.id)}
                             className="btn-toggle-slot unblock"
-                            title="Desbloquear este horario para permitir citas"
+                            title="Habilitar este horario"
                           >
-                            Desbloquear
+                            Habilitar
                           </button>
                         ) : isBlocked ? (
                           <span style={{ fontSize: "12px", color: "#77857e", fontWeight: "500" }}>Cita activa</span>
@@ -1073,7 +1220,7 @@ export default function AdminCitas() {
                             type="button"
                             onClick={() => handleBlockSlot(time)}
                             className="btn-toggle-slot block"
-                            title="Bloquear este horario a los clientes"
+                            title={`Bloquear horario para ${blockServiceType === "gemologo" ? "Gemólogo" : "Asesoría"}`}
                           >
                             Bloquear
                           </button>
@@ -1089,47 +1236,97 @@ export default function AdminCitas() {
                 <h3 className="blocking-config-title">
                   Historial de Bloqueos Activos ({blockedList.length})
                 </h3>
-                <p style={{ fontSize: "14px", color: "#4f5f56", marginBottom: "20px", lineHeight: "1.5" }}>
-                  Lista de todos los intervalos y días que la administración ha cerrado temporalmente.
+                <p style={{ fontSize: "14px", color: "#4f5f56", marginBottom: "16px", lineHeight: "1.5" }}>
+                  Lista de turnos y días cerrados temporalmente. Puedes filtrarlos por especialidad.
                 </p>
 
-                {blockedList.length === 0 ? (
-                  <div style={{ textAlign: "center", padding: "40px", background: "#faf8f4", borderRadius: "8px", color: "#77857e", fontSize: "14px" }}>
-                    No hay bloqueos manuales activos en el sistema. Todos los horarios regulares están libres.
-                  </div>
-                ) : (
-                  <div className="active-blocks-list">
-                    {blockedList.map((block) => {
-                      const sede = sedesData.find((s) => s.id === block.sedeId);
-                      return (
-                        <div key={block.id} className="active-block-item">
-                          <div>
-                            <div style={{ fontWeight: "700", fontSize: "14.5px", color: "#15241e" }}>
-                              {sede?.name || block.sedeId}
-                            </div>
-                            <div style={{ fontSize: "13px", color: "#4a5951", marginTop: "3px" }}>
-                              <i className="bi bi-calendar3"></i> {block.date} &nbsp;·&nbsp;
-                              <i className="bi bi-clock"></i>{" "}
-                              <strong>{block.time === "FULL_DAY" ? "Día Completo" : block.time}</strong>
-                            </div>
-                            <div style={{ fontSize: "12.5px", color: "#b9423c", marginTop: "4px", fontWeight: "500" }}>
-                              Motivo: {block.reason}
-                            </div>
-                          </div>
+                {/* Filtros por servicio para la lista de bloqueos */}
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
+                  {[
+                    { id: "todos", label: `Todos (${blockedList.length})` },
+                    { id: "gemologo", label: `💎 Gemólogo (${blockedList.filter((b) => b.serviceType === "gemologo").length})` },
+                    { id: "asesoria", label: `💍 Asesoría (${blockedList.filter((b) => b.serviceType === "asesoria").length})` },
+                  ].map((pill) => (
+                    <button
+                      key={pill.id}
+                      type="button"
+                      onClick={() => setFilterBlockService(pill.id)}
+                      style={{
+                        padding: "6px 12px",
+                        borderRadius: "16px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        border: filterBlockService === pill.id ? "1.5px solid var(--platino-green-dark)" : "1px solid #d4ded8",
+                        background: filterBlockService === pill.id ? "#eef5f1" : "white",
+                        color: filterBlockService === pill.id ? "var(--platino-green-dark)" : "#5a6660",
+                        cursor: "pointer",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      {pill.label}
+                    </button>
+                  ))}
+                </div>
 
-                          <button
-                            type="button"
-                            onClick={() => handleUnblock(block.id)}
-                            className="btn-toggle-slot unblock"
-                            title="Eliminar este bloqueo"
-                          >
-                            <i className="bi bi-unlock"></i> Desbloquear
-                          </button>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                {(() => {
+                  const displayedBlocks = blockedList.filter((b) => {
+                    if (filterBlockService === "todos") return true;
+                    if (filterBlockService === "gemologo") return b.serviceType === "gemologo";
+                    if (filterBlockService === "asesoria") return b.serviceType === "asesoria";
+                    return true;
+                  });
+
+                  if (displayedBlocks.length === 0) {
+                    return (
+                      <div style={{ textAlign: "center", padding: "40px", background: "#faf8f4", borderRadius: "8px", color: "#77857e", fontSize: "14px" }}>
+                        No hay bloqueos activos para el filtro seleccionado.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="active-blocks-list">
+                      {displayedBlocks.map((block) => {
+                        const sede = sedesData.find((s) => s.id === block.sedeId);
+                        return (
+                          <div key={block.id} className="active-block-item">
+                            <div>
+                              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+                                <span style={{ fontWeight: "700", fontSize: "14.5px", color: "#15241e" }}>
+                                  {sede?.name || block.sedeId}
+                                </span>
+                                <span
+                                  className={`block-service-badge ${
+                                    block.serviceType === "gemologo" ? "gemologo" : "asesoria"
+                                  }`}
+                                >
+                                  {block.serviceType === "gemologo" ? "💎 Gemólogo" : "💍 Asesoría"}
+                                </span>
+                              </div>
+                              <div style={{ fontSize: "13px", color: "#4a5951", marginTop: "3px" }}>
+                                <i className="bi bi-calendar3"></i> {block.date} &nbsp;·&nbsp;
+                                <i className="bi bi-clock"></i>{" "}
+                                <strong>{block.time === "FULL_DAY" ? "Día Completo" : block.time}</strong>
+                              </div>
+                              <div style={{ fontSize: "12.5px", color: "#b9423c", marginTop: "4px", fontWeight: "500" }}>
+                                Motivo: {block.reason}
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleUnblock(block.id)}
+                              className="btn-toggle-slot unblock"
+                              title="Eliminar este bloqueo"
+                            >
+                              <i className="bi bi-unlock"></i> Desbloquear
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })()}
               </div>
             </div>
           </div>
@@ -1367,22 +1564,66 @@ export default function AdminCitas() {
                 </div>
 
                 <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span
+                  <div
                     style={{
-                      fontSize: "12px",
-                      fontWeight: "700",
-                      padding: "5px 12px",
-                      borderRadius: "20px",
-                      background: "#0b2820",
-                      color: "#ffffff",
                       display: "inline-flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      letterSpacing: "0.3px",
+                      background: "#e4ece7",
+                      borderRadius: "24px",
+                      padding: "3px",
+                      border: "1px solid #c5d8ce",
                     }}
                   >
-                    <i className="bi bi-broadcast" style={{ color: "#7ce3a7" }}></i> Barra de Promociones Activa
-                  </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!announcementActive) handleToggleAnnouncementActive();
+                      }}
+                      style={{
+                        border: "none",
+                        borderRadius: "20px",
+                        padding: "6px 14px",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        background: announcementActive ? "#0b2820" : "transparent",
+                        color: announcementActive ? "#ffffff" : "#45584e",
+                        boxShadow: announcementActive ? "0 2px 6px rgba(0,0,0,0.15)" : "none",
+                        transition: "all 0.2s ease",
+                      }}
+                      title="Activar franja superior en toda la tienda"
+                    >
+                      <i className="bi bi-check-circle-fill" style={{ color: announcementActive ? "#7ce3a7" : "#8ca095" }}></i>
+                      Activo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (announcementActive) handleToggleAnnouncementActive();
+                      }}
+                      style={{
+                        border: "none",
+                        borderRadius: "20px",
+                        padding: "6px 14px",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "6px",
+                        background: !announcementActive ? "#b9423c" : "transparent",
+                        color: !announcementActive ? "#ffffff" : "#45584e",
+                        boxShadow: !announcementActive ? "0 2px 6px rgba(185, 66, 60, 0.25)" : "none",
+                        transition: "all 0.2s ease",
+                      }}
+                      title="Desactivar y ocultar franja superior de la tienda"
+                    >
+                      <i className="bi bi-x-circle-fill" style={{ color: !announcementActive ? "#ffffff" : "#8ca095" }}></i>
+                      Inactivo
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -1403,19 +1644,41 @@ export default function AdminCitas() {
                 </span>
                 <div
                   style={{
-                    background: "#0b2820",
-                    color: "#ffffff",
-                    padding: "9px 18px",
+                    background: announcementActive ? "#0b2820" : "#f5f4f0",
+                    color: announcementActive ? "#ffffff" : "#7c8580",
+                    padding: "10px 18px",
                     borderRadius: "6px",
                     textAlign: "center",
                     fontSize: "12px",
                     fontWeight: "500",
                     letterSpacing: "0.4px",
-                    boxShadow: "0 2px 6px rgba(0,0,0,0.12)",
-                    border: "1px solid #144033",
+                    boxShadow: announcementActive ? "0 2px 6px rgba(0,0,0,0.12)" : "none",
+                    border: announcementActive ? "1px solid #144033" : "1.5px dashed #c0b8aa",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "10px",
+                    transition: "all 0.2s ease",
                   }}
                 >
-                  <span>{announcementInput || DEFAULT_ANNOUNCEMENT}</span>
+                  {!announcementActive && (
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        fontWeight: "700",
+                        color: "#b9423c",
+                        background: "#fde8e8",
+                        padding: "2px 8px",
+                        borderRadius: "10px",
+                        border: "1px solid #f8b4b4",
+                      }}
+                    >
+                      <i className="bi bi-eye-slash-fill"></i> INACTIVO / OCULTO EN TIENDA
+                    </span>
+                  )}
+                  <span style={{ textDecoration: announcementActive ? "none" : "line-through", opacity: announcementActive ? 1 : 0.7 }}>
+                    {announcementInput || DEFAULT_ANNOUNCEMENT}
+                  </span>
                 </div>
               </div>
 
@@ -1493,76 +1756,608 @@ export default function AdminCitas() {
               </form>
             </div>
 
-            {/* Filtros de sección del Inicio */}
-            <div className="catalog-admin-filters" style={{ marginTop: "18px" }}>
-              <div
-                style={{
-                  display: "flex",
-                  gap: "12px",
-                  alignItems: "center",
-                  flexWrap: "wrap",
-                  width: "100%",
-                }}
-              >
-                <span style={{ fontSize: "13.5px", fontWeight: "600", color: "#1e2e26" }}>
-                  Filtrar por Sección:
+            {/* Navegador Visual por Secciones del Inicio */}
+            <div style={{ margin: "26px 0 20px 0" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", marginBottom: "12px" }}>
+                <span style={{ fontSize: "14px", fontWeight: "700", color: "#162720" }}>
+                  <i className="bi bi-layers-fill" style={{ color: "var(--platino-green-dark)" }}></i> Modificar por Secciones del Inicio:
                 </span>
-                <select
-                  value={homeSectionFilter}
-                  onChange={(e) => setHomeSectionFilter(e.target.value)}
-                  className="filter-select"
-                  style={{ minWidth: "260px" }}
-                >
-                  <option value="todas">Todas las Secciones del Inicio</option>
-                  <option value="Banners Principales (Hero)">Banners Principales (Hero)</option>
-                  <option value="Comprar joyas por categoría">Comprar joyas por categoría</option>
-                  <option value="Anillos dignos de obsesión">Anillos dignos de obsesión</option>
-                  <option value="Secciones Editoriales">Secciones Editoriales & Boutique</option>
-                  <option value="Mosaico 'The New Classics'">Mosaico 'The New Classics'</option>
-                </select>
+                <span style={{ fontSize: "13px", color: "#6b7a72" }}>
+                  Mostrando <strong>{filteredHomeItems.length}</strong> fotos configurables
+                </span>
+              </div>
 
-                <span style={{ fontSize: "13px", color: "#6b7a72", marginLeft: "auto" }}>
-                  Mostrando {filteredHomeItems.length} elementos configurables
-                </span>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                {HOME_SECTIONS.map((sec) => {
+                  const isActive = homeSectionFilter === sec.section;
+                  return (
+                    <button
+                      key={sec.id}
+                      type="button"
+                      onClick={() => setHomeSectionFilter(sec.section)}
+                      style={{
+                        padding: "9px 16px",
+                        borderRadius: "20px",
+                        fontSize: "12.5px",
+                        fontWeight: "600",
+                        border: isActive ? "1.5px solid var(--platino-green-dark)" : "1px solid #d4ded8",
+                        background: isActive ? "#0b2820" : "#ffffff",
+                        color: isActive ? "#ffffff" : "#45584e",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "7px",
+                        transition: "all 0.2s ease",
+                        boxShadow: isActive ? "0 2px 8px rgba(11, 40, 32, 0.22)" : "none",
+                      }}
+                    >
+                      <i className={`bi ${sec.icon}`} style={{ color: isActive ? "#7ce3a7" : "#6a7b72" }}></i>
+                      {sec.name}
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
-            {/* Grid de Tarjetas de Imágenes */}
-            <div className="home-images-grid">
-              {filteredHomeItems.map(([key, item]) => (
-                <div key={key} className="home-image-card">
-                  <div className="home-image-card-thumb-wrapper">
-                    <img
-                      src={item.image}
-                      alt={item.label || item.name || key}
-                      className="home-image-card-thumb"
-                      onError={(e) => {
-                        e.target.src = "/images/cat-compromiso.jpg";
+            {/* EDITOR ESPECÍFICO: Anillos dignos de obsesión (Título principal + Subtítulo) */}
+            {homeSectionFilter === "Anillos dignos de obsesión" && (
+              <div style={{ background: "#fbfaf7", border: "1.5px solid #e7dfd1", borderRadius: "8px", padding: "20px 24px", marginBottom: "24px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+                  <span style={{ fontSize: "22px" }}>💍</span>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: "16px", color: "#15241e", fontWeight: "700" }}>
+                      Textos del Encabezado de Anillos
+                    </h4>
+                    <p style={{ margin: 0, fontSize: "13px", color: "#5d6d65" }}>
+                      Personaliza el título principal y subtítulo que se muestran encima de los 6 estilos de anillos.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "14px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12.5px", fontWeight: "600", color: "#1e2e26", marginBottom: "5px" }}>
+                      Título Principal de la Sección:
+                    </label>
+                    <input
+                      type="text"
+                      className="filter-select"
+                      style={{ width: "100%", height: "42px" }}
+                      value={homeImagesData.sectionRingStyles?.title || "Anillos de compromiso dignos de obsesión"}
+                      onChange={(e) => {
+                        const updated = {
+                          ...homeImagesData,
+                          sectionRingStyles: {
+                            ...homeImagesData.sectionRingStyles,
+                            title: e.target.value,
+                          },
+                        };
+                        setHomeImagesData(updated);
                       }}
                     />
                   </div>
 
-                  <div className="home-image-card-body">
-                    <span className="home-section-badge">{item.section}</span>
-                    <h4 className="home-image-card-title">{item.label || item.name}</h4>
-                    <p className="home-image-card-desc">
-                      {item.description || item.subtitle || (item.path ? `Enlace: ${item.path}` : "Fotografía destacada del inicio")}
-                    </p>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12.5px", fontWeight: "600", color: "#1e2e26", marginBottom: "5px" }}>
+                      Subtítulo de la Sección:
+                    </label>
+                    <input
+                      type="text"
+                      className="filter-select"
+                      style={{ width: "100%", height: "42px" }}
+                      value={homeImagesData.sectionRingStyles?.subtitle || "Arte y artesanía en cada detalle."}
+                      onChange={(e) => {
+                        const updated = {
+                          ...homeImagesData,
+                          sectionRingStyles: {
+                            ...homeImagesData.sectionRingStyles,
+                            subtitle: e.target.value,
+                          },
+                        };
+                        setHomeImagesData(updated);
+                      }}
+                    />
+                  </div>
+                </div>
 
-                    <div className="home-image-card-footer">
-                      <button
-                        type="button"
-                        onClick={() => handleOpenEditHomeImage(key, item)}
-                        className="btn-change-home-image"
-                        title="Cambiar fotografía y textos"
-                      >
-                        <i className="bi bi-camera"></i> Cambiar Imagen
-                      </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleSaveSectionHeader(
+                      "sectionRingStyles",
+                      homeImagesData.sectionRingStyles?.title || "Anillos de compromiso dignos de obsesión",
+                      homeImagesData.sectionRingStyles?.subtitle || "Arte y artesanía en cada detalle."
+                    )
+                  }
+                  style={{
+                    background: "#137748",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "5px",
+                    padding: "9px 18px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <i className="bi bi-check-lg"></i> Guardar Título y Subtítulo de Sección
+                </button>
+              </div>
+            )}
+
+            {/* VISTA ESPECÍFICA: The Fall Edit & The New Classics (2 Cuadros: 1 de Textos + 1 de las 7 Fotos) */}
+            {homeSectionFilter === "The Fall Edit & The New Classics" && (
+              <div style={{ marginBottom: "26px" }}>
+                {/* CUADRO 1: SOLO TEXTOS DE LA SECCIÓN */}
+                <div
+                  style={{
+                    background: "#ffffff",
+                    border: "1.5px solid #d8e5df",
+                    borderRadius: "10px",
+                    padding: "24px",
+                    marginBottom: "24px",
+                    boxShadow: "0 2px 8px rgba(11, 40, 32, 0.04)",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "18px" }}>
+                    <span style={{ fontSize: "24px" }}>📝</span>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: "17px", color: "#11261e", fontWeight: "700" }}>
+                        Cuadro de Textos de la Sección
+                      </h4>
+                      <p style={{ margin: 0, fontSize: "13px", color: "#5d6d65" }}>
+                        Aquí solo modificas los textos y títulos de esta sección (lado izquierdo y lado derecho).
+                      </p>
+                    </div>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "22px", marginBottom: "18px" }}>
+                    {/* Columna Izquierda: The Fall Edit */}
+                    <div style={{ background: "#f8fbf9", border: "1px solid #dbeae2", borderRadius: "8px", padding: "18px" }}>
+                      <h5 style={{ margin: "0 0 14px 0", fontSize: "14px", color: "#0c3b28", fontWeight: "700", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <i className="bi bi-fonts"></i> Lado Izquierdo (The Fall Edit)
+                      </h5>
+
+                      <div style={{ marginBottom: "12px" }}>
+                        <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#253c30", marginBottom: "4px" }}>
+                          Título Principal:
+                        </label>
+                        <input
+                          type="text"
+                          className="filter-select"
+                          style={{ width: "100%", height: "40px" }}
+                          value={homeImagesData.editorialFall?.title || "The Fall Edit"}
+                          onChange={(e) => {
+                            setHomeImagesData({
+                              ...homeImagesData,
+                              editorialFall: { ...homeImagesData.editorialFall, title: e.target.value },
+                            });
+                          }}
+                          placeholder="Ej. The Fall Edit"
+                        />
+                      </div>
+
+                      <div style={{ marginBottom: "12px" }}>
+                        <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#253c30", marginBottom: "4px" }}>
+                          Subtítulo / Párrafo:
+                        </label>
+                        <textarea
+                          className="filter-select"
+                          style={{ width: "100%", height: "70px", padding: "8px 12px", resize: "vertical" }}
+                          value={homeImagesData.editorialFall?.subtitle || ""}
+                          onChange={(e) => {
+                            setHomeImagesData({
+                              ...homeImagesData,
+                              editorialFall: { ...homeImagesData.editorialFall, subtitle: e.target.value },
+                            });
+                          }}
+                          placeholder="Descripción..."
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#253c30", marginBottom: "4px" }}>
+                          Texto del Botón:
+                        </label>
+                        <input
+                          type="text"
+                          className="filter-select"
+                          style={{ width: "100%", height: "40px" }}
+                          value={homeImagesData.editorialFall?.buttonText || "SHOP NOW"}
+                          onChange={(e) => {
+                            setHomeImagesData({
+                              ...homeImagesData,
+                              editorialFall: { ...homeImagesData.editorialFall, buttonText: e.target.value },
+                            });
+                          }}
+                          placeholder="Ej. SHOP NOW"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Columna Derecha: The New Classics */}
+                    <div style={{ background: "#fbfaf7", border: "1px solid #e7ded0", borderRadius: "8px", padding: "18px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                      <div>
+                        <h5 style={{ margin: "0 0 14px 0", fontSize: "14px", color: "#1e2e26", fontWeight: "700", display: "flex", alignItems: "center", gap: "6px" }}>
+                          <i className="bi bi-type-italic"></i> Lado Derecho (The New Classics)
+                        </h5>
+
+                        <div>
+                          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#253c30", marginBottom: "4px" }}>
+                            Título Central en Cursiva sobre el Collage:
+                          </label>
+                          <input
+                            type="text"
+                            className="filter-select"
+                            style={{ width: "100%", height: "40px" }}
+                            value={homeImagesData.editorialClassics?.title || "The New Classics"}
+                            onChange={(e) => {
+                              setHomeImagesData({
+                                ...homeImagesData,
+                                editorialClassics: { ...homeImagesData.editorialClassics, title: e.target.value },
+                              });
+                            }}
+                            placeholder="Ej. The New Classics"
+                          />
+                          <small style={{ fontSize: "11.5px", color: "#748178", marginTop: "6px", display: "block" }}>
+                            Este texto se dibuja en caligrafía script blanca sobre las 6 fotos pegadas del collage.
+                          </small>
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: "20px", padding: "12px 14px", background: "#f0efe9", borderRadius: "6px", fontSize: "12px", color: "#546259" }}>
+                        <i className="bi bi-info-circle"></i> Los cambios de texto se reflejan en tiempo real en la tienda al hacer clic en Guardar.
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={handleSaveFallEditTexts}
+                    style={{
+                      background: "#137748",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "6px",
+                      padding: "11px 24px",
+                      fontSize: "13.5px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      boxShadow: "0 2px 6px rgba(19, 119, 72, 0.2)",
+                    }}
+                  >
+                    <i className="bi bi-check2-circle" style={{ fontSize: "16px" }}></i> Guardar Todos los Textos de la Sección
+                  </button>
+                </div>
+
+                {/* CUADRO 2: CUADRO DE LAS 7 FOTOGRAFÍAS */}
+                <div
+                  style={{
+                    background: "#ffffff",
+                    border: "1.5px solid #d8e5df",
+                    borderRadius: "10px",
+                    padding: "24px",
+                    boxShadow: "0 2px 8px rgba(11, 40, 32, 0.04)",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", marginBottom: "18px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <span style={{ fontSize: "24px" }}>🖼️</span>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: "17px", color: "#11261e", fontWeight: "700" }}>
+                          Cuadro de Fotografías (7 Fotos en total)
+                        </h4>
+                        <p style={{ margin: 0, fontSize: "13px", color: "#5d6d65" }}>
+                          Aquí solo cambias las fotos que se muestran en esta sección: 1 foto editorial izquierda y las 6 fotos del collage pegado derecho.
+                        </p>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: "12px", background: "#e8f4ed", color: "#137748", padding: "4px 12px", borderRadius: "12px", fontWeight: "700" }}>
+                      1 Foto Editorial + 6 Fotos de Collage
+                    </span>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: "20px", alignItems: "stretch" }}>
+                    {/* Foto 1: Editorial Izquierda */}
+                    <div style={{ border: "1.5px solid #c9dcd1", borderRadius: "8px", overflow: "hidden", background: "#fbfcfb", display: "flex", flexDirection: "column" }}>
+                      <div style={{ padding: "12px 16px", background: "#f2f8f4", borderBottom: "1px solid #dbe9df", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <strong style={{ fontSize: "13px", color: "#0c3b28" }}>Foto 1: Editorial Izquierda (The Fall Edit)</strong>
+                        <span style={{ fontSize: "11px", background: "#0b2820", color: "#ffffff", padding: "2px 8px", borderRadius: "4px", fontWeight: "600" }}>Principal</span>
+                      </div>
+                      <div style={{ position: "relative", height: "320px", overflow: "hidden", background: "#0c231b" }}>
+                        <img
+                          src={homeImagesData.editorialFall?.image || "/images/editorial-fall.jpg"}
+                          alt="Foto Editorial"
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          onError={(e) => {
+                            e.target.src = "/images/editorial-fall.jpg";
+                          }}
+                        />
+                        <div style={{ position: "absolute", bottom: "16px", left: "16px", right: "16px", background: "rgba(11, 40, 32, 0.82)", backdropFilter: "blur(4px)", padding: "10px 14px", borderRadius: "6px", color: "#ffffff" }}>
+                          <div style={{ fontSize: "15px", fontFamily: "var(--font-serif)", fontWeight: "600" }}>{homeImagesData.editorialFall?.title || "The Fall Edit"}</div>
+                          <div style={{ fontSize: "11.5px", opacity: 0.85, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{homeImagesData.editorialFall?.subtitle}</div>
+                        </div>
+                      </div>
+                      <div style={{ padding: "14px 16px", background: "#ffffff", borderTop: "1px solid #e7efe9" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditHomeImage("editorialFall", homeImagesData.editorialFall || {})}
+                          className="btn-catalog-create"
+                          style={{ width: "100%", justifyContent: "center", padding: "9px" }}
+                        >
+                          <i className="bi bi-camera"></i> Cambiar Foto 1 (Editorial)
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Fotos 2 a 7: Mosaico 6 Fotos */}
+                    <div style={{ border: "1.5px solid #c9dcd1", borderRadius: "8px", overflow: "hidden", background: "#fbfcfb", display: "flex", flexDirection: "column" }}>
+                      <div style={{ padding: "12px 16px", background: "#f2f8f4", borderBottom: "1px solid #dbe9df", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <strong style={{ fontSize: "13px", color: "#0c3b28" }}>Fotos 2 a 7: Collage Continuo (The New Classics)</strong>
+                        <span style={{ fontSize: "11px", background: "#137748", color: "#ffffff", padding: "2px 8px", borderRadius: "4px", fontWeight: "600" }}>6 Fotos</span>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gridTemplateRows: "repeat(2, 1fr)", gap: "4px", padding: "8px", background: "#0c231b", flex: 1, minHeight: "320px" }}>
+                        {[
+                          { key: "mosaic1", num: 2, label: "Pieza 1" },
+                          { key: "mosaic2", num: 3, label: "Pieza 2" },
+                          { key: "mosaic3", num: 4, label: "Pieza 3" },
+                          { key: "mosaic4", num: 5, label: "Pieza 4" },
+                          { key: "mosaic5", num: 6, label: "Pieza 5" },
+                          { key: "mosaic6", num: 7, label: "Pieza 6" },
+                        ].map(({ key, num, label }) => {
+                          const item = homeImagesData[key] || {};
+                          return (
+                            <div
+                              key={key}
+                              style={{
+                                position: "relative",
+                                aspectRatio: "1",
+                                overflow: "hidden",
+                                borderRadius: "3px",
+                                background: "#17372b",
+                              }}
+                            >
+                              <img
+                                src={item.image || `/images/${key}.jpg`}
+                                alt={label}
+                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                onError={(e) => {
+                                  e.target.src = "/images/cat-compromiso.jpg";
+                                }}
+                              />
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  inset: 0,
+                                  background: "rgba(0, 0, 0, 0.45)",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: "6px",
+                                  padding: "6px",
+                                  textAlign: "center",
+                                }}
+                              >
+                                <span style={{ fontSize: "10.5px", fontWeight: "700", color: "#ffffff", textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
+                                  Foto {num} ({label})
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditHomeImage(key, item)}
+                                  style={{
+                                    border: "none",
+                                    background: "#ffffff",
+                                    color: "#0b2820",
+                                    padding: "4px 8px",
+                                    borderRadius: "4px",
+                                    fontSize: "11px",
+                                    fontWeight: "700",
+                                    cursor: "pointer",
+                                    boxShadow: "0 2px 5px rgba(0,0,0,0.3)",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                  }}
+                                >
+                                  <i className="bi bi-camera-fill"></i> Cambiar
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div style={{ padding: "10px 14px", background: "#f8fbf9", borderTop: "1px solid #e7efe9", fontSize: "12px", color: "#506357", textAlign: "center" }}>
+                        <i className="bi bi-magic"></i> Cada una de estas 6 fotos tiene efecto <strong>Zoom interactivo</strong> en la tienda al pasar el mouse.
+                      </div>
                     </div>
                   </div>
                 </div>
-              ))}
-            </div>
+              </div>
+            )}
+
+            {/* EDITOR ESPECÍFICO: Showroom & Sedes (1 o 2 Fotos Opcionales + Textos) */}
+            {homeSectionFilter === "Nuestras Sedes & Showroom" && (
+              <div style={{ background: "#fbfaf7", border: "1.5px solid #e7dfd1", borderRadius: "8px", padding: "20px 24px", marginBottom: "24px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
+                  <span style={{ fontSize: "22px" }}>🏛️</span>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: "16px", color: "#15241e", fontWeight: "700" }}>
+                      Textos de la Sección de Sedes y Showroom
+                    </h4>
+                    <p style={{ margin: 0, fontSize: "13px", color: "#5d6d65" }}>
+                      Configura el título principal, subtítulo y si deseas mostrar 1 o 2 fotografías del Showroom / Sedes en la tienda.
+                    </p>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "14px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12.5px", fontWeight: "600", color: "#1e2e26", marginBottom: "5px" }}>
+                      Título Principal:
+                    </label>
+                    <input
+                      type="text"
+                      className="filter-select"
+                      style={{ width: "100%", height: "42px" }}
+                      value={homeImagesData.showroom?.title || "Estamos aquí para ti, en persona y en línea"}
+                      onChange={(e) => {
+                        const updated = {
+                          ...homeImagesData,
+                          showroom: {
+                            ...homeImagesData.showroom,
+                            title: e.target.value,
+                          },
+                        };
+                        setHomeImagesData(updated);
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: "12.5px", fontWeight: "600", color: "#1e2e26", marginBottom: "5px" }}>
+                      Subtítulo / Descripción:
+                    </label>
+                    <input
+                      type="text"
+                      className="filter-select"
+                      style={{ width: "100%", height: "42px" }}
+                      value={homeImagesData.showroom?.subtitle || "Ya sea en una tienda cercana a usted o en línea, seleccionamos su cita solo para usted."}
+                      onChange={(e) => {
+                        const updated = {
+                          ...homeImagesData,
+                          showroom: {
+                            ...homeImagesData.showroom,
+                            subtitle: e.target.value,
+                          },
+                        };
+                        setHomeImagesData(updated);
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    handleSaveSectionHeader(
+                      "showroom",
+                      homeImagesData.showroom?.title || "Estamos aquí para ti, en persona y en línea",
+                      homeImagesData.showroom?.subtitle || "Ya sea en una tienda cercana a usted o en línea, seleccionamos su cita solo para usted."
+                    )
+                  }
+                  style={{
+                    background: "#137748",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "5px",
+                    padding: "9px 18px",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <i className="bi bi-check-lg"></i> Guardar Textos de Showroom
+                </button>
+              </div>
+            )}
+
+            {/* Grid de Tarjetas de Imágenes (para todas las demás secciones) */}
+            {homeSectionFilter !== "The Fall Edit & The New Classics" && (
+              <div className="home-images-grid">
+                {filteredHomeItems.map(([key, item]) => {
+                  // Caso especial: segunda foto opcional de showroom sin asignar
+                  if (key === "showroomSecondary" && !item.image) {
+                    return (
+                      <div
+                        key={key}
+                        className="home-image-card"
+                        style={{ border: "2px dashed #b5c7bd", background: "#fbfcfb", alignItems: "center", justifyContent: "center", padding: "30px 20px", textAlign: "center" }}
+                        >
+                        <div style={{ width: "54px", height: "54px", borderRadius: "50%", background: "#edf4f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", color: "var(--platino-green-dark)", marginBottom: "14px" }}>
+                          <i className="bi bi-image"></i>
+                        </div>
+                        <span className="home-section-badge">Nuestras Sedes & Showroom</span>
+                        <h4 className="home-image-card-title" style={{ fontSize: "15px", marginTop: "4px" }}>
+                          Foto 2 del Showroom (Opcional)
+                        </h4>
+                        <p className="home-image-card-desc" style={{ fontSize: "12.5px" }}>
+                          Actualmente solo se muestra 1 fotografía en la tienda. Si deseas mostrar dos sedes o una vista complementaria en paralelo, sube una 2da foto aquí.
+                        </p>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditHomeImage(key, item)}
+                          className="btn-change-home-image"
+                          style={{ marginTop: "10px" }}
+                        >
+                          <i className="bi bi-plus-circle"></i> Agregar 2da Foto
+                        </button>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={key} className="home-image-card">
+                      <div className="home-image-card-thumb-wrapper">
+                        <img
+                          src={item.image}
+                          alt={item.label || item.name || key}
+                          className="home-image-card-thumb"
+                          onError={(e) => {
+                            e.target.src = "/images/cat-compromiso.jpg";
+                          }}
+                        />
+                      </div>
+
+                      <div className="home-image-card-body">
+                        <span className="home-section-badge">{item.section}</span>
+                        <h4 className="home-image-card-title">{item.label || item.name}</h4>
+                        <p className="home-image-card-desc">
+                          {item.name ? (
+                            <>
+                              <strong>Título visible abajo:</strong> "{item.name}"
+                            </>
+                          ) : item.description || item.subtitle || (item.path ? `Enlace: ${item.path}` : "Fotografía destacada del inicio")}
+                        </p>
+
+                        <div className="home-image-card-footer">
+                          <button
+                            type="button"
+                            onClick={() => handleOpenEditHomeImage(key, item)}
+                            className="btn-change-home-image"
+                            title="Cambiar fotografía y título"
+                          >
+                            <i className="bi bi-camera"></i> Cambiar Foto y Título
+                          </button>
+
+                          {key === "showroomSecondary" && item.image && (
+                            <button
+                              type="button"
+                              onClick={handleRemoveSecondaryShowroom}
+                              className="btn-card-delete"
+                              title="Quitar esta segunda foto (volver a 1 sola foto)"
+                              style={{ padding: "8px 12px", fontSize: "12px" }}
+                            >
+                              <i className="bi bi-trash"></i>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         )}
 
@@ -1876,17 +2671,20 @@ export default function AdminCitas() {
                   </div>
                 </div>
 
-                {/* Campos condicionales si el elemento admite texto */}
-                {(homeImagesData[editingHomeKey]?.title !== undefined ||
-                  homeImagesData[editingHomeKey]?.name !== undefined) && (
+                {/* Campo de Título / Nombre visible (se oculta para piezas individuales del mosaico) */}
+                {!editingHomeKey?.startsWith("mosaic") && (
                   <div className="catalog-form-group">
-                    <label>Título / Nombre visible en la tarjeta</label>
+                    <label>Título / Nombre inferior visible en la tienda</label>
                     <input
                       type="text"
                       className="catalog-form-input"
                       value={formHomeImageTitle}
                       onChange={(e) => setFormHomeImageTitle(e.target.value)}
+                      placeholder="Ej. Anillos solitarios, etc."
                     />
+                    <small style={{ fontSize: "11.5px", color: "#65766c", marginTop: "4px", display: "block" }}>
+                      Este texto se muestra como título o descripción debajo de la fotografía en la página de inicio.
+                    </small>
                   </div>
                 )}
 
