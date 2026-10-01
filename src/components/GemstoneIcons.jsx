@@ -150,6 +150,18 @@ export function DiamondCutIcon({ shape, size = 48, className = "" }) {
         </svg>
       );
 
+    case "radiante": // Radiant Cut (Cut-Corner Rectangular Brilliant)
+      return (
+        <svg {...commonProps}>
+          <polygon points="26,10 74,10 90,26 90,74 74,90 26,90 10,74 10,26" strokeWidth="2" />
+          <polygon points="34,22 66,22 76,32 76,68 66,78 34,78 24,68 24,32" strokeWidth="1.3" />
+          <line x1="10" y1="26" x2="90" y2="74" strokeWidth="0.9" />
+          <line x1="90" y1="26" x2="10" y2="74" strokeWidth="0.9" />
+          <line x1="50" y1="10" x2="50" y2="90" strokeWidth="1.1" />
+          <line x1="10" y1="50" x2="90" y2="50" strokeWidth="1.1" />
+        </svg>
+      );
+
     default:
       return (
         <svg {...commonProps}>

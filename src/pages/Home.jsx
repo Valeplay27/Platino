@@ -1,21 +1,19 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
-import { DiamondCutIcon } from "../components/GemstoneIcons";
-import GemstoneStoneVisual from "../components/GemstoneStoneVisual";
 import AsesoriaOnlineModal from "../components/AsesoriaOnlineModal";
 import { sedesData } from "../data/sedes";
 import { getHomeImages } from "../services/homeImagesService";
 import "../../styles/home.css";
 
 const GEM_SHAPES = [
-  { id: "oval", name: "Oval", desc: "Silueta alargada que estiliza la mano con brillo suave y elegante.", ratio: "1.35 - 1.50", popularCarat: "1.25 ct" },
-  { id: "redondo", name: "Redondo", desc: "El corte clásico por excelencia, diseñado para maximizar el fuego y refracción.", ratio: "1.00", popularCarat: "1.00 ct" },
-  { id: "esmeralda", name: "Esmeralda", desc: "Corte escalonado de gran claridad con reflejos tipo sala de espejos.", ratio: "1.30 - 1.45", popularCarat: "1.50 ct" },
-  { id: "marquesa", name: "Marquesa", desc: "Silueta regia de puntas afiladas con máxima superficie visual por quilate.", ratio: "1.75 - 2.15", popularCarat: "1.05 ct" },
-  { id: "pera", name: "Pera", desc: "Lágrima luminosa que fusiona la suavidad del redondo con el corte marquesa.", ratio: "1.50 - 1.70", popularCarat: "1.20 ct" },
-  { id: "corazón", name: "Corazón", desc: "El símbolo definitivo de devoción y romance eterno tallado a mano.", ratio: "0.90 - 1.05", popularCarat: "1.00 ct" },
-  { id: "cojín", name: "Cojín", desc: "Bordes redondeados de inspiración vintage con facetas profundas y luminosas.", ratio: "1.00 - 1.05", popularCarat: "1.30 ct" },
-  { id: "princesa", name: "Princesa", desc: "Corte cuadrado contemporáneo de líneas puras con destello geométrico.", ratio: "1.00 - 1.03", popularCarat: "1.10 ct" },
+  { id: "oval", name: "Oval", image: "/images/gem-shapes/oval.png", desc: "Silueta alargada que estiliza la mano con brillo suave y elegante.", ratio: "1.35 - 1.50", popularCarat: "1.25 ct" },
+  { id: "redondo", name: "Round", image: "/images/gem-shapes/redondo.png", desc: "El corte clásico por excelencia, diseñado para maximizar el fuego y refracción.", ratio: "1.00", popularCarat: "1.00 ct" },
+  { id: "esmeralda", name: "Emerald", image: "/images/gem-shapes/esmeralda.png", desc: "Corte escalonado de gran claridad con reflejos tipo sala de espejos.", ratio: "1.30 - 1.45", popularCarat: "1.50 ct" },
+  { id: "marquesa", name: "Marquise", image: "/images/gem-shapes/marquesa.png", desc: "Silueta regia de puntas afiladas con máxima superficie visual por quilate.", ratio: "1.75 - 2.15", popularCarat: "1.05 ct" },
+  { id: "radiante", name: "Radiant", image: "/images/gem-shapes/radiante.png", desc: "Esquinas truncadas con patrón de facetas brillantes de destello vibrante.", ratio: "1.20 - 1.35", popularCarat: "1.20 ct" },
+  { id: "pera", name: "Pear", image: "/images/gem-shapes/pera.png", desc: "Lágrima luminosa que fusiona la suavidad del redondo con el corte marquesa.", ratio: "1.50 - 1.70", popularCarat: "1.20 ct" },
+  { id: "cojin", name: "Cushion", image: "/images/gem-shapes/cojin.png", desc: "Bordes redondeados de inspiración vintage con facetas profundas y luminosas.", ratio: "1.00 - 1.05", popularCarat: "1.30 ct" },
+  { id: "princesa", name: "Princess", image: "/images/gem-shapes/princesa.png", desc: "Corte cuadrado contemporáneo de líneas puras con destello geométrico.", ratio: "1.00 - 1.03", popularCarat: "1.10 ct" },
 ];
 
 const TRUST_BADGES = [
@@ -28,7 +26,6 @@ const TRUST_BADGES = [
 
 export default function Home() {
   const [selectedCut, setSelectedCut] = useState(GEM_SHAPES[0]);
-  const [viewMode, setViewMode] = useState("piedra"); // 'piedra' | 'sortija'
   const [asesoriaModalOpen, setAsesoriaModalOpen] = useState(false);
   const [homeImages, setHomeImages] = useState(getHomeImages);
 
@@ -70,8 +67,8 @@ export default function Home() {
   useEffect(() => {
     let animationFrameId;
     let lastTime = performance.now();
-    // Velocidad constante y elegante (~46 píxeles por segundo)
-    const speed = 46;
+    // Velocidad constante, pausada y elegante (~22 píxeles por segundo)
+    const speed = 22;
 
     const tick = (now) => {
       const delta = (now - lastTime) / 1000;
@@ -300,56 +297,25 @@ export default function Home() {
       {/* 3. SELECCIONA LA FORMA DE TU GEMA */}
       <section className="gem-selector-section">
         <div className="gem-selector-layout">
-          {/* Columna Izquierda: Render de la gema o de la sortija */}
+          {/* Columna Izquierda: Vista de la sortija con diamante como en la imagen de referencia */}
           <div className="gem-preview-col">
             <h2 className="gem-section-heading">
               Selecciona la forma de tu gema
             </h2>
 
-            {/* Selector de modo de vista: Gema Suelta vs En Sortija */}
-            <div className="gem-view-toggle">
-              <button
-                type="button"
-                className={`gem-toggle-btn ${viewMode === "piedra" ? "active" : ""}`}
-                onClick={() => setViewMode("piedra")}
-                title="Ver la piedra suelta con sus facetas y brillo"
-              >
-                <i className="bi bi-gem"></i> Gema Suelta
-              </button>
-              <button
-                type="button"
-                className={`gem-toggle-btn ${viewMode === "sortija" ? "active" : ""}`}
-                onClick={() => setViewMode("sortija")}
-                title="Ver montada en sortija de platino"
-              >
-                <i className="bi bi-circle"></i> En Sortija
-              </button>
+            <div className="gem-ring-preview">
+              <img
+                src={homeImages.ringRender?.image || "/images/gem-shapes/solitaire-ring.png"}
+                alt={`Sortija en platino con diamante corte ${selectedCut.name}`}
+                className="gem-ring-img"
+              />
             </div>
-
-            {viewMode === "piedra" ? (
-              <div className="gem-stone-card-preview">
-                <GemstoneStoneVisual
-                  shape={selectedCut.id}
-                  size={165}
-                  carat={selectedCut.popularCarat}
-                />
-                <p className="gem-stone-desc">{selectedCut.desc}</p>
-              </div>
-            ) : (
-              <div className="gem-ring-preview">
-                <img
-                  src={homeImages.ringRender?.image || "/images/ring-render.png"}
-                  alt="Montura de sortija en platino con diamante"
-                  className="gem-ring-img"
-                />
-              </div>
-            )}
 
             <div className="gem-active-badge">
               <span>Corte {selectedCut.name} seleccionado</span>
             </div>
 
-            {/* Botón para ir al Catálogo de Gemas con el filtro de esa piedra */}
+            {/* Botón redondeado para ir al Catálogo de Gemas con el filtro de esa piedra */}
             <Link
               to={`/catalogo-gemas?forma=${selectedCut.id}`}
               className="btn-go-gemstones-catalog"
@@ -360,19 +326,24 @@ export default function Home() {
             </Link>
           </div>
 
-          {/* Columna Derecha: Cuadrícula 4x2 de Formas */}
+          {/* Columna Derecha: Cuadrícula 4x2 de las 8 Formas exactas de referencia */}
           <div className="gem-grid-col">
             {GEM_SHAPES.map((gem) => {
               const isActive = selectedCut.id === gem.id;
               return (
                 <button
+                  type="button"
                   key={gem.id}
                   className={`gem-cut-btn ${isActive ? "active" : ""}`}
                   onClick={() => setSelectedCut(gem)}
-                  title={`${gem.name}: ${gem.desc}`}
+                  title={`Seleccionar diamante corte ${gem.name}`}
                 >
                   <div className="gem-icon-container">
-                    <DiamondCutIcon shape={gem.id} size={46} />
+                    <img
+                      src={gem.image}
+                      alt={`Diamante ${gem.name}`}
+                      className="gem-photo-img"
+                    />
                   </div>
                   <span className="gem-cut-label">{gem.name}</span>
                 </button>
