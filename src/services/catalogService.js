@@ -1,6 +1,56 @@
-import { products as defaultProducts, formatPrice } from "../data/products";
+import { products as defaultProducts, formatPrice, METALS, DEFAULT_METAL_IMAGES } from "../data/products";
 
 const STORAGE_KEY_CATALOG = "platino_catalog_products_v1";
+
+// Normalizar metales disponibles con los 10 metales oficiales y fotos por metal
+const normalizeProductMetals = (prod) => {
+  const defaultProdMatch = defaultProducts.find((p) => p.id === prod.id);
+  const categories = prod.categories || defaultProdMatch?.categories || [prod.category];
+  const metalImages =
+    prod.metalImages ||
+    defaultProdMatch?.metalImages ||
+    (prod.id === "aros-trial" ? DEFAULT_METAL_IMAGES : null);
+
+  if (Array.isArray(prod.availableMetals) && prod.availableMetals.length > 0) {
+    // Si tiene la configuración antigua de 4 metales por defecto, actualizar a los 10 oficiales
+    const isOldDefault =
+      prod.availableMetals.length === 4 &&
+      prod.availableMetals.some((m) => m.id === "oro-blanco-18k") &&
+      !prod.availableMetals.some((m) => m.id === "oro-18k-blanco");
+
+    if (isOldDefault) {
+      return {
+        ...prod,
+        categories,
+        availableMetals: METALS,
+        selectedMetal: prod.selectedMetal || "Oro 18k Blanco",
+        metalImages,
+      };
+    }
+
+    // Asegurar que cada metal tenga las propiedades oficiales actualizadas
+    const enriched = prod.availableMetals.map((m) => {
+      const match = METALS.find((def) => def.id === m.id || def.name === m.name);
+      return match ? { ...match } : m;
+    });
+
+    return {
+      ...prod,
+      categories,
+      availableMetals: enriched,
+      metalImages,
+    };
+  }
+
+  // Si no tiene metales definidos, asignar los 10 oficiales
+  return {
+    ...prod,
+    categories,
+    availableMetals: METALS,
+    selectedMetal: prod.selectedMetal || "Oro 18k Blanco",
+    metalImages,
+  };
+};
 
 // Cargar catálogo desde localStorage o inicializar con valores por defecto
 export const getCatalogProducts = () => {
@@ -9,7 +59,7 @@ export const getCatalogProducts = () => {
     if (stored) {
       const parsed = JSON.parse(stored);
       if (Array.isArray(parsed) && parsed.length >= defaultProducts.length) {
-        return parsed;
+        return parsed.map(normalizeProductMetals);
       }
       if (Array.isArray(parsed) && parsed.length > 0) {
         // Combinar productos personalizados con las joyas oficiales por defecto
@@ -19,16 +69,18 @@ export const getCatalogProducts = () => {
             merged.push(dp);
           }
         });
-        localStorage.setItem(STORAGE_KEY_CATALOG, JSON.stringify(merged));
-        return merged;
+        const normalized = merged.map(normalizeProductMetals);
+        localStorage.setItem(STORAGE_KEY_CATALOG, JSON.stringify(normalized));
+        return normalized;
       }
     }
     // Inicializar por primera vez
-    localStorage.setItem(STORAGE_KEY_CATALOG, JSON.stringify(defaultProducts));
-    return defaultProducts;
+    const initialized = defaultProducts.map(normalizeProductMetals);
+    localStorage.setItem(STORAGE_KEY_CATALOG, JSON.stringify(initialized));
+    return initialized;
   } catch (error) {
     console.error("Error reading catalog from localStorage", error);
-    return defaultProducts;
+    return defaultProducts.map(normalizeProductMetals);
   }
 };
 
@@ -77,17 +129,16 @@ export const createProduct = (productData) => {
     price: numPrice,
     priceFormatted: formatPrice(numPrice),
     image: productData.image || "/images/cat-compromiso.jpg",
+    metalImages: productData.metalImages || null,
     gallery: Array.isArray(productData.gallery) && productData.gallery.length > 0
       ? productData.gallery
       : [productData.image || "/images/cat-compromiso.jpg"],
     badge: productData.badge?.trim() || "Nuevo",
-    selectedMetal: productData.selectedMetal || "Oro Blanco 18k",
-    availableMetals: productData.availableMetals || [
-      { id: "oro-blanco-18k", name: "Oro Blanco 18k", color: "#e8eaeb", border: "#c2c7c8" },
-      { id: "oro-amarillo-18k", name: "Oro Amarillo 18k", color: "#f6db8d", border: "#d7b355" },
-      { id: "oro-rosa-18k", name: "Oro Rosa 18k", color: "#f7c7b2", border: "#dca188" },
-      { id: "plata-925", name: "Plata 925", color: "#e4e7e7", border: "#cfd3d3" },
-    ],
+    selectedMetal: productData.selectedMetal || "Oro 18k Blanco",
+    availableMetals:
+      Array.isArray(productData.availableMetals) && productData.availableMetals.length > 0
+        ? productData.availableMetals
+        : METALS,
     defaultGemShape: productData.defaultGemShape || "Redondo",
     description: productData.description?.trim() || "Joya artesanal con certificación y acabados de alta calidad.",
     hasGemSelection: productData.hasGemSelection ?? true,
@@ -100,7 +151,7 @@ export const createProduct = (productData) => {
   return newProduct;
 };
 
-// Modificar un producto existente (incluyendo su imagen)
+// Modificar un producto existente (incluyendo su imagen y variantes por metal)
 export const updateProduct = (id, updatedFields) => {
   const list = getCatalogProducts();
   const index = list.findIndex((p) => p.id === id);
@@ -129,6 +180,7 @@ export const updateProduct = (id, updatedFields) => {
     priceFormatted: formatPrice(numPrice),
     image: newImage,
     gallery: newGallery,
+    metalImages: updatedFields.metalImages !== undefined ? updatedFields.metalImages : (current.metalImages || null),
     updatedAt: new Date().toISOString(),
   };
 

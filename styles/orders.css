@@ -1,0 +1,1039 @@
+/* ==========================================================================
+   Platino Perú - Estilos de Pedidos y Seguimiento de Taller (Cliente & Admin)
+   ========================================================================== */
+
+/* Contenedor Principal de la Página de Pedidos del Cliente */
+.orders-page {
+  background-color: #faf9f6;
+  min-height: 85vh;
+  padding: 40px 24px 80px;
+  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  color: #1a221f;
+}
+
+.orders-container {
+  max-width: 1060px;
+  margin: 0 auto;
+}
+
+/* Encabezado del Portal de Clientes */
+.orders-hero {
+  background: linear-gradient(135deg, #0d2822 0%, #153e34 100%);
+  border-radius: 16px;
+  padding: 36px 40px;
+  color: #ffffff;
+  margin-bottom: 32px;
+  box-shadow: 0 10px 25px rgba(13, 40, 34, 0.15);
+  position: relative;
+  overflow: hidden;
+}
+
+.orders-hero::after {
+  content: "❖";
+  position: absolute;
+  right: 30px;
+  bottom: -20px;
+  font-size: 140px;
+  color: rgba(255, 255, 255, 0.04);
+  pointer-events: none;
+  font-family: serif;
+}
+
+.orders-hero-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #d4af37;
+  margin-bottom: 10px;
+}
+
+.orders-hero-title {
+  font-family: var(--font-serif, "Playfair Display", Georgia, serif);
+  font-size: clamp(26px, 3.2vw, 36px);
+  font-weight: 500;
+  margin: 0 0 10px;
+  letter-spacing: 0.01em;
+}
+
+.orders-hero-subtitle {
+  font-size: 14.5px;
+  color: #c9ded7;
+  max-width: 640px;
+  line-height: 1.6;
+  margin: 0;
+}
+
+.orders-hero-badges {
+  display: flex;
+  gap: 14px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.orders-hero-badge {
+  background: rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(8px);
+  padding: 6px 14px;
+  border-radius: 30px;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+/* Banner de Acceso Rápido de Prueba (Evaluador) */
+.orders-demo-banner {
+  background: #fbf7ee;
+  border: 1px solid #ebd9a9;
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.orders-demo-text {
+  font-size: 13.5px;
+  color: #5a471b;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.orders-demo-btn {
+  background: #0f2a24;
+  color: #ffffff;
+  border: none;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.orders-demo-btn:hover {
+  background: #174238;
+  transform: translateY(-1px);
+}
+
+/* Pestañas de Filtro (Cliente) */
+.orders-tabs-nav {
+  display: flex;
+  gap: 10px;
+  border-bottom: 2px solid #e7e3dc;
+  margin-bottom: 26px;
+  overflow-x: auto;
+}
+
+.orders-tab-item {
+  background: transparent;
+  border: none;
+  padding: 12px 20px;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #647069;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  margin-bottom: -2px;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.orders-tab-item:hover {
+  color: #0f2a24;
+}
+
+.orders-tab-item.active {
+  color: #0f2a24;
+  border-bottom-color: #0f2a24;
+}
+
+.orders-tab-count {
+  background: #e9e5dd;
+  color: #4a5450;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.orders-tab-item.active .orders-tab-count {
+  background: #0f2a24;
+  color: #ffffff;
+}
+
+/* Tarjeta Principal de Pedido */
+.order-card {
+  background: #ffffff;
+  border: 1px solid #e8e4dc;
+  border-radius: 14px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.04);
+  margin-bottom: 28px;
+  overflow: hidden;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.order-card:hover {
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.07);
+}
+
+.order-card-header {
+  background: #faf8f5;
+  border-bottom: 1px solid #eeebe3;
+  padding: 18px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.order-id-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.order-code-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f2a24;
+  font-family: monospace;
+  letter-spacing: 0.04em;
+}
+
+.order-date-text {
+  font-size: 13px;
+  color: #7a8781;
+}
+
+/* Badges de Estado */
+.order-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.badge-recibido {
+  background: #e0edff;
+  color: #1d4ed8;
+}
+
+.badge-taller {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.badge-engaste {
+  background: #f3e8ff;
+  color: #7e22ce;
+}
+
+.badge-calidad {
+  background: #cffafe;
+  color: #0e7490;
+}
+
+.badge-listo {
+  background: #d1fae5;
+  color: #047857;
+}
+
+.badge-entregado {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+/* Etapas Visuales - Stepper de Fabricación */
+.order-stepper-box {
+  padding: 24px 24px 18px;
+  background: #ffffff;
+  border-bottom: 1px solid #f0ece5;
+}
+
+.order-stepper-title {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #728078;
+  margin-bottom: 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.order-stepper {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  position: relative;
+  gap: 8px;
+}
+
+.order-stepper-line-bg {
+  position: absolute;
+  top: 18px;
+  left: 24px;
+  right: 24px;
+  height: 4px;
+  background: #e6e2da;
+  z-index: 1;
+}
+
+.order-stepper-line-fill {
+  position: absolute;
+  top: 18px;
+  left: 24px;
+  height: 4px;
+  background: linear-gradient(90deg, #15803d, #c5a059);
+  z-index: 2;
+  transition: width 0.4s ease;
+}
+
+.stepper-node {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  flex: 1;
+  min-width: 75px;
+}
+
+.stepper-circle {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #f1ede6;
+  border: 3px solid #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  color: #8c9791;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+  margin-bottom: 8px;
+}
+
+.stepper-node.completed .stepper-circle {
+  background: #15803d;
+  color: #ffffff;
+  border-color: #dcfce7;
+}
+
+.stepper-node.current .stepper-circle {
+  background: #c5a059;
+  color: #ffffff;
+  border-color: #fef3c7;
+  transform: scale(1.15);
+  box-shadow: 0 0 0 5px rgba(197, 160, 89, 0.25);
+  animation: pulse-step 2s infinite ease-in-out;
+}
+
+@keyframes pulse-step {
+  0%, 100% {
+    box-shadow: 0 0 0 4px rgba(197, 160, 89, 0.25);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(197, 160, 89, 0.4);
+  }
+}
+
+.stepper-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #8c9791;
+  line-height: 1.3;
+}
+
+.stepper-node.completed .stepper-label {
+  color: #15803d;
+}
+
+.stepper-node.current .stepper-label {
+  color: #0f2a24;
+  font-weight: 700;
+}
+
+.stepper-node.clickable {
+  cursor: pointer;
+}
+
+.stepper-node.clickable:hover .stepper-circle {
+  transform: scale(1.18);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+/* Caja de Control de Avance Interactivo de Fase */
+.order-step-advance-box {
+  background: linear-gradient(135deg, #fbfaf7 0%, #f4efe6 100%);
+  border: 1.5px solid #dfd5c4;
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin: 18px 24px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.order-step-advance-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.order-step-advance-info h5 {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f2a24;
+  margin: 0 0 3px;
+}
+
+.order-step-advance-info p {
+  font-size: 12.5px;
+  color: #5c6863;
+  margin: 0;
+}
+
+.order-step-advance-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-advance-step {
+  background: #0f2a24;
+  color: #ffffff;
+  border: none;
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 3px 10px rgba(15, 42, 36, 0.2);
+  transition: all 0.2s ease;
+}
+
+.btn-advance-step:hover {
+  background: #184238;
+  transform: translateY(-1px);
+  box-shadow: 0 5px 14px rgba(15, 42, 36, 0.25);
+}
+
+.btn-step-back {
+  background: #ffffff;
+  color: #5a6661;
+  border: 1px solid #d4cdc2;
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-step-back:hover {
+  background: #fdfcfb;
+  border-color: #0f2a24;
+  color: #0f2a24;
+}
+
+/* Modal de Detallado Completo de la Joya */
+.order-detail-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 30, 25, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  overflow-y: auto;
+}
+
+.order-detail-modal {
+  background: #ffffff;
+  border-radius: 16px;
+  max-width: 780px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  position: relative;
+  font-family: var(--font-sans);
+}
+
+.order-detail-modal-header {
+  background: #0f2a24;
+  color: #ffffff;
+  padding: 24px 28px;
+  position: relative;
+  border-radius: 16px 16px 0 0;
+}
+
+.order-detail-modal-close {
+  position: absolute;
+  top: 18px;
+  right: 18px;
+  background: rgba(255, 255, 255, 0.15);
+  border: none;
+  color: #ffffff;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  transition: background 0.2s ease;
+}
+
+.order-detail-modal-close:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.order-detail-spec-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin: 20px 0;
+}
+
+.order-detail-spec-item {
+  background: #faf8f5;
+  border: 1px solid #eee8df;
+  padding: 12px 16px;
+  border-radius: 8px;
+}
+
+.order-detail-spec-item label {
+  display: block;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #8c9791;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.order-detail-spec-item span {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f2a24;
+}
+
+/* Alerta de Nota del Taller en Vivo */
+.order-workshop-note {
+  background: #f6f9f7;
+  border-left: 4px solid #137748;
+  padding: 14px 18px;
+  margin: 18px 24px 0;
+  border-radius: 0 8px 8px 0;
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.order-workshop-note.urgent {
+  background: #fffbeb;
+  border-left-color: #d97706;
+}
+
+.order-workshop-note-icon {
+  font-size: 18px;
+  color: #137748;
+  line-height: 1;
+  margin-top: 2px;
+}
+
+.order-workshop-note-content h5 {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #0f2a24;
+  margin: 0 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.order-workshop-note-content p {
+  font-size: 13.5px;
+  color: #3f4c46;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Contenido de Productos del Pedido */
+.order-card-body {
+  padding: 24px;
+}
+
+.order-items-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.order-item-row {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #f2eee8;
+}
+
+.order-item-row:last-child {
+  border-bottom: none;
+  padding-bottom: 0;
+}
+
+.order-item-img-wrapper {
+  width: 90px;
+  height: 90px;
+  border-radius: 10px;
+  background: #f7f6f3;
+  border: 1px solid #e7e3dc;
+  overflow: hidden;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.order-item-img-wrapper img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.order-item-info {
+  flex: 1;
+}
+
+.order-item-name {
+  font-family: var(--font-serif, "Playfair Display", Georgia, serif);
+  font-size: 17px;
+  font-weight: 600;
+  color: #0f2a24;
+  margin: 0 0 6px;
+}
+
+.order-item-tags {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 6px;
+}
+
+.order-item-tag {
+  background: #f3efe9;
+  color: #55615b;
+  font-size: 11.5px;
+  padding: 3px 9px;
+  border-radius: 6px;
+  font-weight: 600;
+}
+
+.order-item-gem {
+  font-size: 12.5px;
+  color: #68776f;
+  margin: 0;
+}
+
+.order-item-price-col {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.order-item-price {
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f2a24;
+  margin: 0;
+}
+
+.order-item-qty {
+  font-size: 12px;
+  color: #8c9791;
+}
+
+/* Pie de Tarjeta del Pedido */
+.order-card-footer {
+  background: #faf8f5;
+  border-top: 1px solid #eeebe3;
+  padding: 16px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.order-footer-details {
+  display: flex;
+  gap: 22px;
+  flex-wrap: wrap;
+  font-size: 13px;
+  color: #5c6863;
+}
+
+.order-footer-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.order-footer-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.btn-order-action {
+  background: #ffffff;
+  border: 1px solid #dcd7ce;
+  color: #1a221f;
+  padding: 7px 15px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  text-decoration: none;
+}
+
+.btn-order-action:hover {
+  border-color: #0f2a24;
+  background: #fbfaf8;
+  color: #0f2a24;
+}
+
+.btn-order-action.whatsapp {
+  background: #e8f8f0;
+  border-color: #b5e8cb;
+  color: #0c6a38;
+}
+
+.btn-order-action.whatsapp:hover {
+  background: #d4f3e2;
+}
+
+/* ==========================================================================
+   SECCIÓN DE ADMINISTRACIÓN DE PEDIDOS (DASHBOARD)
+   ========================================================================== */
+
+.admin-orders-controls {
+  background: #ffffff;
+  border: 1px solid #e6e2da;
+  border-radius: 12px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+}
+
+.admin-orders-toolbar {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.admin-orders-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #faf8f5;
+  border: 1px solid #ded9cf;
+  border-radius: 8px;
+  padding: 8px 14px;
+  flex: 1;
+  min-width: 260px;
+  max-width: 440px;
+}
+
+.admin-orders-search input {
+  border: none;
+  background: transparent;
+  width: 100%;
+  font-size: 13.5px;
+  outline: none;
+  color: #1a221f;
+}
+
+.admin-client-quickfilter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-filter-tag {
+  background: #f1ece4;
+  border: 1px solid #e0dad0;
+  color: #44504b;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.btn-filter-tag:hover {
+  background: #e5ded4;
+}
+
+.btn-filter-tag.active {
+  background: #0f2a24;
+  border-color: #0f2a24;
+  color: #ffffff;
+}
+
+.btn-filter-tag.camila-highlight {
+  background: #fdf5e6;
+  border-color: #f0cf85;
+  color: #855308;
+}
+
+.btn-filter-tag.camila-highlight.active {
+  background: #c5a059;
+  border-color: #c5a059;
+  color: #ffffff;
+}
+
+/* Tarjeta de Pedido en Panel Administrativo */
+.admin-order-card {
+  background: #ffffff;
+  border: 1px solid #e3ded5;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+}
+
+.admin-order-card.is-camila {
+  border-left: 5px solid #c5a059;
+}
+
+.admin-order-top {
+  background: #fcfbfa;
+  border-bottom: 1px solid #ebe6de;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.admin-order-client-info {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.admin-order-client-avatar {
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: #e8f3ee;
+  color: #0f2a24;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 15px;
+  border: 1px solid #c7e1d5;
+}
+
+.admin-order-client-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f2a24;
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-order-client-contact {
+  font-size: 12.5px;
+  color: #6c7873;
+  margin: 2px 0 0;
+}
+
+/* Selector de Proceso Administrativo (Lo que pidió el usuario) */
+.admin-stage-selector-box {
+  background: #fdfcf9;
+  border: 1px solid #e7e2d7;
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.admin-stage-label-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.admin-stage-label-group label {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f2a24;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.admin-stage-select {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1.5px solid #0f2a24;
+  font-size: 13.5px;
+  font-weight: 700;
+  background-color: #ffffff;
+  color: #0f2a24;
+  cursor: pointer;
+  outline: none;
+  min-width: 250px;
+}
+
+.admin-stage-select:focus {
+  border-color: #c5a059;
+  box-shadow: 0 0 0 3px rgba(197, 160, 89, 0.2);
+}
+
+.admin-notes-editor {
+  padding: 0 20px 18px;
+}
+
+.admin-notes-textarea {
+  width: 100%;
+  padding: 10px 14px;
+  border-radius: 8px;
+  border: 1px solid #ddd7cc;
+  font-size: 13px;
+  color: #1a221f;
+  background: #ffffff;
+  font-family: inherit;
+  resize: vertical;
+  min-height: 52px;
+  box-sizing: border-box;
+}
+
+.admin-notes-textarea:focus {
+  border-color: #0f2a24;
+  outline: none;
+}
+
+.admin-notes-actions {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 6px;
+}
+
+.btn-save-note {
+  background: #0f2a24;
+  color: #ffffff;
+  border: none;
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-save-note:hover {
+  background: #184239;
+}
+
+/* Responsividad */
+@media (max-width: 768px) {
+  .orders-stepper {
+    flex-direction: column;
+    gap: 16px;
+    align-items: stretch;
+  }
+
+  .order-stepper-line-bg,
+  .order-stepper-line-fill {
+    display: none;
+  }
+
+  .stepper-node {
+    flex-direction: row;
+    gap: 14px;
+    text-align: left;
+  }
+
+  .stepper-circle {
+    margin-bottom: 0;
+    flex-shrink: 0;
+  }
+
+  .admin-orders-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-orders-search {
+    max-width: 100%;
+  }
+
+  .admin-stage-selector-box {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .admin-stage-select {
+    width: 100%;
+    min-width: unset;
+  }
+}

@@ -329,42 +329,75 @@
 }
 
 .gem-active-badge {
-  margin-top: 10px;
+  margin-top: 14px;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--platino-green-dark);
-  background: #eef6f1;
-  padding: 6px 16px;
-  border-radius: 20px;
-  border: 1px solid #d4e6db;
+  background: #edf5f0;
+  padding: 6px 18px;
+  border-radius: 9999px;
+  border: 1px solid #d0e4d7;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.gem-cut-desc-text {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  line-height: 1.55;
+  color: #4b5952;
+  margin: 12px 0 10px;
+  max-width: 380px;
+}
+
+.gem-cut-specs-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #f7f4ed;
+  border: 1px solid #e7dcce;
+  border-radius: 9999px;
+  padding: 5px 14px;
+  font-size: 11.5px;
+  color: #635338;
+  margin-bottom: 8px;
+}
+
+.gem-cut-specs-pill strong {
+  color: #0f2a24;
+}
+
+.gem-spec-dot {
+  color: var(--platino-gold);
 }
 
 .btn-go-gemstones-catalog {
-  margin-top: 16px;
+  margin-top: 14px;
   width: 100%;
   max-width: 340px;
-  background: var(--platino-green-dark);
+  background: linear-gradient(135deg, #0f2a24 0%, #1a4237 100%);
   color: white;
   text-decoration: none;
-  padding: 14px 26px;
-  border-radius: 30px;
+  padding: 14px 28px;
+  border-radius: 9999px;
   font-size: 13.5px;
-  font-weight: 600;
+  font-weight: 700;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 10px;
   letter-spacing: 0.04em;
   transition: all 0.25s ease;
-  box-shadow: 0 4px 14px rgba(10, 39, 31, 0.18);
+  box-shadow: 0 4px 16px rgba(10, 39, 31, 0.25);
 }
 
 .btn-go-gemstones-catalog:hover {
-  background: var(--platino-green);
+  background: linear-gradient(135deg, #184239 0%, #255c4d 100%);
   transform: translateY(-2px);
-  box-shadow: 0 6px 18px rgba(10, 39, 31, 0.28);
+  box-shadow: 0 6px 22px rgba(10, 39, 31, 0.35);
   color: white;
 }
 
@@ -377,7 +410,7 @@
 .gem-cut-btn {
   background: #fbfbf9;
   border: 1.5px solid #eae6de;
-  border-radius: 14px;
+  border-radius: 20px;
   padding: 18px 10px;
   display: flex;
   flex-direction: column;
@@ -385,23 +418,25 @@
   justify-content: center;
   gap: 12px;
   cursor: pointer;
-  transition: all 0.25s ease;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   color: #3b4740;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.02);
 }
 
 .gem-cut-btn:hover {
   background-color: #ffffff;
-  border-color: #d1cbc0;
+  border-color: #c5a059;
   color: var(--platino-green-dark);
   transform: translateY(-3px);
-  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 20px rgba(197, 160, 89, 0.18);
 }
 
 .gem-cut-btn.active {
   background-color: #ffffff;
   border-color: var(--platino-gold);
-  box-shadow: 0 6px 20px rgba(197, 160, 89, 0.22);
+  box-shadow: 0 8px 24px rgba(197, 160, 89, 0.26);
   color: var(--platino-green-dark);
+  transform: translateY(-2px);
 }
 
 .gem-icon-container {
@@ -411,36 +446,23 @@
   align-items: center;
   justify-content: center;
   transition: transform 0.3s ease;
+  color: #0f2a24;
 }
 
-.gem-photo-img {
-  max-width: 54px;
-  max-height: 54px;
-  width: auto;
-  height: auto;
-  object-fit: contain;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.12));
-  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), filter 0.3s ease;
-}
-
-.gem-cut-btn:hover .gem-photo-img {
-  transform: scale(1.14);
-  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.2));
-}
-
-.gem-cut-btn.active .gem-photo-img {
-  transform: scale(1.12);
-  filter: drop-shadow(0 6px 16px rgba(197, 160, 89, 0.45));
+.gem-cut-btn.active .gem-icon-container {
+  color: var(--platino-gold);
+  transform: scale(1.1);
 }
 
 .gem-cut-btn:hover .gem-icon-container {
-  transform: scale(1.05);
+  transform: scale(1.08);
+  color: var(--platino-green-dark);
 }
 
 .gem-cut-label {
   font-family: var(--font-sans);
-  font-size: 11.5px;
-  font-weight: 500;
+  font-size: 12px;
+  font-weight: 600;
   letter-spacing: 0.04em;
 }
 

@@ -433,7 +433,7 @@
   position: absolute;
   top: calc(100% + 10px);
   right: 0;
-  width: 270px;
+  width: 290px;
   background: #ffffff;
   border-radius: 10px;
   box-shadow: 0 15px 35px -5px rgba(0, 0, 0, 0.18), 0 0 1px rgba(0, 0, 0, 0.1);
@@ -441,6 +441,8 @@
   z-index: 9999;
   text-align: left;
   animation: authSlideUp 0.18s ease-out;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
 }
 
 .user-dropdown-header {

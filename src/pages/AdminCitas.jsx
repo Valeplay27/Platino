@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { Link, useLocation, useSearchParams } from "react-router-dom";
 import { sedesData } from "../data/sedes";
 import {
   TIME_SLOTS,
@@ -31,8 +31,27 @@ import {
   DEFAULT_ANNOUNCEMENT,
   HOME_SECTIONS,
 } from "../services/homeImagesService";
+import {
+  DAMA_SIZES,
+  VARON_SIZES,
+  getProductStock,
+  updateProductStock,
+  updateSingleStockItem,
+  getAllStoredInventory,
+  getProductTotalStockStats,
+  generateDefaultProductStock,
+} from "../services/inventoryService";
+import {
+  getOrders,
+  updateOrderStatus,
+  ORDER_STAGES,
+  getOrderStageInfo,
+  deleteOrder,
+} from "../services/ordersService";
+import { METALS, formatPrice } from "../data/products";
 import { useAuth } from "../context/useAuth";
 import "../../styles/citas.css";
+import "../../styles/orders.css";
 
 // Función para obtener la fecha mínima según el tipo de servicio:
 // - Gemólogo: 3 días de anticipación
@@ -47,11 +66,136 @@ const getMinBlockDateString = (type = "gemologo") => {
   return `${year}-${month}-${day}`;
 };
 
+// ========================================================
+// ICONOS SVG LUXURY PARA LA BARRA DE CATEGORÍAS
+// (Anillos, Collares, Aretes, Pulseras, Otros)
+// ========================================================
+const AnillosIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M12 2.5l2.2 2.5H9.8L12 2.5z" />
+    <circle cx="12" cy="14" r="7" />
+  </svg>
+);
+
+const CollaresIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M4 4c0 7 3.5 13 8 13s8-6 8-13" />
+    <circle cx="12" cy="19" r="2" />
+  </svg>
+);
+
+const AretesIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M7 3v3a3 3 0 0 0-3 3c0 2 1.5 3.5 3 3.5s3-1.5 3-3.5a3 3 0 0 0-3-3" />
+    <path d="M17 3v3a3 3 0 0 0-3 3c0 2 1.5 3.5 3 3.5s3-1.5 3-3.5a3 3 0 0 0-3-3" />
+  </svg>
+);
+
+const PulserasIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="7.5" strokeDasharray="2.5 3" />
+    <circle cx="12" cy="4.5" r="1.5" fill="currentColor" />
+    <circle cx="19.5" cy="12" r="1.5" fill="currentColor" />
+    <circle cx="12" cy="19.5" r="1.5" fill="currentColor" />
+    <circle cx="4.5" cy="12" r="1.5" fill="currentColor" />
+  </svg>
+);
+
+const OtrosIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+    <circle cx="5" cy="12" r="2" />
+    <circle cx="12" cy="12" r="2" />
+    <circle cx="19" cy="12" r="2" />
+  </svg>
+);
+
+const TodasIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <rect x="3" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="3" width="7" height="7" rx="1.5" />
+    <rect x="14" y="14" width="7" height="7" rx="1.5" />
+    <rect x="3" y="14" width="7" height="7" rx="1.5" />
+  </svg>
+);
+
+const PRODUCT_CATEGORY_GROUPS = [
+  { id: "anillos", label: "Anillos", Icon: AnillosIcon },
+  { id: "collares", label: "Collares", Icon: CollaresIcon },
+  { id: "aretes", label: "Aretes", Icon: AretesIcon },
+  { id: "pulseras", label: "Pulseras", Icon: PulserasIcon },
+  { id: "otros", label: "Otros", Icon: OtrosIcon },
+];
+
+const getProductCategoryGroup = (prod) => {
+  if (!prod) return "otros";
+  const cat = (prod.category || "").toLowerCase();
+  const cats = Array.isArray(prod.categories) ? prod.categories.map((c) => String(c).toLowerCase()) : [];
+  const type = (prod.type || "").toLowerCase();
+  const name = (prod.name || "").toLowerCase();
+
+  const all = [cat, ...cats, type, name].join(" ");
+
+  if (
+    all.includes("anillo") ||
+    all.includes("aro") ||
+    all.includes("boda") ||
+    all.includes("matrimonio") ||
+    all.includes("alianza") ||
+    all.includes("promesa") ||
+    all.includes("solitario")
+  ) {
+    return "anillos";
+  }
+  if (all.includes("collar") || all.includes("dije") || all.includes("gargantilla")) {
+    return "collares";
+  }
+  if (all.includes("arete") || all.includes("pendiente") || all.includes("dormilona")) {
+    return "aretes";
+  }
+  if (all.includes("pulsera") || all.includes("brazalete") || all.includes("esclava")) {
+    return "pulseras";
+  }
+  return "otros";
+};
+
 export default function AdminCitas() {
   const { user, isAdmin, openAuthModal } = useAuth();
-  const [activeTab, setActiveTab] = useState("citas"); // 'citas' | 'catalogo' | 'home_images'
+  const [searchParams] = useSearchParams();
+  const location = useLocation();
+
+  const getTabFromLocation = useCallback(() => {
+    if (location.pathname === "/admin/pedidos") return "pedidos";
+    if (location.pathname === "/admin/inventario") return "inventario";
+    if (
+      location.pathname === "/admin/catalogo" ||
+      location.pathname === "/admin/portafolio"
+    )
+      return "catalogo";
+    if (
+      location.pathname === "/admin/imagenes" ||
+      location.pathname === "/admin/banners" ||
+      location.pathname === "/admin/home"
+    )
+      return "home_images";
+    return searchParams.get("tab") || "citas";
+  }, [location.pathname, searchParams]);
+
+  const [activeTab, setActiveTab] = useState(getTabFromLocation);
+
+  useEffect(() => {
+    setActiveTab(getTabFromLocation());
+  }, [getTabFromLocation]);
+
   const [citasList, setCitasList] = useState(() => getCitas());
   const [blockedList, setBlockedList] = useState(() => getBlockedSlots());
+
+  // Estado para Pedidos y Proceso de Fabricación en Taller
+  const [ordersList, setOrdersList] = useState(() => getOrders());
+  const [orderStageFilter, setOrderStageFilter] = useState("todos");
+  const [orderClientFilter, setOrderClientFilter] = useState("todos"); // 'todos' | 'camila'
+  const [orderSearchQuery, setOrderSearchQuery] = useState("");
+  const [orderNotesState, setOrderNotesState] = useState({});
+  const [activeEditingNoteId, setActiveEditingNoteId] = useState(null);
 
   // Estado para Catálogo de Joyas
   const [catalogList, setCatalogList] = useState(() => getCatalogProducts());
@@ -72,13 +216,19 @@ export default function AdminCitas() {
 
   // Campos del modal de producto / imagen
   const [formName, setFormName] = useState("");
+  const [formCategoryGroup, setFormCategoryGroup] = useState("anillos");
   const [formCategory, setFormCategory] = useState("aros-boda");
   const [formPrice, setFormPrice] = useState("");
   const [formType, setFormType] = useState("anillo");
   const [formBadge, setFormBadge] = useState("");
   const [formDesc, setFormDesc] = useState("");
   const [formImage, setFormImage] = useState("/images/cat-compromiso.jpg");
+  const [formImageWhite, setFormImageWhite] = useState("/images/cat-compromiso.jpg");
+  const [formImageYellow, setFormImageYellow] = useState("");
+  const [formImageRose, setFormImageRose] = useState("");
   const [formSubtitle, setFormSubtitle] = useState("");
+  const [formAvailableMetals, setFormAvailableMetals] = useState(() => METALS.map((m) => m.id));
+  const [formSelectedMetal, setFormSelectedMetal] = useState("Oro 18k Blanco");
   const [feedbackMsg, setFeedbackMsg] = useState("");
 
   // Filtros de Citas
@@ -117,18 +267,191 @@ export default function AdminCitas() {
     setAnnouncementActive(getAnnouncementActive());
   };
 
+  // Estado para Inventario & Control de Stock por Tallas (Bodega, Sede Lima Centro, Sede Miraflores)
+  const [selectedInventoryProductId, setSelectedInventoryProductId] = useState(() => catalogList[0]?.id || "solitario-naturaleza");
+  const [inventoryGenderTab, setInventoryGenderTab] = useState("dama"); // 'dama' | 'varon'
+  const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState("todas");
+  const [inventorySearch, setInventorySearch] = useState("");
+  const [inventorySavedFeedback, setInventorySavedFeedback] = useState("");
+  const [allInventoryMap, setAllInventoryMap] = useState(() => getAllStoredInventory());
+
+  // Productos filtrados por categoría en el panel de inventario
+  const inventoryCategoryProducts = useMemo(() => {
+    if (inventoryCategoryFilter === "todas") return catalogList;
+    return catalogList.filter((p) => getProductCategoryGroup(p) === inventoryCategoryFilter);
+  }, [catalogList, inventoryCategoryFilter]);
+
+  const handleSelectInventoryCategory = (catId) => {
+    setInventoryCategoryFilter(catId);
+    const subset = catId === "todas" ? catalogList : catalogList.filter((p) => getProductCategoryGroup(p) === catId);
+    if (subset.length > 0 && !subset.some((p) => p.id === selectedInventoryProductId)) {
+      setSelectedInventoryProductId(subset[0].id);
+    }
+  };
+
+  const loadOrdersData = () => {
+    setOrdersList(getOrders());
+  };
+
   useEffect(() => {
     window.addEventListener("citas_updated", loadData);
     window.addEventListener("catalog_updated", loadCatalogData);
     window.addEventListener("home_images_updated", loadHomeImagesData);
     window.addEventListener("announcement_updated", loadAnnouncementData);
+    window.addEventListener("orders_updated", loadOrdersData);
+    const loadInventoryData = () => {
+      setAllInventoryMap(getAllStoredInventory());
+    };
+    window.addEventListener("platino_inventory_updated", loadInventoryData);
     return () => {
       window.removeEventListener("citas_updated", loadData);
       window.removeEventListener("catalog_updated", loadCatalogData);
       window.removeEventListener("home_images_updated", loadHomeImagesData);
       window.removeEventListener("announcement_updated", loadAnnouncementData);
+      window.removeEventListener("orders_updated", loadOrdersData);
+      window.removeEventListener("platino_inventory_updated", loadInventoryData);
     };
   }, []);
+
+  // Manejadores para actualizar proceso de pedidos (Admin)
+  const handleUpdateOrderStage = (orderId, newStage) => {
+    const success = updateOrderStatus(orderId, newStage);
+    if (success) {
+      const stageInfo = getOrderStageInfo(newStage);
+      setFeedbackMsg(`✓ Estado del pedido ${orderId} actualizado a: "${stageInfo.label}". El cliente ve este avance en tiempo real en su portal.`);
+      setTimeout(() => setFeedbackMsg(""), 6000);
+    }
+  };
+
+  const handleSaveOrderNote = (orderId) => {
+    const noteText = orderNotesState[orderId];
+    if (noteText !== undefined) {
+      const order = ordersList.find((o) => o.id === orderId);
+      if (order) {
+        updateOrderStatus(orderId, order.stage, noteText);
+        setFeedbackMsg(`✓ Actualización de taller guardada para el pedido ${orderId}.`);
+        setTimeout(() => setFeedbackMsg(""), 5000);
+        setActiveEditingNoteId(null);
+      }
+    }
+  };
+
+  const handleDeleteOrder = (orderId) => {
+    if (window.confirm(`¿Estás seguro de que deseas eliminar el pedido ${orderId}?`)) {
+      deleteOrder(orderId);
+      setFeedbackMsg(`✓ Pedido ${orderId} eliminado del sistema.`);
+      setTimeout(() => setFeedbackMsg(""), 4000);
+    }
+  };
+
+  // Pedidos filtrados según controles de búsqueda y pestañas
+  const filteredOrders = useMemo(() => {
+    return ordersList.filter((order) => {
+      if (orderStageFilter !== "todos" && order.stage !== orderStageFilter) {
+        return false;
+      }
+      if (orderClientFilter === "camila") {
+        if (order.clientEmail.toLowerCase() !== "cliente@platino.pe") return false;
+      }
+      if (orderSearchQuery.trim()) {
+        const q = orderSearchQuery.trim().toLowerCase();
+        const matchCode = order.id.toLowerCase().includes(q);
+        const matchName = order.clientName.toLowerCase().includes(q);
+        const matchEmail = order.clientEmail.toLowerCase().includes(q);
+        const matchPhone = (order.clientPhone || "").toLowerCase().includes(q);
+        const matchItem = order.items.some((it) => it.name.toLowerCase().includes(q));
+        if (!matchCode && !matchName && !matchEmail && !matchPhone && !matchItem) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [ordersList, orderStageFilter, orderClientFilter, orderSearchQuery]);
+
+  // Producto activo para gestión de inventario
+  const currentInventoryProduct = catalogList.find((p) => p.id === selectedInventoryProductId) || catalogList[0];
+  const currentProductStock = useMemo(() => {
+    if (!currentInventoryProduct) return generateDefaultProductStock("temp", true);
+    const existing = allInventoryMap[currentInventoryProduct.id];
+    if (existing && existing.dama && existing.varon) {
+      return existing;
+    }
+    return getProductStock(currentInventoryProduct.id, currentInventoryProduct.hasDoubleSizes);
+  }, [currentInventoryProduct, allInventoryMap]);
+
+  // KPIs globales de inventario de toda la tienda
+  const inventoryKpis = useMemo(() => {
+    let bodega = 0;
+    let limaCentro = 0;
+    let miraflores = 0;
+    let totalPieces = 0;
+
+    catalogList.forEach((prod) => {
+      const stock = allInventoryMap[prod.id] || getProductStock(prod.id, prod.hasDoubleSizes);
+      const stats = getProductTotalStockStats(stock);
+      bodega += stats.totalBodega;
+      limaCentro += stats.totalLimaCentro;
+      miraflores += stats.totalMiraflores;
+      totalPieces += stats.grandTotal;
+    });
+
+    return { bodega, limaCentro, miraflores, totalPieces };
+  }, [catalogList, allInventoryMap]);
+
+  // Modificar stock individual en tiempo real
+  const handleStockCellChange = (gender, sizeNum, locationId, value) => {
+    if (!currentInventoryProduct) return;
+    const num = Math.max(0, parseInt(value, 10) || 0);
+    const updated = updateSingleStockItem(currentInventoryProduct.id, gender, sizeNum, locationId, num);
+    setAllInventoryMap((prev) => ({
+      ...prev,
+      [currentInventoryProduct.id]: { ...updated },
+    }));
+  };
+
+  // Botón rápido +/-
+  const handleStockStepChange = (gender, sizeNum, locationId, delta) => {
+    if (!currentInventoryProduct) return;
+    const currentQty = currentProductStock?.[gender]?.[sizeNum]?.[locationId] || 0;
+    const nextQty = Math.max(0, currentQty + delta);
+    handleStockCellChange(gender, sizeNum, locationId, nextQty);
+  };
+
+  // Acciones en lote: +X a un almacén para todas las tallas
+  const handleBatchSupplyLocation = (gender, locationId, amount) => {
+    if (!currentInventoryProduct) return;
+    const sizes = gender === "dama" ? DAMA_SIZES : VARON_SIZES;
+    const stockCopy = JSON.parse(JSON.stringify(currentProductStock));
+    if (!stockCopy[gender]) stockCopy[gender] = {};
+
+    sizes.forEach((sz) => {
+      if (!stockCopy[gender][sz.number]) {
+        stockCopy[gender][sz.number] = { bodega: 0, "lima-centro": 0, miraflores: 0 };
+      }
+      const cur = stockCopy[gender][sz.number][locationId] || 0;
+      stockCopy[gender][sz.number][locationId] = Math.max(0, cur + amount);
+    });
+
+    updateProductStock(currentInventoryProduct.id, stockCopy);
+    setInventorySavedFeedback(`¡Se añadieron +${amount} unidades a ${locationId === "bodega" ? "Bodega" : locationId === "lima-centro" ? "Sede Lima Centro" : "Sede Miraflores"} en todas las tallas de ${gender === "dama" ? "Dama" : "Varón"}!`);
+    setTimeout(() => setInventorySavedFeedback(""), 4000);
+  };
+
+  // Restablecer stock sugerido de la joya
+  const handleResetCurrentInventory = () => {
+    if (!currentInventoryProduct) return;
+    if (window.confirm(`¿Deseas restablecer el inventario sugerido para ${currentInventoryProduct.name}?`)) {
+      const def = generateDefaultProductStock(currentInventoryProduct.id, currentInventoryProduct.hasDoubleSizes);
+      updateProductStock(currentInventoryProduct.id, def);
+      setInventorySavedFeedback(`¡Inventario base restablecido para ${currentInventoryProduct.name}!`);
+      setTimeout(() => setInventorySavedFeedback(""), 4000);
+    }
+  };
+
+  const handleSaveInventoryNotice = () => {
+    setInventorySavedFeedback("¡Inventario sincronizado y guardado con éxito!");
+    setTimeout(() => setInventorySavedFeedback(""), 3500);
+  };
 
   // Manejar cambio de estado de cita
   const handleStatusChange = (id, newStatus) => {
@@ -196,33 +519,167 @@ export default function AdminCitas() {
   };
 
   // Handlers para gestión de Catálogo y Fotos
-  const openCreateProductModal = () => {
+  const openCreateProductModal = (preselectedCategory = null) => {
     setEditingProduct(null);
     setFormName("");
-    setFormCategory("aros-boda");
+    const initialGroup =
+      preselectedCategory && preselectedCategory !== "todas"
+        ? (PRODUCT_CATEGORY_GROUPS.some((g) => g.id === preselectedCategory) ? preselectedCategory : "anillos")
+        : (catalogFilterCategory !== "todas" && PRODUCT_CATEGORY_GROUPS.some((g) => g.id === catalogFilterCategory) ? catalogFilterCategory : "anillos");
+
+    setFormCategoryGroup(initialGroup);
+    if (initialGroup === "anillos") {
+      setFormCategory("anillo-compromiso");
+      setFormType("anillo");
+    } else if (initialGroup === "collares") {
+      setFormCategory("collares");
+      setFormType("accesorio");
+    } else if (initialGroup === "aretes") {
+      setFormCategory("aretes");
+      setFormType("accesorio");
+    } else if (initialGroup === "pulseras") {
+      setFormCategory("pulseras");
+      setFormType("accesorio");
+    } else {
+      setFormCategory("joyeria");
+      setFormType("accesorio");
+    }
+
     setFormPrice("");
-    setFormType("anillo");
     setFormBadge("Nuevo");
     setFormDesc("");
     setFormSubtitle("Platino Perú Joyería Fina");
-    setFormImage("/images/cat-compromiso.jpg");
+    const initImg =
+      initialGroup === "collares"
+        ? "/images/cat-collares.jpg"
+        : initialGroup === "pulseras"
+        ? "/images/cat-pulseras.jpg"
+        : "/images/cat-compromiso.jpg";
+    setFormImage(initImg);
+    setFormImageWhite(initImg);
+    setFormImageYellow("");
+    setFormImageRose("");
+    setFormAvailableMetals(METALS.map((m) => m.id));
+    setFormSelectedMetal("Oro 18k Blanco");
     setProductModalOpen(true);
   };
 
   const openEditProductModal = (prod) => {
     setEditingProduct(prod);
     setFormName(prod.name || "");
-    setFormCategory(prod.categories?.[0] || prod.category || "aros-boda");
+    const group = getProductCategoryGroup(prod);
+    setFormCategoryGroup(group);
+    setFormCategory(prod.categories?.[0] || prod.category || (group === "anillos" ? "anillo-compromiso" : group));
     setFormPrice(prod.price || "");
-    setFormType(prod.type || "anillo");
+    setFormType(prod.type || (group === "anillos" ? "anillo" : "accesorio"));
     setFormBadge(prod.badge || "");
     setFormDesc(prod.description || "");
     setFormSubtitle(prod.subtitle || "");
-    setFormImage(prod.image || "/images/cat-compromiso.jpg");
+
+    const baseImg = prod.image || "/images/cat-compromiso.jpg";
+    const whiteImg =
+      prod.metalImages?.["oro-18k-blanco"] ||
+      prod.metalImages?.["plata-950"] ||
+      prod.metalImages?.["plata-925"] ||
+      prod.metalImages?.["white"] ||
+      baseImg;
+    const yellowImg =
+      prod.metalImages?.["oro-18k-amarillo"] ||
+      prod.metalImages?.["oro-18k-natural"] ||
+      prod.metalImages?.["yellow"] ||
+      "";
+    const roseImg =
+      prod.metalImages?.["oro-18k-rosa"] ||
+      prod.metalImages?.["rose"] ||
+      "";
+
+    setFormImage(baseImg);
+    setFormImageWhite(whiteImg);
+    setFormImageYellow(yellowImg);
+    setFormImageRose(roseImg);
+
+    // Extraer y normalizar los materiales disponibles del producto
+    let metalIds = [];
+    if (Array.isArray(prod.availableMetals) && prod.availableMetals.length > 0) {
+      metalIds = prod.availableMetals.map((m) => (typeof m === "string" ? m : m.id));
+    } else {
+      metalIds = METALS.map((m) => m.id);
+    }
+    const normalizedIds = metalIds.map((id) => {
+      if (id === "oro-blanco-18k") return "oro-18k-blanco";
+      if (id === "oro-amarillo-18k") return "oro-18k-amarillo";
+      if (id === "oro-rosa-18k") return "oro-18k-rosa";
+      return id;
+    });
+    const finalIds = normalizedIds.filter((id) => METALS.some((m) => m.id === id));
+    setFormAvailableMetals(finalIds.length > 0 ? finalIds : METALS.map((m) => m.id));
+
+    const defaultMetal = prod.selectedMetal || "Oro 18k Blanco";
+    setFormSelectedMetal(defaultMetal);
     setProductModalOpen(true);
   };
 
-  const handleImageFileUpload = (e) => {
+  const handleSelectFormCategoryGroup = (groupId) => {
+    setFormCategoryGroup(groupId);
+    if (groupId === "anillos") {
+      setFormCategory("anillo-compromiso");
+      setFormType("anillo");
+    } else if (groupId === "collares") {
+      setFormCategory("collares");
+      setFormType("accesorio");
+    } else if (groupId === "aretes") {
+      setFormCategory("aretes");
+      setFormType("accesorio");
+    } else if (groupId === "pulseras") {
+      setFormCategory("pulseras");
+      setFormType("accesorio");
+    } else {
+      setFormCategory("joyeria");
+      setFormType("accesorio");
+    }
+  };
+
+  const handleToggleMetal = (metalId) => {
+    setFormAvailableMetals((prev) => {
+      if (prev.includes(metalId)) {
+        if (prev.length <= 1) {
+          alert("La joya debe tener al menos 1 material disponible.");
+          return prev;
+        }
+        const updated = prev.filter((id) => id !== metalId);
+        const removedMetal = METALS.find((m) => m.id === metalId);
+        if (removedMetal && formSelectedMetal === removedMetal.name) {
+          const firstRemain = METALS.find((m) => updated.includes(m.id));
+          if (firstRemain) setFormSelectedMetal(firstRemain.name);
+        }
+        return updated;
+      } else {
+        return [...prev, metalId];
+      }
+    });
+  };
+
+  const handleSelectAllMetals = () => {
+    setFormAvailableMetals(METALS.map((m) => m.id));
+  };
+
+  const handleSelectOnlyGold = () => {
+    const goldIds = METALS.filter((m) => m.group === "Oro 18k").map((m) => m.id);
+    setFormAvailableMetals(goldIds);
+    if (!goldIds.some((id) => METALS.find((m) => m.id === id)?.name === formSelectedMetal)) {
+      setFormSelectedMetal("Oro 18k Amarillo");
+    }
+  };
+
+  const handleSelectSilverAndMixed = () => {
+    const silverIds = METALS.filter((m) => m.group === "Plata" || m.group === "Plata con Oro").map((m) => m.id);
+    setFormAvailableMetals(silverIds);
+    if (!silverIds.some((id) => METALS.find((m) => m.id === id)?.name === formSelectedMetal)) {
+      setFormSelectedMetal("Plata 950");
+    }
+  };
+
+  const handleWhiteImageFileUpload = (e) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
@@ -231,7 +688,38 @@ export default function AdminCitas() {
       }
       const reader = new FileReader();
       reader.onload = (event) => {
+        setFormImageWhite(event.target.result);
         setFormImage(event.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleYellowImageFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("La imagen es mayor a 5MB. Por favor elige una imagen más ligera.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setFormImageYellow(event.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRoseImageFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("La imagen es mayor a 5MB. Por favor elige una imagen más ligera.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setFormImageRose(event.target.result);
       };
       reader.readAsDataURL(file);
     }
@@ -244,16 +732,72 @@ export default function AdminCitas() {
       return;
     }
 
+    if (formAvailableMetals.length === 0) {
+      alert("Por favor selecciona al menos un material disponible para la joya.");
+      return;
+    }
+
+    const activeMetalsObjects = METALS.filter((m) => formAvailableMetals.includes(m.id));
+    const fallbackMetalName = activeMetalsObjects[0]?.name || "Oro 18k Blanco";
+    const finalSelectedMetal = activeMetalsObjects.some((m) => m.name === formSelectedMetal)
+      ? formSelectedMetal
+      : fallbackMetalName;
+
+    const isRingGroup = formCategoryGroup === "anillos";
+    const isArosType = formType === "aros" || formCategory === "aros-boda" || formCategory === "aros-alianzas";
+
+    const hasWhite = activeMetalsObjects.some((m) => ["plata-925", "plata-950", "oro-18k-blanco", "platino"].includes(m.id));
+    const hasYellow = activeMetalsObjects.some((m) => ["oro-18k-amarillo", "oro-18k-natural", "plata-950-oro-amarillo", "plata-950-oro-natural"].includes(m.id));
+    const hasRose = activeMetalsObjects.some((m) => ["oro-18k-rosa", "plata-950-oro-rosa"].includes(m.id));
+
+    // Determinar la foto principal basada en el primer tono activo que tenga foto
+    let mainImg = "";
+    if (hasWhite && formImageWhite.trim()) {
+      mainImg = formImageWhite.trim();
+    } else if (hasYellow && formImageYellow.trim()) {
+      mainImg = formImageYellow.trim();
+    } else if (hasRose && formImageRose.trim()) {
+      mainImg = formImageRose.trim();
+    } else {
+      mainImg = formImageWhite.trim() || formImageYellow.trim() || formImageRose.trim() || formImage.trim() || "/images/cat-compromiso.jpg";
+    }
+
+    const whiteImg = formImageWhite.trim() || mainImg;
+    const yellowImg = formImageYellow.trim() || mainImg;
+    const roseImg = formImageRose.trim() || mainImg;
+
+    // Mapa multimetal idéntico a Brilliant Earth
+    const metalImagesMap = {
+      "plata-925": whiteImg,
+      "plata-950": whiteImg,
+      "oro-18k-blanco": whiteImg,
+      "platino": whiteImg,
+      "oro-18k-amarillo": yellowImg,
+      "oro-18k-natural": yellowImg,
+      "plata-950-oro-amarillo": yellowImg,
+      "plata-950-oro-natural": yellowImg,
+      "oro-18k-rosa": roseImg,
+      "plata-950-oro-rosa": roseImg,
+      white: whiteImg,
+      yellow: yellowImg,
+      rose: roseImg,
+    };
+
     const payload = {
       name: formName.trim(),
       subtitle: formSubtitle.trim() || "Platino Perú Colección Exclusiva",
-      categories: [formCategory],
+      categories: Array.from(new Set([formCategory, formCategoryGroup, ...(editingProduct?.categories || [])])),
       category: formCategory,
       price: Number(formPrice),
       type: formType,
+      hasDoubleSizes: isArosType,
+      hasGemSelection: isRingGroup,
       badge: formBadge.trim(),
       description: formDesc.trim(),
-      image: formImage.trim() || "/images/cat-compromiso.jpg",
+      image: mainImg,
+      metalImages: metalImagesMap,
+      availableMetals: activeMetalsObjects,
+      selectedMetal: finalSelectedMetal,
     };
 
     if (editingProduct) {
@@ -436,7 +980,8 @@ export default function AdminCitas() {
     if (catalogFilterCategory !== "todas") {
       const matchCat =
         p.category === catalogFilterCategory ||
-        p.categories?.includes(catalogFilterCategory);
+        p.categories?.includes(catalogFilterCategory) ||
+        getProductCategoryGroup(p) === catalogFilterCategory;
       if (!matchCat) return false;
     }
     if (catalogSearch.trim()) {
@@ -594,6 +1139,10 @@ export default function AdminCitas() {
               <h1>
                 {activeTab === "catalogo"
                   ? "Panel Administrativo - Catálogo de Joyas"
+                  : activeTab === "inventario"
+                  ? "Control de Inventario - Stock por Tallas (Bodega & Sedes)"
+                  : activeTab === "pedidos"
+                  ? "Control de Pedidos y Fabricación en Taller"
                   : activeTab === "home_images"
                   ? "Panel Administrativo - Imágenes del Inicio"
                   : "Panel Administrativo de Citas"}
@@ -616,7 +1165,11 @@ export default function AdminCitas() {
             </div>
             <p>
               {activeTab === "catalogo"
-                ? "Gestiona el inventario de la tienda, crea nuevas joyas y modifica o sube nuevas fotografías."
+                ? "Gestiona el catálogo de la tienda, crea nuevas joyas y modifica o sube nuevas fotografías."
+                : activeTab === "inventario"
+                ? "Controla el stock físico de cada joya por tallas: Dama (05 al 27) y Varón (10 al 37) en Bodega, Sede Lima Centro y Sede Miraflores."
+                : activeTab === "pedidos"
+                ? "Gestiona los pedidos de clientes, actualiza en tiempo real la etapa de fabricación de las joyas (Taller, Engaste, Calidad, Envío) y agrega notas de orfebrería."
                 : activeTab === "home_images"
                 ? "Cambia las imágenes del inicio: banners de compromiso/boda, categorías, estilos de anillos, editoriales y mosaico."
                 : "Gestiona reservas, revisa observaciones de clientes y bloquea u habilita horarios de atención."}
@@ -624,38 +1177,15 @@ export default function AdminCitas() {
           </div>
 
           <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
-            <div className="admin-tabs">
-              <button
-                className={`admin-tab-btn ${activeTab === "citas" ? "active" : ""}`}
-                onClick={() => setActiveTab("citas")}
-              >
-                <i className="bi bi-calendar2-check"></i> Citas & Bloqueo de Horarios ({totalCitas})
-              </button>
-
-              <button
-                className={`admin-tab-btn ${activeTab === "catalogo" ? "active" : ""}`}
-                onClick={() => setActiveTab("catalogo")}
-              >
-                <i className="bi bi-gem"></i> Catálogo & Fotos ({catalogList.length})
-              </button>
-
-              <button
-                className={`admin-tab-btn ${activeTab === "home_images" ? "active" : ""}`}
-                onClick={() => setActiveTab("home_images")}
-              >
-                <i className="bi bi-images"></i> Imágenes del Inicio ({Object.keys(homeImagesData).length})
-              </button>
-            </div>
-
             <Link
-              to={activeTab === "home_images" ? "/" : "/catalogo"}
+              to={activeTab === "pedidos" ? "/mis-pedidos" : activeTab === "home_images" ? "/" : "/catalogo"}
               className="btn-cita-outline"
               style={{ background: "white", padding: "10px 18px", fontSize: "13.5px" }}
-              title={activeTab === "home_images" ? "Ver Página de Inicio" : "Ver catálogo de la tienda"}
+              title={activeTab === "pedidos" ? "Ver cómo lo ve el cliente en su portal" : activeTab === "home_images" ? "Ver Página de Inicio" : "Ver catálogo de la tienda"}
               target="_blank"
             >
               <i className="bi bi-box-arrow-up-right"></i>{" "}
-              {activeTab === "home_images" ? "Ver Inicio Público" : "Ver Tienda Pública"}
+              {activeTab === "pedidos" ? "Ver Portal de Cliente" : activeTab === "home_images" ? "Ver Inicio Público" : "Ver Tienda Pública"}
             </Link>
           </div>
         </div>
@@ -722,6 +1252,54 @@ export default function AdminCitas() {
               <div>
                 <h3 className="metric-val">6</h3>
                 <p className="metric-lbl">Estilos de Sortijas</p>
+              </div>
+            </div>
+          </div>
+        ) : activeTab === "pedidos" ? (
+          <div className="admin-metrics-row">
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#0f2a24", background: "#e8f3ee" }}>
+                <i className="bi bi-box-seam"></i>
+              </div>
+              <div>
+                <h3 className="metric-val">{ordersList.length}</h3>
+                <p className="metric-lbl">Total de Pedidos en Sistema</p>
+              </div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#9c6c0b", background: "#fbf6e9" }}>
+                <i className="bi bi-hammer"></i>
+              </div>
+              <div>
+                <h3 className="metric-val">
+                  {ordersList.filter((o) => o.stage === "diseno_taller" || o.stage === "recibido").length}
+                </h3>
+                <p className="metric-lbl">En Fundición / Taller</p>
+              </div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#7e22ce", background: "#f3e8ff" }}>
+                <i className="bi bi-gem"></i>
+              </div>
+              <div>
+                <h3 className="metric-val">
+                  {ordersList.filter((o) => o.stage === "engaste_pulido").length}
+                </h3>
+                <p className="metric-lbl">En Engaste & Acabado</p>
+              </div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#166e37", background: "#e8f6ed" }}>
+                <i className="bi bi-patch-check-fill"></i>
+              </div>
+              <div>
+                <h3 className="metric-val">
+                  {ordersList.filter((o) => o.stage === "entregado" || o.stage === "listo_envio").length}
+                </h3>
+                <p className="metric-lbl">Listos & Entregados</p>
               </div>
             </div>
           </div>
@@ -1352,7 +1930,7 @@ export default function AdminCitas() {
               <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
                 <button
                   type="button"
-                  onClick={openCreateProductModal}
+                  onClick={() => openCreateProductModal(catalogFilterCategory)}
                   className="btn-catalog-create"
                 >
                   <i className="bi bi-plus-circle-fill"></i> Crear Nueva Joya
@@ -1369,7 +1947,36 @@ export default function AdminCitas() {
               </div>
             </div>
 
-            {/* Barra de Filtros del Catálogo */}
+            {/* Barra de Categorías Segmentada Estilo Luxury (Anillos, Collares, Aretes, Pulseras, Otros) */}
+            <div className="category-segmented-bar">
+              <div
+                className={`category-seg-item ${catalogFilterCategory === "todas" ? "active" : ""}`}
+                onClick={() => setCatalogFilterCategory("todas")}
+                title="Mostrar todas las piezas"
+              >
+                <span className="category-seg-icon"><TodasIcon /></span>
+                <span>Todas</span>
+                <span className="category-seg-badge">{catalogList.length}</span>
+              </div>
+              {PRODUCT_CATEGORY_GROUPS.map(({ id, label, Icon }) => {
+                const count = catalogList.filter((p) => getProductCategoryGroup(p) === id).length;
+                const isAct = catalogFilterCategory === id;
+                return (
+                  <div
+                    key={id}
+                    className={`category-seg-item ${isAct ? "active" : ""}`}
+                    onClick={() => setCatalogFilterCategory(id)}
+                    title={`Filtrar por ${label}`}
+                  >
+                    <span className="category-seg-icon"><Icon /></span>
+                    <span>{label}</span>
+                    <span className="category-seg-badge">{count}</span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Barra de Búsqueda y Subfiltros del Catálogo */}
             <div className="filters-bar" style={{ marginBottom: "26px" }}>
               <input
                 type="text"
@@ -1385,7 +1992,7 @@ export default function AdminCitas() {
                 onChange={(e) => setCatalogFilterCategory(e.target.value)}
                 className="filter-select"
               >
-                <option value="todas">Todas las Categorías</option>
+                <option value="todas">Todas las Subcategorías</option>
                 <option value="aros-boda">💍 Aros de Boda y Matrimonio</option>
                 <option value="anillo-compromiso">💎 Anillos de Compromiso</option>
                 <option value="anillo-promesa">✨ Anillos de Promesa</option>
@@ -1434,7 +2041,47 @@ export default function AdminCitas() {
                         {prod.description || "Joya artesanal con certificación de pureza."}
                       </p>
 
+                      {/* Preview de Materiales Disponibles */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "6px", margin: "8px 0", flexWrap: "wrap" }}>
+                        <span style={{ fontSize: "11px", color: "#607267", fontWeight: "600" }}>
+                          Materiales ({(prod.availableMetals || METALS).length}):
+                        </span>
+                        <div style={{ display: "flex", gap: "4px", alignItems: "center" }}>
+                          {(prod.availableMetals || METALS).slice(0, 7).map((m) => (
+                            <span
+                              key={m.id || m.name}
+                              title={m.name}
+                              style={{
+                                width: "13px",
+                                height: "13px",
+                                borderRadius: "50%",
+                                background: m.color || "#e8eaeb",
+                                border: `1px solid ${m.border || "#c2c7c8"}`,
+                                display: "inline-block",
+                              }}
+                            />
+                          ))}
+                          {(prod.availableMetals || METALS).length > 7 && (
+                            <span style={{ fontSize: "10px", color: "#607267", fontWeight: "600" }}>
+                              +{(prod.availableMetals || METALS).length - 7}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
                       <div className="admin-product-footer">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setSelectedInventoryProductId(prod.id);
+                            setActiveTab("inventario");
+                          }}
+                          className="btn-card-inventory"
+                          title="Gestionar stock de Bodega y Sedes por Tallas"
+                        >
+                          <i className="bi bi-boxes"></i> Stock por Tallas
+                        </button>
+
                         <button
                           type="button"
                           onClick={() => openEditProductModal(prod)}
@@ -1457,6 +2104,452 @@ export default function AdminCitas() {
                 ))}
               </div>
             )}
+          </div>
+        )}
+
+        {/* ========================================================
+            TAB: CONTROL DE INVENTARIO Y STOCK POR TALLAS
+            (Bodega, Sede Lima Centro, Sede Miraflores)
+            ======================================================== */}
+        {activeTab === "inventario" && (
+          <div className="admin-content-card">
+            {/* Cabecera del Panel de Inventario */}
+            <div className="admin-catalog-header" style={{ marginBottom: "20px" }}>
+              <div>
+                <h3 style={{ fontFamily: "var(--font-serif)", fontSize: "22px", margin: "0 0 6px 0", color: "#15241e" }}>
+                  Control de Stock por Tallas & Almacenes ({catalogList.length} Joyas)
+                </h3>
+                <p style={{ fontSize: "14px", color: "#5d6d65", margin: 0 }}>
+                  Gestiona las existencias físicas en <strong>Bodega Central</strong> y en las sedes de <strong>Lima Centro</strong> y <strong>Miraflores</strong> para Tallas de Dama (05 al 27) y Varón (10 al 37).
+                </p>
+              </div>
+
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={() => openCreateProductModal(inventoryCategoryFilter)}
+                  className="btn-catalog-create"
+                  style={{ fontSize: "13px", padding: "10px 18px" }}
+                >
+                  <i className="bi bi-plus-circle-fill"></i> Crear Nueva Joya
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleSaveInventoryNotice}
+                  className="btn-inventory-save-main"
+                >
+                  <i className="bi bi-check2-circle"></i> Sincronizar Inventario
+                </button>
+              </div>
+            </div>
+
+            {/* Cuadrícula Superior de KPIs Globales */}
+            <div className="inventory-kpi-grid">
+              <div className="inventory-kpi-card">
+                <div className="inventory-kpi-icon bodega">
+                  <i className="bi bi-building-fill"></i>
+                </div>
+                <div className="inventory-kpi-info">
+                  <h4>Bodega Central</h4>
+                  <div className="inventory-kpi-num">{inventoryKpis.bodega}</div>
+                  <p className="inventory-kpi-sub">Almacén principal</p>
+                </div>
+              </div>
+
+              <div className="inventory-kpi-card">
+                <div className="inventory-kpi-icon lima">
+                  <i className="bi bi-geo-alt-fill"></i>
+                </div>
+                <div className="inventory-kpi-info">
+                  <h4>Sede Lima Centro</h4>
+                  <div className="inventory-kpi-num">{inventoryKpis.limaCentro}</div>
+                  <p className="inventory-kpi-sub">Jr. de la Unión 446</p>
+                </div>
+              </div>
+
+              <div className="inventory-kpi-card">
+                <div className="inventory-kpi-icon miraflores">
+                  <i className="bi bi-gem"></i>
+                </div>
+                <div className="inventory-kpi-info">
+                  <h4>Sede Miraflores</h4>
+                  <div className="inventory-kpi-num">{inventoryKpis.miraflores}</div>
+                  <p className="inventory-kpi-sub">Av. Larco 345</p>
+                </div>
+              </div>
+
+              <div className="inventory-kpi-card">
+                <div className="inventory-kpi-icon total">
+                  <i className="bi bi-boxes"></i>
+                </div>
+                <div className="inventory-kpi-info">
+                  <h4>Stock Total Global</h4>
+                  <div className="inventory-kpi-num">{inventoryKpis.totalPieces}</div>
+                  <p className="inventory-kpi-sub">Total piezas registradas</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Mensaje de feedback tras guardar o surtir */}
+            {inventorySavedFeedback && (
+              <div
+                style={{
+                  background: "#e6f6ee",
+                  color: "#0f6c3e",
+                  border: "1px solid #b7e4ce",
+                  padding: "12px 18px",
+                  borderRadius: "6px",
+                  marginBottom: "20px",
+                  fontSize: "13.5px",
+                  fontWeight: "600",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "8px",
+                }}
+              >
+                <i className="bi bi-check-circle-fill" style={{ fontSize: "16px" }}></i>
+                {inventorySavedFeedback}
+              </div>
+            )}
+
+            {/* Filtro por Categorías para Inventario */}
+            <div style={{ marginBottom: "14px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: "6px" }}>
+                <span style={{ fontSize: "13px", fontWeight: "700", color: "#223b2f" }}>
+                  <i className="bi bi-filter"></i> Filtrar Joyas por Categoría:
+                </span>
+                <span style={{ fontSize: "12px", color: "#137748", fontWeight: "600" }}>
+                  Mostrando: {inventoryCategoryFilter === "todas" ? "Todas las Joyas" : PRODUCT_CATEGORY_GROUPS.find((c) => c.id === inventoryCategoryFilter)?.label} ({inventoryCategoryProducts.length} disponibles)
+                </span>
+              </div>
+              <div className="category-segmented-bar">
+                <div
+                  className={`category-seg-item ${inventoryCategoryFilter === "todas" ? "active" : ""}`}
+                  onClick={() => handleSelectInventoryCategory("todas")}
+                  title="Mostrar todas las piezas"
+                >
+                  <span className="category-seg-icon"><TodasIcon /></span>
+                  <span>Todas</span>
+                  <span className="category-seg-badge">{catalogList.length}</span>
+                </div>
+                {PRODUCT_CATEGORY_GROUPS.map(({ id, label, Icon }) => {
+                  const count = catalogList.filter((p) => getProductCategoryGroup(p) === id).length;
+                  const isAct = inventoryCategoryFilter === id;
+                  return (
+                    <div
+                      key={id}
+                      className={`category-seg-item ${isAct ? "active" : ""}`}
+                      onClick={() => handleSelectInventoryCategory(id)}
+                      title={`Filtrar por ${label}`}
+                    >
+                      <span className="category-seg-icon"><Icon /></span>
+                      <span>{label}</span>
+                      <span className="category-seg-badge">{count}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Selector de Joya Activa */}
+            <div className="inventory-product-card-selector">
+              <div className="inventory-active-prod-info">
+                <img
+                  src={currentInventoryProduct?.image || "/images/cat-compromiso.jpg"}
+                  alt={currentInventoryProduct?.name}
+                  className="inventory-active-prod-img"
+                  onError={(e) => {
+                    e.target.onerror = null;
+                    e.target.src = "/images/cat-compromiso.jpg";
+                  }}
+                />
+                <div className="inventory-prod-meta">
+                  <h3>{currentInventoryProduct?.name || "Selecciona una Joya"}</h3>
+                  <p>
+                    {currentInventoryProduct?.priceFormatted || (currentInventoryProduct?.price ? formatPrice(currentInventoryProduct.price) : "S/. 0")} •{" "}
+                    {currentInventoryProduct?.categories?.[0] || currentInventoryProduct?.type || "Joya"}
+                    {currentInventoryProduct?.hasDoubleSizes ? " (Modelo con Doble Talla Dama y Varón)" : " (Anillo individual)"}
+                  </p>
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
+                <label style={{ fontSize: "13px", fontWeight: "600", color: "#37473f" }}>
+                  Cambiar Joya:
+                </label>
+                <select
+                  value={selectedInventoryProductId}
+                  onChange={(e) => setSelectedInventoryProductId(e.target.value)}
+                  className="filter-select"
+                  style={{ minWidth: "260px" }}
+                >
+                  {inventoryCategoryProducts.length === 0 ? (
+                    <option value="">No hay joyas en esta categoría</option>
+                  ) : (
+                    inventoryCategoryProducts.map((p) => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} ({p.priceFormatted || formatPrice(p.price)})
+                      </option>
+                    ))
+                  )}
+                </select>
+              </div>
+            </div>
+
+            {/* Pestañas de Género: Dama (05-27) vs Varón (10-37) */}
+            <div className="inventory-gender-tabs">
+              <button
+                type="button"
+                className={`inventory-gender-tab-btn ${inventoryGenderTab === "dama" ? "active" : ""}`}
+                onClick={() => setInventoryGenderTab("dama")}
+              >
+                <i className="bi bi-gender-female"></i> Tallas de Dama (05 hasta el 27) — {DAMA_SIZES.length} tallas
+              </button>
+
+              <button
+                type="button"
+                className={`inventory-gender-tab-btn ${inventoryGenderTab === "varon" ? "active" : ""}`}
+                onClick={() => setInventoryGenderTab("varon")}
+              >
+                <i className="bi bi-gender-male"></i> Tallas de Varón (10 hasta el 37) — {VARON_SIZES.length} tallas
+              </button>
+
+              {/* Buscador de talla específico */}
+              <div style={{ marginLeft: "auto", display: "flex", alignItems: "center" }}>
+                <input
+                  type="text"
+                  placeholder="Buscar talla (ej. 05, 14)..."
+                  value={inventorySearch}
+                  onChange={(e) => setInventorySearch(e.target.value)}
+                  className="filter-select"
+                  style={{ width: "220px", padding: "8px 12px", fontSize: "12.5px" }}
+                />
+              </div>
+            </div>
+
+            {/* Tabla de Stock por Tallas */}
+            <div className="inventory-table-wrap">
+              <table className="inventory-stock-table">
+                <thead>
+                  <tr>
+                    <th style={{ width: "160px" }}>Talla Oficial</th>
+                    <th style={{ width: "130px" }}>Diámetro Int.</th>
+                    <th style={{ width: "160px" }}>
+                      <span style={{ color: "#3b5bdb" }}><i className="bi bi-building-fill"></i> Bodega</span>
+                    </th>
+                    <th style={{ width: "170px" }}>
+                      <span style={{ color: "#137748" }}><i className="bi bi-geo-alt-fill"></i> Sede Lima Centro</span>
+                    </th>
+                    <th style={{ width: "170px" }}>
+                      <span style={{ color: "#7950f2" }}><i className="bi bi-gem"></i> Sede Miraflores</span>
+                    </th>
+                    <th style={{ width: "120px" }}>Total</th>
+                    <th style={{ width: "150px" }}>Disponibilidad</th>
+                    <th style={{ width: "170px" }}>Acción Rápida</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(inventoryGenderTab === "dama" ? DAMA_SIZES : VARON_SIZES)
+                    .filter((sz) => !inventorySearch || sz.label.toLowerCase().includes(inventorySearch.toLowerCase()) || sz.number.includes(inventorySearch))
+                    .map((sz) => {
+                      const item = currentProductStock?.[inventoryGenderTab]?.[sz.number] || { bodega: 0, "lima-centro": 0, miraflores: 0 };
+                      const b = item.bodega || 0;
+                      const lc = item["lima-centro"] || 0;
+                      const m = item.miraflores || 0;
+                      const tot = b + lc + m;
+
+                      let statusBadge = "out";
+                      let statusText = "Agotado (0)";
+                      if (tot > 3) {
+                        statusBadge = "available";
+                        statusText = `Disponible (${tot})`;
+                      } else if (tot > 0) {
+                        statusBadge = "low";
+                        statusText = `Últimas (${tot})`;
+                      }
+
+                      return (
+                        <tr key={sz.number}>
+                          <td>
+                            <span className="talla-badge-pill">{sz.label}</span>
+                          </td>
+                          <td style={{ color: "#5d6d65", fontSize: "12px" }}>
+                            {sz.diameter}
+                          </td>
+                          {/* Almacén 1: Bodega */}
+                          <td>
+                            <div className="inventory-input-group">
+                              <button
+                                type="button"
+                                className="inventory-step-btn"
+                                onClick={() => handleStockStepChange(inventoryGenderTab, sz.number, "bodega", -1)}
+                                title="Reducir 1 en Bodega"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                min="0"
+                                className="inventory-num-input"
+                                value={b}
+                                onChange={(e) => handleStockCellChange(inventoryGenderTab, sz.number, "bodega", e.target.value)}
+                              />
+                              <button
+                                type="button"
+                                className="inventory-step-btn"
+                                onClick={() => handleStockStepChange(inventoryGenderTab, sz.number, "bodega", 1)}
+                                title="Añadir 1 en Bodega"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </td>
+                          {/* Almacén 2: Sede Lima Centro */}
+                          <td>
+                            <div className="inventory-input-group">
+                              <button
+                                type="button"
+                                className="inventory-step-btn"
+                                onClick={() => handleStockStepChange(inventoryGenderTab, sz.number, "lima-centro", -1)}
+                                title="Reducir 1 en Sede Lima Centro"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                min="0"
+                                className="inventory-num-input"
+                                value={lc}
+                                onChange={(e) => handleStockCellChange(inventoryGenderTab, sz.number, "lima-centro", e.target.value)}
+                              />
+                              <button
+                                type="button"
+                                className="inventory-step-btn"
+                                onClick={() => handleStockStepChange(inventoryGenderTab, sz.number, "lima-centro", 1)}
+                                title="Añadir 1 en Sede Lima Centro"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </td>
+                          {/* Almacén 3: Sede Miraflores */}
+                          <td>
+                            <div className="inventory-input-group">
+                              <button
+                                type="button"
+                                className="inventory-step-btn"
+                                onClick={() => handleStockStepChange(inventoryGenderTab, sz.number, "miraflores", -1)}
+                                title="Reducir 1 en Sede Miraflores"
+                              >
+                                -
+                              </button>
+                              <input
+                                type="number"
+                                min="0"
+                                className="inventory-num-input"
+                                value={m}
+                                onChange={(e) => handleStockCellChange(inventoryGenderTab, sz.number, "miraflores", e.target.value)}
+                              />
+                              <button
+                                type="button"
+                                className="inventory-step-btn"
+                                onClick={() => handleStockStepChange(inventoryGenderTab, sz.number, "miraflores", 1)}
+                                title="Añadir 1 en Sede Miraflores"
+                              >
+                                +
+                              </button>
+                            </div>
+                          </td>
+                          {/* Total */}
+                          <td>
+                            <strong style={{ fontSize: "14px", color: tot > 0 ? "#137748" : "#c53030" }}>
+                              {tot}
+                            </strong>
+                          </td>
+                          {/* Badge */}
+                          <td>
+                            <span className={`inv-status-badge ${statusBadge}`}>
+                              <i className={tot > 0 ? "bi bi-check-circle-fill" : "bi bi-x-circle-fill"}></i>{" "}
+                              {statusText}
+                            </span>
+                          </td>
+                          {/* Acciones Rápidas */}
+                          <td>
+                            <div style={{ display: "flex", gap: "6px" }}>
+                              <button
+                                type="button"
+                                className="btn-batch-action"
+                                style={{ padding: "4px 8px", fontSize: "11px" }}
+                                onClick={() => handleStockStepChange(inventoryGenderTab, sz.number, "bodega", 1)}
+                                title="Añadir +1 pieza a Bodega"
+                              >
+                                +1 Bod
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-batch-action"
+                                style={{ padding: "4px 8px", fontSize: "11px" }}
+                                onClick={() => {
+                                  handleStockStepChange(inventoryGenderTab, sz.number, "lima-centro", 1);
+                                  handleStockStepChange(inventoryGenderTab, sz.number, "miraflores", 1);
+                                }}
+                                title="Añadir +1 pieza a cada sede"
+                              >
+                                +1 Sedes
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Barra de Acciones Masivas / Lote */}
+            <div className="inventory-batch-bar">
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+                <span style={{ fontSize: "12.5px", fontWeight: "700", color: "#4f5f57" }}>
+                  <i className="bi bi-magic"></i> Abastecimiento Rápido:
+                </span>
+                <button
+                  type="button"
+                  className="btn-batch-action"
+                  onClick={() => handleBatchSupplyLocation(inventoryGenderTab, "bodega", 2)}
+                >
+                  <i className="bi bi-building-add"></i> +2 Bodega (Todas las tallas)
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-batch-action"
+                  onClick={() => {
+                    handleBatchSupplyLocation(inventoryGenderTab, "lima-centro", 1);
+                    handleBatchSupplyLocation(inventoryGenderTab, "miraflores", 1);
+                  }}
+                >
+                  <i className="bi bi-geo-alt"></i> +1 a Cada Sede (Todas las tallas)
+                </button>
+
+                <button
+                  type="button"
+                  className="btn-batch-action"
+                  onClick={handleResetCurrentInventory}
+                  style={{ color: "#8a5024" }}
+                >
+                  <i className="bi bi-arrow-counterclockwise"></i> Restablecer Stock Base
+                </button>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleSaveInventoryNotice}
+                className="btn-inventory-save-main"
+              >
+                <i className="bi bi-check2-all"></i> Guardar Cambios de Inventario
+              </button>
+            </div>
           </div>
         )}
 
@@ -2361,6 +3454,469 @@ export default function AdminCitas() {
           </div>
         )}
 
+        {/* ========================================================
+            TAB 5: GESTIÓN DE PEDIDOS Y CONTROL DE PROCESO DE TALLER
+            ======================================================== */}
+        {activeTab === "pedidos" && (
+          <div className="admin-content-card">
+            {/* Cabecera del panel de pedidos */}
+            <div className="admin-catalog-header">
+              <div>
+                <h3
+                  style={{
+                    fontFamily: "var(--font-serif)",
+                    fontSize: "22px",
+                    margin: "0 0 6px 0",
+                    color: "#15241e",
+                  }}
+                >
+                  Control de Pedidos y Fabricación en Taller ({filteredOrders.length})
+                </h3>
+                <p style={{ fontSize: "14px", color: "#5d6d65", margin: 0 }}>
+                  Actualiza en qué fase se encuentra cada joya (Taller, Engaste, Calidad, Envío). Los clientes ven estos cambios inmediatamente en su portal de seguimiento.
+                </p>
+              </div>
+
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <Link
+                  to="/mis-pedidos"
+                  target="_blank"
+                  className="btn-cita-outline"
+                  style={{ background: "#f8f7f4", padding: "10px 16px", fontSize: "13px" }}
+                  title="Abrir el portal del cliente para verificar la vista del usuario"
+                >
+                  <i className="bi bi-box-arrow-up-right"></i> Ver Portal Cliente (Camila)
+                </Link>
+              </div>
+            </div>
+
+            {/* Barra de Filtros y Búsqueda de Pedidos */}
+            <div className="admin-orders-controls">
+              <div className="admin-orders-toolbar">
+                <div className="admin-orders-search">
+                  <i className="bi bi-search" style={{ color: "#8c9791" }}></i>
+                  <input
+                    type="text"
+                    placeholder="Buscar por código (PLT-2026), cliente, correo o joya..."
+                    value={orderSearchQuery}
+                    onChange={(e) => setOrderSearchQuery(e.target.value)}
+                  />
+                  {orderSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setOrderSearchQuery("")}
+                      style={{ border: "none", background: "transparent", color: "#888", cursor: "pointer" }}
+                    >
+                      <i className="bi bi-x-circle-fill"></i>
+                    </button>
+                  )}
+                </div>
+
+                <div className="admin-client-quickfilter">
+                  <button
+                    type="button"
+                    className={`btn-filter-tag camila-highlight ${orderClientFilter === "camila" ? "active" : ""}`}
+                    onClick={() => setOrderClientFilter(orderClientFilter === "camila" ? "todos" : "camila")}
+                  >
+                    <i className="bi bi-star-fill"></i> Solo Cliente Prueba (Camila Mendoza)
+                  </button>
+
+                  <button
+                    type="button"
+                    className={`btn-filter-tag ${orderStageFilter === "todos" && orderClientFilter === "todos" ? "active" : ""}`}
+                    onClick={() => {
+                      setOrderStageFilter("todos");
+                      setOrderClientFilter("todos");
+                    }}
+                  >
+                    Todos ({ordersList.length})
+                  </button>
+                </div>
+              </div>
+
+              {/* Filtro por Etapas de Fabricación */}
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "14px", paddingTop: "12px", borderTop: "1px solid #eee8df" }}>
+                <span style={{ fontSize: "12.5px", fontWeight: "700", color: "#596660", alignSelf: "center", marginRight: "4px" }}>
+                  Fase:
+                </span>
+                {ORDER_STAGES.map((stg) => {
+                  const count = ordersList.filter((o) => o.stage === stg.id).length;
+                  const isActive = orderStageFilter === stg.id;
+                  return (
+                    <button
+                      key={stg.id}
+                      type="button"
+                      className={`btn-filter-tag ${isActive ? "active" : ""}`}
+                      onClick={() => setOrderStageFilter(isActive ? "todos" : stg.id)}
+                      style={{ fontSize: "12px" }}
+                    >
+                      <i className={`bi ${stg.icon}`}></i> {stg.shortLabel} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Listado de Pedidos */}
+            {filteredOrders.length === 0 ? (
+              <div
+                style={{
+                  background: "#ffffff",
+                  border: "1px solid #e7e3dc",
+                  borderRadius: "12px",
+                  padding: "60px 24px",
+                  textAlign: "center",
+                }}
+              >
+                <i className="bi bi-box-seam" style={{ fontSize: "40px", color: "#b5c0ba", marginBottom: "12px", display: "block" }}></i>
+                <h4 style={{ fontFamily: "var(--font-serif)", color: "#15241e", margin: "0 0 6px" }}>
+                  No se encontraron pedidos con estos filtros
+                </h4>
+                <p style={{ color: "#68776f", fontSize: "13.5px", margin: "0 0 16px" }}>
+                  Prueba cambiando la búsqueda o restableciendo los filtros de etapa y cliente.
+                </p>
+                <button
+                  type="button"
+                  className="btn-cita-outline"
+                  onClick={() => {
+                    setOrderStageFilter("todos");
+                    setOrderClientFilter("todos");
+                    setOrderSearchQuery("");
+                  }}
+                >
+                  Restablecer Filtros
+                </button>
+              </div>
+            ) : (
+              filteredOrders.map((order) => {
+                const currentStageInfo = getOrderStageInfo(order.stage);
+                const isCamila = order.clientEmail.toLowerCase() === "cliente@platino.pe";
+                const isEditingThisNote = activeEditingNoteId === order.id;
+
+                return (
+                  <article key={order.id} className={`admin-order-card ${isCamila ? "is-camila" : ""}`}>
+                    {/* Top Bar del Pedido */}
+                    <div className="admin-order-top">
+                      <div className="admin-order-client-info">
+                        <div className="admin-order-client-avatar">
+                          {order.clientName ? order.clientName.charAt(0) : "C"}
+                        </div>
+                        <div>
+                          <div className="admin-order-client-name">
+                            <span>{order.clientName}</span>
+                            {isCamila && (
+                              <span
+                                style={{
+                                  background: "#fef3c7",
+                                  color: "#b45309",
+                                  fontSize: "11px",
+                                  padding: "2px 8px",
+                                  borderRadius: "12px",
+                                  fontWeight: "700",
+                                }}
+                              >
+                                ★ Cuenta de Prueba
+                              </span>
+                            )}
+                          </div>
+                          <div className="admin-order-client-contact">
+                            <span>{order.clientEmail}</span> • <span>{order.clientPhone}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                        <div style={{ textAlign: "right" }}>
+                          <span style={{ fontSize: "15px", fontWeight: "700", color: "#0f2a24", fontFamily: "monospace" }}>
+                            {order.id}
+                          </span>
+                          <div style={{ fontSize: "12px", color: "#788780" }}>
+                            Fecha: {order.date}
+                          </div>
+                        </div>
+
+                        <span className={`order-status-badge ${currentStageInfo.badgeClass}`}>
+                          <i className={`bi ${currentStageInfo.icon}`}></i>
+                          {currentStageInfo.label}
+                        </span>
+
+                        <a
+                          href={`https://wa.me/${(order.clientPhone || "").replace(/[^0-9]/g, "")}?text=Hola%20${encodeURIComponent(order.clientName)},%20te%20escribimos%20de%20Platino%20Perú%20respecto%20a%20tu%20pedido%20${order.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn-order-action whatsapp"
+                          title="Contactar al cliente por WhatsApp"
+                        >
+                          <i className="bi bi-whatsapp"></i> WhatsApp
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* CONTROL CLAVE: SELECTOR DE PROCESO DE FABRICACIÓN (Lo que pidió el usuario) */}
+                    <div className="admin-stage-selector-box">
+                      <div className="admin-stage-label-group">
+                        <i className="bi bi-gear-wide-connected" style={{ fontSize: "18px", color: "#0f2a24" }}></i>
+                        <div>
+                          <label htmlFor={`stage-select-${order.id}`}>
+                            Etapa / Proceso Actual de Fabricación:
+                          </label>
+                          <div style={{ fontSize: "12px", color: "#64746d" }}>
+                            Al cambiar esta opción, se actualiza automáticamente el portal del cliente.
+                          </div>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                        <select
+                          id={`stage-select-${order.id}`}
+                          value={order.stage}
+                          onChange={(e) => handleUpdateOrderStage(order.id, e.target.value)}
+                          className="admin-stage-select"
+                        >
+                          {ORDER_STAGES.map((stg) => (
+                            <option key={stg.id} value={stg.id}>
+                              Paso {stg.stepNumber}: {stg.label} ({stg.shortLabel})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Botones Rápidos de Avance de Etapa */}
+                    <div style={{ padding: "0 20px 14px", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
+                      <span style={{ fontSize: "12px", fontWeight: "600", color: "#6c7873", marginRight: "4px" }}>
+                        Cambio rápido:
+                      </span>
+                      {ORDER_STAGES.map((stg) => {
+                        const isCurrent = order.stage === stg.id;
+                        return (
+                          <button
+                            key={stg.id}
+                            type="button"
+                            onClick={() => handleUpdateOrderStage(order.id, stg.id)}
+                            style={{
+                              border: isCurrent ? "2px solid #0f2a24" : "1px solid #dcd7ce",
+                              background: isCurrent ? "#0f2a24" : "#ffffff",
+                              color: isCurrent ? "#ffffff" : "#3e4a45",
+                              padding: "4px 10px",
+                              borderRadius: "6px",
+                              fontSize: "11.5px",
+                              fontWeight: isCurrent ? "700" : "500",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                          >
+                            <i className={`bi ${stg.icon}`}></i> {stg.stepNumber}. {stg.shortLabel}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {/* Editor de Notas del Taller (Admin -> Cliente) */}
+                    <div className="admin-notes-editor">
+                      <div style={{ background: "#f8faf9", border: "1px solid #e1ebe5", borderRadius: "8px", padding: "12px 14px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                          <span style={{ fontSize: "12.5px", fontWeight: "700", color: "#0f2a24", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                            <i className="bi bi-chat-left-text" style={{ color: "#137748" }}></i>
+                            Nota Oficial del Taller visible para el Cliente:
+                          </span>
+                          {!isEditingThisNote && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setOrderNotesState({
+                                  ...orderNotesState,
+                                  [order.id]: order.adminNotes || "",
+                                });
+                                setActiveEditingNoteId(order.id);
+                              }}
+                              style={{
+                                border: "none",
+                                background: "transparent",
+                                color: "#137748",
+                                fontSize: "12px",
+                                fontWeight: "600",
+                                cursor: "pointer",
+                                textDecoration: "underline",
+                              }}
+                            >
+                              <i className="bi bi-pencil"></i> Editar Nota
+                            </button>
+                          )}
+                        </div>
+
+                        {isEditingThisNote ? (
+                          <div>
+                            <textarea
+                              className="admin-notes-textarea"
+                              value={orderNotesState[order.id] !== undefined ? orderNotesState[order.id] : order.adminNotes || ""}
+                              onChange={(e) =>
+                                setOrderNotesState({
+                                  ...orderNotesState,
+                                  [order.id]: e.target.value,
+                                })
+                              }
+                              placeholder="Escribe la actualización que leerá el cliente en su pantalla (ej: Montura en oro rosa fundida, diamante engastado en 4 uñas)..."
+                            />
+                            <div className="admin-notes-actions">
+                              <button
+                                type="button"
+                                onClick={() => setActiveEditingNoteId(null)}
+                                style={{
+                                  border: "none",
+                                  background: "transparent",
+                                  color: "#788780",
+                                  padding: "6px 12px",
+                                  fontSize: "12px",
+                                  cursor: "pointer",
+                                  marginRight: "6px",
+                                }}
+                              >
+                                Cancelar
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-save-note"
+                                onClick={() => handleSaveOrderNote(order.id)}
+                              >
+                                <i className="bi bi-check2"></i> Guardar Nota para el Cliente
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <p style={{ margin: 0, fontSize: "13px", color: "#3a4741", fontStyle: order.adminNotes ? "normal" : "italic" }}>
+                            {order.adminNotes || "Sin notas adicionales registradas."}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Detalle de Productos en la Orden */}
+                    <div style={{ padding: "0 20px 16px" }}>
+                      <div style={{ background: "#ffffff", border: "1px solid #eeebe5", borderRadius: "8px", padding: "14px 16px" }}>
+                        <div style={{ fontSize: "12px", fontWeight: "700", color: "#788780", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "10px" }}>
+                          Piezas de Joyería en este Pedido ({order.items.length}):
+                        </div>
+                        {order.items.map((it, iIdx) => (
+                          <div
+                            key={iIdx}
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "14px",
+                              paddingBottom: iIdx === order.items.length - 1 ? 0 : "10px",
+                              marginBottom: iIdx === order.items.length - 1 ? 0 : "10px",
+                              borderBottom: iIdx === order.items.length - 1 ? "none" : "1px solid #f2eee8",
+                            }}
+                          >
+                            <img
+                              src={it.image || "/images/secret-garden-white.jpg"}
+                              alt={it.name}
+                              style={{
+                                width: "52px",
+                                height: "52px",
+                                objectFit: "cover",
+                                borderRadius: "8px",
+                                border: "1px solid #e2ddd3",
+                                background: "#faf8f5",
+                              }}
+                              onError={(e) => {
+                                e.currentTarget.src = "/images/secret-garden-white.jpg";
+                              }}
+                            />
+                            <div style={{ flex: 1 }}>
+                              <strong style={{ fontSize: "14px", color: "#0f2a24", display: "block" }}>
+                                {it.name}
+                              </strong>
+                              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", fontSize: "12px", color: "#5d6d65", marginTop: "2px" }}>
+                                {it.metal && (
+                                  <span style={{ background: "#f1ede6", padding: "2px 6px", borderRadius: "4px", fontWeight: "600" }}>
+                                    {it.metal}
+                                  </span>
+                                )}
+                                {it.size && (
+                                  <span style={{ background: "#f1ede6", padding: "2px 6px", borderRadius: "4px" }}>
+                                    Talla: {it.size}
+                                  </span>
+                                )}
+                                {it.engraving && (
+                                  <span style={{ background: "#fef3c7", color: "#92400e", padding: "2px 6px", borderRadius: "4px", fontWeight: "700" }}>
+                                    <i className="bi bi-pen-fill" style={{ marginRight: "3px" }}></i>
+                                    Grabado: «{it.engraving}»
+                                  </span>
+                                )}
+                                {(it.needsSizeAdvice || (typeof it.size === "string" && it.size.toLowerCase().includes("asesor"))) && (
+                                  <span style={{ background: "#eff6ff", color: "#1d4ed8", padding: "2px 6px", borderRadius: "4px", fontWeight: "700" }}>
+                                    <i className="bi bi-info-circle-fill" style={{ marginRight: "3px" }}></i>
+                                    Asesoría Medida
+                                  </span>
+                                )}
+                                {it.gemstone && (
+                                  <span>{it.gemstone}</span>
+                                )}
+                              </div>
+                            </div>
+                            <div style={{ textAlign: "right" }}>
+                              <span style={{ fontSize: "14px", fontWeight: "700", color: "#0f2a24" }}>
+                                {formatPrice(it.price * (it.quantity || 1))}
+                              </span>
+                              <div style={{ fontSize: "11px", color: "#8a9690" }}>
+                                Cant: {it.quantity || 1}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Footer de la Tarjeta del Pedido */}
+                    <div className="order-card-footer" style={{ background: "#faf8f5", padding: "12px 20px" }}>
+                      <div className="order-footer-details">
+                        <div className="order-footer-item">
+                          <i className="bi bi-geo-alt" style={{ color: "#0f2a24" }}></i>
+                          <span>
+                            {order.deliveryType === "recojo_sede"
+                              ? `Retiro: ${order.sedeRecojo}`
+                              : `Envío: ${order.shippingAddress || "Domicilio registrado"}`}
+                          </span>
+                        </div>
+
+                        {order.deliveryDays && (
+                          <div className="order-footer-item">
+                            <i className="bi bi-clock-history" style={{ color: order.deliveryDays === 7 ? "#b45309" : "#15803d" }}></i>
+                            <span style={{ fontWeight: "600", color: order.deliveryDays === 7 ? "#b45309" : "#15803d" }}>
+                              {order.deliveryDays === 7 ? "Plazo: 7 días hábiles (Ajuste Taller)" : "Plazo: 2 días hábiles (Exprés)"}
+                            </span>
+                          </div>
+                        )}
+
+                        <div className="order-footer-item">
+                          <i className="bi bi-credit-card" style={{ color: "#0f2a24" }}></i>
+                          <span>{order.paymentMethod || "Pasarela Web"}</span>
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteOrder(order.id)}
+                          className="btn-card-delete"
+                          style={{ padding: "6px 12px", fontSize: "12px" }}
+                          title="Eliminar este pedido del sistema"
+                        >
+                          <i className="bi bi-trash"></i> Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                );
+              })
+            )}
+          </div>
+        )}
+
         {/* Modal de Crear / Modificar Joya e Imagen */}
         {productModalOpen && (
           <div
@@ -2390,37 +3946,103 @@ export default function AdminCitas() {
               </div>
 
               <form onSubmit={handleSaveProduct} className="catalog-modal-form">
-                <div className="catalog-form-row">
-                  <div className="catalog-form-group">
-                    <label>Nombre de la Joya *</label>
-                    <input
-                      type="text"
-                      className="catalog-form-input"
-                      placeholder="Ej. Anillo Solitario Especular"
-                      value={formName}
-                      onChange={(e) => setFormName(e.target.value)}
-                      required
-                    />
+                {/* 1. SELECTOR DE CATEGORÍA CON BARRA SEGMENTADA */}
+                <div className="catalog-form-group">
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                    <label style={{ margin: 0, fontWeight: "700", color: "#162e24", fontSize: "13.5px" }}>
+                      1. Categoría de la Joya *
+                    </label>
+                    <span style={{ fontSize: "12px", color: "var(--platino-green-dark)", fontWeight: "700" }}>
+                      Activo: {PRODUCT_CATEGORY_GROUPS.find((c) => c.id === formCategoryGroup)?.label || "Anillos"}
+                    </span>
+                  </div>
+                  <p style={{ fontSize: "12px", color: "#5d6d65", margin: "0 0 6px 0" }}>
+                    Selecciona el tipo de joya para habilitar sus opciones (tallas oficiales de dama/varón, gemas o accesorios de lujo):
+                  </p>
+
+                  <div className="category-segmented-bar category-modal-bar">
+                    {PRODUCT_CATEGORY_GROUPS.map(({ id, label, Icon }) => {
+                      const isAct = formCategoryGroup === id;
+                      return (
+                        <div
+                          key={id}
+                          className={`category-seg-item ${isAct ? "active" : ""}`}
+                          onClick={() => handleSelectFormCategoryGroup(id)}
+                          role="button"
+                          tabIndex={0}
+                        >
+                          <span className="category-seg-icon"><Icon /></span>
+                          <span>{label}</span>
+                        </div>
+                      );
+                    })}
                   </div>
 
-                  <div className="catalog-form-group">
-                    <label>Categoría Principal *</label>
-                    <select
-                      className="catalog-form-select"
-                      value={formCategory}
-                      onChange={(e) => setFormCategory(e.target.value)}
-                      required
-                    >
-                      <option value="aros-boda">Aros de Boda y Matrimonio</option>
-                      <option value="anillo-compromiso">Anillo de Compromiso</option>
-                      <option value="anillo-promesa">Anillo de Promesa</option>
-                      <option value="aros-alianzas">Aros de Alianzas</option>
-                      <option value="joyeria">Joyería y Accesorios</option>
-                      <option value="collares">Collares</option>
-                      <option value="pulseras">Pulseras</option>
-                      <option value="regalos">Regalos</option>
-                    </select>
-                  </div>
+                  {/* Subcategorías si es Anillos */}
+                  {formCategoryGroup === "anillos" && (
+                    <div className="category-subtypes-chips">
+                      <span style={{ fontSize: "11.5px", color: "#5d6d65", alignSelf: "center", marginRight: "4px" }}>
+                        Subtipo de Anillo:
+                      </span>
+                      {[
+                        { id: "anillo-compromiso", label: "💍 Anillo de Compromiso", type: "anillo" },
+                        { id: "aros-boda", label: "💒 Aros de Boda (Doble Talla)", type: "aros" },
+                        { id: "anillo-promesa", label: "✨ Anillo de Promesa", type: "anillo" },
+                        { id: "aros-alianzas", label: "🤝 Alianzas (Doble Talla)", type: "aros" },
+                      ].map((sub) => (
+                        <button
+                          key={sub.id}
+                          type="button"
+                          className={`category-subtype-btn ${formCategory === sub.id ? "active" : ""}`}
+                          onClick={() => {
+                            setFormCategory(sub.id);
+                            setFormType(sub.type);
+                          }}
+                        >
+                          {sub.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Subcategorías si es Otros */}
+                  {formCategoryGroup === "otros" && (
+                    <div className="category-subtypes-chips">
+                      <span style={{ fontSize: "11.5px", color: "#5d6d65", alignSelf: "center", marginRight: "4px" }}>
+                        Subtipo:
+                      </span>
+                      {[
+                        { id: "joyeria", label: "⭐ Joyería General", type: "accesorio" },
+                        { id: "regalos", label: "🎁 Regalos", type: "accesorio" },
+                        { id: "gemas", label: "💎 Gemas Sueltas", type: "accesorio" },
+                      ].map((sub) => (
+                        <button
+                          key={sub.id}
+                          type="button"
+                          className={`category-subtype-btn ${formCategory === sub.id ? "active" : ""}`}
+                          onClick={() => {
+                            setFormCategory(sub.id);
+                            setFormType(sub.type);
+                          }}
+                        >
+                          {sub.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. DATOS BÁSICOS DE LA JOYA */}
+                <div className="catalog-form-group">
+                  <label>Nombre de la Joya *</label>
+                  <input
+                    type="text"
+                    className="catalog-form-input"
+                    placeholder="Ej. Anillo Solitario Especular"
+                    value={formName}
+                    onChange={(e) => setFormName(e.target.value)}
+                    required
+                  />
                 </div>
 
                 <div className="catalog-form-row">
@@ -2475,50 +4097,420 @@ export default function AdminCitas() {
                   </div>
                 </div>
 
-                {/* SECCIÓN DE MODIFICAR / SUBIR FOTO */}
-                <div className="catalog-form-group">
-                  <label>Fotografía de la Joya *</label>
-                  <div className="catalog-image-section">
-                    <div className="catalog-image-preview">
-                      <img
-                        src={formImage}
-                        alt="Vista previa"
-                        onError={(e) => {
-                          e.target.onerror = null;
-                          e.target.src = "/images/cat-compromiso.jpg";
-                        }}
-                      />
+                {/* 3. PRIMERO: SELECCIÓN DE MATERIALES DISPONIBLES */}
+                <div className="product-metals-box">
+                  <div className="product-metals-header">
+                    <div className="product-metals-title">
+                      <i className="bi bi-gem"></i>
+                      <span>3. Elige los Materiales que tiene esta Joya *</span>
+                      <span className="product-metals-badge">
+                        {formAvailableMetals.length} de {METALS.length} seleccionados
+                      </span>
                     </div>
 
-                    <div className="catalog-image-controls">
-                      <div>
-                        <label style={{ fontSize: "12px", color: "#55645c", display: "block", marginBottom: "4px" }}>
-                          Ruta o URL de Imagen:
-                        </label>
-                        <input
-                          type="text"
-                          className="catalog-form-input"
-                          placeholder="/images/nombre-joya.jpg o https://..."
-                          value={formImage}
-                          onChange={(e) => setFormImage(e.target.value)}
-                          required
-                        />
-                      </div>
-
-                      <div>
-                        <label style={{ fontSize: "12px", color: "#137748", fontWeight: "600", display: "block", marginBottom: "4px" }}>
-                          <i className="bi bi-cloud-arrow-up"></i> O subir foto desde tu PC / Teléfono:
-                        </label>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handleImageFileUpload}
-                          style={{ fontSize: "12.5px" }}
-                        />
-                      </div>
+                    <div className="product-metals-presets">
+                      <button
+                        type="button"
+                        className="btn-metal-preset"
+                        onClick={handleSelectAllMetals}
+                        title="Habilitar todos los 10 materiales"
+                      >
+                        Todos (10)
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-metal-preset"
+                        onClick={handleSelectOnlyGold}
+                        title="Habilitar solo Oro 18k"
+                      >
+                        Solo Oros (4)
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-metal-preset"
+                        onClick={handleSelectSilverAndMixed}
+                        title="Habilitar Platas y combinados Plata con Oro"
+                      >
+                        Platas y Mixtos (5)
+                      </button>
                     </div>
                   </div>
+
+                  <p style={{ fontSize: "12px", color: "#5d6e65", margin: 0 }}>
+                    Marca los materiales disponibles para esta pieza. Abajo se habilitarán dinámicamente <strong>únicamente las casillas de fotografía</strong> que corresponden a los materiales que elijas:
+                  </p>
+
+                  <div className="product-metals-grid">
+                    {METALS.map((metal) => {
+                      const isChecked = formAvailableMetals.includes(metal.id);
+                      return (
+                        <div
+                          key={metal.id}
+                          className={`metal-item-toggle ${isChecked ? "active" : ""}`}
+                          onClick={() => handleToggleMetal(metal.id)}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => {}}
+                            className="metal-item-checkbox"
+                          />
+                          <div
+                            className="metal-item-swatch"
+                            style={{
+                              background: metal.color,
+                              border: `1.5px solid ${metal.border}`,
+                            }}
+                          />
+                          <div className="metal-item-info">
+                            <span className="metal-item-name">{metal.name}</span>
+                            <span className="metal-item-group">{metal.group}</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Selector de Metal Predeterminado */}
+                  <div className="product-default-metal-picker">
+                    <label>
+                      <i className="bi bi-star"></i> Metal preseleccionado por defecto al abrir el producto:
+                    </label>
+                    <select
+                      value={formSelectedMetal}
+                      onChange={(e) => setFormSelectedMetal(e.target.value)}
+                    >
+                      {METALS.filter((m) => formAvailableMetals.includes(m.id)).map((m) => (
+                        <option key={m.id} value={m.name}>
+                          {m.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
+
+                {/* 4. SEGUNDO: FOTOGRAFÍAS DINÁMICAS SEGÚN LOS MATERIALES SELECCIONADOS */}
+                {(() => {
+                  const selectedWhiteMetals = METALS.filter(
+                    (m) =>
+                      formAvailableMetals.includes(m.id) &&
+                      ["plata-925", "plata-950", "oro-18k-blanco", "platino"].includes(m.id)
+                  );
+                  const selectedYellowMetals = METALS.filter(
+                    (m) =>
+                      formAvailableMetals.includes(m.id) &&
+                      ["oro-18k-amarillo", "oro-18k-natural", "plata-950-oro-amarillo", "plata-950-oro-natural"].includes(m.id)
+                  );
+                  const selectedRoseMetals = METALS.filter(
+                    (m) =>
+                      formAvailableMetals.includes(m.id) &&
+                      ["oro-18k-rosa", "plata-950-oro-rosa"].includes(m.id)
+                  );
+
+                  const activeTonesCount =
+                    (selectedWhiteMetals.length > 0 ? 1 : 0) +
+                    (selectedYellowMetals.length > 0 ? 1 : 0) +
+                    (selectedRoseMetals.length > 0 ? 1 : 0);
+
+                  return (
+                    <div className="metal-photos-box">
+                      <div className="metal-photos-header">
+                        <div className="metal-photos-title">
+                          <i className="bi bi-palette-fill"></i>
+                          <span>
+                            4. Fotografías Requeridas por Material ({activeTonesCount}{" "}
+                            {activeTonesCount === 1 ? "foto requerida" : "fotos requeridas"})
+                          </span>
+                        </div>
+                        <span className="metal-photos-badge">
+                          <i className="bi bi-stars"></i> Dinámico según selección del paso 3
+                        </span>
+                      </div>
+
+                      <p style={{ fontSize: "12px", color: "#5a6860", margin: 0, lineHeight: 1.45 }}>
+                        {activeTonesCount === 0
+                          ? "👆 Por favor selecciona al menos un material en el paso 3 para configurar las fotografías de esta joya."
+                          : "Solo se muestran las fotografías para los tonos de metal que marcaste arriba. Cada foto cambiará dinámicamente en la tienda en el mismo ángulo exacto."}
+                      </p>
+
+                      {activeTonesCount > 0 && (
+                        <div className={`metal-photos-grid count-${activeTonesCount}`}>
+                          {/* Tarjeta 1: Metales Blancos / Plata / Platino */}
+                          {selectedWhiteMetals.length > 0 && (
+                            <div className="metal-photo-card primary">
+                              <div className="metal-photo-card-head">
+                                <span className="metal-photo-card-title">
+                                  🤍 Metales Blancos / Plata
+                                </span>
+                                <div
+                                  className="metal-photo-card-swatches"
+                                  title={selectedWhiteMetals.map((m) => m.name).join(", ")}
+                                >
+                                  {selectedWhiteMetals.map((m) => (
+                                    <span
+                                      key={m.id}
+                                      className="metal-photo-swatch-dot"
+                                      style={{ background: m.color }}
+                                      title={m.name}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                                {selectedWhiteMetals.map((m) => (
+                                  <span
+                                    key={m.id}
+                                    style={{
+                                      fontSize: "10.5px",
+                                      background: "#e8eaeb",
+                                      color: "#1c2b23",
+                                      padding: "2px 7px",
+                                      borderRadius: "10px",
+                                      fontWeight: "600",
+                                    }}
+                                  >
+                                    {m.name}
+                                  </span>
+                                ))}
+                              </div>
+
+                              <div className="metal-photo-preview">
+                                {formImageWhite ? (
+                                  <img
+                                    src={formImageWhite}
+                                    alt="Vista previa metal blanco"
+                                    onError={(e) => {
+                                      e.target.onerror = null;
+                                      e.target.src = "/images/cat-compromiso.jpg";
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="metal-photo-preview-placeholder">
+                                    <i className="bi bi-image" style={{ fontSize: "24px" }}></i>
+                                    <span>Sin imagen cargada</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="metal-photo-inputs">
+                                <label>Ruta o URL:</label>
+                                <input
+                                  type="text"
+                                  className="catalog-form-input"
+                                  style={{ fontSize: "12px", padding: "7px 10px" }}
+                                  placeholder="/images/joya-blanco.jpg o https://..."
+                                  value={formImageWhite}
+                                  onChange={(e) => {
+                                    setFormImageWhite(e.target.value);
+                                    setFormImage(e.target.value);
+                                  }}
+                                  required
+                                />
+
+                                <label className="btn-upload-metal-file">
+                                  <i className="bi bi-cloud-arrow-up-fill"></i> Subir foto metal blanco / plata
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleWhiteImageFileUpload}
+                                    style={{ display: "none" }}
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Tarjeta 2: Oro Amarillo / Natural */}
+                          {selectedYellowMetals.length > 0 && (
+                            <div className="metal-photo-card">
+                              <div className="metal-photo-card-head">
+                                <span className="metal-photo-card-title">
+                                  💛 Oro Amarillo / Natural
+                                </span>
+                                <div
+                                  className="metal-photo-card-swatches"
+                                  title={selectedYellowMetals.map((m) => m.name).join(", ")}
+                                >
+                                  {selectedYellowMetals.map((m) => (
+                                    <span
+                                      key={m.id}
+                                      className="metal-photo-swatch-dot"
+                                      style={{ background: m.color }}
+                                      title={m.name}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                                {selectedYellowMetals.map((m) => (
+                                  <span
+                                    key={m.id}
+                                    style={{
+                                      fontSize: "10.5px",
+                                      background: "#fdf3d8",
+                                      color: "#6b5109",
+                                      padding: "2px 7px",
+                                      borderRadius: "10px",
+                                      fontWeight: "600",
+                                    }}
+                                  >
+                                    {m.name}
+                                  </span>
+                                ))}
+                              </div>
+
+                              <div className="metal-photo-preview">
+                                {formImageYellow ? (
+                                  <img
+                                    src={formImageYellow}
+                                    alt="Vista previa oro amarillo"
+                                    onError={(e) => {
+                                      e.target.onerror = null;
+                                      e.target.src = formImageWhite || "/images/cat-compromiso.jpg";
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="metal-photo-preview-placeholder">
+                                    <i className="bi bi-circle-half" style={{ fontSize: "22px", color: "#d7b355" }}></i>
+                                    <span style={{ fontSize: "11px" }}>Usa foto blanca por defecto si no se sube</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="metal-photo-inputs">
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                  <label>Ruta o URL:</label>
+                                  {formImageYellow && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setFormImageYellow("")}
+                                      style={{ background: "none", border: "none", color: "#c0392b", fontSize: "11px", cursor: "pointer", padding: 0 }}
+                                    >
+                                      <i className="bi bi-x"></i> Quitar
+                                    </button>
+                                  )}
+                                </div>
+                                <input
+                                  type="text"
+                                  className="catalog-form-input"
+                                  style={{ fontSize: "12px", padding: "7px 10px" }}
+                                  placeholder="/images/joya-amarillo.jpg (Opcional)"
+                                  value={formImageYellow}
+                                  onChange={(e) => setFormImageYellow(e.target.value)}
+                                />
+
+                                <label className="btn-upload-metal-file" style={{ borderColor: "#d7b355", color: "#876611", background: "#fdfaf2" }}>
+                                  <i className="bi bi-cloud-arrow-up-fill"></i> Subir foto oro amarillo
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleYellowImageFileUpload}
+                                    style={{ display: "none" }}
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Tarjeta 3: Oro Rosa */}
+                          {selectedRoseMetals.length > 0 && (
+                            <div className="metal-photo-card">
+                              <div className="metal-photo-card-head">
+                                <span className="metal-photo-card-title">
+                                  🌸 Oro Rosa
+                                </span>
+                                <div
+                                  className="metal-photo-card-swatches"
+                                  title={selectedRoseMetals.map((m) => m.name).join(", ")}
+                                >
+                                  {selectedRoseMetals.map((m) => (
+                                    <span
+                                      key={m.id}
+                                      className="metal-photo-swatch-dot"
+                                      style={{ background: m.color }}
+                                      title={m.name}
+                                    />
+                                  ))}
+                                </div>
+                              </div>
+
+                              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
+                                {selectedRoseMetals.map((m) => (
+                                  <span
+                                    key={m.id}
+                                    style={{
+                                      fontSize: "10.5px",
+                                      background: "#fdeee8",
+                                      color: "#843b22",
+                                      padding: "2px 7px",
+                                      borderRadius: "10px",
+                                      fontWeight: "600",
+                                    }}
+                                  >
+                                    {m.name}
+                                  </span>
+                                ))}
+                              </div>
+
+                              <div className="metal-photo-preview">
+                                {formImageRose ? (
+                                  <img
+                                    src={formImageRose}
+                                    alt="Vista previa oro rosa"
+                                    onError={(e) => {
+                                      e.target.onerror = null;
+                                      e.target.src = formImageWhite || "/images/cat-compromiso.jpg";
+                                    }}
+                                  />
+                                ) : (
+                                  <div className="metal-photo-preview-placeholder">
+                                    <i className="bi bi-circle-half" style={{ fontSize: "22px", color: "#dca188" }}></i>
+                                    <span style={{ fontSize: "11px" }}>Usa foto blanca por defecto si no se sube</span>
+                                  </div>
+                                )}
+                              </div>
+
+                              <div className="metal-photo-inputs">
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                  <label>Ruta o URL:</label>
+                                  {formImageRose && (
+                                    <button
+                                      type="button"
+                                      onClick={() => setFormImageRose("")}
+                                      style={{ background: "none", border: "none", color: "#c0392b", fontSize: "11px", cursor: "pointer", padding: 0 }}
+                                    >
+                                      <i className="bi bi-x"></i> Quitar
+                                    </button>
+                                  )}
+                                </div>
+                                <input
+                                  type="text"
+                                  className="catalog-form-input"
+                                  style={{ fontSize: "12px", padding: "7px 10px" }}
+                                  placeholder="/images/joya-rosa.jpg (Opcional)"
+                                  value={formImageRose}
+                                  onChange={(e) => setFormImageRose(e.target.value)}
+                                />
+
+                                <label className="btn-upload-metal-file" style={{ borderColor: "#dca188", color: "#9e5539", background: "#fdf8f6" }}>
+                                  <i className="bi bi-cloud-arrow-up-fill"></i> Subir foto oro rosa
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleRoseImageFileUpload}
+                                    style={{ display: "none" }}
+                                  />
+                                </label>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 <div className="catalog-form-group">
                   <label>Descripción de la Joya</label>

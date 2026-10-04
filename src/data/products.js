@@ -1,32 +1,115 @@
 import { getAssetUrl } from "../utils/assetHelper";
 
 export const METALS = [
-  { id: "plata-925", name: "Plata 925", color: "#e4e7e7", border: "#cfd3d3" },
-  { id: "plata-950", name: "Plata 950", color: "#f2f4f4", border: "#d5dada" },
-  { id: "oro-blanco-18k", name: "Oro Blanco 18k", color: "#e8eaeb", border: "#c2c7c8" },
-  { id: "oro-amarillo-18k", name: "Oro Amarillo 18k", color: "#f6db8d", border: "#d7b355" },
-  { id: "oro-rosa-18k", name: "Oro Rosa 18k", color: "#f7c7b2", border: "#dca188" },
-  { id: "platino-950", name: "Platino 950", color: "#d9ddde", border: "#b0b6b8" },
+  {
+    id: "plata-925",
+    name: "Plata 925",
+    color: "#e4e7e7",
+    border: "#cfd3d3",
+    group: "Plata",
+  },
+  {
+    id: "plata-950",
+    name: "Plata 950",
+    color: "#eff2f2",
+    border: "#d8dddd",
+    group: "Plata",
+  },
+  {
+    id: "plata-950-oro-natural",
+    name: "Plata 950 con Oro 18k Natural",
+    color: "linear-gradient(135deg, #eff2f2 50%, #e2be82 50%)",
+    border: "#c9ba9b",
+    group: "Plata con Oro",
+  },
+  {
+    id: "plata-950-oro-amarillo",
+    name: "Plata 950 con Oro 18k Amarillo",
+    color: "linear-gradient(135deg, #eff2f2 50%, #f6db8d 50%)",
+    border: "#cbb779",
+    group: "Plata con Oro",
+  },
+  {
+    id: "plata-950-oro-rosa",
+    name: "Plata 950 con Oro 18k Rosa",
+    color: "linear-gradient(135deg, #eff2f2 50%, #f7c7b2 50%)",
+    border: "#cca897",
+    group: "Plata con Oro",
+  },
+  {
+    id: "oro-18k-natural",
+    name: "Oro 18k Natural",
+    color: "#e2be82",
+    border: "#c9a15f",
+    group: "Oro 18k",
+  },
+  {
+    id: "oro-18k-amarillo",
+    name: "Oro 18k Amarillo",
+    color: "#f6db8d",
+    border: "#d7b355",
+    group: "Oro 18k",
+  },
+  {
+    id: "oro-18k-rosa",
+    name: "Oro 18k Rosa",
+    color: "#f7c7b2",
+    border: "#dca188",
+    group: "Oro 18k",
+  },
+  {
+    id: "oro-18k-blanco",
+    name: "Oro 18k Blanco",
+    color: "#e8eaeb",
+    border: "#c2c7c8",
+    group: "Oro 18k",
+  },
+  {
+    id: "platino",
+    name: "Platino",
+    color: "#d9ddde",
+    border: "#a8b1b4",
+    group: "Platino",
+  },
 ];
 
+export const DEFAULT_METAL_IMAGES = {
+  "plata-925": "/images/secret-garden-white.jpg",
+  "plata-950": "/images/secret-garden-white.jpg",
+  "plata-950-oro-natural": "/images/secret-garden-yellow.jpg",
+  "plata-950-oro-amarillo": "/images/secret-garden-yellow.jpg",
+  "plata-950-oro-rosa": "/images/secret-garden-rose.jpg",
+  "oro-18k-natural": "/images/secret-garden-yellow.jpg",
+  "oro-18k-amarillo": "/images/secret-garden-yellow.jpg",
+  "oro-18k-rosa": "/images/secret-garden-rose.jpg",
+  "oro-18k-blanco": "/images/secret-garden-white.jpg",
+  "platino": "/images/secret-garden-white.jpg",
+};
+
+import { DAMA_SIZES, VARON_SIZES, ASESOR_SIZE_OPTION } from "../services/inventoryService";
+
+export { DAMA_SIZES, VARON_SIZES, ASESOR_SIZE_OPTION };
+
 export const RING_SIZES = [
-  { id: "asesor", label: "Necesito ayuda de un asesor", stock: "DISPONIBLE", available: true },
-  { id: "talla-5", label: "Talla 5 US / Talla 10 Nacional", stock: "2 UNIDADES", available: true },
-  { id: "talla-6", label: "Talla 6 US / Talla 12 Nacional", stock: "4 UNIDADES", available: true },
-  { id: "talla-6.5", label: "Talla 6.5 US / Talla 13 Nacional", stock: "SIN STOCK", available: false },
-  { id: "talla-7", label: "Talla 7 US / Talla 14 Nacional", stock: "6 UNIDADES", available: true },
-  { id: "talla-8", label: "Talla 8 US / Talla 16 Nacional", stock: "3 UNIDADES", available: true },
-  { id: "talla-9", label: "Talla 9 US / Talla 18 Nacional", stock: "5 UNIDADES", available: true },
-  { id: "talla-10", label: "Talla 10 US / Talla 20 Nacional", stock: "2 UNIDADES", available: true },
+  ASESOR_SIZE_OPTION,
+  ...DAMA_SIZES.map((d) => ({
+    id: d.id,
+    label: d.label,
+    number: d.number,
+    stock: "DISPONIBLE",
+    available: true,
+  })),
 ];
 
 export const GEM_SHAPES_PRODUCT = [
-  { id: "redondo", name: "Redondo", icon: "bi bi-circle" },
-  { id: "cojin", name: "Cojín", icon: "bi bi-square" },
-  { id: "esmeralda", name: "Esmeralda", icon: "bi bi-app" },
-  { id: "pera", name: "Pera", icon: "bi bi-droplet" },
-  { id: "marquesa", name: "Marquesa", icon: "bi bi-suit-diamond" },
-  { id: "princesa", name: "Princesa", icon: "bi bi-bounding-box" },
+  { id: "redondo", name: "Redondo", desc: "El corte clásico por excelencia, diseñado para maximizar el fuego y refracción.", ratio: "1.00", popularCarat: "1.00 ct", icon: "bi bi-circle" },
+  { id: "oval", name: "Oval", desc: "Silueta alargada que estiliza la mano con brillo suave y elegante.", ratio: "1.35 - 1.50", popularCarat: "1.25 ct", icon: "bi bi-egg" },
+  { id: "esmeralda", name: "Esmeralda", desc: "Corte escalonado de gran claridad con reflejos tipo sala de espejos.", ratio: "1.30 - 1.45", popularCarat: "1.50 ct", icon: "bi bi-app" },
+  { id: "marquesa", name: "Marquise", desc: "Silueta regia de puntas afiladas con máxima superficie visual por quilate.", ratio: "1.75 - 2.15", popularCarat: "1.05 ct", icon: "bi bi-suit-diamond" },
+  { id: "radiante", name: "Radiant", desc: "Esquinas truncadas con patrón de facetas brillantes de destello vibrante.", ratio: "1.20 - 1.35", popularCarat: "1.20 ct", icon: "bi bi-gem" },
+  { id: "pera", name: "Pera", desc: "Lágrima luminosa que fusiona la suavidad del redondo con el corte marquesa.", ratio: "1.50 - 1.70", popularCarat: "1.20 ct", icon: "bi bi-droplet" },
+  { id: "cojin", name: "Cojín", desc: "Bordes redondeados de inspiración vintage con facetas profundas y luminosas.", ratio: "1.00 - 1.05", popularCarat: "1.30 ct", icon: "bi bi-square" },
+  { id: "princesa", name: "Princess", desc: "Corte cuadrado contemporáneo de líneas puras con destello geométrico.", ratio: "1.00 - 1.03", popularCarat: "1.10 ct", icon: "bi bi-bounding-box" },
 ];
 
 const RAW_CATEGORY_INFO = {
@@ -203,20 +286,33 @@ const RAW_PRODUCTS = [
     type: "aros", // Flujo con Talla Dama y Talla Varón
     price: 5700,
     priceFormatted: "S/. 5,700",
-    image: "/images/aros-trial.jpg",
+    image: "/images/secret-garden-rose.jpg",
     gallery: [
-      "/images/aros-trial.jpg",
-      "/images/aros-gem.jpg",
+      "/images/secret-garden-rose.jpg",
+      "/images/secret-garden-white.jpg",
+      "/images/secret-garden-yellow.jpg",
       "/images/detail-box-green.jpg"
     ],
     badge: "Diseño: Cañas Plata Ley 950 / Oro 18k",
-    selectedMetal: "Oro Amarillo 18k",
+    selectedMetal: "Oro Rosa 18k",
     availableMetals: [
       { id: "plata-950", name: "Plata Ley 950", color: "#f2f4f4", border: "#d5dada" },
       { id: "oro-amarillo-18k", name: "Oro Amarillo 18k", color: "#f6db8d", border: "#d7b355" },
       { id: "oro-blanco-18k", name: "Oro Blanco 18k", color: "#e8eaeb", border: "#c2c7c8" },
       { id: "oro-rosa-18k", name: "Oro Rosa 18k", color: "#f7c7b2", border: "#dca188" },
     ],
+    metalImages: {
+      "plata-925": "/images/secret-garden-white.jpg",
+      "plata-950": "/images/secret-garden-white.jpg",
+      "oro-18k-blanco": "/images/secret-garden-white.jpg",
+      "platino": "/images/secret-garden-white.jpg",
+      "oro-18k-amarillo": "/images/secret-garden-yellow.jpg",
+      "oro-18k-natural": "/images/secret-garden-yellow.jpg",
+      "oro-18k-rosa": "/images/secret-garden-rose.jpg",
+      "plata-950-oro-amarillo": "/images/secret-garden-yellow.jpg",
+      "plata-950-oro-rosa": "/images/secret-garden-rose.jpg",
+      "plata-950-oro-natural": "/images/secret-garden-yellow.jpg",
+    },
     defaultGemShape: "Redondo - Zirconita Incolora 2.0mm",
     description: "Juego de aros nupciales de perfil abovedado con grabado interior artesanal de hojas de laurel y acabado satinado mate. Comodidad ergonómica para uso diario sin fricción.",
     hasGemSelection: true,
@@ -262,12 +358,22 @@ const RAW_PRODUCTS = [
     type: "aros",
     price: 4800,
     priceFormatted: "S/. 4,800",
-    image: "/images/cat-boda.jpg",
+    image: "/images/aros-trial-oro-amarillo.jpg",
     gallery: [
-      "/images/cat-boda.jpg",
-      "/images/hero-matrimonio.jpg",
-      "/images/detail-packaging.jpg"
+      "/images/aros-trial-oro-amarillo.jpg",
+      "/images/aros-trial-oro-blanco.jpg",
+      "/images/aros-trial-oro-natural.jpg",
+      "/images/aros-trial-bicolor.jpg"
     ],
+    metalImages: {
+      "oro-amarillo-18k": "/images/aros-trial-oro-amarillo.jpg",
+      "oro-blanco-18k": "/images/aros-trial-oro-blanco.jpg",
+      "plata-950": "/images/aros-trial-oro-blanco.jpg",
+      "oro-18k-amarillo": "/images/aros-trial-oro-amarillo.jpg",
+      "oro-18k-blanco": "/images/aros-trial-oro-blanco.jpg",
+      "oro-18k-natural": "/images/aros-trial-oro-natural.jpg",
+      "plata-925": "/images/aros-trial-oro-blanco.jpg",
+    },
     badge: "Par de Aros Tradicionales",
     selectedMetal: "Oro Amarillo 18k",
     availableMetals: [

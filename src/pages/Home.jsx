@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import AsesoriaOnlineModal from "../components/AsesoriaOnlineModal";
+import { DiamondCutIcon } from "../components/GemstoneIcons";
+import GemstoneStoneVisual from "../components/GemstoneStoneVisual";
 import { sedesData } from "../data/sedes";
 import { getHomeImages } from "../services/homeImagesService";
 import { getAssetUrl } from "../utils/assetHelper";
@@ -298,23 +300,34 @@ export default function Home() {
       {/* 3. SELECCIONA LA FORMA DE TU GEMA */}
       <section className="gem-selector-section">
         <div className="gem-selector-layout">
-          {/* Columna Izquierda: Vista de la sortija con diamante como en la imagen de referencia */}
+          {/* Columna Izquierda: Vista interactiva y luminosa de la gema seleccionada */}
           <div className="gem-preview-col">
             <h2 className="gem-section-heading">
               Selecciona la forma de tu gema
             </h2>
 
             <div className="gem-preview-box">
-              <img
-                key={selectedCut.id}
-                src={selectedCut.image}
-                alt={`Diamante corte ${selectedCut.name}`}
-                className="gem-main-preview-img"
+              <GemstoneStoneVisual
+                shape={selectedCut.id}
+                size={175}
+                color="incoloro"
+                carat={selectedCut.popularCarat}
+                showSparkle={true}
               />
             </div>
 
             <div className="gem-active-badge">
-              <span>Corte {selectedCut.name} seleccionado</span>
+              <span>Corte {selectedCut.name} Seleccionado</span>
+            </div>
+
+            <p className="gem-cut-desc-text">
+              {selectedCut.desc}
+            </p>
+
+            <div className="gem-cut-specs-pill">
+              <span>Proporción: <strong>{selectedCut.ratio}</strong></span>
+              <span className="gem-spec-dot">•</span>
+              <span>Quilates sugeridos: <strong>{selectedCut.popularCarat}</strong></span>
             </div>
 
             {/* Botón redondeado para ir al Catálogo de Gemas con el filtro de esa piedra */}
@@ -338,14 +351,10 @@ export default function Home() {
                   key={gem.id}
                   className={`gem-cut-btn ${isActive ? "active" : ""}`}
                   onClick={() => setSelectedCut(gem)}
-                  title={`Seleccionar diamante corte ${gem.name}`}
+                  title={`Seleccionar diamante corte ${gem.name}: ${gem.desc}`}
                 >
                   <div className="gem-icon-container">
-                    <img
-                      src={gem.image}
-                      alt={`Diamante ${gem.name}`}
-                      className="gem-photo-img"
-                    />
+                    <DiamondCutIcon shape={gem.id} size={42} />
                   </div>
                   <span className="gem-cut-label">{gem.name}</span>
                 </button>

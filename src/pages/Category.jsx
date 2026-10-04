@@ -18,6 +18,14 @@ function Category({ addToCart }) {
     return () => window.removeEventListener("catalog_updated", handleUpdate);
   }, []);
 
+  useEffect(() => {
+    try {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+    } catch {
+      window.scrollTo(0, 0);
+    }
+  }, [category]);
+
   const categoryKey = category || "todas";
   const categoryMeta = CATEGORY_INFO[categoryKey] || {
     title: category ? category.replace(/-/g, " ").toUpperCase() : "Colección Exclusiva",
@@ -30,6 +38,24 @@ function Category({ addToCart }) {
   const filteredProducts = useMemo(() => {
     let list = productsList.filter((p) => {
       if (categoryKey === "todas" || categoryKey === "catalogo") return true;
+      if (categoryKey === "joyeria") {
+        return (
+          p.category === "collares" ||
+          p.category === "pulseras" ||
+          p.category === "joyeria" ||
+          p.categories?.includes("joyeria") ||
+          p.categories?.includes("collares") ||
+          p.categories?.includes("pulseras")
+        );
+      }
+      if (categoryKey === "regalos") {
+        return (
+          p.category === "regalos" ||
+          p.categories?.includes("regalos") ||
+          p.hasPresentationChoice ||
+          p.type === "accesorio"
+        );
+      }
       return (
         p.category === categoryKey ||
         (p.categories && p.categories.includes(categoryKey))
@@ -85,12 +111,25 @@ function Category({ addToCart }) {
               className="catalog-filter-select"
               aria-label="Filtrar por metal"
             >
-              <option value="todos">Todos los Metales</option>
-              <option value="Oro Amarillo">Oro Amarillo 18k</option>
-              <option value="Oro Blanco">Oro Blanco 18k</option>
-              <option value="Oro Rosa">Oro Rosa 18k</option>
-              <option value="Plata">Plata Ley 925 / 950</option>
-              <option value="Platino">Platino 950</option>
+              <option value="todos">Todos los Materiales</option>
+              <optgroup label="Plata">
+                <option value="Plata 925">Plata 925</option>
+                <option value="Plata 950">Plata 950</option>
+              </optgroup>
+              <optgroup label="Plata con Oro 18k">
+                <option value="Plata 950 con Oro 18k Natural">Plata 950 con Oro 18k Natural</option>
+                <option value="Plata 950 con Oro 18k Amarillo">Plata 950 con Oro 18k Amarillo</option>
+                <option value="Plata 950 con Oro 18k Rosa">Plata 950 con Oro 18k Rosa</option>
+              </optgroup>
+              <optgroup label="Oro 18k">
+                <option value="Oro 18k Natural">Oro 18k Natural</option>
+                <option value="Oro 18k Amarillo">Oro 18k Amarillo</option>
+                <option value="Oro 18k Rosa">Oro 18k Rosa</option>
+                <option value="Oro 18k Blanco">Oro 18k Blanco</option>
+              </optgroup>
+              <optgroup label="Platino">
+                <option value="Platino">Platino</option>
+              </optgroup>
             </select>
 
             {/* Ordenar por */}

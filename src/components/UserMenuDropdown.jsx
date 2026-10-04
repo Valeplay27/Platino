@@ -81,13 +81,84 @@ export default function UserMenuDropdown() {
                     className="user-dropdown-item admin-highlight"
                     onClick={() => setDropdownOpen(false)}
                   >
-                    <i className="bi bi-speedometer2"></i>
-                    <span>Dashboard de Administración</span>
+                    <i className="bi bi-calendar2-check"></i>
+                    <span>Citas & Horarios</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/admin/catalogo"
+                    className="user-dropdown-item"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    <i className="bi bi-gem"></i>
+                    <span>Crear Portafolio / Catálogo</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/admin/inventario"
+                    className="user-dropdown-item"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    <i className="bi bi-boxes"></i>
+                    <span>Inventario & Stock</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/admin/pedidos"
+                    className="user-dropdown-item"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    <i className="bi bi-box-seam"></i>
+                    <span>Pedidos en Taller</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/admin/imagenes"
+                    className="user-dropdown-item"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    <i className="bi bi-images"></i>
+                    <span>Imágenes del Inicio</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/nosotros"
+                    className="user-dropdown-item"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    <i className="bi bi-journal-richtext" style={{ color: "var(--platino-gold)" }}></i>
+                    <span>Editar Historia (Nosotros)</span>
                   </Link>
                 </li>
               </>
             ) : (
               <>
+                <li>
+                  <Link
+                    to="/mis-pedidos"
+                    className="user-dropdown-item"
+                    style={{ fontWeight: 600, color: "var(--platino-green-dark)" }}
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    <i className="bi bi-box-seam" style={{ color: "var(--platino-gold)" }}></i>
+                    <span>Mis Pedidos y Seguimiento</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
+                    to="/favoritos"
+                    className="user-dropdown-item"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    <i className="bi bi-heart-fill" style={{ color: "#e11d48" }}></i>
+                    <span>Mis Joyas Favoritas</span>
+                  </Link>
+                </li>
                 <li>
                   <Link
                     to="/agendar-cita"

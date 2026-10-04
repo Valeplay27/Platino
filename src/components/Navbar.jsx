@@ -1,17 +1,65 @@
-import { useState, useEffect } from "react";
-import { Link } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { getAnnouncementText, getAnnouncementActive } from "../services/homeImagesService";
+import { getFavoriteCount } from "../services/favoritesService";
+import { getAssetUrl } from "../utils/assetHelper";
 import UserMenuDropdown from "./UserMenuDropdown";
 import "../../styles/layout.css";
 
-const Navbar = ({ cartCount = 0 }) => {
+const Navbar = ({ cartCount = 0, onOpenCart }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [announcementText, setAnnouncementText] = useState(getAnnouncementText);
   const [announcementActive, setAnnouncementActive] = useState(getAnnouncementActive);
   const { user, openAuthModal } = useAuth();
+  const [favCount, setFavCount] = useState(() => (user ? getFavoriteCount(user.email) : 0));
+  const location = useLocation();
+  const currentPath = location.pathname;
+
+  // Estado dinámico del carrito (salto cuando hay joyas o al agregar)
+  const [isCartJumping, setIsCartJumping] = useState(false);
+  const prevCartCountRef = useRef(cartCount);
+
+  useEffect(() => {
+    if (cartCount > 0 && cartCount !== prevCartCountRef.current) {
+      setIsCartJumping(true);
+      const timer = setTimeout(() => setIsCartJumping(false), 950);
+      prevCartCountRef.current = cartCount;
+      return () => clearTimeout(timer);
+    }
+    prevCartCountRef.current = cartCount;
+  }, [cartCount]);
+
+  // Salto periódico elegante cada 7 segundos si la bolsa contiene joyas
+  useEffect(() => {
+    if (cartCount === 0) return;
+    const interval = setInterval(() => {
+      setIsCartJumping(true);
+      setTimeout(() => setIsCartJumping(false), 950);
+    }, 7000);
+    return () => clearInterval(interval);
+  }, [cartCount]);
+
+  const handleNavClick = () => {
+    if (menuOpen) {
+      setMenuOpen(false);
+    }
+  };
+
+  useEffect(() => {
+    if (user?.email) {
+      setFavCount(getFavoriteCount(user.email));
+    } else {
+      setFavCount(0);
+    }
+    const handleFavUpdate = () => {
+      if (user?.email) setFavCount(getFavoriteCount(user.email));
+    };
+    window.addEventListener("platino_favorites_updated", handleFavUpdate);
+    return () => window.removeEventListener("platino_favorites_updated", handleFavUpdate);
+  }, [user?.email]);
 
   useEffect(() => {
     const handleUpdate = () => {
@@ -53,6 +101,17 @@ const Navbar = ({ cartCount = 0 }) => {
 
           {/* Logo Center */}
           <Link to="/" className="brand-logo" aria-label="Platino Perú Inicio">
+            <img
+              src={getAssetUrl("/images/platino-logo-gold.jpg")}
+              alt="Platino Perú Insignia"
+              style={{
+                width: "34px",
+                height: "34px",
+                borderRadius: "7px",
+                objectFit: "cover",
+                boxShadow: "0 2px 8px rgba(197, 160, 89, 0.3)",
+              }}
+            />
             <span className="brand-name">PLATINO</span>
             <span className="brand-gem">❖</span>
             <span className="brand-country">PERÚ</span>
@@ -85,21 +144,53 @@ const Navbar = ({ cartCount = 0 }) => {
 
             <Link
               to="/favoritos"
-              className="action-icon-btn"
+              className="action-icon-btn cart-btn"
               aria-label="Lista de Deseos"
-              title="Favoritos"
+              title={user ? `Favoritos (${favCount})` : "Favoritos (Inicia sesión)"}
+              onClick={(e) => {
+                if (!user) {
+                  e.preventDefault();
+                  openAuthModal("login");
+                }
+              }}
             >
               <i className="bi bi-heart"></i>
+              {favCount > 0 && (
+                <span className="cart-badge" style={{ background: "#e11d48", color: "#ffffff" }}>
+                  {favCount}
+                </span>
+              )}
             </Link>
 
             <Link
               to="/carrito"
-              className="action-icon-btn cart-btn"
-              aria-label="Carrito de compras"
-              title="Carrito"
+              className={`action-icon-btn cart-btn ${cartCount > 0 ? "has-items" : ""} ${isCartJumping ? "cart-jumping" : ""}`}
+              aria-label={`Bolsa de compras Platino (${cartCount} ${cartCount === 1 ? "joya" : "joyas"})`}
+              title={cartCount > 0 ? `Bolsa de compras Platino: ${cartCount} joya${cartCount > 1 ? "s" : ""}` : "Bolsa de compras vacía"}
+              onClick={(e) => {
+                if (onOpenCart) {
+                  e.preventDefault();
+                  onOpenCart();
+                }
+              }}
             >
-              <i className="bi bi-bag"></i>
-              {cartCount > 0 && <span className="cart-badge">{cartCount}</span>}
+              {cartCount > 0 ? (
+                <div className="dynamic-cart-bag-wrapper">
+                  <div className="platino-brand-bag">
+                    <div className="bag-handles"></div>
+                    <div className="bag-body">
+                      <img
+                        src={getAssetUrl("/images/platino-logo-gold.jpg")}
+                        alt="Logo Platino Perú"
+                        className="bag-center-logo"
+                      />
+                    </div>
+                  </div>
+                  <span className="cart-badge cart-badge-pulse">{cartCount}</span>
+                </div>
+              ) : (
+                <i className="bi bi-bag"></i>
+              )}
             </Link>
 
             {/* Mobile hamburger button */}
@@ -136,54 +227,54 @@ const Navbar = ({ cartCount = 0 }) => {
         )}
 
         {/* Row 2: Centered Category Navigation Menu */}
-        <nav className={`header-nav-menu ${menuOpen ? "open" : ""}`}>
+        <nav className={`header-nav-menu ${menuOpen ? "open" : ""}`} aria-label="Navegación principal por categorías">
           <ul className="nav-list">
-            <li className="nav-item">
-              <Link to="/" onClick={() => setMenuOpen(false)}>
+            <li className={`nav-item ${currentPath === "/" ? "active" : ""}`}>
+              <Link to="/" onClick={handleNavClick}>
                 INICIO
               </Link>
             </li>
-            <li className="nav-item">
-              <Link to="/categoria/aros-boda" onClick={() => setMenuOpen(false)}>
+            <li className={`nav-item ${currentPath.includes("aros-boda") ? "active" : ""}`}>
+              <Link to="/categoria/aros-boda" onClick={handleNavClick}>
                 AROS DE BODA
               </Link>
             </li>
-            <li className="nav-item has-dropdown">
+            <li className={`nav-item ${currentPath.includes("anillo-compromiso") ? "active" : ""}`}>
               <Link
                 to="/categoria/anillo-compromiso"
-                onClick={() => setMenuOpen(false)}
+                onClick={handleNavClick}
               >
                 ANILLO DE COMPROMISO
               </Link>
             </li>
-            <li className="nav-item">
+            <li className={`nav-item ${currentPath.includes("anillo-promesa") ? "active" : ""}`}>
               <Link
                 to="/categoria/anillo-promesa"
-                onClick={() => setMenuOpen(false)}
+                onClick={handleNavClick}
               >
                 ANILLO DE PROMESA
               </Link>
             </li>
-            <li className="nav-item">
+            <li className={`nav-item ${currentPath.includes("aros-alianzas") ? "active" : ""}`}>
               <Link
                 to="/categoria/aros-alianzas"
-                onClick={() => setMenuOpen(false)}
+                onClick={handleNavClick}
               >
                 AROS DE ALIANZAS
               </Link>
             </li>
-            <li className="nav-item">
-              <Link to="/categoria/joyeria" onClick={() => setMenuOpen(false)}>
+            <li className={`nav-item ${currentPath.includes("joyeria") ? "active" : ""}`}>
+              <Link to="/categoria/joyeria" onClick={handleNavClick}>
                 JOYERÍA
               </Link>
             </li>
-            <li className="nav-item">
-              <Link to="/categoria/regalos" onClick={() => setMenuOpen(false)}>
+            <li className={`nav-item ${currentPath.includes("regalos") ? "active" : ""}`}>
+              <Link to="/categoria/regalos" onClick={handleNavClick}>
                 REGALOS
               </Link>
             </li>
-            <li className="nav-item">
-              <Link to="/nosotros" onClick={() => setMenuOpen(false)}>
+            <li className={`nav-item ${currentPath.startsWith("/nosotros") ? "active" : ""}`}>
+              <Link to="/nosotros" onClick={handleNavClick}>
                 NOSOTROS
               </Link>
             </li>

@@ -50,7 +50,8 @@
   border-bottom: 1px solid var(--platino-border);
   position: sticky;
   top: 0;
-  z-index: 1000;
+  z-index: 90000;
+  pointer-events: auto;
   width: 100%;
   box-shadow: 0 1px 10px rgba(0, 0, 0, 0.03);
 }
@@ -181,6 +182,204 @@
   justify-content: center;
 }
 
+/* ========================================================
+   BOLSA DINÁMICA PLATINO CON LOGO & EFECTO DE SALTO (JUMP)
+   ======================================================== */
+.dynamic-cart-bag-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+}
+
+.platino-brand-bag {
+  position: relative;
+  width: 24px;
+  height: 26px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  transform-origin: bottom center;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+/* Asas curvas de la bolsa de alta joyería */
+.platino-brand-bag .bag-handles {
+  width: 13px;
+  height: 8px;
+  border: 2px solid #0f2d22;
+  border-bottom: none;
+  border-radius: 7px 7px 0 0;
+  margin-bottom: -1px;
+}
+
+/* Cuerpo de la bolsa verde esmeralda con ribete fino dorado */
+.platino-brand-bag .bag-body {
+  width: 23px;
+  height: 19px;
+  background: linear-gradient(135deg, #0e2920 0%, #163d30 100%);
+  border: 1px solid #c5a059;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 3px 8px rgba(10, 39, 31, 0.28);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Logo oficial de Platino en el centro de la bolsa */
+.platino-brand-bag .bag-center-logo {
+  width: 12px;
+  height: 12px;
+  border-radius: 2.5px;
+  object-fit: cover;
+  border: 0.5px solid rgba(197, 160, 89, 0.9);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+/* Animación elástica de saltar (Jump / Hop enérgico para clics o hover) */
+@keyframes cartBagJump {
+  0% {
+    transform: translateY(0) scale(1, 1);
+  }
+  15% {
+    transform: translateY(3px) scale(1.18, 0.82); /* Squash previo */
+  }
+  35% {
+    transform: translateY(-12px) scale(0.88, 1.15) rotate(-6deg); /* Salto en el aire */
+  }
+  50% {
+    transform: translateY(-14px) scale(0.95, 1.05) rotate(5deg); /* Cima del salto */
+  }
+  65% {
+    transform: translateY(-4px) scale(1.04, 0.96) rotate(-2deg); /* Descenso */
+  }
+  80% {
+    transform: translateY(2px) scale(1.12, 0.88) rotate(0deg); /* Aterrizaje */
+  }
+  90% {
+    transform: translateY(-2px) scale(0.98, 1.02); /* Rebote final */
+  }
+  100% {
+    transform: translateY(0) scale(1, 1) rotate(0deg); /* Reposo */
+  }
+}
+
+/* Salto continuo elegante, sutil y no tan rápido (Constante & Pequeño) */
+@keyframes cartBagSubtleHop {
+  0%, 100% {
+    transform: translateY(0) scale(1, 1);
+  }
+  16% {
+    transform: translateY(0) scale(1, 1);
+  }
+  26% {
+    transform: translateY(1.5px) scale(1.04, 0.96); /* Leve compresión previa */
+  }
+  38% {
+    transform: translateY(-7px) scale(0.97, 1.04); /* Salto pequeño hacia arriba */
+  }
+  48% {
+    transform: translateY(-8px) scale(0.99, 1.02); /* Punto más alto con flotación suave */
+  }
+  58% {
+    transform: translateY(1px) scale(1.03, 0.97); /* Aterrizaje suave */
+  }
+  68% {
+    transform: translateY(-2px) scale(0.99, 1.01); /* Rebote sutil */
+  }
+  78% {
+    transform: translateY(0) scale(1, 1); /* Reposo */
+  }
+}
+
+/* Sombra de suelo sincronizada con el salto sutil */
+@keyframes cartBagSubtleShadow {
+  0%, 100%, 16%, 78% {
+    transform: scale(1);
+    opacity: 0.35;
+  }
+  26% {
+    transform: scale(1.1);
+    opacity: 0.45;
+  }
+  38%, 48% {
+    transform: scale(0.72);
+    opacity: 0.15;
+  }
+  58% {
+    transform: scale(1.08);
+    opacity: 0.4;
+  }
+  68% {
+    transform: scale(0.95);
+    opacity: 0.3;
+  }
+}
+
+/* Clases de animación */
+.cart-subtle-hop {
+  animation: cartBagSubtleHop 2.3s cubic-bezier(0.33, 1, 0.68, 1) infinite;
+  transform-origin: bottom center;
+}
+
+.cart-subtle-shadow {
+  animation: cartBagSubtleShadow 2.3s cubic-bezier(0.33, 1, 0.68, 1) infinite;
+  transform-origin: center;
+}
+
+.cart-user-jump {
+  animation: cartBagJump 0.85s cubic-bezier(0.28, 0.84, 0.42, 1) forwards;
+  transform-origin: bottom center;
+}
+
+.cart-btn.has-items .platino-brand-bag {
+  animation: cartBagSubtleHop 2.3s cubic-bezier(0.33, 1, 0.68, 1) infinite;
+}
+
+.cart-jumping .platino-brand-bag,
+.cart-btn:hover .platino-brand-bag {
+  animation: cartBagJump 0.85s cubic-bezier(0.28, 0.84, 0.42, 1);
+}
+
+/* Badge con pulso de joyas */
+.cart-badge-pulse {
+  position: absolute;
+  top: -3px;
+  right: -5px;
+  background: linear-gradient(135deg, #c5a059 0%, #dfba73 100%);
+  color: #0c241b;
+  font-size: 10px;
+  font-weight: 800;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  border: 1.5px solid #ffffff;
+  animation: badgePop 0.35s cubic-bezier(0.17, 0.89, 0.32, 1.28);
+}
+
+@keyframes badgePop {
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+  70% {
+    transform: scale(1.25);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 .currency-selector {
   display: flex;
   align-items: center;
@@ -256,6 +455,9 @@
   border-top: 1px solid rgba(0, 0, 0, 0.05);
   padding: 13px 24px;
   background: var(--platino-white);
+  position: relative;
+  z-index: 90001;
+  pointer-events: auto;
 }
 
 .nav-list {
@@ -265,7 +467,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 30px;
+  gap: 28px;
+  pointer-events: auto;
+}
+
+.nav-item {
+  pointer-events: auto;
 }
 
 .nav-item a {
@@ -277,7 +484,11 @@
   color: #27332c;
   transition: color 0.2s ease;
   position: relative;
-  padding: 5px 0;
+  padding: 8px 6px;
+  display: block;
+  cursor: pointer;
+  pointer-events: auto;
+  user-select: none;
 }
 
 .nav-item a::after {
@@ -286,7 +497,7 @@
   bottom: 0;
   left: 0;
   width: 0;
-  height: 1px;
+  height: 1.5px;
   background-color: var(--platino-gold);
   transition: width 0.25s ease;
 }
@@ -297,6 +508,16 @@
 
 .nav-item a:hover::after {
   width: 100%;
+}
+
+.nav-item.active a {
+  color: var(--platino-green-dark);
+  font-weight: 700;
+}
+
+.nav-item.active a::after {
+  width: 100%;
+  background-color: var(--platino-gold);
 }
 
 /* 3. Footer Styles */

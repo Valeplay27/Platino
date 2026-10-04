@@ -104,25 +104,26 @@
 .platino-product-card {
   background: white;
   border: 1px solid #ebe7df;
-  border-radius: 2px;
+  border-radius: 16px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
   position: relative;
   text-decoration: none;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.02);
 }
 
 .platino-product-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.06);
+  transform: translateY(-5px);
+  box-shadow: 0 14px 34px rgba(10, 39, 31, 0.08);
 }
 
 .card-image-wrapper {
   position: relative;
   width: 100%;
   aspect-ratio: 1 / 1.05;
-  background: #f7f6f2;
+  background: #fbfaf6;
   overflow: hidden;
 }
 
@@ -130,61 +131,98 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
-  transition: transform 0.6s ease;
+  transition: transform 0.6s ease, filter 0.45s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 .platino-product-card:hover .card-img {
-  transform: scale(1.06);
+  transform: scale(1.05);
 }
 
 .card-badge-pill {
   position: absolute;
   top: 14px;
   left: 14px;
-  background: rgba(14, 41, 32, 0.88);
+  background: rgba(14, 41, 32, 0.9);
   color: white;
   font-size: 9.5px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding: 4px 10px;
-  border-radius: 2px;
-  backdrop-filter: blur(4px);
+  padding: 5px 12px;
+  border-radius: 9999px;
+  backdrop-filter: blur(6px);
+  z-index: 4;
 }
 
 .card-wishlist-btn {
   position: absolute;
   top: 12px;
   right: 12px;
-  width: 32px;
-  height: 32px;
+  width: 34px;
+  height: 34px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.9);
-  border: none;
+  background: rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(0, 0, 0, 0.06);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 15px;
   color: #3b4640;
   cursor: pointer;
-  transition: all 0.2s;
+  transition: all 0.25s;
+  z-index: 4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
 }
 
 .card-wishlist-btn:hover {
   color: #b9423c;
   background: white;
-  transform: scale(1.1);
+  transform: scale(1.12);
+  box-shadow: 0 4px 12px rgba(185, 66, 60, 0.2);
 }
 
 .card-wishlist-btn.active {
   color: #b9423c;
 }
 
+/* Row of interactive metal swatches on product cards */
+.card-metal-swatches {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 12px 14px 2px;
+  background: white;
+  z-index: 3;
+}
+
+.card-swatch-dot {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  cursor: pointer;
+  border: 1.5px solid transparent;
+  padding: 0;
+  transition: transform 0.2s ease, outline 0.2s ease;
+  position: relative;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.15);
+}
+
+.card-swatch-dot:hover {
+  transform: scale(1.28);
+}
+
+.card-swatch-dot.active {
+  outline: 2px solid var(--platino-green-dark);
+  outline-offset: 2.5px;
+  transform: scale(1.1);
+}
+
 .card-info {
-  padding: 22px 20px;
+  padding: 14px 20px 22px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
   flex: 1;
 }
 
