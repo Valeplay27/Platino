@@ -108,6 +108,9 @@ function App() {
             <Route path="/admin/pedidos" element={<AdminCitas />} />
             <Route path="/admin/imagenes" element={<AdminCitas />} />
             <Route path="/admin/banners" element={<AdminCitas />} />
+            <Route path="/admin/finanzas" element={<AdminCitas />} />
+            <Route path="/admin/ganancias" element={<AdminCitas />} />
+            <Route path="/admin/pagos" element={<AdminCitas />} />
             <Route path="/dashboard" element={<AdminCitas />} />
           </Routes>
         </main>

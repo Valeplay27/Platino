@@ -112,18 +112,43 @@ export default function Product({ addToCart }) {
     }
   }, [product.id]);
 
-  // Inventario y Stock
+  // Guardar última joya vista para sincronización automática con el panel de administración
+  useEffect(() => {
+    if (product?.id) {
+      localStorage.setItem("platino_last_viewed_product_id", product.id);
+    }
+  }, [product?.id]);
+
+  // Inventario y Stock con reactividad en tiempo real (mismo tab, pestañas alternas, y foco)
   const [productStock, setProductStock] = useState(() =>
     getProductStock(product?.id, product?.hasDoubleSizes)
   );
 
   useEffect(() => {
-    setProductStock(getProductStock(product?.id, product?.hasDoubleSizes));
-    const handleInvChange = () => {
+    const refreshStock = () => {
       setProductStock(getProductStock(product?.id, product?.hasDoubleSizes));
     };
-    window.addEventListener("platino_inventory_updated", handleInvChange);
-    return () => window.removeEventListener("platino_inventory_updated", handleInvChange);
+
+    // Actualizar inmediatamente al montar o cambiar joya
+    refreshStock();
+
+    const handleStorageChange = (e) => {
+      if (!e.key || e.key === "platino_inventory_stock_v1" || e.key.includes("inventory")) {
+        refreshStock();
+      }
+    };
+
+    window.addEventListener("platino_inventory_updated", refreshStock);
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("focus", refreshStock);
+    document.addEventListener("visibilitychange", refreshStock);
+
+    return () => {
+      window.removeEventListener("platino_inventory_updated", refreshStock);
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("focus", refreshStock);
+      document.removeEventListener("visibilitychange", refreshStock);
+    };
   }, [product?.id, product?.hasDoubleSizes]);
 
   // Tallas (Dama: 05 al 27 | Varón: 10 al 37)
@@ -740,16 +765,38 @@ export default function Product({ addToCart }) {
                     <div className="size-dropdown-section">
                       <div className="config-block-header">
                         <span className="config-block-title">Talla Dama (05 al 27)</span>
-                        <button
-                          type="button"
-                          className="link-guia-tallas"
-                          onClick={() => {
-                            setSizeGuideTab("dama");
-                            setSizeGuideOpen(true);
-                          }}
-                        >
-                          <i className="bi bi-rulers"></i> Guía de Tallas
-                        </button>
+                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                          <Link
+                            to={`/agendar-cita?tab=inventario&prod=${product.id}`}
+                            className="link-admin-stock-sync"
+                            title="Gestionar existencias en Bodega y Sedes en el panel Admin"
+                            style={{
+                              fontSize: "11px",
+                              color: "#245037",
+                              textDecoration: "none",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              padding: "2px 7px",
+                              borderRadius: "4px",
+                              background: "#eaf3ee",
+                              border: "1px solid #b7d6c5",
+                              fontWeight: "600",
+                            }}
+                          >
+                            <i className="bi bi-boxes" style={{ color: "#137748" }}></i> Stock Admin
+                          </Link>
+                          <button
+                            type="button"
+                            className="link-guia-tallas"
+                            onClick={() => {
+                              setSizeGuideTab("dama");
+                              setSizeGuideOpen(true);
+                            }}
+                          >
+                            <i className="bi bi-rulers"></i> Guía de Tallas
+                          </button>
+                        </div>
                       </div>
                       <select
                         value={selectedSizeDama}
@@ -789,10 +836,15 @@ export default function Product({ addToCart }) {
                             return av.total > 0 ? (
                               <div className={`stock-general-badge ${av.total <= 2 ? "low-stock" : "in-stock"}`}>
                                 <i className={av.total <= 2 ? "bi bi-exclamation-circle-fill" : "bi bi-check-circle-fill"}></i>
-                                <span>
-                                  Stock disponible: <strong>{av.total} {av.total === 1 ? "unidad" : "unidades"}</strong>
-                                  {av.total <= 2 ? " (Últimas unidades)" : ""}
-                                </span>
+                                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                                  <span>
+                                    Stock disponible: <strong>{av.total} {av.total === 1 ? "unidad" : "unidades"}</strong>
+                                    {av.total <= 2 ? " (Últimas unidades)" : ""}
+                                  </span>
+                                  <span style={{ fontSize: "11px", opacity: 0.85 }}>
+                                    Bodega: <strong>{av.bodega}</strong> • Lima Centro: <strong>{av.limaCentro}</strong> • Miraflores: <strong>{av.miraflores}</strong>
+                                  </span>
+                                </div>
                               </div>
                             ) : (
                               <div className="stock-general-badge out-of-stock">
@@ -810,16 +862,38 @@ export default function Product({ addToCart }) {
                     <div className="size-dropdown-section">
                       <div className="config-block-header">
                         <span className="config-block-title">Talla Varón (10 al 37)</span>
-                        <button
-                          type="button"
-                          className="link-guia-tallas"
-                          onClick={() => {
-                            setSizeGuideTab("varon");
-                            setSizeGuideOpen(true);
-                          }}
-                        >
-                          <i className="bi bi-rulers"></i> Guía de Tallas
-                        </button>
+                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                          <Link
+                            to={`/agendar-cita?tab=inventario&prod=${product.id}`}
+                            className="link-admin-stock-sync"
+                            title="Gestionar existencias en Bodega y Sedes en el panel Admin"
+                            style={{
+                              fontSize: "11px",
+                              color: "#245037",
+                              textDecoration: "none",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              padding: "2px 7px",
+                              borderRadius: "4px",
+                              background: "#eaf3ee",
+                              border: "1px solid #b7d6c5",
+                              fontWeight: "600",
+                            }}
+                          >
+                            <i className="bi bi-boxes" style={{ color: "#137748" }}></i> Stock Admin
+                          </Link>
+                          <button
+                            type="button"
+                            className="link-guia-tallas"
+                            onClick={() => {
+                              setSizeGuideTab("varon");
+                              setSizeGuideOpen(true);
+                            }}
+                          >
+                            <i className="bi bi-rulers"></i> Guía de Tallas
+                          </button>
+                        </div>
                       </div>
                       <select
                         value={selectedSizeVaron}
@@ -859,10 +933,15 @@ export default function Product({ addToCart }) {
                             return av.total > 0 ? (
                               <div className={`stock-general-badge ${av.total <= 2 ? "low-stock" : "in-stock"}`}>
                                 <i className={av.total <= 2 ? "bi bi-exclamation-circle-fill" : "bi bi-check-circle-fill"}></i>
-                                <span>
-                                  Stock disponible: <strong>{av.total} {av.total === 1 ? "unidad" : "unidades"}</strong>
-                                  {av.total <= 2 ? " (Últimas unidades)" : ""}
-                                </span>
+                                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                                  <span>
+                                    Stock disponible: <strong>{av.total} {av.total === 1 ? "unidad" : "unidades"}</strong>
+                                    {av.total <= 2 ? " (Últimas unidades)" : ""}
+                                  </span>
+                                  <span style={{ fontSize: "11px", opacity: 0.85 }}>
+                                    Bodega: <strong>{av.bodega}</strong> • Lima Centro: <strong>{av.limaCentro}</strong> • Miraflores: <strong>{av.miraflores}</strong>
+                                  </span>
+                                </div>
                               </div>
                             ) : (
                               <div className="stock-general-badge out-of-stock">
@@ -881,16 +960,38 @@ export default function Product({ addToCart }) {
                       <div>
                         <div className="config-block-header">
                           <span className="config-block-title">Talla Dama (05 al 27)</span>
-                          <button
-                            type="button"
-                            className="link-guia-tallas"
-                            onClick={() => {
-                              setSizeGuideTab("dama");
-                              setSizeGuideOpen(true);
-                            }}
-                          >
-                            <i className="bi bi-rulers"></i> Guía de Tallas
-                          </button>
+                          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                            <Link
+                              to={`/agendar-cita?tab=inventario&prod=${product.id}`}
+                              className="link-admin-stock-sync"
+                              title="Gestionar existencias en Bodega y Sedes en el panel Admin"
+                              style={{
+                                fontSize: "11px",
+                                color: "#245037",
+                                textDecoration: "none",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                padding: "2px 7px",
+                                borderRadius: "4px",
+                                background: "#eaf3ee",
+                                border: "1px solid #b7d6c5",
+                                fontWeight: "600",
+                              }}
+                            >
+                              <i className="bi bi-boxes" style={{ color: "#137748" }}></i> Stock Admin
+                            </Link>
+                            <button
+                              type="button"
+                              className="link-guia-tallas"
+                              onClick={() => {
+                                setSizeGuideTab("dama");
+                                setSizeGuideOpen(true);
+                              }}
+                            >
+                              <i className="bi bi-rulers"></i> Guía de Tallas
+                            </button>
+                          </div>
                         </div>
                         <select
                           value={selectedSizeDama}
@@ -929,10 +1030,15 @@ export default function Product({ addToCart }) {
                               return av.total > 0 ? (
                                 <div className={`stock-general-badge ${av.total <= 2 ? "low-stock" : "in-stock"}`}>
                                   <i className={av.total <= 2 ? "bi bi-exclamation-circle-fill" : "bi bi-check-circle-fill"}></i>
-                                  <span>
-                                    Stock disponible: <strong>{av.total} {av.total === 1 ? "unidad" : "unidades"}</strong>
-                                    {av.total <= 2 ? " (Últimas unidades)" : ""}
-                                  </span>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                                    <span>
+                                      Stock disponible: <strong>{av.total} {av.total === 1 ? "unidad" : "unidades"}</strong>
+                                      {av.total <= 2 ? " (Últimas unidades)" : ""}
+                                    </span>
+                                    <span style={{ fontSize: "11px", opacity: 0.85 }}>
+                                      Bodega: <strong>{av.bodega}</strong> • Lima Centro: <strong>{av.limaCentro}</strong> • Miraflores: <strong>{av.miraflores}</strong>
+                                    </span>
+                                  </div>
                                 </div>
                               ) : (
                                 <div className="stock-general-badge out-of-stock">
@@ -948,16 +1054,38 @@ export default function Product({ addToCart }) {
                       <div>
                         <div className="config-block-header">
                           <span className="config-block-title">Talla Varón (10 al 37)</span>
-                          <button
-                            type="button"
-                            className="link-guia-tallas"
-                            onClick={() => {
-                              setSizeGuideTab("varon");
-                              setSizeGuideOpen(true);
-                            }}
-                          >
-                            <i className="bi bi-rulers"></i> Guía de Tallas
-                          </button>
+                          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                            <Link
+                              to={`/agendar-cita?tab=inventario&prod=${product.id}`}
+                              className="link-admin-stock-sync"
+                              title="Gestionar existencias en Bodega y Sedes en el panel Admin"
+                              style={{
+                                fontSize: "11px",
+                                color: "#245037",
+                                textDecoration: "none",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                padding: "2px 7px",
+                                borderRadius: "4px",
+                                background: "#eaf3ee",
+                                border: "1px solid #b7d6c5",
+                                fontWeight: "600",
+                              }}
+                            >
+                              <i className="bi bi-boxes" style={{ color: "#137748" }}></i> Stock Admin
+                            </Link>
+                            <button
+                              type="button"
+                              className="link-guia-tallas"
+                              onClick={() => {
+                                setSizeGuideTab("varon");
+                                setSizeGuideOpen(true);
+                              }}
+                            >
+                              <i className="bi bi-rulers"></i> Guía de Tallas
+                            </button>
+                          </div>
                         </div>
                         <select
                           value={selectedSizeVaron}
@@ -996,10 +1124,15 @@ export default function Product({ addToCart }) {
                               return av.total > 0 ? (
                                 <div className={`stock-general-badge ${av.total <= 2 ? "low-stock" : "in-stock"}`}>
                                   <i className={av.total <= 2 ? "bi bi-exclamation-circle-fill" : "bi bi-check-circle-fill"}></i>
-                                  <span>
-                                    Stock disponible: <strong>{av.total} {av.total === 1 ? "unidad" : "unidades"}</strong>
-                                    {av.total <= 2 ? " (Últimas unidades)" : ""}
-                                  </span>
+                                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                                    <span>
+                                      Stock disponible: <strong>{av.total} {av.total === 1 ? "unidad" : "unidades"}</strong>
+                                      {av.total <= 2 ? " (Últimas unidades)" : ""}
+                                    </span>
+                                    <span style={{ fontSize: "11px", opacity: 0.85 }}>
+                                      Bodega: <strong>{av.bodega}</strong> • Lima Centro: <strong>{av.limaCentro}</strong> • Miraflores: <strong>{av.miraflores}</strong>
+                                    </span>
+                                  </div>
                                 </div>
                               ) : (
                                 <div className="stock-general-badge out-of-stock">

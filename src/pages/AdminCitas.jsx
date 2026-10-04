@@ -37,6 +37,9 @@ import {
   getProductStock,
   updateProductStock,
   updateSingleStockItem,
+  updateMultipleStockItems,
+  copyProductStockToTargets,
+  saveAllInventory,
   getAllStoredInventory,
   getProductTotalStockStats,
   generateDefaultProductStock,
@@ -47,6 +50,9 @@ import {
   ORDER_STAGES,
   getOrderStageInfo,
   deleteOrder,
+  updateOrderPayment,
+  PAYMENT_STATUSES,
+  PAYMENT_METHODS,
 } from "../services/ordersService";
 import { METALS, formatPrice } from "../data/products";
 import { useAuth } from "../context/useAuth";
@@ -167,6 +173,12 @@ export default function AdminCitas() {
     if (location.pathname === "/admin/pedidos") return "pedidos";
     if (location.pathname === "/admin/inventario") return "inventario";
     if (
+      location.pathname === "/admin/finanzas" ||
+      location.pathname === "/admin/ganancias" ||
+      location.pathname === "/admin/pagos"
+    )
+      return "finanzas";
+    if (
       location.pathname === "/admin/catalogo" ||
       location.pathname === "/admin/portafolio"
     )
@@ -177,6 +189,12 @@ export default function AdminCitas() {
       location.pathname === "/admin/home"
     )
       return "home_images";
+    if (
+      searchParams.get("tab") === "finanzas" ||
+      searchParams.get("tab") === "ganancias" ||
+      searchParams.get("tab") === "pagos"
+    )
+      return "finanzas";
     return searchParams.get("tab") || "citas";
   }, [location.pathname, searchParams]);
 
@@ -268,12 +286,43 @@ export default function AdminCitas() {
   };
 
   // Estado para Inventario & Control de Stock por Tallas (Bodega, Sede Lima Centro, Sede Miraflores)
-  const [selectedInventoryProductId, setSelectedInventoryProductId] = useState(() => catalogList[0]?.id || "solitario-naturaleza");
+  const [selectedInventoryProductId, setSelectedInventoryProductId] = useState(() => {
+    try {
+      const params = typeof window !== "undefined" ? new URLSearchParams(window.location.search) : null;
+      const urlProd = params?.get("prod");
+      if (urlProd && catalogList.some((p) => p.id === urlProd)) return urlProd;
+
+      const lastViewed = typeof window !== "undefined" ? localStorage.getItem("platino_last_viewed_product_id") : null;
+      if (lastViewed && catalogList.some((p) => p.id === lastViewed)) return lastViewed;
+    } catch {
+      // ignore
+    }
+    // Priorizar productos con tallas oficiales (anillos y aros)
+    const ringProd = catalogList.find((p) => p.type === "anillo" || p.type === "aros" || p.hasDoubleSizes);
+    return ringProd?.id || catalogList[0]?.id || "anillo-9-promesas";
+  });
   const [inventoryGenderTab, setInventoryGenderTab] = useState("dama"); // 'dama' | 'varon'
   const [inventoryCategoryFilter, setInventoryCategoryFilter] = useState("todas");
   const [inventorySearch, setInventorySearch] = useState("");
   const [inventorySavedFeedback, setInventorySavedFeedback] = useState("");
   const [allInventoryMap, setAllInventoryMap] = useState(() => getAllStoredInventory());
+
+  // Detectar parámetros en URL para navegación directa a pestañas y joyas (ej: ?tab=inventario&prod=anillo-9-promesas)
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const tabParam = params.get("tab");
+      const prodParam = params.get("prod");
+      if (tabParam) {
+        setActiveTab(tabParam);
+      }
+      if (prodParam && catalogList.some((p) => p.id === prodParam)) {
+        setSelectedInventoryProductId(prodParam);
+      }
+    } catch {
+      // ignore
+    }
+  }, [catalogList]);
 
   // Productos filtrados por categoría en el panel de inventario
   const inventoryCategoryProducts = useMemo(() => {
@@ -299,10 +348,20 @@ export default function AdminCitas() {
     window.addEventListener("home_images_updated", loadHomeImagesData);
     window.addEventListener("announcement_updated", loadAnnouncementData);
     window.addEventListener("orders_updated", loadOrdersData);
+
     const loadInventoryData = () => {
       setAllInventoryMap(getAllStoredInventory());
     };
     window.addEventListener("platino_inventory_updated", loadInventoryData);
+    const handleStorageChange = (e) => {
+      if (!e.key || e.key === "platino_inventory_stock_v1" || e.key.includes("inventory")) {
+        loadInventoryData();
+      }
+    };
+    window.addEventListener("storage", handleStorageChange);
+    window.addEventListener("focus", loadInventoryData);
+    document.addEventListener("visibilitychange", loadInventoryData);
+
     return () => {
       window.removeEventListener("citas_updated", loadData);
       window.removeEventListener("catalog_updated", loadCatalogData);
@@ -310,6 +369,9 @@ export default function AdminCitas() {
       window.removeEventListener("announcement_updated", loadAnnouncementData);
       window.removeEventListener("orders_updated", loadOrdersData);
       window.removeEventListener("platino_inventory_updated", loadInventoryData);
+      window.removeEventListener("storage", handleStorageChange);
+      window.removeEventListener("focus", loadInventoryData);
+      document.removeEventListener("visibilitychange", loadInventoryData);
     };
   }, []);
 
@@ -402,11 +464,8 @@ export default function AdminCitas() {
   const handleStockCellChange = (gender, sizeNum, locationId, value) => {
     if (!currentInventoryProduct) return;
     const num = Math.max(0, parseInt(value, 10) || 0);
-    const updated = updateSingleStockItem(currentInventoryProduct.id, gender, sizeNum, locationId, num);
-    setAllInventoryMap((prev) => ({
-      ...prev,
-      [currentInventoryProduct.id]: { ...updated },
-    }));
+    updateSingleStockItem(currentInventoryProduct.id, gender, sizeNum, locationId, num);
+    setAllInventoryMap(getAllStoredInventory());
   };
 
   // Botón rápido +/-
@@ -415,6 +474,28 @@ export default function AdminCitas() {
     const currentQty = currentProductStock?.[gender]?.[sizeNum]?.[locationId] || 0;
     const nextQty = Math.max(0, currentQty + delta);
     handleStockCellChange(gender, sizeNum, locationId, nextQty);
+  };
+
+  // Modificar stock en múltiples almacenes en un solo paso atómico (ej: +1 Sedes)
+  const handleStockStepMultiple = (gender, sizeNum, deltasMap) => {
+    if (!currentInventoryProduct) return;
+    updateMultipleStockItems(currentInventoryProduct.id, gender, sizeNum, deltasMap, true);
+    setAllInventoryMap(getAllStoredInventory());
+  };
+
+  // Copiar stock de la joya actual a todos los modelos de anillos y aros
+  const handleCopyStockToAllRings = () => {
+    if (!currentInventoryProduct) return;
+    const ringIds = catalogList
+      .filter((p) => p.type === "anillo" || p.type === "aros" || p.hasDoubleSizes || (p.categories && p.categories.some((c) => c.includes("anillo") || c.includes("aros"))))
+      .map((p) => p.id);
+
+    if (window.confirm(`¿Deseas sincronizar la configuración de stock de "${currentInventoryProduct.name}" a los ${ringIds.length} modelos de anillos y aros del catálogo?`)) {
+      copyProductStockToTargets(currentInventoryProduct.id, ringIds);
+      setAllInventoryMap(getAllStoredInventory());
+      setInventorySavedFeedback(`✓ ¡El stock de "${currentInventoryProduct.name}" se sincronizó con éxito a los ${ringIds.length} modelos de anillos y aros!`);
+      setTimeout(() => setInventorySavedFeedback(""), 5000);
+    }
   };
 
   // Acciones en lote: +X a un almacén para todas las tallas
@@ -449,8 +530,110 @@ export default function AdminCitas() {
   };
 
   const handleSaveInventoryNotice = () => {
-    setInventorySavedFeedback("¡Inventario sincronizado y guardado con éxito!");
-    setTimeout(() => setInventorySavedFeedback(""), 3500);
+    saveAllInventory(allInventoryMap);
+    setInventorySavedFeedback("✓ ¡Inventario sincronizado y guardado con éxito en todo el catálogo y módulos!");
+    setTimeout(() => setInventorySavedFeedback(""), 4000);
+  };
+
+  // ========================================================
+  // CONTROL DE PAGOS Y VALIDACIÓN DE PEDIDOS (ADMIN)
+  // ========================================================
+  const [paymentStatusFilter, setPaymentStatusFilter] = useState("todos");
+  const [paymentSearchQuery, setPaymentSearchQuery] = useState("");
+  const [editingPaymentNotes, setEditingPaymentNotes] = useState({});
+  const [activeEditingPaymentNoteId, setActiveEditingPaymentNoteId] = useState(null);
+
+  const paymentsKpis = useMemo(() => {
+    let totalCobrado = 0;
+    let totalPendiente = 0;
+    let totalFacturado = 0;
+    let countPagados = 0;
+    let countPendientes = 0;
+
+    ordersList.forEach((order) => {
+      const orderTotal = Number(order.total) || 0;
+      totalFacturado += orderTotal;
+      if (order.paymentStatus === "Pagado (100%)") {
+        totalCobrado += orderTotal;
+        countPagados += 1;
+      } else {
+        totalPendiente += orderTotal;
+        countPendientes += 1;
+      }
+    });
+
+    return {
+      totalCobrado,
+      totalPendiente,
+      totalFacturado,
+      countPagados,
+      countPendientes,
+      totalOrders: ordersList.length,
+    };
+  }, [ordersList]);
+
+  const filteredPaymentOrders = useMemo(() => {
+    return ordersList.filter((order) => {
+      if (paymentStatusFilter === "pagados" && order.paymentStatus !== "Pagado (100%)") {
+        return false;
+      }
+      if (paymentStatusFilter === "pendientes" && order.paymentStatus === "Pagado (100%)") {
+        return false;
+      }
+      if (paymentStatusFilter === "por_validar" && order.paymentStatus !== "Pendiente de Validación") {
+        return false;
+      }
+      if (paymentSearchQuery.trim()) {
+        const q = paymentSearchQuery.trim().toLowerCase();
+        const matchCode = (order.id || "").toLowerCase().includes(q);
+        const matchName = (order.clientName || "").toLowerCase().includes(q);
+        const matchEmail = (order.clientEmail || "").toLowerCase().includes(q);
+        const matchPhone = (order.clientPhone || "").toLowerCase().includes(q);
+        const matchMethod = (order.paymentMethod || "").toLowerCase().includes(q);
+        const matchItem = (order.items || []).some((it) => (it.name || "").toLowerCase().includes(q));
+        if (!matchCode && !matchName && !matchEmail && !matchPhone && !matchMethod && !matchItem) {
+          return false;
+        }
+      }
+      return true;
+    });
+  }, [ordersList, paymentStatusFilter, paymentSearchQuery]);
+
+  const handleUpdatePaymentStatus = (orderId, newStatus) => {
+    const current = ordersList.find((o) => o.id === orderId);
+    if (!current) return;
+    const success = updateOrderPayment(orderId, newStatus, current.paymentMethod, current.paymentNotes);
+    if (success) {
+      setOrdersList(getOrders());
+      setFeedbackMsg(`✓ Estado de pago actualizado para ${orderId}: "${newStatus}".`);
+      setTimeout(() => setFeedbackMsg(""), 4500);
+    }
+  };
+
+  const handleUpdatePaymentMethod = (orderId, newMethod) => {
+    const current = ordersList.find((o) => o.id === orderId);
+    if (!current) return;
+    const success = updateOrderPayment(orderId, current.paymentStatus, newMethod, current.paymentNotes);
+    if (success) {
+      setOrdersList(getOrders());
+      setFeedbackMsg(`✓ Medio de pago actualizado para ${orderId}: "${newMethod}".`);
+      setTimeout(() => setFeedbackMsg(""), 4500);
+    }
+  };
+
+  const handleSavePaymentNotes = (orderId) => {
+    const current = ordersList.find((o) => o.id === orderId);
+    if (!current) return;
+    const note = editingPaymentNotes[orderId];
+    if (note !== undefined) {
+      const success = updateOrderPayment(orderId, current.paymentStatus, current.paymentMethod, note);
+      if (success) {
+        setOrdersList(getOrders());
+        setFeedbackMsg(`✓ Comprobante / N° de operación guardado para ${orderId}.`);
+        setTimeout(() => setFeedbackMsg(""), 4500);
+        setActiveEditingPaymentNoteId(null);
+      }
+    }
   };
 
   // Manejar cambio de estado de cita
@@ -1145,6 +1328,8 @@ export default function AdminCitas() {
                   ? "Control de Pedidos y Fabricación en Taller"
                   : activeTab === "home_images"
                   ? "Panel Administrativo - Imágenes del Inicio"
+                  : activeTab === "finanzas"
+                  ? "Control de Pagos & Validación de Pedidos"
                   : "Panel Administrativo de Citas"}
               </h1>
               <span
@@ -1172,21 +1357,10 @@ export default function AdminCitas() {
                 ? "Gestiona los pedidos de clientes, actualiza en tiempo real la etapa de fabricación de las joyas (Taller, Engaste, Calidad, Envío) y agrega notas de orfebrería."
                 : activeTab === "home_images"
                 ? "Cambia las imágenes del inicio: banners de compromiso/boda, categorías, estilos de anillos, editoriales y mosaico."
+                : activeTab === "finanzas"
+                ? "Supervisa los pedidos de los clientes, valida si el pago fue realizado y confirma por qué medio de pago se efectuó la transacción (Yape, Mastercard, Visa, Datáfono, Efectivo)."
                 : "Gestiona reservas, revisa observaciones de clientes y bloquea u habilita horarios de atención."}
             </p>
-          </div>
-
-          <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
-            <Link
-              to={activeTab === "pedidos" ? "/mis-pedidos" : activeTab === "home_images" ? "/" : "/catalogo"}
-              className="btn-cita-outline"
-              style={{ background: "white", padding: "10px 18px", fontSize: "13.5px" }}
-              title={activeTab === "pedidos" ? "Ver cómo lo ve el cliente en su portal" : activeTab === "home_images" ? "Ver Página de Inicio" : "Ver catálogo de la tienda"}
-              target="_blank"
-            >
-              <i className="bi bi-box-arrow-up-right"></i>{" "}
-              {activeTab === "pedidos" ? "Ver Portal de Cliente" : activeTab === "home_images" ? "Ver Inicio Público" : "Ver Tienda Pública"}
-            </Link>
           </div>
         </div>
 
@@ -1213,7 +1387,49 @@ export default function AdminCitas() {
         )}
 
         {/* Métricas Resumen Dinámicas según la pestaña */}
-        {activeTab === "home_images" ? (
+        {activeTab === "finanzas" ? (
+          <div className="admin-metrics-row">
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#166e37", background: "#e8f6ed" }}>
+                <i className="bi bi-check2-circle"></i>
+              </div>
+              <div>
+                <h3 className="metric-val" style={{ color: "#15803d" }}>{formatPrice(paymentsKpis.totalCobrado)}</h3>
+                <p className="metric-lbl">Total Pagos Validados</p>
+              </div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#b45309", background: "#fef3c7" }}>
+                <i className="bi bi-clock-history"></i>
+              </div>
+              <div>
+                <h3 className="metric-val" style={{ color: "#b45309" }}>{formatPrice(paymentsKpis.totalPendiente)}</h3>
+                <p className="metric-lbl">Pendientes por Validar</p>
+              </div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#0f2a24", background: "#e8f3ee" }}>
+                <i className="bi bi-cash-stack"></i>
+              </div>
+              <div>
+                <h3 className="metric-val">{formatPrice(paymentsKpis.totalFacturado)}</h3>
+                <p className="metric-lbl">Total Ventas Registradas</p>
+              </div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#32638e", background: "#edf4fb" }}>
+                <i className="bi bi-box-seam"></i>
+              </div>
+              <div>
+                <h3 className="metric-val">{paymentsKpis.totalOrders}</h3>
+                <p className="metric-lbl">Pedidos ({paymentsKpis.countPagados} Validados / {paymentsKpis.countPendientes} Pend.)</p>
+              </div>
+            </div>
+          </div>
+        ) : activeTab === "home_images" ? (
           <div className="admin-metrics-row">
             <div className="metric-card">
               <div className="metric-icon-box">
@@ -1342,6 +1558,48 @@ export default function AdminCitas() {
               <div>
                 <h3 className="metric-val">{totalJoyeria}</h3>
                 <p className="metric-lbl">Accesorios y Collares</p>
+              </div>
+            </div>
+          </div>
+        ) : activeTab === "inventario" ? (
+          <div className="admin-metrics-row">
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#0f2a24", background: "#e8f3ee" }}>
+                <i className="bi bi-boxes"></i>
+              </div>
+              <div>
+                <h3 className="metric-val">{inventoryKpis.totalPieces}</h3>
+                <p className="metric-lbl">Total Joyas en Físico</p>
+              </div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#9c6c0b", background: "#fbf6e9" }}>
+                <i className="bi bi-building"></i>
+              </div>
+              <div>
+                <h3 className="metric-val">{inventoryKpis.bodega}</h3>
+                <p className="metric-lbl">Bodega Central</p>
+              </div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#166e37", background: "#e8f6ed" }}>
+                <i className="bi bi-geo-alt-fill"></i>
+              </div>
+              <div>
+                <h3 className="metric-val">{inventoryKpis.limaCentro}</h3>
+                <p className="metric-lbl">Sede Lima Centro</p>
+              </div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#32638e", background: "#edf4fb" }}>
+                <i className="bi bi-pin-map-fill"></i>
+              </div>
+              <div>
+                <h3 className="metric-val">{inventoryKpis.miraflores}</h3>
+                <p className="metric-lbl">Sede Miraflores</p>
               </div>
             </div>
           </div>
@@ -2265,8 +2523,33 @@ export default function AdminCitas() {
                   }}
                 />
                 <div className="inventory-prod-meta">
-                  <h3>{currentInventoryProduct?.name || "Selecciona una Joya"}</h3>
-                  <p>
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                    <h3 style={{ margin: 0 }}>{currentInventoryProduct?.name || "Selecciona una Joya"}</h3>
+                    {currentInventoryProduct?.id && (
+                      <Link
+                        to={`/producto/${currentInventoryProduct.id}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="btn-batch-action"
+                        style={{
+                          textDecoration: "none",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          padding: "3px 10px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          color: "#137748",
+                          background: "#eef6f1",
+                          border: "1px solid #b7d6c5",
+                        }}
+                        title="Ver cómo se muestra el stock en la tienda pública"
+                      >
+                        <i className="bi bi-box-arrow-up-right"></i> Ver en Tienda
+                      </Link>
+                    )}
+                  </div>
+                  <p style={{ marginTop: "4px", marginBottom: 0 }}>
                     {currentInventoryProduct?.priceFormatted || (currentInventoryProduct?.price ? formatPrice(currentInventoryProduct.price) : "S/. 0")} •{" "}
                     {currentInventoryProduct?.categories?.[0] || currentInventoryProduct?.type || "Joya"}
                     {currentInventoryProduct?.hasDoubleSizes ? " (Modelo con Doble Talla Dama y Varón)" : " (Anillo individual)"}
@@ -2275,26 +2558,67 @@ export default function AdminCitas() {
               </div>
 
               <div style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
-                <label style={{ fontSize: "13px", fontWeight: "600", color: "#37473f" }}>
-                  Cambiar Joya:
-                </label>
-                <select
-                  value={selectedInventoryProductId}
-                  onChange={(e) => setSelectedInventoryProductId(e.target.value)}
-                  className="filter-select"
-                  style={{ minWidth: "260px" }}
+                <button
+                  type="button"
+                  onClick={handleCopyStockToAllRings}
+                  className="btn-batch-action"
+                  style={{
+                    padding: "8px 12px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    background: "#fdf8ee",
+                    border: "1px solid #e8d7b3",
+                    color: "#8a661c",
+                  }}
+                  title="Aplica la configuración de existencias de esta joya a todos los anillos y aros de la tienda"
                 >
-                  {inventoryCategoryProducts.length === 0 ? (
-                    <option value="">No hay joyas en esta categoría</option>
-                  ) : (
-                    inventoryCategoryProducts.map((p) => (
-                      <option key={p.id} value={p.id}>
-                        {p.name} ({p.priceFormatted || formatPrice(p.price)})
-                      </option>
-                    ))
-                  )}
-                </select>
+                  <i className="bi bi-intersect"></i> Copiar a todos los anillos
+                </button>
+
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  <label style={{ fontSize: "13px", fontWeight: "600", color: "#37473f" }}>
+                    Cambiar Joya:
+                  </label>
+                  <select
+                    value={selectedInventoryProductId}
+                    onChange={(e) => setSelectedInventoryProductId(e.target.value)}
+                    className="filter-select"
+                    style={{ minWidth: "260px" }}
+                  >
+                    {inventoryCategoryProducts.length === 0 ? (
+                      <option value="">No hay joyas en esta categoría</option>
+                    ) : (
+                      inventoryCategoryProducts.map((p) => (
+                        <option key={p.id} value={p.id}>
+                          {p.name} ({p.priceFormatted || formatPrice(p.price)})
+                        </option>
+                      ))
+                    )}
+                  </select>
+                </div>
               </div>
+
+              {/* Notificación rápida si el usuario estaba viendo otra joya en la tienda */}
+              {(() => {
+                const lastViewedId = typeof window !== "undefined" ? localStorage.getItem("platino_last_viewed_product_id") : null;
+                const lastProd = lastViewedId && lastViewedId !== currentInventoryProduct?.id ? catalogList.find((p) => p.id === lastViewedId) : null;
+                if (!lastProd) return null;
+                return (
+                  <div style={{ width: "100%", marginTop: "8px", background: "#f0f7f3", border: "1px dashed #7eb499", padding: "8px 14px", borderRadius: "6px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: "10px" }}>
+                    <span style={{ fontSize: "12px", color: "#1e4d35" }}>
+                      <i className="bi bi-clock-history"></i> Joya vista recientemente en la tienda: <strong>{lastProd.name}</strong>
+                    </span>
+                    <button
+                      type="button"
+                      className="btn-batch-action"
+                      style={{ padding: "4px 10px", fontSize: "11px", fontWeight: "600", background: "#ffffff", border: "1px solid #7eb499", color: "#137748" }}
+                      onClick={() => setSelectedInventoryProductId(lastProd.id)}
+                    >
+                      Editar {lastProd.name}
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Pestañas de Género: Dama (05-27) vs Varón (10-37) */}
@@ -2393,6 +2717,7 @@ export default function AdminCitas() {
                                 min="0"
                                 className="inventory-num-input"
                                 value={b}
+                                onFocus={(e) => e.target.select()}
                                 onChange={(e) => handleStockCellChange(inventoryGenderTab, sz.number, "bodega", e.target.value)}
                               />
                               <button
@@ -2421,6 +2746,7 @@ export default function AdminCitas() {
                                 min="0"
                                 className="inventory-num-input"
                                 value={lc}
+                                onFocus={(e) => e.target.select()}
                                 onChange={(e) => handleStockCellChange(inventoryGenderTab, sz.number, "lima-centro", e.target.value)}
                               />
                               <button
@@ -2449,6 +2775,7 @@ export default function AdminCitas() {
                                 min="0"
                                 className="inventory-num-input"
                                 value={m}
+                                onFocus={(e) => e.target.select()}
                                 onChange={(e) => handleStockCellChange(inventoryGenderTab, sz.number, "miraflores", e.target.value)}
                               />
                               <button
@@ -2491,8 +2818,7 @@ export default function AdminCitas() {
                                 className="btn-batch-action"
                                 style={{ padding: "4px 8px", fontSize: "11px" }}
                                 onClick={() => {
-                                  handleStockStepChange(inventoryGenderTab, sz.number, "lima-centro", 1);
-                                  handleStockStepChange(inventoryGenderTab, sz.number, "miraflores", 1);
+                                  handleStockStepMultiple(inventoryGenderTab, sz.number, { "lima-centro": 1, miraflores: 1 });
                                 }}
                                 title="Añadir +1 pieza a cada sede"
                               >
@@ -3913,6 +4239,477 @@ export default function AdminCitas() {
                   </article>
                 );
               })
+            )}
+          </div>
+        )}
+
+        {/* ========================================================
+            TAB: CONTROL DE PAGOS Y VALIDACIÓN DE PEDIDOS (ADMIN)
+            ======================================================== */}
+        {activeTab === "finanzas" && (
+          <div className="admin-content-card payment-management-section">
+            {/* Cabecera Concisa */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", borderBottom: "1.5px solid #edf2ef", paddingBottom: "16px", marginBottom: "20px" }}>
+              <div>
+                <h3 style={{ fontFamily: "var(--font-serif)", fontSize: "22px", margin: "0 0 4px 0", color: "#112820", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <i className="bi bi-wallet2" style={{ color: "#137748" }}></i>
+                  Control de Pagos & Validación de Clientes
+                </h3>
+                <p style={{ fontSize: "13.5px", color: "#5d6d65", margin: 0 }}>
+                  Monitorea los pedidos realizados, valida si fueron pagados y confirma el medio de pago utilizado por cada cliente.
+                </p>
+              </div>
+              <span style={{ fontSize: "12px", background: "#fef3c7", color: "#92400e", padding: "6px 14px", borderRadius: "20px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                <i className="bi bi-lock-fill"></i> Solo visible para Administrador
+              </span>
+            </div>
+
+            {/* Barra de Filtros y Búsqueda */}
+            <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", background: "#f8faf9", padding: "14px 18px", borderRadius: "10px", border: "1px solid #e2ece6" }}>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+                <button
+                  type="button"
+                  onClick={() => setPaymentStatusFilter("todos")}
+                  style={{
+                    padding: "7px 14px",
+                    borderRadius: "6px",
+                    border: paymentStatusFilter === "todos" ? "1.5px solid #137748" : "1px solid #d0ddd5",
+                    background: paymentStatusFilter === "todos" ? "#137748" : "white",
+                    color: paymentStatusFilter === "todos" ? "white" : "#2d3732",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                  }}
+                >
+                  Todos ({ordersList.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentStatusFilter("pagados")}
+                  style={{
+                    padding: "7px 14px",
+                    borderRadius: "6px",
+                    border: paymentStatusFilter === "pagados" ? "1.5px solid #15803d" : "1px solid #d0ddd5",
+                    background: paymentStatusFilter === "pagados" ? "#dcfce7" : "white",
+                    color: paymentStatusFilter === "pagados" ? "#14532d" : "#2d3732",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <i className="bi bi-check-circle-fill" style={{ color: "#16a34a" }}></i>
+                  Pagados ({paymentsKpis.countPagados})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentStatusFilter("por_validar")}
+                  style={{
+                    padding: "7px 14px",
+                    borderRadius: "6px",
+                    border: paymentStatusFilter === "por_validar" ? "1.5px solid #d97706" : "1px solid #d0ddd5",
+                    background: paymentStatusFilter === "por_validar" ? "#fef3c7" : "white",
+                    color: paymentStatusFilter === "por_validar" ? "#78350f" : "#2d3732",
+                    fontSize: "13px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                  }}
+                >
+                  <i className="bi bi-hourglass-split" style={{ color: "#d97706" }}></i>
+                  Por Validar ({paymentsKpis.countPendientes})
+                </button>
+              </div>
+
+              {/* Input Búsqueda */}
+              <div style={{ position: "relative", minWidth: "260px", flex: "1", maxWidth: "380px" }}>
+                <i className="bi bi-search" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#8a9c92", fontSize: "14px" }}></i>
+                <input
+                  type="text"
+                  placeholder="Buscar cliente, código o medio de pago..."
+                  value={paymentSearchQuery}
+                  onChange={(e) => setPaymentSearchQuery(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "8px 12px 8px 34px",
+                    borderRadius: "6px",
+                    border: "1px solid #c9d8ce",
+                    fontSize: "13px",
+                    background: "white",
+                    outline: "none",
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Listado de Pedidos y Validación de Pagos */}
+            {filteredPaymentOrders.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "40px 20px", background: "#fbfcfc", borderRadius: "10px", border: "1px dashed #d5ded9" }}>
+                <i className="bi bi-inbox" style={{ fontSize: "36px", color: "#95a89e", display: "block", marginBottom: "8px" }}></i>
+                <p style={{ margin: 0, fontSize: "14px", color: "#607469", fontWeight: "500" }}>
+                  No se encontraron pedidos con los criterios de búsqueda actuales.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+                {filteredPaymentOrders.map((order) => {
+                  const isPaid = order.paymentStatus === "Pagado (100%)";
+                  const currentStatusConfig = PAYMENT_STATUSES.find((s) => s.id === order.paymentStatus) || {
+                    label: order.paymentStatus || "Por Validar",
+                    color: isPaid ? "#15803d" : "#b45309",
+                    bgColor: isPaid ? "#dcfce7" : "#fef3c7",
+                    icon: isPaid ? "bi-check-circle-fill" : "bi-clock-history",
+                  };
+
+                  const cleanPhone = (order.clientPhone || "").replace(/[^0-9]/g, "");
+                  const whatsappLink = cleanPhone ? `https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(order.clientName || "Cliente")},%20te%20saludamos%20de%20Platino%20sobre%20tu%20pedido%20${encodeURIComponent(order.id)}` : null;
+
+                  return (
+                    <article
+                      key={order.id}
+                      style={{
+                        background: "#ffffff",
+                        border: isPaid ? "1.5px solid #d4e7dc" : "1.5px solid #f2e2be",
+                        borderRadius: "12px",
+                        boxShadow: "0 2px 8px rgba(15, 42, 36, 0.04)",
+                        overflow: "hidden",
+                        transition: "all 0.2s ease",
+                      }}
+                    >
+                      {/* Cabecera del pedido */}
+                      <div
+                        style={{
+                          background: isPaid ? "#f4faf6" : "#fefbf3",
+                          borderBottom: isPaid ? "1px solid #e1efe7" : "1px solid #faeccb",
+                          padding: "12px 20px",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          flexWrap: "wrap",
+                          gap: "10px",
+                        }}
+                      >
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                          <span style={{ fontWeight: "800", color: "#0f2a24", fontSize: "14.5px", fontFamily: "var(--font-serif)" }}>
+                            Pedido {order.id}
+                          </span>
+                          <span style={{ fontSize: "12px", color: "#6b7c73", display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                            <i className="bi bi-calendar3"></i> {order.date}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: "11.5px",
+                              padding: "3px 10px",
+                              borderRadius: "12px",
+                              background: "#eef3f0",
+                              color: "#284439",
+                              fontWeight: "600",
+                            }}
+                          >
+                            <i className="bi bi-geo-alt-fill" style={{ marginRight: "3px" }}></i>
+                            {order.deliveryType === "recojo_sede" ? `Recojo: ${order.sedeRecojo || "Sede Miraflores"}` : `Envío: ${order.shippingAddress || "Domicilio"}`}
+                          </span>
+                        </div>
+
+                        {/* Badge de Estado de Pago actual */}
+                        <div
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "4px 12px",
+                            borderRadius: "20px",
+                            fontSize: "12px",
+                            fontWeight: "700",
+                            background: currentStatusConfig.bgColor,
+                            color: currentStatusConfig.color,
+                            border: `1px solid ${currentStatusConfig.color}33`,
+                          }}
+                        >
+                          <i className={`bi ${currentStatusConfig.icon}`}></i>
+                          <span>{currentStatusConfig.label}</span>
+                        </div>
+                      </div>
+
+                      {/* Cuerpo de detalles en dos columnas */}
+                      <div
+                        style={{
+                          padding: "18px 20px",
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))",
+                          gap: "20px",
+                        }}
+                      >
+                        {/* Columna Izquierda: Datos del Cliente y Joyas */}
+                        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                          {/* Datos del Cliente */}
+                          <div style={{ background: "#fbfcfb", border: "1px solid #e7ede9", borderRadius: "8px", padding: "12px 14px" }}>
+                            <span style={{ fontSize: "11px", fontWeight: "700", color: "#7a8c82", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "6px" }}>
+                              Datos del Cliente:
+                            </span>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
+                              <div>
+                                <strong style={{ fontSize: "14.5px", color: "#112820", display: "block" }}>{order.clientName}</strong>
+                                <span style={{ fontSize: "12.5px", color: "#54645c", display: "block", marginTop: "2px" }}>
+                                  <i className="bi bi-envelope" style={{ marginRight: "4px" }}></i>{order.clientEmail}
+                                </span>
+                                <span style={{ fontSize: "12.5px", color: "#54645c", display: "block", marginTop: "2px" }}>
+                                  <i className="bi bi-telephone" style={{ marginRight: "4px" }}></i>{order.clientPhone || "No registrado"}
+                                </span>
+                              </div>
+                              {whatsappLink && (
+                                <a
+                                  href={whatsappLink}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "5px",
+                                    background: "#25D366",
+                                    color: "white",
+                                    padding: "5px 10px",
+                                    borderRadius: "6px",
+                                    fontSize: "11.5px",
+                                    fontWeight: "700",
+                                    textDecoration: "none",
+                                    flexShrink: 0,
+                                  }}
+                                  title="Enviar mensaje de WhatsApp al cliente"
+                                >
+                                  <i className="bi bi-whatsapp"></i> WhatsApp
+                                </a>
+                              )}
+                            </div>
+                          </div>
+
+                          {/* Joyas compradas */}
+                          <div style={{ background: "#ffffff", border: "1px solid #eeebe5", borderRadius: "8px", padding: "12px 14px" }}>
+                            <div style={{ fontSize: "11px", fontWeight: "700", color: "#788780", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>
+                              Joyas en la compra ({order.items.length}):
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                              {order.items.map((it, iIdx) => (
+                                <div
+                                  key={iIdx}
+                                  style={{
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "10px",
+                                    paddingBottom: iIdx === order.items.length - 1 ? 0 : "6px",
+                                    borderBottom: iIdx === order.items.length - 1 ? "none" : "1px dashed #f0ece5",
+                                  }}
+                                >
+                                  <img
+                                    src={it.image || "/images/secret-garden-white.jpg"}
+                                    alt={it.name}
+                                    style={{
+                                      width: "42px",
+                                      height: "42px",
+                                      objectFit: "cover",
+                                      borderRadius: "6px",
+                                      border: "1px solid #e2ddd3",
+                                    }}
+                                    onError={(e) => {
+                                      e.currentTarget.src = "/images/secret-garden-white.jpg";
+                                    }}
+                                  />
+                                  <div style={{ flex: 1, minWidth: 0 }}>
+                                    <strong style={{ fontSize: "13px", color: "#112820", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                      {it.name}
+                                    </strong>
+                                    <span style={{ fontSize: "11.5px", color: "#6a7b72" }}>
+                                      {it.metal || "Oro 18k"} • Cant: {it.quantity || 1}
+                                    </span>
+                                  </div>
+                                  <strong style={{ fontSize: "13px", color: "#1a382d", flexShrink: 0 }}>
+                                    {formatPrice((it.price || 0) * (it.quantity || 1))}
+                                  </strong>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Columna Derecha: Validación de Pago, Medio de Pago & Monto Total */}
+                        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", gap: "14px", background: "#fafcfb", border: "1px solid #e1ebe5", borderRadius: "10px", padding: "16px" }}>
+                          {/* Monto Total de Ventas */}
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e6eeea", paddingBottom: "10px" }}>
+                            <span style={{ fontSize: "13px", color: "#54645c", fontWeight: "600" }}>Total Ventas (Importe):</span>
+                            <span style={{ fontSize: "20px", fontWeight: "800", color: "#0f2a24", fontFamily: "var(--font-serif)" }}>
+                              {formatPrice(order.total)}
+                            </span>
+                          </div>
+
+                          {/* Control de Validación de Pago */}
+                          <div>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
+                              <label style={{ fontSize: "12px", fontWeight: "700", color: "#1e372c", margin: 0 }}>
+                                Estado del Pago:
+                              </label>
+                              {!isPaid && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleUpdatePaymentStatus(order.id, "Pagado (100%)")}
+                                  style={{
+                                    border: "none",
+                                    background: "#16a34a",
+                                    color: "white",
+                                    fontSize: "11.5px",
+                                    fontWeight: "700",
+                                    padding: "3px 10px",
+                                    borderRadius: "4px",
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                  }}
+                                  title="Validar el pago al 100% de inmediato"
+                                >
+                                  <i className="bi bi-check2"></i> Validar Pago
+                                </button>
+                              )}
+                            </div>
+                            <select
+                              value={order.paymentStatus || "Pendiente de Validación"}
+                              onChange={(e) => handleUpdatePaymentStatus(order.id, e.target.value)}
+                              style={{
+                                width: "100%",
+                                padding: "8px 10px",
+                                borderRadius: "6px",
+                                border: isPaid ? "1.5px solid #22c55e" : "1.5px solid #eab308",
+                                background: isPaid ? "#f0fdf4" : "#fefce8",
+                                color: "#152a20",
+                                fontSize: "13px",
+                                fontWeight: "600",
+                                outline: "none",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {PAYMENT_STATUSES.map((st) => (
+                                <option key={st.id} value={st.id}>
+                                  {st.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Control de Medio de Pago */}
+                          <div>
+                            <label style={{ fontSize: "12px", fontWeight: "700", color: "#1e372c", display: "block", marginBottom: "5px" }}>
+                              Medio de Pago Utilizado:
+                            </label>
+                            <select
+                              value={order.paymentMethod || "Visa"}
+                              onChange={(e) => handleUpdatePaymentMethod(order.id, e.target.value)}
+                              style={{
+                                width: "100%",
+                                padding: "8px 10px",
+                                borderRadius: "6px",
+                                border: "1px solid #c9d8ce",
+                                background: "#ffffff",
+                                color: "#162e24",
+                                fontSize: "13px",
+                                fontWeight: "500",
+                                outline: "none",
+                                cursor: "pointer",
+                              }}
+                            >
+                              {PAYMENT_METHODS.map((pm) => (
+                                <option key={pm} value={pm}>
+                                  {pm}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+
+                          {/* Notas de Comprobante / N° de Operación */}
+                          <div style={{ paddingTop: "6px", borderTop: "1px dashed #e2ece6" }}>
+                            {activeEditingPaymentNoteId === order.id ? (
+                              <div>
+                                <label style={{ fontSize: "11px", fontWeight: "700", color: "#5d7065", display: "block", marginBottom: "4px" }}>
+                                  N° de Operación o Referencia de Voucher:
+                                </label>
+                                <input
+                                  type="text"
+                                  value={editingPaymentNotes[order.id] !== undefined ? editingPaymentNotes[order.id] : (order.paymentNotes || "")}
+                                  onChange={(e) => setEditingPaymentNotes({ ...editingPaymentNotes, [order.id]: e.target.value })}
+                                  placeholder="Ej: BCP N° 492019 / Transferencia Yape"
+                                  style={{
+                                    width: "100%",
+                                    padding: "6px 10px",
+                                    fontSize: "12px",
+                                    border: "1px solid #218c55",
+                                    borderRadius: "4px",
+                                    outline: "none",
+                                    marginBottom: "6px",
+                                  }}
+                                />
+                                <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => setActiveEditingPaymentNoteId(null)}
+                                    style={{ border: "none", background: "transparent", color: "#788780", fontSize: "11.5px", cursor: "pointer" }}
+                                  >
+                                    Cancelar
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSavePaymentNotes(order.id)}
+                                    style={{
+                                      background: "#137748",
+                                      color: "white",
+                                      border: "none",
+                                      borderRadius: "4px",
+                                      padding: "4px 10px",
+                                      fontSize: "11.5px",
+                                      fontWeight: "600",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    Guardar
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px" }}>
+                                <span style={{ color: "#61736a" }}>
+                                  Ref / Voucher:{" "}
+                                  <strong style={{ color: "#1a382d" }}>
+                                    {order.paymentNotes || "Sin registrar"}
+                                  </strong>
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    setEditingPaymentNotes({ ...editingPaymentNotes, [order.id]: order.paymentNotes || "" });
+                                    setActiveEditingPaymentNoteId(order.id);
+                                  }}
+                                  style={{
+                                    border: "none",
+                                    background: "none",
+                                    color: "#137748",
+                                    fontSize: "11.5px",
+                                    fontWeight: "600",
+                                    cursor: "pointer",
+                                    textDecoration: "underline",
+                                  }}
+                                >
+                                  {order.paymentNotes ? "Modificar" : "+ Registrar Ref"}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </article>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}

@@ -84,7 +84,20 @@ export const ASESOR_SIZE_OPTION = {
   isAsesor: true,
 };
 
-const STORAGE_KEY_INVENTORY = "platino_inventory_stock_v1";
+export const STORAGE_KEY_INVENTORY = "platino_inventory_stock_v1";
+
+/**
+ * Normaliza la clave de talla según el género ('05' para dama < 10, '10'..'37' para varón)
+ */
+export function normalizeSizeKey(gender, sizeNum) {
+  if (!sizeNum || sizeNum === "asesor") return sizeNum;
+  const num = parseInt(sizeNum, 10);
+  if (isNaN(num)) return String(sizeNum);
+  if (gender === "dama" && num < 10) {
+    return `0${num}`;
+  }
+  return String(num);
+}
 
 /**
  * Genera stock inicial predeterminado para un producto
@@ -158,13 +171,66 @@ export function generateDefaultProductStock(_productId, _hasDoubleSizes = false)
 }
 
 /**
- * Obtener todos los inventarios almacenados
+ * Obtener todos los inventarios almacenados, con auto-migración y curación de tallas
  */
 export function getAllStoredInventory() {
   try {
     const stored = localStorage.getItem(STORAGE_KEY_INVENTORY);
     if (stored) {
-      return JSON.parse(stored);
+      const parsed = JSON.parse(stored);
+      let needsSave = false;
+
+      // Asegurar que exista _master_
+      if (!parsed["_master_"] || !parsed["_master_"].dama) {
+        parsed["_master_"] = generateDefaultProductStock("_master_", true);
+        needsSave = true;
+      }
+
+      // Si alguna joya tiene existencias personalizadas mayores (ej. Talla 05 con 4 unidades en collar-cristal o anillo),
+      // asegurarnos de sincronizarla a _master_
+      Object.keys(parsed).forEach((k) => {
+        if (k !== "_master_" && parsed[k]?.dama) {
+          Object.keys(parsed[k].dama).forEach((sz) => {
+            const item = parsed[k].dama[sz];
+            const tot = (Number(item?.bodega) || 0) + (Number(item?.["lima-centro"]) || 0) + (Number(item?.miraflores) || 0);
+            if (tot > 0) {
+              const norm = normalizeSizeKey("dama", sz);
+              const mItem = parsed["_master_"].dama[norm];
+              const mTot = (Number(mItem?.bodega) || 0) + (Number(mItem?.["lima-centro"]) || 0) + (Number(mItem?.miraflores) || 0);
+              if (tot > mTot) {
+                parsed["_master_"].dama[norm] = { ...item };
+                needsSave = true;
+              }
+            }
+          });
+        }
+      });
+
+      // Propagar cualquier talla configurada en _master_ a todas las joyas del catálogo
+      if (parsed["_master_"]) {
+        Object.keys(parsed).forEach((k) => {
+          if (k !== "_master_" && parsed[k]?.dama) {
+            Object.keys(parsed["_master_"].dama).forEach((sz) => {
+              const mItem = parsed["_master_"].dama[sz];
+              const mTot = (Number(mItem?.bodega) || 0) + (Number(mItem?.["lima-centro"]) || 0) + (Number(mItem?.miraflores) || 0);
+              if (mTot > 0) {
+                const curItem = parsed[k].dama[sz];
+                const curTot = (Number(curItem?.bodega) || 0) + (Number(curItem?.["lima-centro"]) || 0) + (Number(curItem?.miraflores) || 0);
+                if (curTot === 0) {
+                  parsed[k].dama[sz] = { ...mItem };
+                  needsSave = true;
+                }
+              }
+            });
+          }
+        });
+      }
+
+      if (needsSave) {
+        localStorage.setItem(STORAGE_KEY_INVENTORY, JSON.stringify(parsed));
+      }
+
+      return parsed;
     }
   } catch (err) {
     console.error("Error reading inventory from localStorage", err);
@@ -173,11 +239,13 @@ export function getAllStoredInventory() {
 }
 
 /**
- * Guardar inventario completo
+ * Guardar inventario completo y notificar tanto localmente como a otras pestañas
  */
 export function saveAllInventory(inventoryMap) {
   try {
     localStorage.setItem(STORAGE_KEY_INVENTORY, JSON.stringify(inventoryMap));
+    // Ping con timestamp para forzar evento storage en todas las pestañas
+    localStorage.setItem("platino_inventory_sync_ping", String(Date.now()));
     window.dispatchEvent(
       new CustomEvent("platino_inventory_updated", { detail: { inventory: inventoryMap } })
     );
@@ -190,14 +258,38 @@ export function saveAllInventory(inventoryMap) {
  * Obtiene el inventario de un producto específico (generando uno si no existe)
  */
 export function getProductStock(productId, hasDoubleSizes = false) {
-  if (!productId) return generateDefaultProductStock("temp", hasDoubleSizes);
   const all = getAllStoredInventory();
+  const master = all["_master_"];
+
+  if (!productId) return master || generateDefaultProductStock("temp", hasDoubleSizes);
+
   if (!all[productId] || !all[productId].dama || !all[productId].varon) {
-    const initial = generateDefaultProductStock(productId, hasDoubleSizes);
+    const initial = master ? JSON.parse(JSON.stringify(master)) : generateDefaultProductStock(productId, hasDoubleSizes);
     all[productId] = initial;
     saveAllInventory(all);
     return initial;
   }
+
+  // Si existe _master_, sincronizar cualquier talla con stock que esté en _master_
+  if (master) {
+    ["dama", "varon"].forEach((g) => {
+      if (master[g]) {
+        Object.keys(master[g]).forEach((sNum) => {
+          const mItem = master[g][sNum];
+          const mTot = (Number(mItem?.bodega) || 0) + (Number(mItem?.["lima-centro"]) || 0) + (Number(mItem?.miraflores) || 0);
+          if (mTot > 0) {
+            const curItem = all[productId][g]?.[sNum];
+            const curTot = (Number(curItem?.bodega) || 0) + (Number(curItem?.["lima-centro"]) || 0) + (Number(curItem?.miraflores) || 0);
+            if (curTot === 0) {
+              if (!all[productId][g]) all[productId][g] = {};
+              all[productId][g][sNum] = { ...mItem };
+            }
+          }
+        });
+      }
+    });
+  }
+
   return all[productId];
 }
 
@@ -208,31 +300,112 @@ export function updateProductStock(productId, newStockData) {
   if (!productId) return;
   const all = getAllStoredInventory();
   all[productId] = newStockData;
+  all["_master_"] = JSON.parse(JSON.stringify(newStockData));
   saveAllInventory(all);
   return newStockData;
 }
 
 /**
- * Actualiza el stock de una talla y almacén específico
+ * Actualiza el stock de una talla y almacén específico en tiempo real
+ * Se sincroniza tanto a la joya activa como globalmente para garantizar coherencia en toda la tienda
  */
 export function updateSingleStockItem(productId, gender, sizeNum, locationId, newQty) {
   const all = getAllStoredInventory();
-  if (!all[productId]) {
-    all[productId] = generateDefaultProductStock(productId, true);
-  }
-
-  const prodStock = all[productId];
-  if (!prodStock[gender]) prodStock[gender] = {};
-  if (!prodStock[gender][sizeNum]) {
-    prodStock[gender][sizeNum] = { bodega: 0, "lima-centro": 0, miraflores: 0 };
-  }
-
+  const normKey = normalizeSizeKey(gender, sizeNum);
   const safeQty = Math.max(0, parseInt(newQty, 10) || 0);
-  prodStock[gender][sizeNum][locationId] = safeQty;
 
-  all[productId] = prodStock;
+  if (!all["_master_"]) {
+    all["_master_"] = generateDefaultProductStock("_master_", true);
+  }
+  if (!all["_master_"][gender]) all["_master_"][gender] = {};
+  if (!all["_master_"][gender][normKey]) {
+    all["_master_"][gender][normKey] = { bodega: 0, "lima-centro": 0, miraflores: 0 };
+  }
+  all["_master_"][gender][normKey][locationId] = safeQty;
+
+  // Actualizar en todas las joyas del catálogo para que nunca haya discrepancia de stock entre modelos
+  Object.keys(all).forEach((pKey) => {
+    if (all[pKey] && all[pKey][gender]) {
+      if (!all[pKey][gender][normKey]) {
+        all[pKey][gender][normKey] = { bodega: 0, "lima-centro": 0, miraflores: 0 };
+      }
+      all[pKey][gender][normKey][locationId] = safeQty;
+    }
+  });
+
+  if (productId && (!all[productId] || !all[productId][gender])) {
+    all[productId] = JSON.parse(JSON.stringify(all["_master_"]));
+  }
+  if (productId) {
+    all[productId][gender][normKey][locationId] = safeQty;
+  }
+
   saveAllInventory(all);
-  return prodStock;
+  return productId && all[productId] ? all[productId] : all["_master_"];
+}
+
+/**
+ * Actualiza múltiples almacenes para una talla en un solo paso atómico
+ */
+export function updateMultipleStockItems(productId, gender, sizeNum, locationDeltaOrQtyMap, isDelta = false) {
+  const all = getAllStoredInventory();
+  const normKey = normalizeSizeKey(gender, sizeNum);
+
+  if (!all["_master_"]) {
+    all["_master_"] = generateDefaultProductStock("_master_", true);
+  }
+  if (!all["_master_"][gender]) all["_master_"][gender] = {};
+  if (!all["_master_"][gender][normKey]) {
+    all["_master_"][gender][normKey] = { bodega: 0, "lima-centro": 0, miraflores: 0 };
+  }
+
+  const masterItem = all["_master_"][gender][normKey];
+  Object.entries(locationDeltaOrQtyMap).forEach(([locId, val]) => {
+    if (isDelta) {
+      const cur = Number(masterItem[locId]) || 0;
+      masterItem[locId] = Math.max(0, cur + (Number(val) || 0));
+    } else {
+      masterItem[locId] = Math.max(0, parseInt(val, 10) || 0);
+    }
+  });
+
+  // Actualizar en todas las joyas para sincronización global completa
+  Object.keys(all).forEach((pKey) => {
+    if (all[pKey] && all[pKey][gender]) {
+      if (!all[pKey][gender][normKey]) {
+        all[pKey][gender][normKey] = { bodega: 0, "lima-centro": 0, miraflores: 0 };
+      }
+      Object.entries(locationDeltaOrQtyMap).forEach(([locId, val]) => {
+        if (isDelta) {
+          const cur = Number(all[pKey][gender][normKey][locId]) || 0;
+          all[pKey][gender][normKey][locId] = Math.max(0, cur + (Number(val) || 0));
+        } else {
+          all[pKey][gender][normKey][locId] = Math.max(0, parseInt(val, 10) || 0);
+        }
+      });
+    }
+  });
+
+  saveAllInventory(all);
+  return productId && all[productId] ? all[productId] : all["_master_"];
+}
+
+/**
+ * Copia el stock de un producto a múltiples productos seleccionados
+ */
+export function copyProductStockToTargets(sourceProductId, targetProductIds = []) {
+  if (!sourceProductId || targetProductIds.length === 0) return;
+  const all = getAllStoredInventory();
+  const sourceStock = all[sourceProductId] || generateDefaultProductStock(sourceProductId, true);
+
+  targetProductIds.forEach((id) => {
+    if (id !== sourceProductId) {
+      all[id] = JSON.parse(JSON.stringify(sourceStock));
+    }
+  });
+
+  saveAllInventory(all);
+  return all;
 }
 
 /**
@@ -251,11 +424,19 @@ export function getSizeAvailability(productStock, gender, sizeNum) {
   }
 
   const genderStock = productStock?.[gender] || {};
-  const item = genderStock[sizeNum] || { bodega: 0, "lima-centro": 0, miraflores: 0 };
+  const normKey = normalizeSizeKey(gender, sizeNum);
+  const rawKey = String(sizeNum);
+  const intKey = String(parseInt(sizeNum, 10) || "");
 
-  const bodega = item.bodega || 0;
-  const limaCentro = item["lima-centro"] || 0;
-  const miraflores = item.miraflores || 0;
+  const item =
+    genderStock[normKey] ||
+    genderStock[rawKey] ||
+    (intKey ? genderStock[intKey] : null) ||
+    { bodega: 0, "lima-centro": 0, miraflores: 0 };
+
+  const bodega = Number(item.bodega) || 0;
+  const limaCentro = Number(item["lima-centro"]) || 0;
+  const miraflores = Number(item.miraflores) || 0;
   const total = bodega + limaCentro + miraflores;
 
   let text = "Sin stock (A pedido)";

@@ -127,6 +127,17 @@ export default function UserMenuDropdown() {
                 </li>
                 <li>
                   <Link
+                    to="/admin/pagos"
+                    className="user-dropdown-item"
+                    onClick={() => setDropdownOpen(false)}
+                    style={{ background: "#f0fdf4", borderLeft: "3px solid #16a34a" }}
+                  >
+                    <i className="bi bi-wallet2" style={{ color: "#16a34a" }}></i>
+                    <span>Control de Pagos & Pedidos</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
                     to="/nosotros"
                     className="user-dropdown-item"
                     onClick={() => setDropdownOpen(false)}

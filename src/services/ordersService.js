@@ -87,7 +87,7 @@ const INITIAL_ORDERS = [
     adminNotes: "Montura en Oro 18K Rosa fundida y pulida con éxito. Diamante central de 1.00 ct en proceso de engaste en 4 uñas.",
     lastUpdated: "2026-03-29",
     paymentStatus: "Pagado (100%)",
-    paymentMethod: "Tarjeta Visa terminada en •••• 4242",
+    paymentMethod: "Visa",
     total: 4850,
     items: [
       {
@@ -136,7 +136,7 @@ const INITIAL_ORDERS = [
     adminNotes: "Entregado a satisfacción con estuche de madera fina, paño de limpieza y tarjeta de garantía Platino Care.",
     lastUpdated: "2025-11-28",
     paymentStatus: "Pagado (100%)",
-    paymentMethod: "Transferencia Bancaria BCP",
+    paymentMethod: "Yape",
     total: 3600,
     items: [
       {
@@ -176,7 +176,7 @@ const INITIAL_ORDERS = [
     adminNotes: "Diseño CAD aprobado por el cliente. Fundiendo montura en Oro 18K Amarillo.",
     lastUpdated: "2026-04-02",
     paymentStatus: "Pagado (100%)",
-    paymentMethod: "Tarjeta Mastercard •••• 9811",
+    paymentMethod: "Mastercard",
     total: 5200,
     items: [
       {
@@ -210,7 +210,12 @@ export const getOrders = () => {
     }
     const parsed = JSON.parse(stored);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
+      return parsed.map((order) => ({
+        ...order,
+        paymentMethod: PAYMENT_METHODS.includes(order.paymentMethod)
+          ? order.paymentMethod
+          : normalizePaymentMethod(order.paymentMethod),
+      }));
     }
     return INITIAL_ORDERS;
   } catch {
@@ -341,6 +346,51 @@ export const updateOrderStatus = (orderId, newStage, adminNotes = null) => {
   return true;
 };
 
+export const PAYMENT_STATUSES = [
+  { id: "Pagado (100%)", label: "Pagado (100%)", color: "#15803d", bgColor: "#dcfce7", icon: "bi-check-circle-fill" },
+  { id: "Pendiente de Validación", label: "Pendiente de Validación", color: "#b45309", bgColor: "#fef3c7", icon: "bi-hourglass-split" },
+  { id: "Pago Parcial (50%)", label: "Pago Parcial (50%)", color: "#1d4ed8", bgColor: "#dbeafe", icon: "bi-pie-chart-fill" },
+  { id: "Pendiente de Pago", label: "Pendiente de Pago", color: "#b91c1c", bgColor: "#fee2e2", icon: "bi-x-circle-fill" },
+];
+
+export const PAYMENT_METHODS = [
+  "Yape",
+  "Mastercard",
+  "Visa",
+  "Datáfono",
+  "Efectivo",
+];
+
+export const normalizePaymentMethod = (pm) => {
+  if (!pm) return "Visa";
+  const str = String(pm).trim().toLowerCase();
+  if (str.includes("yape") || str.includes("yap") || str.includes("plin") || str.includes("bcp") || str.includes("transferencia")) return "Yape";
+  if (str.includes("mastercard")) return "Mastercard";
+  if (str.includes("datafono") || str.includes("datáfono") || str.includes("pos")) return "Datáfono";
+  if (str.includes("efectivo") || str.includes("efevtivo") || str.includes("cash")) return "Efectivo";
+  if (str.includes("visa")) return "Visa";
+  return "Visa";
+};
+
+// Actualizar estado de pago y medio de pago (Administrador)
+export const updateOrderPayment = (orderId, paymentStatus, paymentMethod = null, paymentNotes = null) => {
+  const all = getOrders();
+  const index = all.findIndex((o) => o.id === orderId);
+  if (index === -1) return false;
+
+  const currentOrder = all[index];
+  all[index] = {
+    ...currentOrder,
+    paymentStatus: paymentStatus || currentOrder.paymentStatus,
+    paymentMethod: paymentMethod !== null ? paymentMethod : currentOrder.paymentMethod,
+    paymentNotes: paymentNotes !== null ? paymentNotes : (currentOrder.paymentNotes || ""),
+    lastUpdated: new Date().toISOString().split("T")[0],
+  };
+
+  saveOrders(all);
+  return true;
+};
+
 // Crear nuevo pedido (desde Checkout o Admin)
 export const createOrder = (orderData) => {
   const all = getOrders();
@@ -362,7 +412,7 @@ export const createOrder = (orderData) => {
     adminNotes: "Pedido ingresado al sistema. En espera de asignación de maestro joyero.",
     lastUpdated: todayStr,
     paymentStatus: "Pagado (100%)",
-    paymentMethod: orderData.paymentMethod || "Pasarela Web Segura",
+    paymentMethod: orderData.paymentMethod || "Visa",
     total: orderData.total || 0,
     items: orderData.items || [],
     timeline: [
