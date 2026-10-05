@@ -535,6 +535,259 @@ export default function AdminCitas() {
     setTimeout(() => setInventorySavedFeedback(""), 4000);
   };
 
+  // Exportar reporte de inventario y stock por tallas a Excel (.xls) y CSV
+  const handleExportStockExcel = (mode = "current", format = "xls") => {
+    const now = new Date();
+    const dateStr = now.toISOString().split("T")[0];
+    const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+    const productsToExport =
+      mode === "current" && currentInventoryProduct
+        ? [currentInventoryProduct]
+        : catalogList;
+
+    if (format === "csv") {
+      const headers = [
+        "Joya / Producto",
+        "Categoría",
+        "Tipo Talla",
+        "Talla Oficial",
+        "Diámetro (mm)",
+        "Bodega Central",
+        "Sede Lima Centro",
+        "Sede Miraflores",
+        "Stock Total",
+        "Estado Disponibilidad",
+      ];
+
+      const csvRows = [headers.map((h) => `"${h}"`).join(";")];
+
+      productsToExport.forEach((prod) => {
+        const stock = allInventoryMap[prod.id] || getProductStock(prod.id, prod.hasDoubleSizes);
+        const categoryLabel = PRODUCT_CATEGORY_GROUPS.find((c) => c.id === getProductCategoryGroup(prod))?.label || "Joya";
+
+        DAMA_SIZES.forEach((sz) => {
+          const item = stock?.dama?.[sz.number] || { bodega: 0, "lima-centro": 0, miraflores: 0 };
+          const b = Number(item.bodega) || 0;
+          const lc = Number(item["lima-centro"]) || 0;
+          const m = Number(item.miraflores) || 0;
+          const tot = b + lc + m;
+          const estado = tot > 3 ? "Disponible" : tot > 0 ? "Últimas Unidades" : "Agotado";
+          csvRows.push([
+            `"${prod.name}"`,
+            `"${categoryLabel}"`,
+            `"Dama"`,
+            `"${sz.label}"`,
+            `"${sz.diameter}"`,
+            b,
+            lc,
+            m,
+            tot,
+            `"${estado}"`,
+          ].join(";"));
+        });
+
+        VARON_SIZES.forEach((sz) => {
+          const item = stock?.varon?.[sz.number] || { bodega: 0, "lima-centro": 0, miraflores: 0 };
+          const b = Number(item.bodega) || 0;
+          const lc = Number(item["lima-centro"]) || 0;
+          const m = Number(item.miraflores) || 0;
+          const tot = b + lc + m;
+          const estado = tot > 3 ? "Disponible" : tot > 0 ? "Últimas Unidades" : "Agotado";
+          csvRows.push([
+            `"${prod.name}"`,
+            `"${categoryLabel}"`,
+            `"Varón"`,
+            `"${sz.label}"`,
+            `"${sz.diameter}"`,
+            b,
+            lc,
+            m,
+            tot,
+            `"${estado}"`,
+          ].join(";"));
+        });
+      });
+
+      const csvContent = "\uFEFF" + csvRows.join("\r\n");
+      const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+      const filename =
+        mode === "current" && currentInventoryProduct
+          ? `Inventario_Tallas_${currentInventoryProduct.name.replace(/[^a-zA-Z0-9]/g, "_")}_${dateStr}.csv`
+          : `Inventario_General_Tallas_Platino_${dateStr}.csv`;
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+
+      setInventorySavedFeedback(`✓ Archivo CSV descargado con éxito: "${filename}"`);
+      setTimeout(() => setInventorySavedFeedback(""), 5000);
+      return;
+    }
+
+    // Formato Excel .xls nativo con estilos
+    let rowsHtml = "";
+    let grandBodega = 0;
+    let grandLima = 0;
+    let grandMiraflores = 0;
+    let grandTotal = 0;
+
+    productsToExport.forEach((prod) => {
+      const stock = allInventoryMap[prod.id] || getProductStock(prod.id, prod.hasDoubleSizes);
+      const categoryLabel = PRODUCT_CATEGORY_GROUPS.find((c) => c.id === getProductCategoryGroup(prod))?.label || "Joya";
+
+      DAMA_SIZES.forEach((sz) => {
+        const item = stock?.dama?.[sz.number] || { bodega: 0, "lima-centro": 0, miraflores: 0 };
+        const b = Number(item.bodega) || 0;
+        const lc = Number(item["lima-centro"]) || 0;
+        const m = Number(item.miraflores) || 0;
+        const tot = b + lc + m;
+        grandBodega += b;
+        grandLima += lc;
+        grandMiraflores += m;
+        grandTotal += tot;
+
+        const estado = tot > 3 ? "Disponible" : tot > 0 ? "Últimas Unidades" : "Agotado";
+        const estadoColor = tot > 3 ? "#15803d" : tot > 0 ? "#b45309" : "#b91c1c";
+
+        rowsHtml += `
+          <tr>
+            <td>${prod.name}</td>
+            <td>${categoryLabel}</td>
+            <td>Dama</td>
+            <td style="text-align: center; font-weight: bold;">${sz.label}</td>
+            <td style="text-align: center;">${sz.diameter}</td>
+            <td style="text-align: right;">${b}</td>
+            <td style="text-align: right;">${lc}</td>
+            <td style="text-align: right;">${m}</td>
+            <td style="text-align: right; font-weight: bold;">${tot}</td>
+            <td style="color: ${estadoColor}; font-weight: bold;">${estado}</td>
+          </tr>
+        `;
+      });
+
+      VARON_SIZES.forEach((sz) => {
+        const item = stock?.varon?.[sz.number] || { bodega: 0, "lima-centro": 0, miraflores: 0 };
+        const b = Number(item.bodega) || 0;
+        const lc = Number(item["lima-centro"]) || 0;
+        const m = Number(item.miraflores) || 0;
+        const tot = b + lc + m;
+        grandBodega += b;
+        grandLima += lc;
+        grandMiraflores += m;
+        grandTotal += tot;
+
+        const estado = tot > 3 ? "Disponible" : tot > 0 ? "Últimas Unidades" : "Agotado";
+        const estadoColor = tot > 3 ? "#15803d" : tot > 0 ? "#b45309" : "#b91c1c";
+
+        rowsHtml += `
+          <tr>
+            <td>${prod.name}</td>
+            <td>${categoryLabel}</td>
+            <td>Varón</td>
+            <td style="text-align: center; font-weight: bold;">${sz.label}</td>
+            <td style="text-align: center;">${sz.diameter}</td>
+            <td style="text-align: right;">${b}</td>
+            <td style="text-align: right;">${lc}</td>
+            <td style="text-align: right;">${m}</td>
+            <td style="text-align: right; font-weight: bold;">${tot}</td>
+            <td style="color: ${estadoColor}; font-weight: bold;">${estado}</td>
+          </tr>
+        `;
+      });
+    });
+
+    const filename =
+      mode === "current" && currentInventoryProduct
+        ? `Inventario_Tallas_${currentInventoryProduct.name.replace(/[^a-zA-Z0-9]/g, "_")}_${dateStr}.xls`
+        : `Inventario_General_Tallas_Platino_${dateStr}.xls`;
+
+    const excelTemplate = `
+      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+      <head>
+        <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+        <!--[if gte mso 9]>
+        <xml>
+          <x:ExcelWorkbook>
+            <x:ExcelWorksheets>
+              <x:ExcelWorksheet>
+                <x:Name>Inventario Tallas</x:Name>
+                <x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+              </x:ExcelWorksheet>
+            </x:ExcelWorksheets>
+          </x:ExcelWorkbook>
+        </xml>
+        <![endif]-->
+        <style>
+          th { background-color: #137748; color: #ffffff; font-weight: bold; padding: 8px; border: 1px solid #0f5c38; font-family: Arial, sans-serif; font-size: 11pt; }
+          td { padding: 6px 8px; border: 1px solid #d4ded8; font-family: Arial, sans-serif; font-size: 10pt; }
+        </style>
+      </head>
+      <body>
+        <table border="1" cellpadding="5" cellspacing="0">
+          <tr>
+            <td colspan="10" style="background-color: #0f2a24; color: #ffffff; font-size: 15pt; font-weight: bold; text-align: center; padding: 12px;">
+              PLATINO PERÚ - REPORTE DE INVENTARIO Y STOCK POR TALLAS
+            </td>
+          </tr>
+          <tr>
+            <td colspan="5" style="background-color: #f4f8f6; font-size: 10pt; color: #374940;">
+              <strong>Fecha de Emisión:</strong> ${dateStr} ${timeStr} | <strong>Administrador:</strong> ${user?.name || "Vladimir"}
+            </td>
+            <td colspan="5" style="background-color: #f4f8f6; font-size: 10pt; color: #374940; text-align: right;">
+              <strong>Total Modelos en Reporte:</strong> ${productsToExport.length} joyas
+            </td>
+          </tr>
+          <tr>
+            <td colspan="10" style="background-color: #e8f4ee; padding: 8px; font-size: 10.5pt;">
+              <strong>Resumen de Existencias:</strong> Bodega Central: <strong>${grandBodega}</strong> unds | Sede Lima Centro: <strong>${grandLima}</strong> unds | Sede Miraflores: <strong>${grandMiraflores}</strong> unds | <strong>Stock Total: ${grandTotal} piezas</strong>
+            </td>
+          </tr>
+          <tr>
+            <th>Joya / Producto</th>
+            <th>Categoría</th>
+            <th>Tipo Talla</th>
+            <th>Talla Oficial</th>
+            <th>Diámetro</th>
+            <th>Bodega Central</th>
+            <th>Sede Lima Centro</th>
+            <th>Sede Miraflores</th>
+            <th>Stock Total</th>
+            <th>Estado</th>
+          </tr>
+          ${rowsHtml}
+          <tr style="background-color: #f0f7f3; font-weight: bold;">
+            <td colspan="5" style="text-align: right;">TOTAL GENERAL:</td>
+            <td style="text-align: right;">${grandBodega}</td>
+            <td style="text-align: right;">${grandLima}</td>
+            <td style="text-align: right;">${grandMiraflores}</td>
+            <td style="text-align: right;">${grandTotal}</td>
+            <td>-</td>
+          </tr>
+        </table>
+      </body>
+      </html>
+    `;
+
+    const blob = new Blob([excelTemplate], { type: "application/vnd.ms-excel;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    setInventorySavedFeedback(`✓ Archivo Excel descargado con éxito: "${filename}"`);
+    setTimeout(() => setInventorySavedFeedback(""), 5000);
+  };
+
   // ========================================================
   // CONTROL DE PAGOS Y VALIDACIÓN DE PEDIDOS (ADMIN)
   // ========================================================
@@ -2382,12 +2635,31 @@ export default function AdminCitas() {
                 </p>
               </div>
 
-              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+              <div className="inventory-header-actions">
+                <button
+                  type="button"
+                  onClick={() => handleExportStockExcel("current")}
+                  className="btn-inv-excel"
+                  title="Descargar tabla de tallas y stock de esta joya en Excel (.xls)"
+                >
+                  <i className="bi bi-file-earmark-excel-fill"></i>
+                  Descargar Excel (Esta Joya)
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleExportStockExcel("all")}
+                  className="btn-inv-all"
+                  title="Descargar el inventario completo de todas las joyas de la tienda en Excel (.xls)"
+                >
+                  <i className="bi bi-file-earmark-spreadsheet-fill"></i>
+                  Descargar Todo el Inventario
+                </button>
+
                 <button
                   type="button"
                   onClick={() => openCreateProductModal(inventoryCategoryFilter)}
-                  className="btn-catalog-create"
-                  style={{ fontSize: "13px", padding: "10px 18px" }}
+                  className="btn-catalog-create btn-inv-create"
                 >
                   <i className="bi bi-plus-circle-fill"></i> Crear Nueva Joya
                 </button>
@@ -2395,7 +2667,7 @@ export default function AdminCitas() {
                 <button
                   type="button"
                   onClick={handleSaveInventoryNotice}
-                  className="btn-inventory-save-main"
+                  className="btn-inventory-save-main btn-inv-sync"
                 >
                   <i className="bi bi-check2-circle"></i> Sincronizar Inventario
                 </button>
@@ -2639,17 +2911,30 @@ export default function AdminCitas() {
                 <i className="bi bi-gender-male"></i> Tallas de Varón (10 hasta el 37) — {VARON_SIZES.length} tallas
               </button>
 
-              {/* Buscador de talla específico */}
-              <div style={{ marginLeft: "auto", display: "flex", alignItems: "center" }}>
+              {/* Buscador de talla específico y botón Descargar Excel */}
+              <div className="inventory-gender-toolbar">
+                <button
+                  type="button"
+                  onClick={() => handleExportStockExcel("current")}
+                  className="btn-inv-excel-table"
+                  title="Descargar las tallas de esta joya en Excel (.xls)"
+                >
+                  <i className="bi bi-file-earmark-excel-fill"></i> Descargar Excel Tallas
+                </button>
+
                 <input
                   type="text"
                   placeholder="Buscar talla (ej. 05, 14)..."
                   value={inventorySearch}
                   onChange={(e) => setInventorySearch(e.target.value)}
-                  className="filter-select"
-                  style={{ width: "220px", padding: "8px 12px", fontSize: "12.5px" }}
+                  className="filter-select inventory-search-size"
                 />
               </div>
+            </div>
+
+            {/* Hint de desplazamiento para celulares */}
+            <div className="inventory-mobile-scroll-hint">
+              <i className="bi bi-arrows-expand"></i> Desliza la tabla hacia los lados para ver Bodega, Lima Centro y Miraflores
             </div>
 
             {/* Tabla de Stock por Tallas */}
@@ -2657,7 +2942,7 @@ export default function AdminCitas() {
               <table className="inventory-stock-table">
                 <thead>
                   <tr>
-                    <th style={{ width: "160px" }}>Talla Oficial</th>
+                    <th className="inventory-col-talla" style={{ width: "160px" }}>Talla Oficial</th>
                     <th style={{ width: "130px" }}>Diámetro Int.</th>
                     <th style={{ width: "160px" }}>
                       <span style={{ color: "#3b5bdb" }}><i className="bi bi-building-fill"></i> Bodega</span>
@@ -2695,7 +2980,7 @@ export default function AdminCitas() {
 
                       return (
                         <tr key={sz.number}>
-                          <td>
+                          <td className="inventory-col-talla">
                             <span className="talla-badge-pill">{sz.label}</span>
                           </td>
                           <td style={{ color: "#5d6d65", fontSize: "12px" }}>
@@ -4249,99 +4534,58 @@ export default function AdminCitas() {
         {activeTab === "finanzas" && (
           <div className="admin-content-card payment-management-section">
             {/* Cabecera Concisa */}
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", borderBottom: "1.5px solid #edf2ef", paddingBottom: "16px", marginBottom: "20px" }}>
+            <div className="payment-management-header">
               <div>
-                <h3 style={{ fontFamily: "var(--font-serif)", fontSize: "22px", margin: "0 0 4px 0", color: "#112820", display: "flex", alignItems: "center", gap: "8px" }}>
+                <h3 className="payment-management-title">
                   <i className="bi bi-wallet2" style={{ color: "#137748" }}></i>
                   Control de Pagos & Validación de Clientes
                 </h3>
-                <p style={{ fontSize: "13.5px", color: "#5d6d65", margin: 0 }}>
+                <p className="payment-management-desc">
                   Monitorea los pedidos realizados, valida si fueron pagados y confirma el medio de pago utilizado por cada cliente.
                 </p>
               </div>
-              <span style={{ fontSize: "12px", background: "#fef3c7", color: "#92400e", padding: "6px 14px", borderRadius: "20px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+              <span className="payment-admin-badge">
                 <i className="bi bi-lock-fill"></i> Solo visible para Administrador
               </span>
             </div>
 
             {/* Barra de Filtros y Búsqueda */}
-            <div style={{ display: "flex", flexWrap: "wrap", gap: "12px", justifyContent: "space-between", alignItems: "center", marginBottom: "20px", background: "#f8faf9", padding: "14px 18px", borderRadius: "10px", border: "1px solid #e2ece6" }}>
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", alignItems: "center" }}>
+            <div className="payment-filters-toolbar">
+              <div className="payment-filter-btns-wrap">
                 <button
                   type="button"
                   onClick={() => setPaymentStatusFilter("todos")}
-                  style={{
-                    padding: "7px 14px",
-                    borderRadius: "6px",
-                    border: paymentStatusFilter === "todos" ? "1.5px solid #137748" : "1px solid #d0ddd5",
-                    background: paymentStatusFilter === "todos" ? "#137748" : "white",
-                    color: paymentStatusFilter === "todos" ? "white" : "#2d3732",
-                    fontSize: "13px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                  }}
+                  className={`payment-filter-btn ${paymentStatusFilter === "todos" ? "active" : ""}`}
                 >
                   Todos ({ordersList.length})
                 </button>
                 <button
                   type="button"
                   onClick={() => setPaymentStatusFilter("pagados")}
-                  style={{
-                    padding: "7px 14px",
-                    borderRadius: "6px",
-                    border: paymentStatusFilter === "pagados" ? "1.5px solid #15803d" : "1px solid #d0ddd5",
-                    background: paymentStatusFilter === "pagados" ? "#dcfce7" : "white",
-                    color: paymentStatusFilter === "pagados" ? "#14532d" : "#2d3732",
-                    fontSize: "13px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                  }}
+                  className={`payment-filter-btn btn-pagados ${paymentStatusFilter === "pagados" ? "active" : ""}`}
                 >
-                  <i className="bi bi-check-circle-fill" style={{ color: "#16a34a" }}></i>
+                  <i className="bi bi-check-circle-fill"></i>
                   Pagados ({paymentsKpis.countPagados})
                 </button>
                 <button
                   type="button"
                   onClick={() => setPaymentStatusFilter("por_validar")}
-                  style={{
-                    padding: "7px 14px",
-                    borderRadius: "6px",
-                    border: paymentStatusFilter === "por_validar" ? "1.5px solid #d97706" : "1px solid #d0ddd5",
-                    background: paymentStatusFilter === "por_validar" ? "#fef3c7" : "white",
-                    color: paymentStatusFilter === "por_validar" ? "#78350f" : "#2d3732",
-                    fontSize: "13px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                  }}
+                  className={`payment-filter-btn btn-validar ${paymentStatusFilter === "por_validar" ? "active" : ""}`}
                 >
-                  <i className="bi bi-hourglass-split" style={{ color: "#d97706" }}></i>
+                  <i className="bi bi-hourglass-split"></i>
                   Por Validar ({paymentsKpis.countPendientes})
                 </button>
               </div>
 
               {/* Input Búsqueda */}
-              <div style={{ position: "relative", minWidth: "260px", flex: "1", maxWidth: "380px" }}>
-                <i className="bi bi-search" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#8a9c92", fontSize: "14px" }}></i>
+              <div className="payment-search-wrap">
+                <i className="bi bi-search payment-search-icon"></i>
                 <input
                   type="text"
                   placeholder="Buscar cliente, código o medio de pago..."
                   value={paymentSearchQuery}
                   onChange={(e) => setPaymentSearchQuery(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "8px 12px 8px 34px",
-                    borderRadius: "6px",
-                    border: "1px solid #c9d8ce",
-                    fontSize: "13px",
-                    background: "white",
-                    outline: "none",
-                  }}
+                  className="payment-search-input"
                 />
               </div>
             </div>
@@ -4355,7 +4599,7 @@ export default function AdminCitas() {
                 </p>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+              <div className="payment-orders-list">
                 {filteredPaymentOrders.map((order) => {
                   const isPaid = order.paymentStatus === "Pagado (100%)";
                   const currentStatusConfig = PAYMENT_STATUSES.find((s) => s.id === order.paymentStatus) || {
@@ -4371,63 +4615,30 @@ export default function AdminCitas() {
                   return (
                     <article
                       key={order.id}
-                      style={{
-                        background: "#ffffff",
-                        border: isPaid ? "1.5px solid #d4e7dc" : "1.5px solid #f2e2be",
-                        borderRadius: "12px",
-                        boxShadow: "0 2px 8px rgba(15, 42, 36, 0.04)",
-                        overflow: "hidden",
-                        transition: "all 0.2s ease",
-                      }}
+                      className={`payment-order-card ${isPaid ? "is-paid" : "is-pending"}`}
                     >
                       {/* Cabecera del pedido */}
-                      <div
-                        style={{
-                          background: isPaid ? "#f4faf6" : "#fefbf3",
-                          borderBottom: isPaid ? "1px solid #e1efe7" : "1px solid #faeccb",
-                          padding: "12px 20px",
-                          display: "flex",
-                          justifyContent: "space-between",
-                          alignItems: "center",
-                          flexWrap: "wrap",
-                          gap: "10px",
-                        }}
-                      >
-                        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-                          <span style={{ fontWeight: "800", color: "#0f2a24", fontSize: "14.5px", fontFamily: "var(--font-serif)" }}>
+                      <div className={`payment-order-topbar ${isPaid ? "paid" : "pending"}`}>
+                        <div className="payment-order-topbar-meta">
+                          <span className="payment-order-id">
                             Pedido {order.id}
                           </span>
-                          <span style={{ fontSize: "12px", color: "#6b7c73", display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                          <span className="payment-order-date">
                             <i className="bi bi-calendar3"></i> {order.date}
                           </span>
-                          <span
-                            style={{
-                              fontSize: "11.5px",
-                              padding: "3px 10px",
-                              borderRadius: "12px",
-                              background: "#eef3f0",
-                              color: "#284439",
-                              fontWeight: "600",
-                            }}
-                          >
-                            <i className="bi bi-geo-alt-fill" style={{ marginRight: "3px" }}></i>
+                          <span className="payment-order-delivery">
+                            <i className="bi bi-geo-alt-fill"></i>
                             {order.deliveryType === "recojo_sede" ? `Recojo: ${order.sedeRecojo || "Sede Miraflores"}` : `Envío: ${order.shippingAddress || "Domicilio"}`}
                           </span>
                         </div>
 
                         {/* Badge de Estado de Pago actual */}
                         <div
+                          className="payment-status-badge"
                           style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "6px",
-                            padding: "4px 12px",
-                            borderRadius: "20px",
-                            fontSize: "12px",
-                            fontWeight: "700",
                             background: currentStatusConfig.bgColor,
                             color: currentStatusConfig.color,
-                            border: `1px solid ${currentStatusConfig.color}33`,
+                            border: `1px solid ${currentStatusConfig.color}40`,
                           }}
                         >
                           <i className={`bi ${currentStatusConfig.icon}`}></i>
@@ -4436,29 +4647,22 @@ export default function AdminCitas() {
                       </div>
 
                       {/* Cuerpo de detalles en dos columnas */}
-                      <div
-                        style={{
-                          padding: "18px 20px",
-                          display: "grid",
-                          gridTemplateColumns: "repeat(auto-fit, minmax(290px, 1fr))",
-                          gap: "20px",
-                        }}
-                      >
+                      <div className="payment-order-body-grid">
                         {/* Columna Izquierda: Datos del Cliente y Joyas */}
-                        <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                        <div className="payment-order-col-client">
                           {/* Datos del Cliente */}
-                          <div style={{ background: "#fbfcfb", border: "1px solid #e7ede9", borderRadius: "8px", padding: "12px 14px" }}>
-                            <span style={{ fontSize: "11px", fontWeight: "700", color: "#7a8c82", textTransform: "uppercase", letterSpacing: "0.06em", display: "block", marginBottom: "6px" }}>
+                          <div className="payment-client-box">
+                            <span className="payment-section-tag">
                               Datos del Cliente:
                             </span>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px" }}>
+                            <div className="payment-client-row">
                               <div>
-                                <strong style={{ fontSize: "14.5px", color: "#112820", display: "block" }}>{order.clientName}</strong>
-                                <span style={{ fontSize: "12.5px", color: "#54645c", display: "block", marginTop: "2px" }}>
-                                  <i className="bi bi-envelope" style={{ marginRight: "4px" }}></i>{order.clientEmail}
+                                <strong className="payment-client-name">{order.clientName}</strong>
+                                <span className="payment-client-detail">
+                                  <i className="bi bi-envelope"></i>{order.clientEmail}
                                 </span>
-                                <span style={{ fontSize: "12.5px", color: "#54645c", display: "block", marginTop: "2px" }}>
-                                  <i className="bi bi-telephone" style={{ marginRight: "4px" }}></i>{order.clientPhone || "No registrado"}
+                                <span className="payment-client-detail">
+                                  <i className="bi bi-telephone"></i>{order.clientPhone || "No registrado"}
                                 </span>
                               </div>
                               {whatsappLink && (
@@ -4466,19 +4670,7 @@ export default function AdminCitas() {
                                   href={whatsappLink}
                                   target="_blank"
                                   rel="noopener noreferrer"
-                                  style={{
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: "5px",
-                                    background: "#25D366",
-                                    color: "white",
-                                    padding: "5px 10px",
-                                    borderRadius: "6px",
-                                    fontSize: "11.5px",
-                                    fontWeight: "700",
-                                    textDecoration: "none",
-                                    flexShrink: 0,
-                                  }}
+                                  className="payment-whatsapp-btn"
                                   title="Enviar mensaje de WhatsApp al cliente"
                                 >
                                   <i className="bi bi-whatsapp"></i> WhatsApp
@@ -4488,45 +4680,30 @@ export default function AdminCitas() {
                           </div>
 
                           {/* Joyas compradas */}
-                          <div style={{ background: "#ffffff", border: "1px solid #eeebe5", borderRadius: "8px", padding: "12px 14px" }}>
-                            <div style={{ fontSize: "11px", fontWeight: "700", color: "#788780", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "8px" }}>
+                          <div className="payment-items-box">
+                            <div className="payment-section-tag">
                               Joyas en la compra ({order.items.length}):
                             </div>
-                            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                            <div className="payment-items-list">
                               {order.items.map((it, iIdx) => (
-                                <div
-                                  key={iIdx}
-                                  style={{
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "10px",
-                                    paddingBottom: iIdx === order.items.length - 1 ? 0 : "6px",
-                                    borderBottom: iIdx === order.items.length - 1 ? "none" : "1px dashed #f0ece5",
-                                  }}
-                                >
+                                <div key={iIdx} className="payment-item-row">
                                   <img
                                     src={it.image || "/images/secret-garden-white.jpg"}
                                     alt={it.name}
-                                    style={{
-                                      width: "42px",
-                                      height: "42px",
-                                      objectFit: "cover",
-                                      borderRadius: "6px",
-                                      border: "1px solid #e2ddd3",
-                                    }}
+                                    className="payment-item-img"
                                     onError={(e) => {
                                       e.currentTarget.src = "/images/secret-garden-white.jpg";
                                     }}
                                   />
-                                  <div style={{ flex: 1, minWidth: 0 }}>
-                                    <strong style={{ fontSize: "13px", color: "#112820", display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+                                  <div className="payment-item-info">
+                                    <strong className="payment-item-title">
                                       {it.name}
                                     </strong>
-                                    <span style={{ fontSize: "11.5px", color: "#6a7b72" }}>
+                                    <span className="payment-item-meta">
                                       {it.metal || "Oro 18k"} • Cant: {it.quantity || 1}
                                     </span>
                                   </div>
-                                  <strong style={{ fontSize: "13px", color: "#1a382d", flexShrink: 0 }}>
+                                  <strong className="payment-item-price">
                                     {formatPrice((it.price || 0) * (it.quantity || 1))}
                                   </strong>
                                 </div>
@@ -4536,38 +4713,26 @@ export default function AdminCitas() {
                         </div>
 
                         {/* Columna Derecha: Validación de Pago, Medio de Pago & Monto Total */}
-                        <div style={{ display: "flex", flexDirection: "column", justifyContent: "space-between", gap: "14px", background: "#fafcfb", border: "1px solid #e1ebe5", borderRadius: "10px", padding: "16px" }}>
+                        <div className="payment-order-col-actions">
                           {/* Monto Total de Ventas */}
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid #e6eeea", paddingBottom: "10px" }}>
-                            <span style={{ fontSize: "13px", color: "#54645c", fontWeight: "600" }}>Total Ventas (Importe):</span>
-                            <span style={{ fontSize: "20px", fontWeight: "800", color: "#0f2a24", fontFamily: "var(--font-serif)" }}>
+                          <div className="payment-total-row">
+                            <span className="payment-total-lbl">Total Ventas (Importe):</span>
+                            <span className="payment-total-val">
                               {formatPrice(order.total)}
                             </span>
                           </div>
 
                           {/* Control de Validación de Pago */}
-                          <div>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
-                              <label style={{ fontSize: "12px", fontWeight: "700", color: "#1e372c", margin: 0 }}>
+                          <div className="payment-control-group">
+                            <div className="payment-control-lbl-row">
+                              <label className="payment-control-label">
                                 Estado del Pago:
                               </label>
                               {!isPaid && (
                                 <button
                                   type="button"
                                   onClick={() => handleUpdatePaymentStatus(order.id, "Pagado (100%)")}
-                                  style={{
-                                    border: "none",
-                                    background: "#16a34a",
-                                    color: "white",
-                                    fontSize: "11.5px",
-                                    fontWeight: "700",
-                                    padding: "3px 10px",
-                                    borderRadius: "4px",
-                                    cursor: "pointer",
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: "4px",
-                                  }}
+                                  className="payment-quick-validate-btn"
                                   title="Validar el pago al 100% de inmediato"
                                 >
                                   <i className="bi bi-check2"></i> Validar Pago
@@ -4577,18 +4742,7 @@ export default function AdminCitas() {
                             <select
                               value={order.paymentStatus || "Pendiente de Validación"}
                               onChange={(e) => handleUpdatePaymentStatus(order.id, e.target.value)}
-                              style={{
-                                width: "100%",
-                                padding: "8px 10px",
-                                borderRadius: "6px",
-                                border: isPaid ? "1.5px solid #22c55e" : "1.5px solid #eab308",
-                                background: isPaid ? "#f0fdf4" : "#fefce8",
-                                color: "#152a20",
-                                fontSize: "13px",
-                                fontWeight: "600",
-                                outline: "none",
-                                cursor: "pointer",
-                              }}
+                              className={`payment-status-select ${isPaid ? "paid" : "pending"}`}
                             >
                               {PAYMENT_STATUSES.map((st) => (
                                 <option key={st.id} value={st.id}>
@@ -4599,25 +4753,14 @@ export default function AdminCitas() {
                           </div>
 
                           {/* Control de Medio de Pago */}
-                          <div>
-                            <label style={{ fontSize: "12px", fontWeight: "700", color: "#1e372c", display: "block", marginBottom: "5px" }}>
+                          <div className="payment-control-group">
+                            <label className="payment-control-label">
                               Medio de Pago Utilizado:
                             </label>
                             <select
                               value={order.paymentMethod || "Visa"}
                               onChange={(e) => handleUpdatePaymentMethod(order.id, e.target.value)}
-                              style={{
-                                width: "100%",
-                                padding: "8px 10px",
-                                borderRadius: "6px",
-                                border: "1px solid #c9d8ce",
-                                background: "#ffffff",
-                                color: "#162e24",
-                                fontSize: "13px",
-                                fontWeight: "500",
-                                outline: "none",
-                                cursor: "pointer",
-                              }}
+                              className="payment-method-select"
                             >
                               {PAYMENT_METHODS.map((pm) => (
                                 <option key={pm} value={pm}>
@@ -4628,10 +4771,10 @@ export default function AdminCitas() {
                           </div>
 
                           {/* Notas de Comprobante / N° de Operación */}
-                          <div style={{ paddingTop: "6px", borderTop: "1px dashed #e2ece6" }}>
+                          <div className="payment-voucher-box">
                             {activeEditingPaymentNoteId === order.id ? (
                               <div>
-                                <label style={{ fontSize: "11px", fontWeight: "700", color: "#5d7065", display: "block", marginBottom: "4px" }}>
+                                <label className="payment-voucher-label">
                                   N° de Operación o Referencia de Voucher:
                                 </label>
                                 <input
@@ -4639,37 +4782,20 @@ export default function AdminCitas() {
                                   value={editingPaymentNotes[order.id] !== undefined ? editingPaymentNotes[order.id] : (order.paymentNotes || "")}
                                   onChange={(e) => setEditingPaymentNotes({ ...editingPaymentNotes, [order.id]: e.target.value })}
                                   placeholder="Ej: BCP N° 492019 / Transferencia Yape"
-                                  style={{
-                                    width: "100%",
-                                    padding: "6px 10px",
-                                    fontSize: "12px",
-                                    border: "1px solid #218c55",
-                                    borderRadius: "4px",
-                                    outline: "none",
-                                    marginBottom: "6px",
-                                  }}
+                                  className="payment-voucher-input"
                                 />
                                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
                                   <button
                                     type="button"
                                     onClick={() => setActiveEditingPaymentNoteId(null)}
-                                    style={{ border: "none", background: "transparent", color: "#788780", fontSize: "11.5px", cursor: "pointer" }}
+                                    className="payment-voucher-cancel-btn"
                                   >
                                     Cancelar
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => handleSavePaymentNotes(order.id)}
-                                    style={{
-                                      background: "#137748",
-                                      color: "white",
-                                      border: "none",
-                                      borderRadius: "4px",
-                                      padding: "4px 10px",
-                                      fontSize: "11.5px",
-                                      fontWeight: "600",
-                                      cursor: "pointer",
-                                    }}
+                                    className="payment-voucher-save-btn"
                                   >
                                     Guardar
                                   </button>
@@ -4689,15 +4815,7 @@ export default function AdminCitas() {
                                     setEditingPaymentNotes({ ...editingPaymentNotes, [order.id]: order.paymentNotes || "" });
                                     setActiveEditingPaymentNoteId(order.id);
                                   }}
-                                  style={{
-                                    border: "none",
-                                    background: "none",
-                                    color: "#137748",
-                                    fontSize: "11.5px",
-                                    fontWeight: "600",
-                                    cursor: "pointer",
-                                    textDecoration: "underline",
-                                  }}
+                                  className="payment-voucher-edit-btn"
                                 >
                                   {order.paymentNotes ? "Modificar" : "+ Registrar Ref"}
                                 </button>

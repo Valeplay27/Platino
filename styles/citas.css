@@ -2958,6 +2958,938 @@
   color: #15803d;
 }
 
+/* ========================================================
+   ESTILOS BASE: INVENTARIO & EXCEL
+   ======================================================== */
+.inventory-header-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.btn-inv-excel {
+  font-size: 13px;
+  padding: 9px 16px;
+  background: #107c41;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: 0 2px 4px rgba(16, 124, 65, 0.2);
+  transition: all 0.2s ease;
+}
+
+.btn-inv-excel:hover {
+  background: #0d6334;
+  transform: translateY(-1px);
+}
+
+.btn-inv-all {
+  font-size: 13px;
+  padding: 9px 16px;
+  background: #f0f8f4;
+  color: #107c41;
+  border: 1.5px solid #107c41;
+  border-radius: 6px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-inv-all:hover {
+  background: #e2f2e8;
+}
+
+.inventory-gender-toolbar {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-inv-excel-table {
+  background: #107c41;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 12.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  transition: background 0.2s;
+}
+
+.btn-inv-excel-table:hover {
+  background: #0d6334;
+}
+
+.inventory-search-size {
+  width: 200px;
+  padding: 8px 12px;
+  font-size: 12.5px;
+}
+
+.inventory-mobile-scroll-hint {
+  display: none;
+  font-size: 12px;
+  color: #137748;
+  background: #edf7f1;
+  border: 1px solid #bde3ce;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-bottom: 10px;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+/* ========================================================
+   ESTILOS BASE: CONTROL DE PAGOS Y VALIDACIÓN DE PEDIDOS
+   ======================================================== */
+.payment-management-section {
+  background: #ffffff;
+}
+
+.payment-management-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  border-bottom: 1.5px solid #edf2ef;
+  padding-bottom: 16px;
+  margin-bottom: 20px;
+}
+
+.payment-management-title {
+  font-family: var(--font-serif);
+  font-size: 22px;
+  margin: 0 0 4px 0;
+  color: #112820;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.payment-management-desc {
+  font-size: 13.5px;
+  color: #5d6d65;
+  margin: 0;
+  line-height: 1.45;
+}
+
+.payment-admin-badge {
+  font-size: 12px;
+  background: #fef3c7;
+  color: #92400e;
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.payment-filters-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  background: #f8faf9;
+  padding: 14px 18px;
+  border-radius: 10px;
+  border: 1px solid #e2ece6;
+}
+
+.payment-filter-btns-wrap {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.payment-filter-btn {
+  padding: 7px 14px;
+  border-radius: 6px;
+  border: 1px solid #d0ddd5;
+  background: white;
+  color: #2d3732;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.payment-filter-btn.active {
+  border: 1.5px solid #137748;
+  background: #137748;
+  color: white;
+}
+
+.payment-filter-btn.btn-pagados.active {
+  border-color: #15803d;
+  background: #dcfce7;
+  color: #14532d;
+}
+
+.payment-filter-btn.btn-validar.active {
+  border-color: #d97706;
+  background: #fef3c7;
+  color: #78350f;
+}
+
+.payment-search-wrap {
+  position: relative;
+  min-width: 260px;
+  flex: 1;
+  max-width: 380px;
+}
+
+.payment-search-icon {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #8a9c92;
+  font-size: 14px;
+  pointer-events: none;
+}
+
+.payment-search-input {
+  width: 100%;
+  padding: 8px 12px 8px 34px;
+  border-radius: 6px;
+  border: 1px solid #c9d8ce;
+  font-size: 13px;
+  background: white;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.payment-search-input:focus {
+  border-color: #137748;
+}
+
+.payment-orders-list {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.payment-order-card {
+  background: #ffffff;
+  border: 1.5px solid #e2ece6;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(15, 42, 36, 0.04);
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.payment-order-card.is-paid {
+  border-color: #d4e7dc;
+}
+
+.payment-order-card.is-pending {
+  border-color: #f2e2be;
+}
+
+.payment-order-topbar {
+  padding: 12px 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.payment-order-topbar.paid {
+  background: #f4faf6;
+  border-bottom: 1px solid #e1efe7;
+}
+
+.payment-order-topbar.pending {
+  background: #fefbf3;
+  border-bottom: 1px solid #faeccb;
+}
+
+.payment-order-topbar-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.payment-order-id {
+  font-weight: 800;
+  color: #0f2a24;
+  font-size: 14.5px;
+  font-family: var(--font-serif);
+}
+
+.payment-order-date {
+  font-size: 12px;
+  color: #6b7c73;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.payment-order-delivery {
+  font-size: 11.5px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: #eef3f0;
+  color: #284439;
+  fontWeight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.payment-status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.payment-order-body-grid {
+  padding: 18px 20px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  gap: 20px;
+}
+
+.payment-order-col-client {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.payment-client-box {
+  background: #fbfcfb;
+  border: 1px solid #e7ede9;
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.payment-section-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #7a8c82;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  display: block;
+  margin-bottom: 6px;
+}
+
+.payment-client-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.payment-client-name {
+  font-size: 14.5px;
+  color: #112820;
+  display: block;
+}
+
+.payment-client-detail {
+  font-size: 12.5px;
+  color: #54645c;
+  display: block;
+  margin-top: 2px;
+}
+
+.payment-client-detail i {
+  margin-right: 4px;
+}
+
+.payment-whatsapp-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #25D366;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  text-decoration: none;
+  flex-shrink: 0;
+  transition: opacity 0.2s;
+}
+
+.payment-whatsapp-btn:hover {
+  opacity: 0.9;
+}
+
+.payment-items-box {
+  background: #ffffff;
+  border: 1px solid #eeebe5;
+  border-radius: 8px;
+  padding: 12px 14px;
+}
+
+.payment-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.payment-item-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed #f0ece5;
+}
+
+.payment-item-row:last-child {
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.payment-item-img {
+  width: 42px;
+  height: 42px;
+  object-fit: cover;
+  border-radius: 6px;
+  border: 1px solid #e2ddd3;
+  flex-shrink: 0;
+}
+
+.payment-item-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.payment-item-title {
+  font-size: 13px;
+  color: #112820;
+  display: block;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.payment-item-meta {
+  font-size: 11.5px;
+  color: #6a7b72;
+  display: block;
+}
+
+.payment-item-price {
+  font-size: 13px;
+  color: #1a382d;
+  flex-shrink: 0;
+}
+
+.payment-order-col-actions {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 14px;
+  background: #fafcfb;
+  border: 1px solid #e1ebe5;
+  border-radius: 10px;
+  padding: 16px;
+}
+
+.payment-total-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #e6eeea;
+  padding-bottom: 10px;
+}
+
+.payment-total-lbl {
+  font-size: 13px;
+  color: #54645c;
+  font-weight: 600;
+}
+
+.payment-total-val {
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f2a24;
+  font-family: var(--font-serif);
+}
+
+.payment-control-group {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.payment-control-lbl-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.payment-control-label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1e372c;
+  margin: 0;
+}
+
+.payment-quick-validate-btn {
+  border: none;
+  background: #16a34a;
+  color: white;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  transition: background 0.15s;
+}
+
+.payment-quick-validate-btn:hover {
+  background: #15803d;
+}
+
+.payment-status-select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  outline: none;
+  cursor: pointer;
+}
+
+.payment-status-select.paid {
+  border: 1.5px solid #22c55e;
+  background: #f0fdf4;
+  color: #14532d;
+}
+
+.payment-status-select.pending {
+  border: 1.5px solid #eab308;
+  background: #fefce8;
+  color: #713f12;
+}
+
+.payment-method-select {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  border: 1px solid #c9d8ce;
+  background: #ffffff;
+  color: #162e24;
+  font-size: 13px;
+  font-weight: 500;
+  outline: none;
+  cursor: pointer;
+}
+
+.payment-voucher-box {
+  padding-top: 6px;
+  border-top: 1px dashed #e2ece6;
+}
+
+.payment-voucher-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #5d7065;
+  display: block;
+  margin-bottom: 4px;
+}
+
+.payment-voucher-input {
+  width: 100%;
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 1px solid #218c55;
+  border-radius: 4px;
+  outline: none;
+  margin-bottom: 6px;
+}
+
+.payment-voucher-cancel-btn {
+  border: none;
+  background: transparent;
+  color: #788780;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.payment-voucher-save-btn {
+  background: #137748;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.payment-voucher-edit-btn {
+  border: none;
+  background: none;
+  color: #137748;
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+/* ========================================================
+   RESPONSIVE DESIGN PARA CELULARES Y TABLETS
+   (@media (max-width: 768px) & @media (max-width: 480px))
+   ======================================================== */
+@media (max-width: 768px) {
+  /* Contenedores Principales en Celular */
+  .admin-citas-page {
+    padding: 16px 12px 60px !important;
+  }
+
+  .admin-content-card {
+    padding: 18px 14px !important;
+    border-radius: 8px !important;
+  }
+
+  /* Cabecera del Panel */
+  .admin-top-bar {
+    margin-bottom: 18px !important;
+    gap: 12px !important;
+  }
+
+  .admin-title-group h1 {
+    font-size: 22px !important;
+    line-height: 1.25 !important;
+  }
+
+  .admin-title-group p {
+    font-size: 13px !important;
+    line-height: 1.4 !important;
+  }
+
+  /* Fila de Métricas (2 Columnas en Móvil) */
+  .admin-metrics-row {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+    margin-bottom: 18px !important;
+  }
+
+  .metric-card {
+    padding: 12px 14px !important;
+    gap: 10px !important;
+    border-radius: 8px !important;
+  }
+
+  .metric-icon-box {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 18px !important;
+    border-radius: 8px !important;
+  }
+
+  .metric-val {
+    font-size: 17px !important;
+    margin-bottom: 2px !important;
+  }
+
+  .metric-lbl {
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+  }
+
+  /* Inventario: KPIs */
+  .inventory-kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+    gap: 10px !important;
+    margin-bottom: 18px !important;
+  }
+
+  .inventory-kpi-card {
+    padding: 12px !important;
+    gap: 10px !important;
+    border-radius: 8px !important;
+  }
+
+  .inventory-kpi-icon {
+    width: 38px !important;
+    height: 38px !important;
+    font-size: 18px !important;
+    border-radius: 8px !important;
+  }
+
+  .inventory-kpi-num {
+    font-size: 18px !important;
+  }
+
+  .inventory-kpi-info h4 {
+    font-size: 10.5px !important;
+  }
+
+  .inventory-kpi-sub {
+    display: none !important;
+  }
+
+  /* Inventario: Botones de Acción de la Cabecera */
+  .admin-catalog-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .inventory-header-actions {
+    display: grid !important;
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+    width: 100% !important;
+  }
+
+  .btn-inv-excel,
+  .btn-inv-all,
+  .btn-inv-create,
+  .btn-inv-sync {
+    width: 100% !important;
+    justify-content: center !important;
+    text-align: center !important;
+    padding: 9px 10px !important;
+    font-size: 12px !important;
+  }
+
+  /* Barra Segmentada de Categorías (Scroll Táctil) */
+  .category-segmented-bar {
+    display: flex !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    scrollbar-width: none !important;
+    flex-wrap: nowrap !important;
+    gap: 8px !important;
+    padding-bottom: 4px !important;
+  }
+
+  .category-segmented-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .category-seg-item {
+    flex-shrink: 0 !important;
+    padding: 8px 12px !important;
+    font-size: 12px !important;
+  }
+
+  /* Tarjeta Selector de Joya Activa */
+  .inventory-product-card-selector {
+    padding: 14px 12px !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 14px !important;
+  }
+
+  .inventory-active-prod-info {
+    width: 100% !important;
+    gap: 12px !important;
+  }
+
+  .inventory-active-prod-img {
+    width: 50px !important;
+    height: 50px !important;
+  }
+
+  .inventory-prod-meta h3 {
+    font-size: 15px !important;
+  }
+
+  .inventory-product-card-selector select {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .inventory-product-card-selector .btn-batch-action {
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  /* Pestañas de Género y Toolbar */
+  .inventory-gender-tabs {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 10px !important;
+    padding-bottom: 12px !important;
+  }
+
+  .inventory-gender-tab-btn {
+    flex: 1 !important;
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+    justify-content: center !important;
+    text-align: center !important;
+  }
+
+  .inventory-gender-toolbar {
+    margin-left: 0 !important;
+    width: 100% !important;
+    display: flex !important;
+    gap: 8px !important;
+  }
+
+  .btn-inv-excel-table {
+    flex: 1 !important;
+    justify-content: center !important;
+    font-size: 12px !important;
+    padding: 8px 10px !important;
+  }
+
+  .inventory-search-size {
+    flex: 1 !important;
+    width: auto !important;
+    min-width: 0 !important;
+    padding: 8px 10px !important;
+    font-size: 12px !important;
+  }
+
+  /* Hint para deslizar la tabla de tallas */
+  .inventory-mobile-scroll-hint {
+    display: flex !important;
+  }
+
+  /* Tabla de Inventario de Tallas con Sticky Column */
+  .inventory-table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border-radius: 8px !important;
+    margin-bottom: 20px !important;
+  }
+
+  .inventory-stock-table {
+    min-width: 700px !important;
+  }
+
+  .inventory-col-talla {
+    position: sticky !important;
+    left: 0 !important;
+    z-index: 2 !important;
+    background: #ffffff !important;
+    box-shadow: 2px 0 6px rgba(0, 0, 0, 0.05) !important;
+  }
+
+  thead th.inventory-col-talla {
+    background: #f7f5ef !important;
+    z-index: 3 !important;
+  }
+
+  /* Responsive Pagos y Validación */
+  .payment-management-title {
+    font-size: 18px !important;
+  }
+
+  .payment-filters-toolbar {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    padding: 12px !important;
+    gap: 10px !important;
+  }
+
+  .payment-filter-btns-wrap {
+    width: 100% !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    flex-wrap: nowrap !important;
+    padding-bottom: 2px !important;
+  }
+
+  .payment-filter-btn {
+    flex-shrink: 0 !important;
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+  }
+
+  .payment-search-wrap {
+    width: 100% !important;
+    min-width: 0 !important;
+    max-width: 100% !important;
+  }
+
+  .payment-order-topbar {
+    padding: 10px 14px !important;
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 8px !important;
+  }
+
+  .payment-order-body-grid {
+    grid-template-columns: 1fr !important;
+    padding: 14px 12px !important;
+    gap: 14px !important;
+  }
+
+  .payment-status-select,
+  .payment-method-select {
+    min-height: 40px !important;
+    font-size: 13.5px !important;
+  }
+
+  .payment-quick-validate-btn {
+    padding: 4px 10px !important;
+    font-size: 11px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .inventory-header-actions {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-metrics-row {
+    grid-template-columns: 1fr !important;
+  }
+
+  .inventory-kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .inventory-gender-toolbar {
+    flex-direction: column !important;
+  }
+
+  .btn-inv-excel-table,
+  .inventory-search-size {
+    width: 100% !important;
+    flex: unset !important;
+  }
+}
+
+
 
 
 
