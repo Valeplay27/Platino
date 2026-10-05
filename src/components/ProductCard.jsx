@@ -170,25 +170,28 @@ function ProductCard({ product, addToCart }) {
                 width: "40px",
                 height: "40px",
                 borderRadius: "50%",
-                border: "1.5px solid #0e2920",
-                background: "#0e2920",
-                color: "#ffffff",
+                border: "1.5px solid #b88d38",
+                background: "linear-gradient(135deg, #f5e4bc 0%, #d4af37 45%, #b3883b 100%)",
+                color: "#0a271f",
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
                 fontSize: "15px",
                 cursor: "pointer",
-                transition: "all 0.2s ease",
+                transition: "all 0.25s ease",
                 flexShrink: 0,
+                boxShadow: "0 3px 10px rgba(197, 160, 89, 0.35)",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#c5a059";
-                e.currentTarget.style.borderColor = "#c5a059";
+                e.currentTarget.style.background = "#0e2920";
+                e.currentTarget.style.borderColor = "#0e2920";
+                e.currentTarget.style.color = "#ffffff";
                 e.currentTarget.style.transform = "scale(1.08)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "#0e2920";
-                e.currentTarget.style.borderColor = "#0e2920";
+                e.currentTarget.style.background = "linear-gradient(135deg, #f5e4bc 0%, #d4af37 45%, #b3883b 100%)";
+                e.currentTarget.style.borderColor = "#b88d38";
+                e.currentTarget.style.color = "#0a271f";
                 e.currentTarget.style.transform = "scale(1)";
               }}
             >

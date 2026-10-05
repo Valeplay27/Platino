@@ -68,7 +68,7 @@ export default function CartDrawer({
                   style={{
                     width: "14px",
                     height: "8px",
-                    border: "2px solid #0f2d22",
+                    border: "2px solid #b88d38",
                     borderBottom: "none",
                     borderRadius: "6px 6px 0 0",
                     marginBottom: "-1px",
@@ -78,13 +78,13 @@ export default function CartDrawer({
                   style={{
                     width: "26px",
                     height: "22px",
-                    background: "linear-gradient(135deg, #0e2920 0%, #163d30 100%)",
-                    border: "1.2px solid #c5a059",
+                    background: "linear-gradient(135deg, #f5e4bc 0%, #d4af37 45%, #b3883b 100%)",
+                    border: "1.2px solid #ffffff",
                     borderRadius: "4px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: "0 2px 6px rgba(10, 39, 31, 0.3)",
+                    boxShadow: "0 3px 8px rgba(197, 160, 89, 0.4)",
                   }}
                 >
                   <img
@@ -95,6 +95,7 @@ export default function CartDrawer({
                       height: "13px",
                       borderRadius: "2.5px",
                       objectFit: "cover",
+                      border: "0.5px solid rgba(14, 41, 32, 0.35)",
                     }}
                   />
                 </div>
@@ -151,7 +152,7 @@ export default function CartDrawer({
                   style={{
                     width: "24px",
                     height: "13px",
-                    border: "3px solid #0f2d22",
+                    border: "3px solid #b88d38",
                     borderBottom: "none",
                     borderRadius: "12px 12px 0 0",
                     marginBottom: "-1px",
@@ -159,15 +160,15 @@ export default function CartDrawer({
                 />
                 <div
                   style={{
-                    width: "48px",
-                    height: "40px",
-                    background: "linear-gradient(135deg, #0e2920 0%, #173f32 100%)",
-                    border: "1.5px solid #c5a059",
+                    width: "50px",
+                    height: "42px",
+                    background: "linear-gradient(135deg, #f5e4bc 0%, #d4af37 45%, #b3883b 100%)",
+                    border: "1.8px solid #ffffff",
                     borderRadius: "8px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: "0 4px 12px rgba(10, 39, 31, 0.25)",
+                    boxShadow: "0 6px 18px rgba(197, 160, 89, 0.45)",
                   }}
                 >
                   <img
@@ -178,6 +179,7 @@ export default function CartDrawer({
                       height: "24px",
                       borderRadius: "5px",
                       objectFit: "cover",
+                      border: "0.5px solid rgba(14, 41, 32, 0.35)",
                     }}
                   />
                 </div>
@@ -185,11 +187,11 @@ export default function CartDrawer({
               <div
                 className="cart-subtle-shadow"
                 style={{
-                  width: "38px",
-                  height: "6px",
+                  width: "42px",
+                  height: "7px",
                   borderRadius: "50%",
-                  background: "radial-gradient(ellipse, rgba(14, 41, 32, 0.28) 0%, rgba(0,0,0,0) 70%)",
-                  marginTop: "5px",
+                  background: "radial-gradient(ellipse, rgba(184, 141, 56, 0.35) 0%, rgba(0,0,0,0) 70%)",
+                  marginTop: "6px",
                 }}
               />
             </div>

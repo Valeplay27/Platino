@@ -298,23 +298,23 @@
 .platino-brand-bag .bag-handles {
   width: 13px;
   height: 8px;
-  border: 2px solid #0f2d22;
+  border: 2px solid #b88d38;
   border-bottom: none;
   border-radius: 7px 7px 0 0;
   margin-bottom: -1px;
 }
 
-/* Cuerpo de la bolsa verde esmeralda con ribete fino dorado */
+/* Cuerpo de la bolsa color Oro Champán de alta joyería */
 .platino-brand-bag .bag-body {
   width: 23px;
   height: 19px;
-  background: linear-gradient(135deg, #0e2920 0%, #163d30 100%);
-  border: 1px solid #c5a059;
+  background: linear-gradient(135deg, #f5e4bc 0%, #d4af37 45%, #b3883b 100%);
+  border: 1px solid #ffffff;
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 3px 8px rgba(10, 39, 31, 0.28);
+  box-shadow: 0 3px 10px rgba(197, 160, 89, 0.45);
   position: relative;
   overflow: hidden;
 }
@@ -325,8 +325,8 @@
   height: 12px;
   border-radius: 2.5px;
   object-fit: cover;
-  border: 0.5px solid rgba(197, 160, 89, 0.9);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+  border: 0.5px solid rgba(14, 41, 32, 0.35);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 /* Animación elástica de saltar (Jump / Hop enérgico para clics o hover) */

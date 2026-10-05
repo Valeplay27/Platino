@@ -60,7 +60,7 @@ function Cart({ cart, updateQuantity }) {
                   style={{
                     width: "22px",
                     height: "12px",
-                    border: "3px solid #0f2d22",
+                    border: "3px solid #b88d38",
                     borderBottom: "none",
                     borderRadius: "12px 12px 0 0",
                     marginBottom: "-1px",
@@ -69,15 +69,15 @@ function Cart({ cart, updateQuantity }) {
                 {/* Cuerpo de la bolsa de compras con el logo de Platino */}
                 <div
                   style={{
-                    width: "42px",
-                    height: "34px",
-                    background: "linear-gradient(135deg, #0e2920 0%, #173f32 100%)",
-                    border: "1.5px solid #c5a059",
+                    width: "44px",
+                    height: "36px",
+                    background: "linear-gradient(135deg, #f5e4bc 0%, #d4af37 45%, #b3883b 100%)",
+                    border: "1.5px solid #ffffff",
                     borderRadius: "6px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: "0 4px 10px rgba(10, 39, 31, 0.25)",
+                    boxShadow: "0 4px 12px rgba(197, 160, 89, 0.45)",
                     position: "relative",
                   }}
                 >
@@ -89,7 +89,7 @@ function Cart({ cart, updateQuantity }) {
                       height: "22px",
                       borderRadius: "4px",
                       objectFit: "cover",
-                      border: "1px solid rgba(197, 160, 89, 0.9)",
+                      border: "0.5px solid rgba(14, 41, 32, 0.35)",
                     }}
                   />
                   {totalItems > 0 && (
@@ -209,7 +209,7 @@ function Cart({ cart, updateQuantity }) {
                   style={{
                     width: "32px",
                     height: "17px",
-                    border: "3.5px solid #0f2d22",
+                    border: "3.5px solid #b88d38",
                     borderBottom: "none",
                     borderRadius: "15px 15px 0 0",
                     marginBottom: "-1px",
@@ -217,15 +217,15 @@ function Cart({ cart, updateQuantity }) {
                 />
                 <div
                   style={{
-                    width: "60px",
-                    height: "50px",
-                    background: "linear-gradient(135deg, #0e2920 0%, #173f32 100%)",
-                    border: "2px solid #c5a059",
+                    width: "62px",
+                    height: "52px",
+                    background: "linear-gradient(135deg, #f5e4bc 0%, #d4af37 45%, #b3883b 100%)",
+                    border: "2px solid #ffffff",
                     borderRadius: "10px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: "0 6px 18px rgba(10, 39, 31, 0.28)",
+                    boxShadow: "0 8px 24px rgba(197, 160, 89, 0.45)",
                   }}
                 >
                   <img
@@ -236,8 +236,8 @@ function Cart({ cart, updateQuantity }) {
                       height: "30px",
                       borderRadius: "6px",
                       objectFit: "cover",
-                      border: "1px solid rgba(197, 160, 89, 0.9)",
-                      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.35)",
+                      border: "0.5px solid rgba(14, 41, 32, 0.35)",
+                      boxShadow: "0 2px 6px rgba(0, 0, 0, 0.2)",
                     }}
                   />
                 </div>
@@ -246,10 +246,10 @@ function Cart({ cart, updateQuantity }) {
               <div
                 className="cart-subtle-shadow"
                 style={{
-                  width: "48px",
+                  width: "50px",
                   height: "7px",
                   borderRadius: "50%",
-                  background: "radial-gradient(ellipse, rgba(14, 41, 32, 0.3) 0%, rgba(0,0,0,0) 70%)",
+                  background: "radial-gradient(ellipse, rgba(184, 141, 56, 0.35) 0%, rgba(0,0,0,0) 70%)",
                   marginTop: "6px",
                 }}
               />
