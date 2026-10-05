@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { formatPrice } from '../data/products'
-import { createOrder } from '../services/ordersService'
+import { createOrder, PAYMENT_METHODS_DATA } from '../services/ordersService'
 
 function Checkout({ cart, clearCart }) {
   const { user } = useAuth()
@@ -14,7 +14,7 @@ function Checkout({ cart, clearCart }) {
   const [deliveryType, setDeliveryType] = useState('recojo_sede')
   const [sedeRecojo, setSedeRecojo] = useState('Sede Miraflores - Av. José Larco 880')
   const [shippingAddress, setShippingAddress] = useState('')
-  const [paymentMethod, setPaymentMethod] = useState('tarjeta')
+  const [paymentMethod, setPaymentMethod] = useState('BCP')
   const [isProcessing, setIsProcessing] = useState(false)
 
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
@@ -41,10 +41,7 @@ function Checkout({ cart, clearCart }) {
       deliveryDays: maxDeliveryDays,
       estimatedCompletion: targetDeliveryDate,
       total,
-      paymentMethod:
-        paymentMethod === 'tarjeta'
-          ? 'Tarjeta de Crédito / Débito (Pasarela Encriptada)'
-          : 'Transferencia Bancaria BCP / BBVA',
+      paymentMethod,
       items: cart.map((item) => ({
         id: item.id,
         name: item.name,
@@ -169,34 +166,96 @@ function Checkout({ cart, clearCart }) {
             </label>
           )}
 
-          <div style={{ marginBottom: '22px' }}>
-            <label style={{ display: 'block', fontWeight: 600, fontSize: '13px', marginBottom: '8px' }}>Método de Pago</label>
-            <div style={{ display: 'flex', gap: '16px' }}>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="tarjeta"
-                  checked={paymentMethod === 'tarjeta'}
-                  onChange={() => setPaymentMethod('tarjeta')}
-                />
-                Tarjeta de Crédito / Débito
-              </label>
-              <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13.5px', cursor: 'pointer' }}>
-                <input
-                  type="radio"
-                  name="paymentMethod"
-                  value="transferencia"
-                  checked={paymentMethod === 'transferencia'}
-                  onChange={() => setPaymentMethod('transferencia')}
-                />
-                Transferencia BCP / BBVA
-              </label>
+          <div style={{ marginBottom: '26px' }}>
+            <label style={{ display: 'block', fontWeight: 600, fontSize: '13.5px', marginBottom: '10px', color: '#0f2a24' }}>
+              Método de Pago — Platino Perú
+            </label>
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(165px, 1fr))',
+                gap: '10px',
+                marginBottom: '14px',
+              }}
+            >
+              {PAYMENT_METHODS_DATA.map((pm) => {
+                const isSelected = paymentMethod === pm.id;
+                return (
+                  <div
+                    key={pm.id}
+                    onClick={() => setPaymentMethod(pm.id)}
+                    style={{
+                      border: isSelected ? '2px solid #137748' : '1px solid #d5ded9',
+                      background: isSelected ? '#f2fbf6' : '#ffffff',
+                      borderRadius: '10px',
+                      padding: '12px 14px',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s ease',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      justifyContent: 'space-between',
+                      boxShadow: isSelected ? '0 2px 8px rgba(19, 119, 72, 0.12)' : 'none',
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '6px' }}>
+                      <span style={{ fontSize: '13.5px', fontWeight: 700, color: isSelected ? '#0f2a24' : '#22382f' }}>
+                        {pm.name}
+                      </span>
+                      <i className={`bi ${pm.icon}`} style={{ fontSize: '16px', color: isSelected ? '#137748' : '#7b8f84' }}></i>
+                    </div>
+                    <span style={{ fontSize: '11px', color: '#687970', lineHeight: 1.3 }}>
+                      {pm.category}
+                    </span>
+                    <div style={{ marginTop: '8px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                      <span
+                        style={{
+                          fontSize: '10px',
+                          fontWeight: 700,
+                          padding: '2px 6px',
+                          borderRadius: '4px',
+                          background: isSelected ? '#dcfce7' : '#f1f5f3',
+                          color: isSelected ? '#15803d' : '#52665a',
+                        }}
+                      >
+                        {pm.badge}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
+
+            {/* Caja informativa de instrucciones del método seleccionado */}
+            {(() => {
+              const selectedData = PAYMENT_METHODS_DATA.find((p) => p.id === paymentMethod) || PAYMENT_METHODS_DATA[0];
+              return (
+                <div
+                  style={{
+                    background: '#f8faf9',
+                    border: '1px solid #cce3d6',
+                    borderRadius: '8px',
+                    padding: '12px 16px',
+                    fontSize: '13px',
+                    color: '#1b3b2f',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '10px',
+                  }}
+                >
+                  <i className="bi bi-info-circle-fill" style={{ color: '#137748', fontSize: '16px', marginTop: '1px', flexShrink: 0 }}></i>
+                  <div>
+                    <strong style={{ display: 'block', marginBottom: '2px', color: '#0f2a24' }}>
+                      Instrucciones de Pago ({selectedData.name}):
+                    </strong>
+                    <span style={{ color: '#4a5d53' }}>{selectedData.instructions}</span>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
 
           <button className="button" type="submit" disabled={isProcessing} style={{ width: '100%', padding: '14px', fontSize: '15px' }}>
-            {isProcessing ? 'Registrando en taller...' : `Confirmar y Pagar ${formatPrice(total)}`}
+            {isProcessing ? 'Registrando en taller...' : `Confirmar y Pagar con ${paymentMethod} (${formatPrice(total)})`}
           </button>
 
           <p style={{ marginTop: '25px', color: 'var(--muted)', fontSize: '13px', textAlign: 'center' }}>

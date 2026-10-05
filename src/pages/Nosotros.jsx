@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
+import { hasPermission, isMasterAdmin } from "../services/permissionsService";
 import {
   getNosotrosContent,
   saveNosotrosContent,
@@ -13,6 +14,9 @@ export default function Nosotros() {
   const isAdmin =
     user?.role === "admin" ||
     user?.email?.toLowerCase() === "vladimiryt18@gmail.com";
+  const canEditNosotros =
+    isMasterAdmin(user) ||
+    (isAdmin && hasPermission(user, "nosotros"));
 
   // Estado del contenido
   const [content, setContent] = useState(getNosotrosContent);
@@ -117,9 +121,9 @@ export default function Nosotros() {
       )}
 
       {/* ========================================================
-          BARRA DE HERRAMIENTAS EXCLUSIVA PARA EL ADMINISTRADOR (VLADIMIR)
+          BARRA DE HERRAMIENTAS EXCLUSIVA PARA EL ADMINISTRADOR (VLADIMIR O CON PERMISO)
           ======================================================== */}
-      {isAdmin && (
+      {canEditNosotros && (
         <section
           style={{
             background: "#122a21",

@@ -15,20 +15,20 @@ export const TIME_SLOTS = [
 const CITAS_STORAGE_KEY = "platino_citas_v1";
 const BLOCKED_SLOTS_KEY = "platino_blocked_slots_v1";
 
-// Citas iniciales de demostración
+// Citas iniciales de demostración (exclusivamente Asesoría General)
 const INITIAL_CITAS = [
   {
     id: "PLT-1082",
     sedeId: "miraflores",
     sedeName: "Sede Miraflores",
-    serviceType: "gemologo",
-    serviceTitle: "Cita con Gemólogo",
+    serviceType: "asesoria",
+    serviceTitle: "Cita de Asesoría General",
     date: new Date(Date.now() + 86400000).toISOString().split("T")[0], // Mañana
     time: "11:00 AM",
     clientName: "Valeria Mendoza",
     clientPhone: "+51 987 654 321",
     clientEmail: "valeria.mendoza@gmail.com",
-    observation: "Busco diamante corte esmeralda de 1.5ct con certificación GIA para sortija de compromiso.",
+    observation: "Ver modelos de sortijas de compromiso y alianzas exclusivas en oro 18k.",
     status: "confirmada", // confirmada, pendiente, cancelada, completada
     createdAt: new Date().toISOString(),
   },
@@ -56,8 +56,8 @@ const INITIAL_BLOCKED = [
     sedeId: "lima-centro",
     date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
     time: "10:00 AM",
-    serviceType: "gemologo",
-    reason: "Gemólogo en laboratorio gemológico",
+    serviceType: "asesoria",
+    reason: "Capacitación interna de asesores",
     createdAt: new Date().toISOString(),
   },
   {
@@ -65,7 +65,7 @@ const INITIAL_BLOCKED = [
     sedeId: "miraflores",
     date: new Date(Date.now() + 86400000 * 3).toISOString().split("T")[0],
     time: "03:00 PM",
-    serviceType: "all",
+    serviceType: "asesoria",
     reason: "Mantenimiento y auditoría de vitrinas",
     createdAt: new Date().toISOString(),
   },
@@ -143,18 +143,12 @@ export const isSlotBlocked = (sedeId, dateStr, timeStr, serviceType = "all") => 
   });
 
   if (manualBlock) {
-    const isGem = manualBlock.serviceType === "gemologo";
-    const isAse = manualBlock.serviceType === "asesoria";
-    const defaultReason = isGem
-      ? "No disponible para Gemólogo"
-      : isAse
-      ? "No disponible para Asesoría General"
-      : "Bloqueado por administración";
+    const defaultReason = manualBlock.reason || "No disponible para Asesoría General";
     return {
       blocked: true,
-      reason: manualBlock.reason || defaultReason,
+      reason: defaultReason,
       blockId: manualBlock.id,
-      serviceType: manualBlock.serviceType || "all",
+      serviceType: "asesoria",
     };
   }
 
@@ -165,20 +159,16 @@ export const isSlotBlocked = (sedeId, dateStr, timeStr, serviceType = "all") => 
       c.sedeId === sedeId &&
       c.date === dateStr &&
       c.time === timeStr &&
-      c.status !== "cancelada" &&
-      (serviceType === "all" || c.serviceType === serviceType || !c.serviceType)
+      c.status !== "cancelada"
   );
 
   if (booked) {
-    const bookedLabel =
-      booked.serviceType === "gemologo"
-        ? `Cita con Gemólogo reservada (${booked.clientName || "Cliente"})`
-        : `Horario reservado (${booked.clientName || "Cliente"})`;
+    const bookedLabel = `Horario reservado (${booked.clientName || "Cliente"})`;
     return {
       blocked: true,
       reason: bookedLabel,
       bookedCitaId: booked.id,
-      serviceType: booked.serviceType || "all",
+      serviceType: "asesoria",
     };
   }
 

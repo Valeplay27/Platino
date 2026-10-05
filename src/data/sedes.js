@@ -18,7 +18,7 @@ export const sedesData = [
     image: getAssetUrl("/images/showroom.jpg"),
     services: [
       "Exhibición exclusiva de aros de boda y compromiso",
-      "Asesoría personalizada con gemólogos certificados",
+      "Asesoría personalizada en alta joyería",
       "Entallado y prueba de tallas en sitio",
       "Mantenimiento y limpieza de joyas"
     ]

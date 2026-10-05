@@ -388,10 +388,10 @@ export default function GemstonesCatalog() {
               </div>
               <h4>¿Dudas eligiendo la gema?</h4>
               <p>
-                Agenda una sesión con nuestro gemólogo especialista para evaluar el corte, brillo y proporciones bajo microscopio.
+                Agenda una sesión con nuestro asesor especialista para evaluar el corte, brillo y proporciones de tus gemas.
               </p>
-              <Link to="/agendar-cita?tipo=gemologo" className="btn-advisor-link">
-                Cita con Gemólogo <i className="bi bi-arrow-right"></i>
+              <Link to="/agendar-cita" className="btn-advisor-link">
+                Agendar Asesoría en Sede <i className="bi bi-arrow-right"></i>
               </Link>
             </div>
           </aside>
@@ -522,7 +522,7 @@ export default function GemstonesCatalog() {
                           </button>
 
                           <Link
-                            to={`/agendar-cita?tipo=gemologo&gema=${encodeURIComponent(gem.name)}&cert=${gem.certNumber}`}
+                            to={`/agendar-cita?gema=${encodeURIComponent(gem.name)}&cert=${gem.certNumber}`}
                             className="btn-book-gem"
                             title="Ver en vivo en nuestra joyería"
                           >
@@ -644,7 +644,7 @@ export default function GemstonesCatalog() {
                 {/* Acciones */}
                 <div className="gem-modal-actions">
                   <Link
-                    to={`/agendar-cita?tipo=gemologo&gema=${encodeURIComponent(detailGem.name)}&cert=${detailGem.certNumber}`}
+                    to={`/agendar-cita?gema=${encodeURIComponent(detailGem.name)}&cert=${detailGem.certNumber}`}
                     className="btn-modal-book"
                     onClick={() => setDetailGem(null)}
                   >

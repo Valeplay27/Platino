@@ -111,6 +111,7 @@ function App() {
             <Route path="/admin/finanzas" element={<AdminCitas />} />
             <Route path="/admin/ganancias" element={<AdminCitas />} />
             <Route path="/admin/pagos" element={<AdminCitas />} />
+            <Route path="/admin/permisos" element={<AdminCitas />} />
             <Route path="/dashboard" element={<AdminCitas />} />
           </Routes>
         </main>

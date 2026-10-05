@@ -1,20 +1,13 @@
 import { useState, useEffect } from "react";
 import { AuthContext } from "./authContextDef";
+import { ADMIN_ACCOUNTS, getAdminAccounts, isMasterAdmin as checkMasterAdmin } from "../services/permissionsService";
 
 const STORAGE_KEY_USER = "platino_auth_user";
 const STORAGE_KEY_USERS_DB = "platino_users_database";
 
-// Cuentas pre-configuradas de fábrica
+// Cuentas pre-configuradas de fábrica: 3 Administradores (Vladimir + Lima + Miraflores) + Cliente
 const DEFAULT_USERS = [
-  {
-    id: "usr-admin-vladimir",
-    name: "Vladimir",
-    email: "vladimiryt18@gmail.com",
-    password: "Pumita30****",
-    role: "admin",
-    phone: "+51 927 357 217",
-    registeredAt: "2026-01-01",
-  },
+  ...getAdminAccounts(),
   {
     id: "usr-cliente-1",
     name: "Camila Mendoza",
@@ -32,14 +25,21 @@ export function AuthProvider({ children }) {
       const stored = localStorage.getItem(STORAGE_KEY_USER);
       if (!stored) return null;
       const parsed = JSON.parse(stored);
-      // Actualizar si tenía el admin previo
-      if (parsed.role === "admin" && parsed.email !== "vladimiryt18@gmail.com") {
+      // Sincronizar metadatos de las cuentas oficiales de admin si es necesario
+      const adminList = getAdminAccounts();
+      const matchingAdmin = adminList.find(
+        (a) => a.email.toLowerCase() === parsed.email.toLowerCase()
+      );
+      if (matchingAdmin) {
         return {
-          id: "usr-admin-vladimir",
-          name: "Vladimir",
-          email: "vladimiryt18@gmail.com",
+          ...parsed,
+          name: matchingAdmin.name,
           role: "admin",
-          phone: "+51 927 357 217",
+          adminType: matchingAdmin.adminType,
+          sede: matchingAdmin.sede,
+          sedeLabel: matchingAdmin.sedeLabel,
+          avatarBadge: matchingAdmin.avatarBadge,
+          title: matchingAdmin.title,
         };
       }
       return parsed;
@@ -52,22 +52,51 @@ export function AuthProvider({ children }) {
     try {
       const stored = localStorage.getItem(STORAGE_KEY_USERS_DB);
       let list = stored ? JSON.parse(stored) : [...DEFAULT_USERS];
-      const adminIndex = list.findIndex(
-        (u) => u.email.toLowerCase() === "vladimiryt18@gmail.com"
-      );
-      if (adminIndex >= 0) {
-        list[adminIndex].password = "Pumita30****";
-        list[adminIndex].role = "admin";
-        list[adminIndex].name = "Vladimir";
-      } else {
-        list.push(DEFAULT_USERS[0]);
-      }
+
+      // Asegurar que las 3 cuentas de administrador oficiales estén siempre presentes y con sus contraseñas actuales
+      const currentAdmins = getAdminAccounts();
+      currentAdmins.forEach((adminAcc) => {
+        const idx = list.findIndex(
+          (u) => u.email.toLowerCase() === adminAcc.email.toLowerCase()
+        );
+        if (idx >= 0) {
+          list[idx] = { ...list[idx], ...adminAcc };
+        } else {
+          list.push(adminAcc);
+        }
+      });
+
       localStorage.setItem(STORAGE_KEY_USERS_DB, JSON.stringify(list));
       return list;
     } catch {
       return DEFAULT_USERS;
     }
   });
+
+  // Sincronizar contraseñas actualizadas por Vladimir en tiempo real
+  useEffect(() => {
+    const handleCredentialsUpdated = () => {
+      const currentAdmins = getAdminAccounts();
+      setUsersDb((prev) => {
+        const nextList = [...prev];
+        currentAdmins.forEach((adminAcc) => {
+          const idx = nextList.findIndex(
+            (u) => u.email.toLowerCase() === adminAcc.email.toLowerCase()
+          );
+          if (idx >= 0) {
+            nextList[idx] = { ...nextList[idx], password: adminAcc.password };
+          }
+        });
+        localStorage.setItem(STORAGE_KEY_USERS_DB, JSON.stringify(nextList));
+        return nextList;
+      });
+    };
+
+    window.addEventListener("platino_admin_credentials_updated", handleCredentialsUpdated);
+    return () => {
+      window.removeEventListener("platino_admin_credentials_updated", handleCredentialsUpdated);
+    };
+  }, []);
 
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [modalInitialView, setModalInitialView] = useState("login"); // 'login' | 'register' | 'forgot'
@@ -102,7 +131,12 @@ export function AuthProvider({ children }) {
         name: foundUser.name,
         email: foundUser.email,
         role: foundUser.role,
+        adminType: foundUser.adminType || (cleanEmail === "vladimiryt18@gmail.com" ? "master" : "sede"),
+        sede: foundUser.sede || (cleanEmail.includes("miraflores") ? "miraflores" : cleanEmail.includes("lima") ? "lima-centro" : "global"),
+        sedeLabel: foundUser.sedeLabel || (foundUser.sede === "miraflores" ? "Sede Miraflores" : foundUser.sede === "lima-centro" ? "Sede Lima Centro" : "Todas las Sedes (Global)"),
         phone: foundUser.phone,
+        avatarBadge: foundUser.avatarBadge || (cleanEmail === "vladimiryt18@gmail.com" ? "👑" : "🏛️"),
+        title: foundUser.title || (cleanEmail === "vladimiryt18@gmail.com" ? "Super Administrador Principal" : "Administrador Sede"),
       };
       setUser(safeUserData);
       closeAuthModal();
@@ -133,6 +167,9 @@ export function AuthProvider({ children }) {
       email: cleanEmail,
       password,
       role,
+      adminType: role === "admin" ? "sede" : "cliente",
+      sede: "lima-centro",
+      sedeLabel: "Sede Lima Centro",
       phone: phone.trim(),
       registeredAt: new Date().toISOString(),
     };
@@ -150,6 +187,9 @@ export function AuthProvider({ children }) {
       name: newUser.name,
       email: newUser.email,
       role: newUser.role,
+      adminType: newUser.adminType,
+      sede: newUser.sede,
+      sedeLabel: newUser.sedeLabel,
       phone: newUser.phone,
     };
     setUser(safeUserData);
@@ -168,6 +208,10 @@ export function AuthProvider({ children }) {
       value={{
         user,
         isAdmin: user?.role === "admin",
+        isMasterAdmin: checkMasterAdmin(user),
+        adminType: user?.adminType || (checkMasterAdmin(user) ? "master" : "sede"),
+        userSede: user?.sede || "global",
+        sedeLabel: user?.sedeLabel || "Todas las Sedes (Global)",
         isAuthModalOpen,
         modalInitialView,
         setModalInitialView,

@@ -88,7 +88,7 @@ export default function ClientOrders({ addToCart }) {
       deliveryType: "recojo_sede",
       sedeRecojo: "Sede Miraflores - Av. José Larco 880",
       total: 4850,
-      paymentMethod: "Tarjeta Visa Segura (100% Pagado)",
+      paymentMethod: "BCP",
       items: [
         {
           id: "prod-secret-garden",
@@ -1005,6 +1005,10 @@ export default function ClientOrders({ addToCart }) {
                       <div className="order-detail-spec-item">
                         <label>Estado de Pago</label>
                         <span style={{ color: "#15803d" }}>{detailModalOrder.paymentStatus}</span>
+                      </div>
+                      <div className="order-detail-spec-item">
+                        <label>Medio de Pago</label>
+                        <span style={{ fontWeight: 600, color: "#0f2a24" }}>{detailModalOrder.paymentMethod || "BCP"}</span>
                       </div>
                     </div>
                   </div>

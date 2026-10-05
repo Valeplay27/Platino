@@ -45,7 +45,7 @@ export const DEFAULT_NOSOTROS_CONTENT = {
   },
   talleresBoutiques: {
     title: "¿Deseas atención personalizada en nuestras boutiques?",
-    desc: "Visítanos en nuestras sedes de Lima Centro y Miraflores o agenda una cita exclusiva con uno de nuestros gemólogos especialistas.",
+    desc: "Visítanos en nuestras sedes de Lima Centro y Miraflores o agenda una cita exclusiva con uno de nuestros asesores especialistas.",
     sedeLima: "Lima Centro: Jr. Huallaga 160, Stand 108",
     sedeMiraflores: "Miraflores: Av. José Larco 345, Oficina 402",
     whatsapp: "+51 927 357 217",

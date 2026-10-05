@@ -80,6 +80,8 @@ const INITIAL_ORDERS = [
     clientEmail: "cliente@platino.pe",
     clientPhone: "+51 912 345 678",
     deliveryType: "recojo_sede", // 'recojo_sede' | 'envio_domicilio'
+    sedeId: "miraflores",
+    sedeName: "Sede Miraflores",
     sedeRecojo: "Sede Miraflores - Av. José Larco 880",
     shippingAddress: "",
     stage: "engaste_pulido", // Paso 3
@@ -87,7 +89,7 @@ const INITIAL_ORDERS = [
     adminNotes: "Montura en Oro 18K Rosa fundida y pulida con éxito. Diamante central de 1.00 ct en proceso de engaste en 4 uñas.",
     lastUpdated: "2026-03-29",
     paymentStatus: "Pagado (100%)",
-    paymentMethod: "Visa",
+    paymentMethod: "BCP",
     total: 4850,
     items: [
       {
@@ -123,20 +125,62 @@ const INITIAL_ORDERS = [
     ],
   },
   {
+    id: "PLT-2026-9115",
+    date: "2026-03-30",
+    clientName: "Valeria Morales",
+    clientEmail: "v.morales@gmail.com",
+    clientPhone: "+51 984 281 116",
+    deliveryType: "recojo_sede",
+    sedeId: "miraflores",
+    sedeName: "Sede Miraflores",
+    sedeRecojo: "Sede Miraflores - Av. José Larco 880",
+    shippingAddress: "",
+    stage: "control_calidad", // Paso 4
+    estimatedCompletion: "12 de Abril, 2026",
+    adminNotes: "Engaste de diamantes 100% verificado. En laboratorio para emisión de certificado gemológico.",
+    lastUpdated: "2026-04-03",
+    paymentStatus: "Pagado (100%)",
+    paymentMethod: "IziPay",
+    total: 6400,
+    items: [
+      {
+        id: "prod-pulsera-tennis",
+        name: "Pulsera Tennis Diamantes Platino",
+        metal: "Platino 950",
+        metalId: "platino",
+        tone: "white",
+        size: "17 cm",
+        gemstone: "Diamantes corte brillante 2.50 ct total",
+        price: 6400,
+        quantity: 1,
+        image: "/images/cat-pulseras.jpg",
+        sku: "PT-PL-17",
+      },
+    ],
+    timeline: [
+      { stage: "recibido", date: "2026-03-30 11:20 AM", note: "Pedido registrado y validado en tienda Miraflores." },
+      { stage: "diseno_taller", date: "2026-04-01 09:30 AM", note: "Eslabones articulados armados en taller." },
+      { stage: "engaste_pulido", date: "2026-04-02 03:00 PM", note: "Engaste de 48 diamantes completado." },
+      { stage: "control_calidad", date: "2026-04-03 10:00 AM", note: "En revisión de laboratorio gemológico." },
+    ],
+  },
+  {
     id: "PLT-2025-4102",
     date: "2025-11-14",
     clientName: "Camila Mendoza",
     clientEmail: "cliente@platino.pe",
     clientPhone: "+51 912 345 678",
-    deliveryType: "envio_domicilio",
-    sedeRecojo: "",
-    shippingAddress: "Av. Del Parque 450, Dpto 802, San Isidro, Lima",
+    deliveryType: "recojo_sede",
+    sedeId: "lima-centro",
+    sedeName: "Sede Lima Centro",
+    sedeRecojo: "Sede Lima Centro - Jr. de la Unión 540",
+    shippingAddress: "",
     stage: "entregado", // Paso 6
     estimatedCompletion: "28 de Noviembre, 2025",
-    adminNotes: "Entregado a satisfacción con estuche de madera fina, paño de limpieza y tarjeta de garantía Platino Care.",
+    adminNotes: "Entregado a satisfacción en tienda Lima Centro con estuche de madera fina y tarjeta Platino Care.",
     lastUpdated: "2025-11-28",
     paymentStatus: "Pagado (100%)",
-    paymentMethod: "Yape",
+    paymentMethod: "Interbank",
     total: 3600,
     items: [
       {
@@ -158,8 +202,8 @@ const INITIAL_ORDERS = [
       { stage: "diseno_taller", date: "2025-11-16 11:20 AM", note: "Fundición en Platino 950 completada." },
       { stage: "engaste_pulido", date: "2025-11-20 04:45 PM", note: "Engaste de diamantes y grabado láser interior." },
       { stage: "control_calidad", date: "2025-11-24 10:00 AM", note: "Inspección gemológica aprobada." },
-      { stage: "listo_envio", date: "2025-11-26 03:00 PM", note: "Empacado y despachado con courier blindado." },
-      { stage: "entregado", date: "2025-11-28 01:15 PM", note: "Recibido conforme en domicilio por el cliente." },
+      { stage: "listo_envio", date: "2025-11-26 03:00 PM", note: "Empacado listo en vitrina de Lima Centro." },
+      { stage: "entregado", date: "2025-11-28 01:15 PM", note: "Entregado a la cliente en local Lima Centro." },
     ],
   },
   {
@@ -168,15 +212,17 @@ const INITIAL_ORDERS = [
     clientName: "Rodrigo Benavides",
     clientEmail: "r.benavides@empresa.pe",
     clientPhone: "+51 998 765 432",
-    deliveryType: "envio_domicilio",
-    sedeRecojo: "",
-    shippingAddress: "Calle Las Begonias 441, Of. 601, San Isidro, Lima",
+    deliveryType: "recojo_sede",
+    sedeId: "lima-centro",
+    sedeName: "Sede Lima Centro",
+    sedeRecojo: "Sede Lima Centro - Jr. de la Unión 540",
+    shippingAddress: "",
     stage: "diseno_taller",
     estimatedCompletion: "16 de Abril, 2026",
-    adminNotes: "Diseño CAD aprobado por el cliente. Fundiendo montura en Oro 18K Amarillo.",
+    adminNotes: "Diseño CAD aprobado por el cliente. Fundiendo montura en Oro 18K Amarillo en taller de Lima.",
     lastUpdated: "2026-04-02",
     paymentStatus: "Pagado (100%)",
-    paymentMethod: "Mastercard",
+    paymentMethod: "BanBif",
     total: 5200,
     items: [
       {
@@ -198,7 +244,54 @@ const INITIAL_ORDERS = [
       { stage: "diseno_taller", date: "2026-04-02 10:15 AM", note: "Iniciada fundición en crisol con aleación de Oro 18K Amarillo." },
     ],
   },
+  {
+    id: "PLT-2026-9240",
+    date: "2026-04-03",
+    clientName: "Diego Alarcón",
+    clientEmail: "d.alarcon@gmail.com",
+    clientPhone: "+51 927 357 217",
+    deliveryType: "recojo_sede",
+    sedeId: "lima-centro",
+    sedeName: "Sede Lima Centro",
+    sedeRecojo: "Sede Lima Centro - Jr. de la Unión 540",
+    shippingAddress: "",
+    stage: "recibido",
+    estimatedCompletion: "20 de Abril, 2026",
+    adminNotes: "Pedido presencial en tienda Lima Centro. Pago en efectivo recibido en caja.",
+    lastUpdated: "2026-04-03",
+    paymentStatus: "Pagado (100%)",
+    paymentMethod: "Efectivo",
+    total: 2800,
+    items: [
+      {
+        id: "prod-solitario-aura",
+        name: "Anillo Aura Zafiro Azul",
+        metal: "Oro 18K Blanco",
+        metalId: "oro-18k-blanco",
+        tone: "white",
+        size: "14 (Dama)",
+        gemstone: "Zafiro Natural 0.80 ct",
+        price: 2800,
+        quantity: 1,
+        image: "/images/cat-compromiso.jpg",
+        sku: "AU-OB-14",
+      },
+    ],
+    timeline: [
+      { stage: "recibido", date: "2026-04-03 04:30 PM", note: "Orden recibida en tienda física Lima Centro." },
+    ],
+  },
 ];
+
+// Función para determinar con certeza la sede asociada a una orden
+export const getOrderSedeId = (order) => {
+  if (!order) return "lima-centro";
+  if (order.sedeId === "miraflores" || order.sedeId === "lima-centro") return order.sedeId;
+  if (order.sede === "miraflores" || order.sede === "lima-centro") return order.sede;
+  const str = `${order.sedeRecojo || ""} ${order.shippingAddress || ""} ${order.adminNotes || ""}`.toLowerCase();
+  if (str.includes("miraflores") || str.includes("larco")) return "miraflores";
+  return "lima-centro";
+};
 
 // Obtener todos los pedidos
 export const getOrders = () => {
@@ -210,8 +303,17 @@ export const getOrders = () => {
     }
     const parsed = JSON.parse(stored);
     if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.map((order) => ({
+      // Asegurar que las órdenes iniciales de prueba estén presentes para cada sede
+      const existingIds = new Set(parsed.map((o) => o.id));
+      const merged = [...parsed];
+      INITIAL_ORDERS.forEach((initOrder) => {
+        if (!existingIds.has(initOrder.id)) {
+          merged.push(initOrder);
+        }
+      });
+      return merged.map((order) => ({
         ...order,
+        sedeId: getOrderSedeId(order),
         paymentMethod: PAYMENT_METHODS.includes(order.paymentMethod)
           ? order.paymentMethod
           : normalizePaymentMethod(order.paymentMethod),
@@ -354,22 +456,105 @@ export const PAYMENT_STATUSES = [
 ];
 
 export const PAYMENT_METHODS = [
-  "Yape",
-  "Mastercard",
-  "Visa",
-  "Datáfono",
+  "BanBif",
+  "Banco de la Nación",
+  "BCP",
+  "Interbank",
+  "IziPay",
+  "Pichincha",
+  "Fondo Platino",
   "Efectivo",
 ];
 
+export const PAYMENT_METHODS_DATA = [
+  {
+    id: "BCP",
+    name: "BCP",
+    badge: "Inmediato",
+    category: "Transferencia Bancaria",
+    description: "Transferencia directa a cuenta corriente Soles / Dólares BCP",
+    icon: "bi-bank",
+    instructions: "Transfiere vía App BCP o agente a nuestra Cta. Cte. Soles: 194-8291048-0-12 (CCI: 00219400829104801290).",
+  },
+  {
+    id: "Interbank",
+    name: "Interbank",
+    badge: "Directo",
+    category: "Transferencia Bancaria",
+    description: "Transferencia directa o interbancaria Interbank",
+    icon: "bi-building-fill",
+    instructions: "Transfiere desde tu banca móvil Interbank a nuestra Cta. Cte. Soles: 200-3001847192 (CCI: 00320000300184719245).",
+  },
+  {
+    id: "BanBif",
+    name: "BanBif",
+    badge: "Banca Exclusiva",
+    category: "Transferencia Bancaria",
+    description: "Abono o transferencia a cuenta corriente BanBif",
+    icon: "bi-bank2",
+    instructions: "Transfiere vía BanBif a nuestra Cta. Cte. Soles: 007-001928471-9 (CCI: 03800700192847190011).",
+  },
+  {
+    id: "Banco de la Nación",
+    name: "Banco de la Nación",
+    badge: "Nacional",
+    category: "Depósito / Transferencia",
+    description: "Depósito en ventanilla, agente o transferencia BN",
+    icon: "bi-building",
+    instructions: "Abono o depósito en ventanilla o agente Banco de la Nación a la Cta. Institucional: 04-019-382910.",
+  },
+  {
+    id: "IziPay",
+    name: "IziPay",
+    badge: "Pasarela Segura",
+    category: "Pasarela & Tarjetas",
+    description: "Pago seguro con tarjeta Débito / Crédito vía pasarela IziPay",
+    icon: "bi-credit-card-2-front-fill",
+    instructions: "Procesamiento 100% encriptado con tarjetas Visa, Mastercard o Amex a través del terminal / pasarela virtual IziPay.",
+  },
+  {
+    id: "Pichincha",
+    name: "Pichincha",
+    badge: "Red Pichincha",
+    category: "Transferencia Bancaria",
+    description: "Transferencia a cuenta empresarial Banco Pichincha",
+    icon: "bi-credit-card",
+    instructions: "Transfiere desde la banca móvil Pichincha o interbancario a la Cta.: 0011-0982736182 (CCI: 01100110982736182390).",
+  },
+  {
+    id: "Fondo Platino",
+    name: "Fondo Platino",
+    badge: "Línea Joyera",
+    category: "Financiamiento & Saldo",
+    description: "Crédito corporativo directo o saldo a favor Fondo Platino",
+    icon: "bi-gem",
+    instructions: "Aplica tu línea de crédito o fondo a favor de taller Platino. Un asesor confirmará tu código corporativo.",
+  },
+  {
+    id: "Efectivo",
+    name: "Efectivo",
+    badge: "En Boutique",
+    category: "Pago Presencial",
+    description: "Pago en efectivo en tienda física o al coordinar entrega",
+    icon: "bi-cash-stack",
+    instructions: "Cancela en efectivo directamente en caja en nuestra boutique de Miraflores o Lima Centro al retirar tu joya.",
+  },
+];
+
 export const normalizePaymentMethod = (pm) => {
-  if (!pm) return "Visa";
+  if (!pm) return "BCP";
   const str = String(pm).trim().toLowerCase();
-  if (str.includes("yape") || str.includes("yap") || str.includes("plin") || str.includes("bcp") || str.includes("transferencia")) return "Yape";
-  if (str.includes("mastercard")) return "Mastercard";
-  if (str.includes("datafono") || str.includes("datáfono") || str.includes("pos")) return "Datáfono";
-  if (str.includes("efectivo") || str.includes("efevtivo") || str.includes("cash")) return "Efectivo";
-  if (str.includes("visa")) return "Visa";
-  return "Visa";
+  if (str.includes("banbif")) return "BanBif";
+  if (str.includes("nacion") || str.includes("nación")) return "Banco de la Nación";
+  if (str.includes("interbank")) return "Interbank";
+  if (str.includes("bcp") || str.includes("transferencia")) return "BCP";
+  if (str.includes("izipay") || str.includes("tarjeta") || str.includes("pos") || str.includes("visa") || str.includes("mastercard") || str.includes("datafono") || str.includes("datáfono")) return "IziPay";
+  if (str.includes("pichincha")) return "Pichincha";
+  if (str.includes("fondo platino") || str.includes("fondo")) return "Fondo Platino";
+  if (str.includes("efectivo") || str.includes("cash")) return "Efectivo";
+  if (str.includes("plin")) return "Interbank";
+  if (str.includes("yape")) return "BCP";
+  return "BCP";
 };
 
 // Actualizar estado de pago y medio de pago (Administrador)
@@ -412,7 +597,7 @@ export const createOrder = (orderData) => {
     adminNotes: "Pedido ingresado al sistema. En espera de asignación de maestro joyero.",
     lastUpdated: todayStr,
     paymentStatus: "Pagado (100%)",
-    paymentMethod: orderData.paymentMethod || "Visa",
+    paymentMethod: orderData.paymentMethod || "BCP",
     total: orderData.total || 0,
     items: orderData.items || [],
     timeline: [

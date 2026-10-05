@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../context/useAuth";
+import { getAdminAccounts } from "../services/permissionsService";
 import "../../styles/auth.css";
 
 export default function AuthModal() {
@@ -46,9 +47,21 @@ export default function AuthModal() {
   // Rellenar credenciales demo para pruebas rápidas
   const fillDemoCredentials = (role) => {
     setErrorMessage("");
-    if (role === "admin") {
+    const adminList = getAdminAccounts();
+    const getPwd = (email, fallback) => {
+      const found = adminList.find((a) => a.email.toLowerCase() === email.toLowerCase());
+      return found?.password || fallback;
+    };
+
+    if (role === "admin" || role === "vladimir") {
       setLoginEmail("vladimiryt18@gmail.com");
-      setLoginPassword("Pumita30****");
+      setLoginPassword(getPwd("vladimiryt18@gmail.com", "Pumita30****"));
+    } else if (role === "admin_lima" || role === "lima") {
+      setLoginEmail("admin.lima@platino.pe");
+      setLoginPassword(getPwd("admin.lima@platino.pe", "LimaPlatino2026*"));
+    } else if (role === "admin_miraflores" || role === "miraflores") {
+      setLoginEmail("admin.miraflores@platino.pe");
+      setLoginPassword(getPwd("admin.miraflores@platino.pe", "Miraflores2026*"));
     } else {
       setLoginEmail("cliente@platino.pe");
       setLoginPassword("platino2026");
@@ -154,21 +167,41 @@ export default function AuthModal() {
 
             {/* Selector de credenciales de prueba para el evaluador */}
             <div className="auth-demo-banner">
-              <strong>Acceso rápido de prueba:</strong>
-              <div className="demo-buttons-row">
+              <strong style={{ display: "block", marginBottom: "6px" }}>
+                Acceso rápido de prueba (3 Administradores + Cliente):
+              </strong>
+              <div className="demo-buttons-row" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
                 <button
                   type="button"
-                  onClick={() => fillDemoCredentials("admin")}
+                  onClick={() => fillDemoCredentials("vladimir")}
                   className="btn-demo-fill"
+                  title="Super Admin Principal - Control Total y Aprobación de Permisos"
+                  style={{ fontWeight: "700", border: "1px solid #b8860b" }}
                 >
-                  <i className="bi bi-shield-lock"></i> Admin Demo
+                  <i className="bi bi-shield-shaded" style={{ color: "#b8860b" }}></i> 👑 Vladimir (Principal)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillDemoCredentials("lima")}
+                  className="btn-demo-fill"
+                  title="Administrador Sede Lima Centro - Requiere permisos para Finanzas y Catálogo"
+                >
+                  <i className="bi bi-geo-alt"></i> 🏛️ Admin Lima Centro
+                </button>
+                <button
+                  type="button"
+                  onClick={() => fillDemoCredentials("miraflores")}
+                  className="btn-demo-fill"
+                  title="Administrador Sede Miraflores - Requiere permisos para Finanzas y Catálogo"
+                >
+                  <i className="bi bi-geo-alt"></i> 🌊 Admin Miraflores
                 </button>
                 <button
                   type="button"
                   onClick={() => fillDemoCredentials("cliente")}
                   className="btn-demo-fill"
                 >
-                  <i className="bi bi-person"></i> Cliente Demo
+                  <i className="bi bi-person"></i> 👤 Cliente Demo
                 </button>
               </div>
             </div>

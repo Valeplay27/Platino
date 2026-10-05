@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { Link, useLocation, useSearchParams } from "react-router-dom";
+import { Link, useLocation, useSearchParams, useNavigate } from "react-router-dom";
 import { sedesData } from "../data/sedes";
 import {
   TIME_SLOTS,
@@ -53,19 +53,33 @@ import {
   updateOrderPayment,
   PAYMENT_STATUSES,
   PAYMENT_METHODS,
+  getOrderSedeId,
 } from "../services/ordersService";
 import { METALS, formatPrice } from "../data/products";
 import { useAuth } from "../context/useAuth";
+import {
+  ADMIN_ACCOUNTS,
+  getAdminAccounts,
+  updateAdminPassword,
+  PERMISSIONS_CATALOG,
+  getPermissionsMatrix,
+  savePermissionsMatrix,
+  isMasterAdmin,
+  hasPermission,
+  requestPermission,
+  getPermissionRequests,
+  approvePermissionRequest,
+  rejectPermissionRequest,
+  toggleUserPermission,
+  getActivePendingRequest,
+} from "../services/permissionsService";
 import "../../styles/citas.css";
 import "../../styles/orders.css";
 
-// Función para obtener la fecha mínima según el tipo de servicio:
-// - Gemólogo: 3 días de anticipación
-// - Asesoría: 1 día de anticipación (mañana)
-const getMinBlockDateString = (type = "gemologo") => {
-  const daysAdvance = type === "gemologo" ? 3 : 1;
+// Función para obtener la fecha mínima para bloqueo (1 día de anticipación a partir de mañana)
+const getMinBlockDateString = () => {
   const d = new Date();
-  d.setDate(d.getDate() + daysAdvance);
+  d.setDate(d.getDate() + 1);
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -168,6 +182,7 @@ export default function AdminCitas() {
   const { user, isAdmin, openAuthModal } = useAuth();
   const [searchParams] = useSearchParams();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const getTabFromLocation = useCallback(() => {
     if (location.pathname === "/admin/pedidos") return "pedidos";
@@ -190,6 +205,11 @@ export default function AdminCitas() {
     )
       return "home_images";
     if (
+      location.pathname === "/admin/permisos" ||
+      searchParams.get("tab") === "permisos"
+    )
+      return "permisos";
+    if (
       searchParams.get("tab") === "finanzas" ||
       searchParams.get("tab") === "ganancias" ||
       searchParams.get("tab") === "pagos"
@@ -203,6 +223,55 @@ export default function AdminCitas() {
   useEffect(() => {
     setActiveTab(getTabFromLocation());
   }, [getTabFromLocation]);
+
+  // Estados de Permisos & Sedes para Vladimir y los Administradores de Lima y Miraflores
+  const [permissionsMatrix, setPermissionsMatrix] = useState(() => getPermissionsMatrix());
+  const [permissionRequests, setPermissionRequests] = useState(() => getPermissionRequests());
+  const [reasonInputState, setReasonInputState] = useState({});
+  const [requestsFilterStatus, setRequestsFilterStatus] = useState("pendientes"); // 'pendientes' | 'aprobadas' | 'rechazadas' | 'todas'
+
+  // Estados para Gestión de Contraseñas de Sedes (Vladimir)
+  const [adminAccountsList, setAdminAccountsList] = useState(() => getAdminAccounts());
+  const [editingPasswordEmail, setEditingPasswordEmail] = useState(null);
+  const [newPasswordInput, setNewPasswordInput] = useState("");
+  const [showPasswordMap, setShowPasswordMap] = useState({});
+  const [passwordChangeFeedback, setPasswordChangeFeedback] = useState("");
+  const [copiedEmail, setCopiedEmail] = useState(null);
+
+  // Escuchar actualizaciones de permisos, solicitudes y contraseñas en tiempo real
+  useEffect(() => {
+    const handlePermUpdate = () => {
+      setPermissionsMatrix(getPermissionsMatrix());
+    };
+    const handleReqUpdate = () => {
+      setPermissionRequests(getPermissionRequests());
+    };
+    const handleCredsUpdate = () => {
+      setAdminAccountsList(getAdminAccounts());
+    };
+    window.addEventListener("platino_permissions_updated", handlePermUpdate);
+    window.addEventListener("platino_permission_requests_updated", handleReqUpdate);
+    window.addEventListener("platino_admin_credentials_updated", handleCredsUpdate);
+    return () => {
+      window.removeEventListener("platino_permissions_updated", handlePermUpdate);
+      window.removeEventListener("platino_permission_requests_updated", handleReqUpdate);
+      window.removeEventListener("platino_admin_credentials_updated", handleCredsUpdate);
+    };
+  }, []);
+
+  // Determinar usuario efectivo según la sesión iniciada
+  const isRealMaster = isMasterAdmin(user);
+  const effectiveUser = user || ADMIN_ACCOUNTS[0];
+  const isEffectiveMaster = isMasterAdmin(effectiveUser);
+  const isMaster = isEffectiveMaster;
+
+  const userHasPermission = (permKey) => {
+    return hasPermission(effectiveUser, permKey);
+  };
+
+  const pendingRequestsCount = useMemo(() => {
+    return permissionRequests.filter((r) => r.status === "pendiente").length;
+  }, [permissionRequests]);
 
   const [citasList, setCitasList] = useState(() => getCitas());
   const [blockedList, setBlockedList] = useState(() => getBlockedSlots());
@@ -251,16 +320,13 @@ export default function AdminCitas() {
 
   // Filtros de Citas
   const [filterSede, setFilterSede] = useState("todas");
-  const [filterService, setFilterService] = useState("todos");
   const [filterStatus, setFilterStatus] = useState("todos");
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Estado para gestión de Bloqueos
+  // Estado para gestión de Bloqueos (exclusivamente Asesoría General)
   const [blockSedeId, setBlockSedeId] = useState(sedesData[0].id);
-  const [blockServiceType, setBlockServiceType] = useState("gemologo"); // "gemologo" | "asesoria"
-  const [blockDate, setBlockDate] = useState(() => getMinBlockDateString("gemologo"));
+  const [blockDate, setBlockDate] = useState(() => getMinBlockDateString("asesoria"));
   const [blockReason, setBlockReason] = useState("");
-  const [filterBlockService, setFilterBlockService] = useState("todos"); // "todos" | "gemologo" | "asesoria"
 
   // Estado para la Línea Verde Superior (Barra de Anuncios)
   const [announcementInput, setAnnouncementInput] = useState(() => getAnnouncementText());
@@ -406,9 +472,37 @@ export default function AdminCitas() {
     }
   };
 
+  // Control estricto de sede: Cada admin solo ve la información de su propia sede (Lima solo Lima, Miraflores solo Miraflores)
+  const isGlobalOrdersView = isEffectiveMaster || effectiveUser?.sede === "global";
+  const isSedeRestricted = Boolean(effectiveUser?.sede && effectiveUser.sede !== "global");
+  const userAssignedSede = isSedeRestricted ? effectiveUser.sede : null;
+  const activeBlockSedeId = isSedeRestricted ? userAssignedSede : blockSedeId;
+
+  // Sincronizar sede seleccionada para bloqueos y filtros con la sede asignada del admin
+  useEffect(() => {
+    if (userAssignedSede) {
+      setBlockSedeId(userAssignedSede);
+      setFilterSede(userAssignedSede);
+    }
+  }, [userAssignedSede]);
+
+  // Bloqueos activos visibles exclusivamente para la sede asignada (o todos si es Vladimir / Master)
+  const effectiveBlockedList = useMemo(() => {
+    if (!isSedeRestricted) return blockedList;
+    return blockedList.filter((b) => b.sedeId === userAssignedSede);
+  }, [blockedList, isSedeRestricted, userAssignedSede]);
+
+  // Pedidos pertenecientes a la sede asignada (o todos si es Vladimir / Master)
+  const effectiveSedeOrders = useMemo(() => {
+    if (isGlobalOrdersView || !userAssignedSede) {
+      return ordersList;
+    }
+    return ordersList.filter((o) => getOrderSedeId(o) === userAssignedSede);
+  }, [ordersList, isGlobalOrdersView, userAssignedSede]);
+
   // Pedidos filtrados según controles de búsqueda y pestañas
   const filteredOrders = useMemo(() => {
-    return ordersList.filter((order) => {
+    return effectiveSedeOrders.filter((order) => {
       if (orderStageFilter !== "todos" && order.stage !== orderStageFilter) {
         return false;
       }
@@ -428,7 +522,7 @@ export default function AdminCitas() {
       }
       return true;
     });
-  }, [ordersList, orderStageFilter, orderClientFilter, orderSearchQuery]);
+  }, [effectiveSedeOrders, orderStageFilter, orderClientFilter, orderSearchQuery]);
 
   // Producto activo para gestión de inventario
   const currentInventoryProduct = catalogList.find((p) => p.id === selectedInventoryProductId) || catalogList[0];
@@ -460,9 +554,26 @@ export default function AdminCitas() {
     return { bodega, limaCentro, miraflores, totalPieces };
   }, [catalogList, allInventoryMap]);
 
+  // Permisos de edición por almacén para el usuario activo
+  const canEditBodega = userHasPermission("inventario_global");
+  const canEditLima = userHasPermission("inventario_global") || effectiveUser?.sede === "lima-centro";
+  const canEditMiraflores = userHasPermission("inventario_global") || effectiveUser?.sede === "miraflores";
+
   // Modificar stock individual en tiempo real
   const handleStockCellChange = (gender, sizeNum, locationId, value) => {
     if (!currentInventoryProduct) return;
+    if (locationId === "bodega" && !canEditBodega) {
+      alert("Acceso Restringido: No tienes autorización para modificar Bodega Central. Solicita el permiso a Vladimir.");
+      return;
+    }
+    if (locationId === "lima-centro" && !canEditLima) {
+      alert("Acceso Restringido: No tienes autorización para modificar el inventario de Lima Centro.");
+      return;
+    }
+    if (locationId === "miraflores" && !canEditMiraflores) {
+      alert("Acceso Restringido: No tienes autorización para modificar el inventario de Miraflores.");
+      return;
+    }
     const num = Math.max(0, parseInt(value, 10) || 0);
     updateSingleStockItem(currentInventoryProduct.id, gender, sizeNum, locationId, num);
     setAllInventoryMap(getAllStoredInventory());
@@ -479,6 +590,20 @@ export default function AdminCitas() {
   // Modificar stock en múltiples almacenes en un solo paso atómico (ej: +1 Sedes)
   const handleStockStepMultiple = (gender, sizeNum, deltasMap) => {
     if (!currentInventoryProduct) return;
+    for (const loc of Object.keys(deltasMap)) {
+      if (loc === "bodega" && !canEditBodega) {
+        alert("Acceso Restringido: No tienes autorización para modificar Bodega Central.");
+        return;
+      }
+      if (loc === "lima-centro" && !canEditLima) {
+        alert("Acceso Restringido: No tienes autorización para modificar el inventario de Lima Centro.");
+        return;
+      }
+      if (loc === "miraflores" && !canEditMiraflores) {
+        alert("Acceso Restringido: No tienes autorización para modificar el inventario de Miraflores.");
+        return;
+      }
+    }
     updateMultipleStockItems(currentInventoryProduct.id, gender, sizeNum, deltasMap, true);
     setAllInventoryMap(getAllStoredInventory());
   };
@@ -486,6 +611,10 @@ export default function AdminCitas() {
   // Copiar stock de la joya actual a todos los modelos de anillos y aros
   const handleCopyStockToAllRings = () => {
     if (!currentInventoryProduct) return;
+    if (!userHasPermission("inventario_global")) {
+      alert("Acceso Restringido: Solo Vladimir o usuarios con permiso global pueden sincronizar existencias a todo el catálogo.");
+      return;
+    }
     const ringIds = catalogList
       .filter((p) => p.type === "anillo" || p.type === "aros" || p.hasDoubleSizes || (p.categories && p.categories.some((c) => c.includes("anillo") || c.includes("aros"))))
       .map((p) => p.id);
@@ -501,6 +630,18 @@ export default function AdminCitas() {
   // Acciones en lote: +X a un almacén para todas las tallas
   const handleBatchSupplyLocation = (gender, locationId, amount) => {
     if (!currentInventoryProduct) return;
+    if (locationId === "bodega" && !canEditBodega) {
+      alert("Acceso Restringido: No tienes autorización para modificar Bodega Central.");
+      return;
+    }
+    if (locationId === "lima-centro" && !canEditLima) {
+      alert("Acceso Restringido: No tienes autorización para modificar el inventario de Lima Centro.");
+      return;
+    }
+    if (locationId === "miraflores" && !canEditMiraflores) {
+      alert("Acceso Restringido: No tienes autorización para modificar el inventario de Miraflores.");
+      return;
+    }
     const sizes = gender === "dama" ? DAMA_SIZES : VARON_SIZES;
     const stockCopy = JSON.parse(JSON.stringify(currentProductStock));
     if (!stockCopy[gender]) stockCopy[gender] = {};
@@ -535,8 +676,113 @@ export default function AdminCitas() {
     setTimeout(() => setInventorySavedFeedback(""), 4000);
   };
 
+  // Manejadores de Permisos y Autorizaciones (Vladimir)
+  const handleApproveRequest = (reqId) => {
+    const res = approvePermissionRequest(reqId, user?.name || "Vladimir");
+    if (res.success) {
+      setPermissionRequests(getPermissionRequests());
+      setPermissionsMatrix(getPermissionsMatrix());
+      setFeedbackMsg(`✓ Solicitud aprobada con éxito. El permiso ha sido concedido.`);
+      setTimeout(() => setFeedbackMsg(""), 4000);
+    }
+  };
+
+  const handleRejectRequest = (reqId) => {
+    const res = rejectPermissionRequest(reqId, user?.name || "Vladimir");
+    if (res.success) {
+      setPermissionRequests(getPermissionRequests());
+      setFeedbackMsg(`✕ Solicitud rechazada.`);
+      setTimeout(() => setFeedbackMsg(""), 4000);
+    }
+  };
+
+  const handleTogglePermission = (targetEmail, permKey, granted) => {
+    toggleUserPermission(targetEmail, permKey, granted);
+    setPermissionsMatrix(getPermissionsMatrix());
+    setFeedbackMsg(`✓ Matriz de permisos actualizada.`);
+    setTimeout(() => setFeedbackMsg(""), 3000);
+  };
+
+  const handleSendPermissionRequest = (permKey) => {
+    const reason = reasonInputState[permKey] || "";
+    const res = requestPermission({
+      user: effectiveUser,
+      permissionKey,
+      reason,
+    });
+    if (res.success) {
+      setPermissionRequests(getPermissionRequests());
+      setFeedbackMsg(`📨 Solicitud enviada a Vladimir. Se encuentra en espera de aprobación.`);
+      setReasonInputState((prev) => ({ ...prev, [permKey]: "" }));
+      setTimeout(() => setFeedbackMsg(""), 4000);
+    } else {
+      alert(res.error || "No se pudo enviar la solicitud");
+    }
+  };
+
+  // Manejadores para Cambio de Contraseñas de Administradores (Vladimir)
+  const handleToggleShowPassword = (email) => {
+    setShowPasswordMap((prev) => ({
+      ...prev,
+      [email]: !prev[email],
+    }));
+  };
+
+  const handleCopyPassword = (email, password) => {
+    try {
+      navigator.clipboard.writeText(password);
+      setCopiedEmail(email);
+      setTimeout(() => setCopiedEmail(null), 2500);
+    } catch {
+      // fallback
+    }
+  };
+
+  const handleStartEditPassword = (email) => {
+    setEditingPasswordEmail(email);
+    setNewPasswordInput("");
+    setPasswordChangeFeedback("");
+  };
+
+  const handleCancelEditPassword = () => {
+    setEditingPasswordEmail(null);
+    setNewPasswordInput("");
+  };
+
+  const handleGeneratePassword = (sede) => {
+    const isLima = sede === "lima-centro";
+    const prefix = isLima ? "Lima" : sede === "miraflores" ? "Miraflores" : "Vladimir";
+    const year = "2026";
+    const symbols = ["*", "#", "!", "$", "@"];
+    const sym = symbols[Math.floor(Math.random() * symbols.length)];
+    const randNum = Math.floor(100 + Math.random() * 900);
+    setNewPasswordInput(`${prefix}${sym}${year}${randNum}`);
+  };
+
+  const handleSavePassword = (email, name) => {
+    if (!newPasswordInput || newPasswordInput.trim().length < 4) {
+      alert("Por favor ingresa una contraseña válida de al menos 4 caracteres.");
+      return;
+    }
+    const res = updateAdminPassword(email, newPasswordInput.trim());
+    if (res.success) {
+      setPasswordChangeFeedback(`✓ Contraseña de ${name} actualizada exitosamente.`);
+      setEditingPasswordEmail(null);
+      setNewPasswordInput("");
+      setAdminAccountsList(getAdminAccounts());
+      setTimeout(() => setPasswordChangeFeedback(""), 6000);
+    } else {
+      alert(res.error || "No se pudo actualizar la contraseña.");
+    }
+  };
+
   // Exportar reporte de inventario y stock por tallas a Excel (.xls) y CSV
   const handleExportStockExcel = (mode = "current", format = "xls") => {
+    if (!userHasPermission("descargar_excel")) {
+      alert("Acceso Restringido: No tienes autorización para exportar a Excel. Solicita la aprobación a Vladimir.");
+      return;
+    }
+
     const now = new Date();
     const dateStr = now.toISOString().split("T")[0];
     const timeStr = now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -803,7 +1049,7 @@ export default function AdminCitas() {
     let countPagados = 0;
     let countPendientes = 0;
 
-    ordersList.forEach((order) => {
+    effectiveSedeOrders.forEach((order) => {
       const orderTotal = Number(order.total) || 0;
       totalFacturado += orderTotal;
       if (order.paymentStatus === "Pagado (100%)") {
@@ -821,12 +1067,12 @@ export default function AdminCitas() {
       totalFacturado,
       countPagados,
       countPendientes,
-      totalOrders: ordersList.length,
+      totalOrders: effectiveSedeOrders.length,
     };
-  }, [ordersList]);
+  }, [effectiveSedeOrders]);
 
   const filteredPaymentOrders = useMemo(() => {
-    return ordersList.filter((order) => {
+    return effectiveSedeOrders.filter((order) => {
       if (paymentStatusFilter === "pagados" && order.paymentStatus !== "Pagado (100%)") {
         return false;
       }
@@ -891,68 +1137,63 @@ export default function AdminCitas() {
 
   // Manejar cambio de estado de cita
   const handleStatusChange = (id, newStatus) => {
+    const target = citasList.find((c) => c.id === id);
+    if (isSedeRestricted && target && target.sedeId !== userAssignedSede) {
+      alert("Acceso Restringido: Solo puedes gestionar citas pertenecientes a tu sede asignada.");
+      return;
+    }
     updateCitaStatus(id, newStatus);
     loadData();
   };
 
   // Manejar eliminación de cita
   const handleDeleteCita = (id) => {
+    const target = citasList.find((c) => c.id === id);
+    if (isSedeRestricted && target && target.sedeId !== userAssignedSede) {
+      alert("Acceso Restringido: Solo puedes gestionar citas pertenecientes a tu sede asignada.");
+      return;
+    }
     if (window.confirm(`¿Estás seguro de eliminar la cita ${id}?`)) {
       deleteCita(id);
       loadData();
     }
   };
 
-  // Bloquear un slot específico para el servicio/rol seleccionado
+  // Bloquear un slot específico para Asesoría General
   const handleBlockSlot = (time) => {
-    const defaultReason =
-      blockServiceType === "gemologo"
-        ? "No disponible para Gemólogo"
-        : blockServiceType === "asesoria"
-        ? "No disponible para Asesoría General"
-        : "Bloqueo por administración";
-    const reason = blockReason.trim() || defaultReason;
-    blockSlot(blockSedeId, blockDate, time, reason, blockServiceType);
+    const reason = blockReason.trim() || "No disponible para Asesoría General";
+    blockSlot(activeBlockSedeId, blockDate, time, reason, "asesoria");
     setBlockReason("");
     loadData();
   };
 
-  // Bloquear día completo para el servicio/rol seleccionado
+  // Bloquear día completo para Asesoría General
   const handleBlockFullDay = () => {
-    const defaultReason =
-      blockServiceType === "gemologo"
-        ? "Gemólogo no atiende este día"
-        : blockServiceType === "asesoria"
-        ? "Sin asesoría este día"
-        : "Día no laborable / Evento privado";
-    const reason = blockReason.trim() || defaultReason;
-    blockSlot(blockSedeId, blockDate, "FULL_DAY", reason, blockServiceType);
+    const reason = blockReason.trim() || "Sin asesoría este día / Cerrado";
+    blockSlot(activeBlockSedeId, blockDate, "FULL_DAY", reason, "asesoria");
     setBlockReason("");
     loadData();
   };
 
-  // Desbloquear día completo para el servicio seleccionado
+  // Desbloquear día completo para Asesoría General
   const handleUnblockFullDay = () => {
-    unblockFullDay(blockSedeId, blockDate, blockServiceType);
+    unblockFullDay(activeBlockSedeId, blockDate, "asesoria");
     loadData();
   };
 
   // Desbloquear slot
   const handleUnblock = (blockId) => {
+    const target = blockedList.find((b) => b.id === blockId);
+    if (isSedeRestricted && target && target.sedeId !== userAssignedSede) {
+      alert("Acceso Restringido: Solo puedes gestionar los bloqueos de tu sede asignada.");
+      return;
+    }
     unblockSlot(blockId);
     loadData();
   };
 
-  // Fecha mínima permitida para bloquear según especialidad
-  const minBlockDate = getMinBlockDateString(blockServiceType);
-
-  const handleServiceTypeChange = (newType) => {
-    setBlockServiceType(newType);
-    const newMin = getMinBlockDateString(newType);
-    if (blockDate < newMin) {
-      setBlockDate(newMin);
-    }
-  };
+  // Fecha mínima permitida para bloquear (1 día de anticipación a partir de mañana)
+  const minBlockDate = getMinBlockDateString("asesoria");
 
   // Handlers para gestión de Catálogo y Fotos
   const openCreateProductModal = (preselectedCategory = null) => {
@@ -1430,10 +1671,12 @@ export default function AdminCitas() {
     return true;
   });
 
+  // Determinar filtro activo de sede: si el admin pertenece a una sede específica, queda restringido al 100% a esa sede
+  const activeSedeFilter = isSedeRestricted ? userAssignedSede : filterSede;
+
   // Filtrado de citas
   const filteredCitas = citasList.filter((c) => {
-    if (filterSede !== "todas" && c.sedeId !== filterSede) return false;
-    if (filterService !== "todos" && c.serviceType !== filterService) return false;
+    if (activeSedeFilter !== "todas" && c.sedeId !== activeSedeFilter) return false;
     if (filterStatus !== "todos" && c.status !== filterStatus) return false;
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -1445,11 +1688,17 @@ export default function AdminCitas() {
     return true;
   });
 
+  // Citas base para el admin según su sede asignada
+  const baseCitasForAdmin = useMemo(() => {
+    if (!isSedeRestricted) return citasList;
+    return citasList.filter((c) => c.sedeId === userAssignedSede);
+  }, [citasList, isSedeRestricted, userAssignedSede]);
+
   // Métricas
-  const totalCitas = citasList.length;
-  const citasGemologo = citasList.filter((c) => c.serviceType === "gemologo").length;
-  const citasPendientes = citasList.filter((c) => c.status === "pendiente").length;
-  const totalBloqueos = blockedList.length;
+  const totalCitas = baseCitasForAdmin.length;
+  const citasConfirmadas = baseCitasForAdmin.filter((c) => c.status === "confirmada").length;
+  const citasPendientes = baseCitasForAdmin.filter((c) => c.status === "pendiente").length;
+  const totalBloqueos = effectiveBlockedList.length;
 
   const totalAros = catalogList.filter((p) =>
     p.category?.includes("aros") ||
@@ -1546,6 +1795,649 @@ export default function AdminCitas() {
     );
   }
 
+  // Renderizado del Guard de Permisos cuando un Administrador de Sede intenta acceder a una sección restringida
+  const renderAccessGuard = (permKey, permTitle, permDesc) => {
+    const pending = getActivePendingRequest(effectiveUser, permKey);
+    const reasonVal = reasonInputState[permKey] || "";
+
+    return (
+      <div className="admin-content-card admin-perm-guard-card">
+        <div className="perm-guard-hero">
+          <div className="perm-guard-icon-box">
+            <i className="bi bi-shield-lock-fill"></i>
+          </div>
+          <div className="perm-guard-hero-text">
+            <span className="perm-guard-badge">Acceso Restringido</span>
+            <h2>Requiere Autorización de Vladimir</h2>
+            <p>
+              Esta sección (<strong>{permTitle}</strong>) requiere aprobación directa de Vladimir (Super Administrador Principal).
+            </p>
+          </div>
+        </div>
+
+        <div className="perm-guard-details-grid">
+          <div className="perm-guard-detail-item">
+            <span className="detail-lbl">Administrador Actual</span>
+            <strong>{effectiveUser?.name || "Administrador"}</strong>
+            <span className="detail-sub">{effectiveUser?.email}</span>
+          </div>
+          <div className="perm-guard-detail-item">
+            <span className="detail-lbl">Sede Asignada</span>
+            <strong>{effectiveUser?.sedeLabel || "Sede Local"}</strong>
+            <span className="detail-sub">Ámbito de operación local</span>
+          </div>
+          <div className="perm-guard-detail-item">
+            <span className="detail-lbl">Permiso Requerido</span>
+            <strong>{permTitle}</strong>
+            <span className="detail-sub">{permDesc}</span>
+          </div>
+        </div>
+
+        {pending ? (
+          <div className="perm-guard-pending-box">
+            <div className="pending-status-icon">
+              <i className="bi bi-hourglass-split"></i>
+            </div>
+            <div className="pending-status-info">
+              <h4>Solicitud en Revisión por Vladimir</h4>
+              <p>
+                Enviaste una solicitud para este permiso el{" "}
+                <strong>
+                  {new Date(pending.createdAt).toLocaleString("es-PE", {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  })}
+                </strong>
+                . Vladimir puede aprobarla en 1 clic desde su panel de control.
+              </p>
+              {pending.reason && (
+                <div className="pending-reason-quote">
+                  <em>"{pending.reason}"</em>
+                </div>
+              )}
+              <span className="pending-pill">
+                <i className="bi bi-clock-history"></i> Estado: Pendiente de Aprobación
+              </span>
+            </div>
+          </div>
+        ) : (
+          <div className="perm-guard-request-form">
+            <h3>
+              <i className="bi bi-send-check"></i> Solicitar Permiso a Vladimir
+            </h3>
+            <p>
+              Escribe el motivo o justificación de tu solicitud para que Vladimir la revise y apruebe:
+            </p>
+            <textarea
+              className="perm-guard-textarea"
+              placeholder="Ejemplo: Necesito acceso a finanzas para validar los pagos (BCP, Interbank, IziPay, Efectivo) de los clientes atendidos en Lima Centro..."
+              rows={3}
+              value={reasonVal}
+              onChange={(e) =>
+                setReasonInputState((prev) => ({ ...prev, [permKey]: e.target.value }))
+              }
+            />
+            <div className="perm-guard-actions">
+              <button
+                type="button"
+                className="btn-perm-submit-request"
+                onClick={() => handleSendPermissionRequest(permKey)}
+              >
+                <i className="bi bi-shield-plus"></i> Enviar Solicitud a Vladimir
+              </button>
+              <button
+                type="button"
+                className="btn-perm-back-citas"
+                onClick={() => setActiveTab("citas")}
+              >
+                <i className="bi bi-arrow-left"></i> Volver a Citas & Horarios
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  // Renderizado de la Pestaña de Permisos & Sedes para Vladimir
+  const renderPermisosTab = () => {
+    if (!isEffectiveMaster) {
+      return (
+        <div className="admin-content-card" style={{ textAlign: "center", padding: "48px 24px" }}>
+          <div style={{ fontSize: "48px", color: "#d97706", marginBottom: "16px" }}>
+            <i className="bi bi-shield-lock"></i>
+          </div>
+          <h2 style={{ fontSize: "22px", color: "#112820", marginBottom: "10px" }}>
+            Panel Exclusivo de Vladimir (Master)
+          </h2>
+          <p style={{ maxWidth: "600px", margin: "0 auto 20px", color: "#556960", fontSize: "14px" }}>
+            La gestión global de permisos y resolución de solicitudes es una facultad reservada únicamente para Vladimir (Super Administrador Principal).
+          </p>
+          <button
+            type="button"
+            className="btn-perm-back-citas"
+            onClick={() => setActiveTab("citas")}
+            style={{ margin: "0 auto" }}
+          >
+            <i className="bi bi-arrow-left"></i> Volver a Citas & Horarios
+          </button>
+        </div>
+      );
+    }
+
+    const filteredRequests = permissionRequests.filter((r) => {
+      if (requestsFilterStatus === "pendientes") return r.status === "pendiente";
+      if (requestsFilterStatus === "aprobadas") return r.status === "aprobado";
+      if (requestsFilterStatus === "rechazadas") return r.status === "rechazado";
+      return true;
+    });
+
+    return (
+      <div>
+        {/* Sección 1: Bandeja de Solicitudes de Permisos */}
+        <div className="admin-content-card" style={{ marginBottom: "26px" }}>
+          <div className="section-title-clean" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", marginBottom: "18px" }}>
+            <div>
+              <h2 style={{ fontSize: "18px", color: "#112820", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+                <i className="bi bi-inbox-fill" style={{ color: "#d97706" }}></i> Bandeja de Solicitudes de Acceso ({permissionRequests.length})
+              </h2>
+              <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#61736a" }}>
+                Revisa y aprueba o rechaza en tiempo real las solicitudes enviadas por los administradores de sede.
+              </p>
+            </div>
+
+            {/* Filtros de estado de solicitud */}
+            <div style={{ display: "flex", gap: "6px" }}>
+              <button
+                type="button"
+                className={`simulation-btn ${requestsFilterStatus === "pendientes" ? "active" : ""}`}
+                style={{ color: requestsFilterStatus === "pendientes" ? "#0d281e" : "#4b5563", background: requestsFilterStatus === "pendientes" ? "#fef3c7" : "#f3f4f6", border: "1px solid #e5e7eb" }}
+                onClick={() => setRequestsFilterStatus("pendientes")}
+              >
+                Pendientes ({pendingRequestsCount})
+              </button>
+              <button
+                type="button"
+                className={`simulation-btn ${requestsFilterStatus === "aprobadas" ? "active" : ""}`}
+                style={{ color: requestsFilterStatus === "aprobadas" ? "#0d281e" : "#4b5563", background: requestsFilterStatus === "aprobadas" ? "#dcfce7" : "#f3f4f6", border: "1px solid #e5e7eb" }}
+                onClick={() => setRequestsFilterStatus("aprobadas")}
+              >
+                Aprobadas
+              </button>
+              <button
+                type="button"
+                className={`simulation-btn ${requestsFilterStatus === "rechazadas" ? "active" : ""}`}
+                style={{ color: requestsFilterStatus === "rechazadas" ? "#0d281e" : "#4b5563", background: requestsFilterStatus === "rechazadas" ? "#fee2e2" : "#f3f4f6", border: "1px solid #e5e7eb" }}
+                onClick={() => setRequestsFilterStatus("rechazadas")}
+              >
+                Rechazadas
+              </button>
+              <button
+                type="button"
+                className={`simulation-btn ${requestsFilterStatus === "todas" ? "active" : ""}`}
+                style={{ color: requestsFilterStatus === "todas" ? "#0d281e" : "#4b5563", background: requestsFilterStatus === "todas" ? "#e0e7ff" : "#f3f4f6", border: "1px solid #e5e7eb" }}
+                onClick={() => setRequestsFilterStatus("todas")}
+              >
+                Todas
+              </button>
+            </div>
+          </div>
+
+          {filteredRequests.length === 0 ? (
+            <div style={{ padding: "30px", textAlign: "center", color: "#6b7280", background: "#f9fafb", borderRadius: "8px" }}>
+              <i className="bi bi-check-all" style={{ fontSize: "28px", color: "#16a34a", display: "block", marginBottom: "8px" }}></i>
+              No hay solicitudes {requestsFilterStatus === "pendientes" ? "pendientes de revisión" : "en esta categoría"}.
+            </div>
+          ) : (
+            <div>
+              {filteredRequests.map((req) => (
+                <div
+                  key={req.id}
+                  className={`perm-request-card ${
+                    req.status === "pendiente"
+                      ? "pending"
+                      : req.status === "aprobado"
+                      ? "approved"
+                      : "rejected"
+                  }`}
+                >
+                  <div className="perm-request-body">
+                    <div className="perm-request-header-line">
+                      <span className="perm-req-user-name">
+                        {req.userName}
+                      </span>
+                      <span className="perm-req-target-pill">
+                        <i className="bi bi-geo-alt-fill"></i> {req.userSedeLabel}
+                      </span>
+                      <span style={{ fontSize: "12px", background: "#f3f4f6", padding: "2px 8px", borderRadius: "6px", color: "#374151", fontWeight: "600" }}>
+                        Permiso: {req.permissionName}
+                      </span>
+                      {req.status === "aprobado" && (
+                        <span style={{ fontSize: "11.5px", background: "#dcfce7", color: "#166534", padding: "2px 8px", borderRadius: "10px", fontWeight: "700" }}>
+                          ✓ Aprobado
+                        </span>
+                      )}
+                      {req.status === "rechazado" && (
+                        <span style={{ fontSize: "11.5px", background: "#fee2e2", color: "#991b1b", padding: "2px 8px", borderRadius: "10px", fontWeight: "700" }}>
+                          ✕ Rechazado
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="perm-req-reason">
+                      <strong>Motivo indicado:</strong> "{req.reason}"
+                    </div>
+
+                    <div className="perm-req-meta">
+                      <span>
+                        <i className="bi bi-envelope"></i> {req.userEmail}
+                      </span>
+                      <span>
+                        <i className="bi bi-clock"></i> Enviada:{" "}
+                        {new Date(req.createdAt).toLocaleString("es-PE", {
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        })}
+                      </span>
+                      {req.resolvedAt && (
+                        <span>
+                          <i className="bi bi-check2-circle"></i> Resuelta por: {req.resolvedBy} (
+                          {new Date(req.resolvedAt).toLocaleString("es-PE", {
+                            dateStyle: "short",
+                            timeStyle: "short",
+                          })})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {req.status === "pendiente" && (
+                    <div className="perm-request-actions">
+                      <button
+                        type="button"
+                        className="btn-perm-approve"
+                        onClick={() => handleApproveRequest(req.id)}
+                        title="Otorgar este permiso inmediatamente"
+                      >
+                        <i className="bi bi-check-lg"></i> Aprobar Permiso
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-perm-reject"
+                        onClick={() => handleRejectRequest(req.id)}
+                        title="Rechazar solicitud"
+                      >
+                        <i className="bi bi-x-lg"></i> Rechazar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Sección 2: Matriz Interactiva de Permisos */}
+        <div className="admin-content-card" style={{ marginBottom: "26px" }}>
+          <div className="section-title-clean" style={{ marginBottom: "16px" }}>
+            <h2 style={{ fontSize: "18px", color: "#112820", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
+              <i className="bi bi-grid-3x3-gap-fill" style={{ color: "#137748" }}></i> Matriz de Permisos por Administrador
+            </h2>
+            <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#61736a" }}>
+              Activa o desactiva directamente cualquier permiso con los interruptores. Los cambios surten efecto de inmediato.
+            </p>
+          </div>
+
+          <div className="perm-matrix-wrapper">
+            <table className="admin-perm-matrix-table">
+              <thead>
+                <tr>
+                  <th style={{ minWidth: "220px" }}>Administrador</th>
+                  <th style={{ minWidth: "140px" }}>Sede</th>
+                  {PERMISSIONS_CATALOG.map((p) => (
+                    <th key={p.key} title={p.description} style={{ textAlign: "center" }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
+                        <i className={`bi ${p.icon}`} style={{ fontSize: "16px", color: "#137748" }}></i>
+                        <span style={{ fontSize: "11px" }}>{p.shortLabel}</span>
+                      </div>
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {ADMIN_ACCOUNTS.map((acc) => {
+                  const isMaster = acc.email === "vladimiryt18@gmail.com";
+                  const userPerms = permissionsMatrix[acc.email] || [];
+
+                  return (
+                    <tr key={acc.email} style={{ background: isMaster ? "#fffdf5" : "inherit" }}>
+                      <td>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <span style={{ fontSize: "20px" }}>{acc.avatarBadge}</span>
+                          <div>
+                            <strong style={{ fontSize: "13.5px", color: "#112820" }}>{acc.name}</strong>
+                            <div style={{ fontSize: "11.5px", color: "#6b7280" }}>{acc.email}</div>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td>
+                        <span style={{ fontSize: "11.5px", background: isMaster ? "#fef3c7" : "#e8f5ed", color: isMaster ? "#92400e" : "#137748", padding: "3px 8px", borderRadius: "12px", fontWeight: "600" }}>
+                          {acc.sedeLabel}
+                        </span>
+                      </td>
+
+                      {PERMISSIONS_CATALOG.map((p) => {
+                        const hasThis = isMaster || userPerms.includes(p.key);
+
+                        return (
+                          <td key={p.key} style={{ textAlign: "center" }}>
+                            {isMaster ? (
+                              <span
+                                title="Vladimir tiene control maestro permanente"
+                                style={{
+                                  fontSize: "11px",
+                                  fontWeight: "700",
+                                  background: "#fef3c7",
+                                  color: "#b45309",
+                                  padding: "3px 8px",
+                                  borderRadius: "10px",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "3px",
+                                }}
+                              >
+                                <i className="bi bi-shield-check"></i> Total
+                              </span>
+                            ) : (
+                              <label className="perm-switch-toggle">
+                                <input
+                                  type="checkbox"
+                                  checked={hasThis}
+                                  onChange={(e) =>
+                                    handleTogglePermission(acc.email, p.key, e.target.checked)
+                                  }
+                                  title={`${hasThis ? "Revocar" : "Conceder"} ${p.name} a ${acc.name}`}
+                                />
+                              </label>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        {/* Sección 3: Gestión de Contraseñas y Accesos de Sedes */}
+        <div className="admin-content-card" style={{ background: "#faf8f5", border: "1.5px solid #ebd9c2" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px", marginBottom: "14px" }}>
+            <div>
+              <h3 style={{ fontSize: "17px", color: "#112820", margin: "0 0 6px", display: "flex", alignItems: "center", gap: "8px" }}>
+                <i className="bi bi-key-fill" style={{ color: "#b8860b" }}></i> Gestión de Contraseñas & Cuentas de Sedes
+              </h3>
+              <p style={{ fontSize: "13px", color: "#556960", margin: 0 }}>
+                Como Administrador Principal, puedes visualizar, copiar y cambiar las contraseñas de las administraciones de <strong>Lima Centro</strong> y <strong>Miraflores</strong> en cualquier momento.
+              </p>
+            </div>
+          </div>
+
+          {passwordChangeFeedback && (
+            <div
+              style={{
+                background: "#dcfce7",
+                border: "1.5px solid #86efac",
+                color: "#166534",
+                padding: "10px 16px",
+                borderRadius: "8px",
+                marginBottom: "16px",
+                fontSize: "13.5px",
+                fontWeight: "600",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              <i className="bi bi-check-circle-fill" style={{ fontSize: "18px" }}></i>
+              {passwordChangeFeedback}
+            </div>
+          )}
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(310px, 1fr))", gap: "16px" }}>
+            {adminAccountsList.map((acc) => {
+              const isMaster = acc.adminType === "master";
+              const isEditing = editingPasswordEmail === acc.email;
+              const isVisible = showPasswordMap[acc.email];
+              const isCopied = copiedEmail === acc.email;
+
+              return (
+                <div
+                  key={acc.email}
+                  style={{
+                    background: "#ffffff",
+                    padding: "18px 20px",
+                    borderRadius: "10px",
+                    border: isEditing ? "2px solid #b8860b" : "1px solid #e5e0d6",
+                    boxShadow: isEditing ? "0 4px 14px rgba(184, 134, 11, 0.12)" : "0 2px 5px rgba(0,0,0,0.03)",
+                    transition: "all 0.2s ease",
+                  }}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span style={{ fontSize: "22px" }}>{acc.avatarBadge}</span>
+                      <div>
+                        <strong style={{ fontSize: "14.5px", color: "#112820", display: "block" }}>
+                          {acc.name}
+                        </strong>
+                        <span style={{ fontSize: "11px", color: "#6b7280" }}>{acc.sedeLabel}</span>
+                      </div>
+                    </div>
+                    <span
+                      style={{
+                        fontSize: "11px",
+                        background: isMaster ? "#fef3c7" : "#e8f5ed",
+                        color: isMaster ? "#92400e" : "#137748",
+                        padding: "3px 8px",
+                        borderRadius: "12px",
+                        fontWeight: "700",
+                        letterSpacing: "0.03em",
+                      }}
+                    >
+                      {isMaster ? "👑 Master" : "🏛️ Sede"}
+                    </span>
+                  </div>
+
+                  <div style={{ fontSize: "12.5px", color: "#4b5563", marginBottom: "8px" }}>
+                    <strong>Correo de acceso:</strong> <code style={{ fontSize: "12px", background: "#f3f4f6", padding: "2px 6px", borderRadius: "4px" }}>{acc.email}</code>
+                  </div>
+
+                  <div style={{ fontSize: "12.5px", color: "#4b5563", marginBottom: "14px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                      <strong>Contraseña activa:</strong>
+                      <div style={{ display: "flex", gap: "6px" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleToggleShowPassword(acc.email)}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: "#137748",
+                            fontSize: "12px",
+                            cursor: "pointer",
+                            padding: "2px 4px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            fontWeight: "600",
+                          }}
+                          title={isVisible ? "Ocultar contraseña" : "Ver contraseña"}
+                        >
+                          <i className={`bi ${isVisible ? "bi-eye-slash" : "bi-eye"}`}></i>
+                          {isVisible ? "Ocultar" : "Mostrar"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleCopyPassword(acc.email, acc.password)}
+                          style={{
+                            background: "transparent",
+                            border: "none",
+                            color: isCopied ? "#16a34a" : "#6b7280",
+                            fontSize: "12px",
+                            cursor: "pointer",
+                            padding: "2px 4px",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "4px",
+                            fontWeight: "600",
+                          }}
+                          title="Copiar contraseña al portapapeles"
+                        >
+                          <i className={`bi ${isCopied ? "bi-check2" : "bi-clipboard"}`}></i>
+                          {isCopied ? "¡Copiada!" : "Copiar"}
+                        </button>
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        padding: "8px 12px",
+                        background: "#f9fafb",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: "6px",
+                        fontFamily: "monospace",
+                        fontSize: "13px",
+                        color: "#111827",
+                        fontWeight: "700",
+                        letterSpacing: isVisible ? "normal" : "2px",
+                      }}
+                    >
+                      {isVisible ? acc.password : "••••••••••••"}
+                    </div>
+                  </div>
+
+                  {isEditing ? (
+                    <div style={{ background: "#fffbeb", border: "1.5px solid #fde68a", padding: "12px", borderRadius: "8px", marginTop: "10px" }}>
+                      <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#92400e", marginBottom: "6px" }}>
+                        Nueva contraseña para {acc.name}:
+                      </label>
+                      <input
+                        type="text"
+                        value={newPasswordInput}
+                        onChange={(e) => setNewPasswordInput(e.target.value)}
+                        placeholder="Escribe la nueva contraseña..."
+                        style={{
+                          width: "100%",
+                          padding: "8px 10px",
+                          border: "1.5px solid #d97706",
+                          borderRadius: "6px",
+                          fontSize: "13px",
+                          marginBottom: "8px",
+                          fontFamily: "monospace",
+                          outline: "none",
+                        }}
+                        autoFocus
+                      />
+
+                      <div style={{ display: "flex", gap: "6px", marginBottom: "10px" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleGeneratePassword(acc.sede)}
+                          style={{
+                            flex: 1,
+                            padding: "6px 10px",
+                            background: "#ffffff",
+                            border: "1px solid #d97706",
+                            color: "#92400e",
+                            borderRadius: "6px",
+                            fontSize: "11.5px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "5px",
+                          }}
+                        >
+                          <i className="bi bi-magic"></i> Generar clave segura
+                        </button>
+                      </div>
+
+                      <div style={{ display: "flex", gap: "8px" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleSavePassword(acc.email, acc.name)}
+                          style={{
+                            flex: 2,
+                            padding: "8px 12px",
+                            background: "#137748",
+                            border: "none",
+                            color: "#ffffff",
+                            borderRadius: "6px",
+                            fontSize: "12.5px",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "6px",
+                          }}
+                        >
+                          <i className="bi bi-check2"></i> Guardar Nueva Clave
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancelEditPassword}
+                          style={{
+                            flex: 1,
+                            padding: "8px 12px",
+                            background: "#e5e7eb",
+                            border: "none",
+                            color: "#374151",
+                            borderRadius: "6px",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            cursor: "pointer",
+                          }}
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => handleStartEditPassword(acc.email)}
+                      style={{
+                        width: "100%",
+                        padding: "8px 12px",
+                        background: isMaster ? "#f8fafc" : "#eef6f1",
+                        border: isMaster ? "1px solid #cbd5e1" : "1.5px solid #a4d4b8",
+                        color: isMaster ? "#475569" : "#137748",
+                        borderRadius: "6px",
+                        fontSize: "12.5px",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                        transition: "all 0.15s ease",
+                      }}
+                    >
+                      <i className="bi bi-pencil-square"></i> Cambiar Contraseña de {acc.sedeLabel || acc.name}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="admin-citas-page">
       <div className="admin-container">
@@ -1571,7 +2463,7 @@ export default function AdminCitas() {
         {/* Top Header */}
         <div className="admin-top-bar">
           <div className="admin-title-group">
-            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "6px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "6px", flexWrap: "wrap" }}>
               <h1>
                 {activeTab === "catalogo"
                   ? "Panel Administrativo - Catálogo de Joyas"
@@ -1583,23 +2475,23 @@ export default function AdminCitas() {
                   ? "Panel Administrativo - Imágenes del Inicio"
                   : activeTab === "finanzas"
                   ? "Control de Pagos & Validación de Pedidos"
+                  : activeTab === "permisos"
+                  ? "Gestión de Permisos & Sedes (Panel de Vladimir)"
                   : "Panel Administrativo de Citas"}
               </h1>
-              <span
-                style={{
-                  fontSize: "12.5px",
-                  background: "#e4f5ec",
-                  color: "#137748",
-                  padding: "5px 14px",
-                  borderRadius: "20px",
-                  fontWeight: "700",
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                }}
-              >
-                <i className="bi bi-shield-check"></i> {user?.name || "Vladimir"}
-              </span>
+              {isMaster ? (
+                <span className="admin-role-badge master">
+                  <i className="bi bi-patch-check-fill"></i> Vladimir (Admin Master)
+                </span>
+              ) : (effectiveUser?.sede === "lima-centro" || userAssignedSede === "lima-centro") ? (
+                <span className="admin-role-badge sede">
+                  <i className="bi bi-geo-alt-fill"></i> Admin Sede Lima Centro
+                </span>
+              ) : (
+                <span className="admin-role-badge sede">
+                  <i className="bi bi-geo-alt-fill"></i> Admin Sede Miraflores
+                </span>
+              )}
             </div>
             <p>
               {activeTab === "catalogo"
@@ -1611,9 +2503,17 @@ export default function AdminCitas() {
                 : activeTab === "home_images"
                 ? "Cambia las imágenes del inicio: banners de compromiso/boda, categorías, estilos de anillos, editoriales y mosaico."
                 : activeTab === "finanzas"
-                ? "Supervisa los pedidos de los clientes, valida si el pago fue realizado y confirma por qué medio de pago se efectuó la transacción (Yape, Mastercard, Visa, Datáfono, Efectivo)."
+                ? "Supervisa los pedidos de los clientes, valida si el pago fue realizado y confirma por qué medio de pago se efectuó la transacción (BanBif, Banco de la Nación, BCP, Interbank, IziPay, Pichincha, Fondo Platino, Efectivo)."
+                : activeTab === "permisos"
+                ? "Supervisa autorizaciones, aprueba solicitudes de administradores de sede y administra la matriz de accesos."
                 : "Gestiona reservas, revisa observaciones de clientes y bloquea u habilita horarios de atención."}
             </p>
+          </div>
+
+          <div className="admin-top-actions">
+            <Link to="/" className="admin-view-store-btn" target="_blank" rel="noopener noreferrer">
+              <i className="bi bi-box-arrow-up-right"></i> Ver Tienda Pública
+            </Link>
           </div>
         </div>
 
@@ -1640,7 +2540,49 @@ export default function AdminCitas() {
         )}
 
         {/* Métricas Resumen Dinámicas según la pestaña */}
-        {activeTab === "finanzas" ? (
+        {activeTab === "permisos" ? (
+          <div className="admin-metrics-row">
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#d97706", background: "#fef3c7" }}>
+                <i className="bi bi-shield-shaded"></i>
+              </div>
+              <div>
+                <h3 className="metric-val">3</h3>
+                <p className="metric-lbl">Cuentas Oficiales (Vladimir + 2 Sedes)</p>
+              </div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#b91c1c", background: "#fee2e2" }}>
+                <i className="bi bi-bell-fill"></i>
+              </div>
+              <div>
+                <h3 className="metric-val" style={{ color: "#b91c1c" }}>{pendingRequestsCount}</h3>
+                <p className="metric-lbl">Solicitudes Pendientes</p>
+              </div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#166e37", background: "#e8f6ed" }}>
+                <i className="bi bi-check-circle-fill"></i>
+              </div>
+              <div>
+                <h3 className="metric-val">{permissionRequests.filter((r) => r.status === "aprobado").length}</h3>
+                <p className="metric-lbl">Solicitudes Aprobadas</p>
+              </div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#32638e", background: "#edf4fb" }}>
+                <i className="bi bi-geo-alt-fill"></i>
+              </div>
+              <div>
+                <h3 className="metric-val">2 Sedes</h3>
+                <p className="metric-lbl">Lima Centro y Miraflores</p>
+              </div>
+            </div>
+          </div>
+        ) : activeTab === "finanzas" ? (
           <div className="admin-metrics-row">
             <div className="metric-card">
               <div className="metric-icon-box" style={{ color: "#166e37", background: "#e8f6ed" }}>
@@ -1731,7 +2673,7 @@ export default function AdminCitas() {
                 <i className="bi bi-box-seam"></i>
               </div>
               <div>
-                <h3 className="metric-val">{ordersList.length}</h3>
+                <h3 className="metric-val">{effectiveSedeOrders.length}</h3>
                 <p className="metric-lbl">Total de Pedidos en Sistema</p>
               </div>
             </div>
@@ -1742,7 +2684,7 @@ export default function AdminCitas() {
               </div>
               <div>
                 <h3 className="metric-val">
-                  {ordersList.filter((o) => o.stage === "diseno_taller" || o.stage === "recibido").length}
+                  {effectiveSedeOrders.filter((o) => o.stage === "diseno_taller" || o.stage === "recibido").length}
                 </h3>
                 <p className="metric-lbl">En Fundición / Taller</p>
               </div>
@@ -1754,7 +2696,7 @@ export default function AdminCitas() {
               </div>
               <div>
                 <h3 className="metric-val">
-                  {ordersList.filter((o) => o.stage === "engaste_pulido").length}
+                  {effectiveSedeOrders.filter((o) => o.stage === "engaste_pulido").length}
                 </h3>
                 <p className="metric-lbl">En Engaste & Acabado</p>
               </div>
@@ -1766,7 +2708,7 @@ export default function AdminCitas() {
               </div>
               <div>
                 <h3 className="metric-val">
-                  {ordersList.filter((o) => o.stage === "entregado" || o.stage === "listo_envio").length}
+                  {effectiveSedeOrders.filter((o) => o.stage === "entregado" || o.stage === "listo_envio").length}
                 </h3>
                 <p className="metric-lbl">Listos & Entregados</p>
               </div>
@@ -1880,11 +2822,11 @@ export default function AdminCitas() {
 
             <div className="metric-card">
               <div className="metric-icon-box" style={{ color: "#166e37", background: "#e8f6ed" }}>
-                <i className="bi bi-gem"></i>
+                <i className="bi bi-check-circle-fill"></i>
               </div>
               <div>
-                <h3 className="metric-val">{citasGemologo}</h3>
-                <p className="metric-lbl">Citas de Gemología</p>
+                <h3 className="metric-val">{citasConfirmadas}</h3>
+                <p className="metric-lbl">Citas Confirmadas</p>
               </div>
             </div>
 
@@ -1904,7 +2846,15 @@ export default function AdminCitas() {
             TAB 1: GESTIÓN DE CITAS
             ======================================================== */}
         {activeTab === "citas" && (
+          !userHasPermission("citas") && !isEffectiveMaster ? (
+            renderAccessGuard(
+              "citas",
+              "Citas & Horarios",
+              "Permite gestionar la agenda y turnos de atención al cliente en tu sede."
+            )
+          ) : (
           <div className="admin-content-card">
+
             {/* Barra de Filtros */}
             <div className="filters-bar">
               <input
@@ -1916,25 +2866,38 @@ export default function AdminCitas() {
                 style={{ minWidth: "320px", flex: "1" }}
               />
 
-              <select
-                value={filterSede}
-                onChange={(e) => setFilterSede(e.target.value)}
-                className="filter-select"
-              >
-                <option value="todas">Todas las Sedes</option>
-                <option value="lima-centro">Sede Lima Centro</option>
-                <option value="miraflores">Sede Miraflores</option>
-              </select>
+              {isSedeRestricted ? (
+                <div
+                  style={{
+                    padding: "9px 14px",
+                    background: "#eef6f1",
+                    border: "1.5px solid #a4d4b8",
+                    borderRadius: "6px",
+                    fontSize: "13.5px",
+                    fontWeight: "700",
+                    color: "#137748",
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    whiteSpace: "nowrap",
+                  }}
+                  title={`Sede asignada: ${effectiveUser?.sedeLabel}`}
+                >
+                  <i className="bi bi-geo-alt-fill"></i> {effectiveUser?.sedeLabel || (userAssignedSede === "lima-centro" ? "Sede Lima Centro" : "Sede Miraflores")}
+                </div>
+              ) : (
+                <select
+                  value={filterSede}
+                  onChange={(e) => setFilterSede(e.target.value)}
+                  className="filter-select"
+                >
+                  <option value="todas">Todas las Sedes</option>
+                  <option value="lima-centro">Sede Lima Centro</option>
+                  <option value="miraflores">Sede Miraflores</option>
+                </select>
+              )}
 
-              <select
-                value={filterService}
-                onChange={(e) => setFilterService(e.target.value)}
-                className="filter-select"
-              >
-                <option value="todos">Todos los Servicios</option>
-                <option value="gemologo">💎 Citas Gemólogo</option>
-                <option value="asesoria">💍 Asesoría General</option>
-              </select>
+
 
               <select
                 value={filterStatus}
@@ -2035,15 +2998,9 @@ export default function AdminCitas() {
 
                         <td>
                           <div style={{ fontWeight: "600", fontSize: "14px" }}>
-                            {cita.serviceType === "gemologo" ? (
-                              <span style={{ color: "#137748", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                                <i className="bi bi-gem"></i> Gemólogo
-                              </span>
-                            ) : (
-                              <span style={{ color: "#8a6519", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                                <i className="bi bi-heart-fill"></i> Asesoría
-                              </span>
-                            )}
+                            <span style={{ color: "#137748", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                              <i className="bi bi-heart-fill"></i> Asesoría General
+                            </span>
                           </div>
                         </td>
 
@@ -2117,10 +3074,12 @@ export default function AdminCitas() {
                     margin: "0 0 6px 0",
                   }}
                 >
-                  Bloquear u Habilitar Horarios de Atención ({blockedList.length} activos)
+                  Bloquear u Habilitar Horarios de Atención ({effectiveBlockedList.length} activos)
                 </h3>
                 <p style={{ fontSize: "14px", color: "#4f5f56", margin: 0, lineHeight: "1.5" }}>
-                  Configura la disponibilidad del Gemólogo o de Asesoría General por cada sede. Puedes bloquear horarios puntuales o días completos para controlar cuándo los clientes pueden reservar.
+                  {isSedeRestricted
+                    ? `Configura la disponibilidad de Asesoría General para ${effectiveUser?.sedeLabel || "tu sede"}.`
+                    : "Configura la disponibilidad de Asesoría General por cada sede. Puedes bloquear horarios puntuales o días completos para controlar cuándo los clientes pueden reservar."}
                 </p>
               </div>
 
@@ -2131,7 +3090,7 @@ export default function AdminCitas() {
                     Configurar Disponibilidad y Horarios
                   </h3>
                   <p style={{ fontSize: "13.5px", color: "#66726b", marginBottom: "18px" }}>
-                    Define la disponibilidad de horarios por sede y especialidad (Gemólogo vs Asesoría General).
+                    Gestiona la disponibilidad de turnos de Asesoría General.
                   </p>
 
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "14px", marginBottom: "16px" }}>
@@ -2139,25 +3098,45 @@ export default function AdminCitas() {
                     <label style={{ display: "block", fontSize: "13.5px", fontWeight: "600", color: "#1e2e26", marginBottom: "6px" }}>
                       Sede a Configurar:
                     </label>
-                    <select
-                      value={blockSedeId}
-                      onChange={(e) => setBlockSedeId(e.target.value)}
-                      className="filter-select"
-                      style={{ width: "100%" }}
-                    >
-                      {sedesData.map((s) => (
-                        <option key={s.id} value={s.id}>
-                          {s.name}
-                        </option>
-                      ))}
-                    </select>
+                    {isSedeRestricted ? (
+                      <div
+                        style={{
+                          padding: "10px 14px",
+                          background: "#eef6f1",
+                          border: "1.5px solid #a4d4b8",
+                          borderRadius: "6px",
+                          fontWeight: "700",
+                          color: "#137748",
+                          fontSize: "13.5px",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                        title={`Sede asignada: ${effectiveUser?.sedeLabel}`}
+                      >
+                        <i className="bi bi-geo-alt-fill"></i> {effectiveUser?.sedeLabel || (userAssignedSede === "lima-centro" ? "Sede Lima Centro" : "Sede Miraflores")}
+                      </div>
+                    ) : (
+                      <select
+                        value={blockSedeId}
+                        onChange={(e) => setBlockSedeId(e.target.value)}
+                        className="filter-select"
+                        style={{ width: "100%" }}
+                      >
+                        {sedesData.map((s) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   <div className="form-field">
                     <label style={{ display: "block", fontSize: "13.5px", fontWeight: "600", color: "#1e2e26", marginBottom: "6px" }}>
                       Fecha:{" "}
-                      <span style={{ fontWeight: "500", fontSize: "12px", color: blockServiceType === "gemologo" ? "#312e81" : "#55635b" }}>
-                        ({blockServiceType === "gemologo" ? "Mín. 3 días de anticipación" : "Mín. 1 día de anticipación"})
+                      <span style={{ fontWeight: "500", fontSize: "12px", color: "#55635b" }}>
+                        (Mín. 1 día de anticipación)
                       </span>
                     </label>
                     <input
@@ -2171,40 +3150,10 @@ export default function AdminCitas() {
                   </div>
                 </div>
 
-                {/* Selector de Servicio / Rol (Gemólogo vs Asesoría) */}
-                <div style={{ marginBottom: "16px" }}>
-                  <label style={{ display: "block", fontSize: "13.5px", fontWeight: "600", color: "#1e2e26", marginBottom: "8px" }}>
-                    Especialidad / Servicio a Configurar:
-                  </label>
-                  <div className="service-selector-group">
-                    <button
-                      type="button"
-                      className={`service-selector-btn ${blockServiceType === "gemologo" ? "active" : ""}`}
-                      onClick={() => handleServiceTypeChange("gemologo")}
-                    >
-                      <span>💎</span> Cita con Gemólogo
-                    </button>
-                    <button
-                      type="button"
-                      className={`service-selector-btn ${blockServiceType === "asesoria" ? "active" : ""}`}
-                      onClick={() => handleServiceTypeChange("asesoria")}
-                    >
-                      <span>💍</span> Asesoría General
-                    </button>
-                  </div>
+                {/* Nota informativa de Asesoría General */}
+                <div style={{ background: "#fdf4ff", border: "1px solid #f5d0fe", borderRadius: "6px", padding: "11px 14px", marginBottom: "16px", fontSize: "12.5px", color: "#701a75", lineHeight: "1.5" }}>
+                  <i className="bi bi-clock-history"></i> <strong>Atención en Sede:</strong> Configuras turnos de Asesoría General para aros de compromiso y alta joyería en <strong>{sedesData.find((s) => s.id === activeBlockSedeId)?.name || effectiveUser?.sedeLabel}</strong> (reservas con mínimo 1 día de anticipación).
                 </div>
-
-                {/* Banner contextual explicativo según rol */}
-                {blockServiceType === "gemologo" && (
-                  <div style={{ background: "#eef2ff", border: "1px solid #c7d2fe", borderRadius: "6px", padding: "11px 14px", marginBottom: "16px", fontSize: "12.5px", color: "#312e81", lineHeight: "1.5" }}>
-                    <i className="bi bi-gem"></i> <strong>Modo Gemólogo:</strong> Aquí configuras los horarios en que el gemólogo atiende en <strong>{sedesData.find((s) => s.id === blockSedeId)?.name}</strong>. Bloquear una hora aquí solo inhabilita citas de gemología; las asesorías generales se mantendrán abiertas. (Citas de gemología requieren 3 días de anticipación).
-                  </div>
-                )}
-                {blockServiceType === "asesoria" && (
-                  <div style={{ background: "#fdf4ff", border: "1px solid #f5d0fe", borderRadius: "6px", padding: "11px 14px", marginBottom: "16px", fontSize: "12.5px", color: "#701a75", lineHeight: "1.5" }}>
-                    <i className="bi bi-clock-history"></i> <strong>Modo Asesoría General:</strong> Configuras turnos para aros de compromiso y joyería comercial en <strong>{sedesData.find((s) => s.id === blockSedeId)?.name}</strong> (citas requieren 1 día de anticipación).
-                  </div>
-                )}
 
                 <div className="form-field" style={{ marginBottom: "18px" }}>
                   <label style={{ display: "block", fontSize: "13.5px", fontWeight: "600", color: "#1e2e26", marginBottom: "6px" }}>
@@ -2212,11 +3161,7 @@ export default function AdminCitas() {
                   </label>
                   <input
                     type="text"
-                    placeholder={
-                      blockServiceType === "gemologo"
-                        ? "Ej. Capacitación de gemología, Salida a campo, No atiende..."
-                        : "Ej. Mantenimiento de vitrinas, Ausencia de asesor..."
-                    }
+                    placeholder="Ej. Mantenimiento de vitrinas, Ausencia de asesor, Inventario..."
                     value={blockReason}
                     onChange={(e) => setBlockReason(e.target.value)}
                     className="filter-select"
@@ -2225,12 +3170,11 @@ export default function AdminCitas() {
                 </div>
 
                 {(() => {
-                  const isFullDayBlocked = blockedList.some(
+                  const isFullDayBlocked = effectiveBlockedList.some(
                     (b) =>
-                      b.sedeId === blockSedeId &&
+                      b.sedeId === activeBlockSedeId &&
                       b.date === blockDate &&
-                      b.time === "FULL_DAY" &&
-                      (!b.serviceType || b.serviceType === "all" || b.serviceType === blockServiceType)
+                      b.time === "FULL_DAY"
                   );
 
                   return (
@@ -2241,7 +3185,7 @@ export default function AdminCitas() {
                         className="btn-toggle-slot block"
                         style={{ width: "100%", padding: "11px", fontSize: "13px", borderRadius: "6px" }}
                       >
-                        <i className="bi bi-calendar-x"></i> Bloquear Día ({blockServiceType === "gemologo" ? "Gemólogo" : "Asesoría"})
+                        <i className="bi bi-calendar-x"></i> Bloquear Día Completo
                       </button>
                       {isFullDayBlocked && (
                         <button
@@ -2257,22 +3201,21 @@ export default function AdminCitas() {
                   );
                 })()}
 
-                {/* Grilla interactiva de horas para la sede, fecha y especialidad seleccionada */}
+                {/* Grilla interactiva de horas para la sede y fecha seleccionada */}
                 <h4 style={{ margin: "24px 0 12px 0", fontSize: "15px", fontWeight: "700", color: "#1c2822" }}>
-                  Horarios del día ({blockDate}) — {blockServiceType === "gemologo" ? "💎 Gemólogo" : "💍 Asesoría"}:
+                  Horarios del día ({blockDate}) — 💍 Asesoría General:
                 </h4>
                 <div className="admin-slots-grid">
                   {TIME_SLOTS.map((time) => {
-                    const statusCheck = isSlotBlocked(blockSedeId, blockDate, time, blockServiceType);
+                    const statusCheck = isSlotBlocked(activeBlockSedeId, blockDate, time, "asesoria");
                     const isBlocked = statusCheck.blocked;
 
-                    // Verificar si es un bloqueo manual de la lista aplicable al servicio actual
-                    const specificBlock = blockedList.find(
+                    // Verificar si es un bloqueo manual de la lista aplicable
+                    const specificBlock = effectiveBlockedList.find(
                       (b) =>
-                        b.sedeId === blockSedeId &&
+                        b.sedeId === activeBlockSedeId &&
                         b.date === blockDate &&
-                        (b.time === time || b.time === "FULL_DAY") &&
-                        (!b.serviceType || b.serviceType === "all" || b.serviceType === blockServiceType)
+                        (b.time === time || b.time === "FULL_DAY")
                     );
 
                     return (
@@ -2288,7 +3231,7 @@ export default function AdminCitas() {
                             </span>
                           ) : (
                             <span style={{ fontSize: "11.5px", color: "#1e7048", fontWeight: "600", display: "block", marginTop: "2px" }}>
-                              ✓ {blockServiceType === "gemologo" ? "Gemólogo Disponible" : "Asesoría Disponible"}
+                              ✓ Asesoría Disponible
                             </span>
                           )}
                         </div>
@@ -2309,7 +3252,7 @@ export default function AdminCitas() {
                             type="button"
                             onClick={() => handleBlockSlot(time)}
                             className="btn-toggle-slot block"
-                            title={`Bloquear horario para ${blockServiceType === "gemologo" ? "Gemólogo" : "Asesoría"}`}
+                            title="Bloquear horario para Asesoría General"
                           >
                             Bloquear
                           </button>
@@ -2323,109 +3266,74 @@ export default function AdminCitas() {
               {/* Lado Derecho: Lista de Bloqueos Activos en el Sistema */}
               <div>
                 <h3 className="blocking-config-title">
-                  Historial de Bloqueos Activos ({blockedList.length})
+                  Historial de Bloqueos Activos ({effectiveBlockedList.length})
                 </h3>
                 <p style={{ fontSize: "14px", color: "#4f5f56", marginBottom: "16px", lineHeight: "1.5" }}>
-                  Lista de turnos y días cerrados temporalmente. Puedes filtrarlos por especialidad.
+                  {isSedeRestricted
+                    ? `Lista de turnos y días cerrados temporalmente en ${effectiveUser?.sedeLabel || "tu sede"}.`
+                    : "Lista de turnos y días cerrados temporalmente en las sedes."}
                 </p>
 
-                {/* Filtros por servicio para la lista de bloqueos */}
-                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "16px" }}>
-                  {[
-                    { id: "todos", label: `Todos (${blockedList.length})` },
-                    { id: "gemologo", label: `💎 Gemólogo (${blockedList.filter((b) => b.serviceType === "gemologo").length})` },
-                    { id: "asesoria", label: `💍 Asesoría (${blockedList.filter((b) => b.serviceType === "asesoria").length})` },
-                  ].map((pill) => (
-                    <button
-                      key={pill.id}
-                      type="button"
-                      onClick={() => setFilterBlockService(pill.id)}
-                      style={{
-                        padding: "6px 12px",
-                        borderRadius: "16px",
-                        fontSize: "12px",
-                        fontWeight: "600",
-                        border: filterBlockService === pill.id ? "1.5px solid var(--platino-green-dark)" : "1px solid #d4ded8",
-                        background: filterBlockService === pill.id ? "#eef5f1" : "white",
-                        color: filterBlockService === pill.id ? "var(--platino-green-dark)" : "#5a6660",
-                        cursor: "pointer",
-                        transition: "all 0.15s ease",
-                      }}
-                    >
-                      {pill.label}
-                    </button>
-                  ))}
-                </div>
-
-                {(() => {
-                  const displayedBlocks = blockedList.filter((b) => {
-                    if (filterBlockService === "todos") return true;
-                    if (filterBlockService === "gemologo") return b.serviceType === "gemologo";
-                    if (filterBlockService === "asesoria") return b.serviceType === "asesoria";
-                    return true;
-                  });
-
-                  if (displayedBlocks.length === 0) {
-                    return (
-                      <div style={{ textAlign: "center", padding: "40px", background: "#faf8f4", borderRadius: "8px", color: "#77857e", fontSize: "14px" }}>
-                        No hay bloqueos activos para el filtro seleccionado.
-                      </div>
-                    );
-                  }
-
-                  return (
-                    <div className="active-blocks-list">
-                      {displayedBlocks.map((block) => {
-                        const sede = sedesData.find((s) => s.id === block.sedeId);
-                        return (
-                          <div key={block.id} className="active-block-item">
-                            <div>
-                              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
-                                <span style={{ fontWeight: "700", fontSize: "14.5px", color: "#15241e" }}>
-                                  {sede?.name || block.sedeId}
-                                </span>
-                                <span
-                                  className={`block-service-badge ${
-                                    block.serviceType === "gemologo" ? "gemologo" : "asesoria"
-                                  }`}
-                                >
-                                  {block.serviceType === "gemologo" ? "💎 Gemólogo" : "💍 Asesoría"}
-                                </span>
-                              </div>
-                              <div style={{ fontSize: "13px", color: "#4a5951", marginTop: "3px" }}>
-                                <i className="bi bi-calendar3"></i> {block.date} &nbsp;·&nbsp;
-                                <i className="bi bi-clock"></i>{" "}
-                                <strong>{block.time === "FULL_DAY" ? "Día Completo" : block.time}</strong>
-                              </div>
-                              <div style={{ fontSize: "12.5px", color: "#b9423c", marginTop: "4px", fontWeight: "500" }}>
-                                Motivo: {block.reason}
-                              </div>
+                {effectiveBlockedList.length === 0 ? (
+                  <div style={{ textAlign: "center", padding: "40px", background: "#faf8f4", borderRadius: "8px", color: "#77857e", fontSize: "14px" }}>
+                    No hay bloqueos activos registrados.
+                  </div>
+                ) : (
+                  <div className="active-blocks-list">
+                    {effectiveBlockedList.map((block) => {
+                      const sede = sedesData.find((s) => s.id === block.sedeId);
+                      return (
+                        <div key={block.id} className="active-block-item">
+                          <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+                              <span style={{ fontWeight: "700", fontSize: "14.5px", color: "#15241e" }}>
+                                {sede?.name || block.sedeId}
+                              </span>
+                              <span className="block-service-badge asesoria">
+                                💍 Asesoría General
+                              </span>
                             </div>
-
-                            <button
-                              type="button"
-                              onClick={() => handleUnblock(block.id)}
-                              className="btn-toggle-slot unblock"
-                              title="Eliminar este bloqueo"
-                            >
-                              <i className="bi bi-unlock"></i> Desbloquear
-                            </button>
+                            <div style={{ fontSize: "13px", color: "#4a5951", marginTop: "3px" }}>
+                              <i className="bi bi-calendar3"></i> {block.date} &nbsp;·&nbsp;
+                              <i className="bi bi-clock"></i>{" "}
+                              <strong>{block.time === "FULL_DAY" ? "Día Completo" : block.time}</strong>
+                            </div>
+                            <div style={{ fontSize: "12.5px", color: "#b9423c", marginTop: "4px", fontWeight: "500" }}>
+                              Motivo: {block.reason}
+                            </div>
                           </div>
-                        );
-                      })}
-                    </div>
-                  );
-                })()}
+
+                          <button
+                            type="button"
+                            onClick={() => handleUnblock(block.id)}
+                            className="btn-toggle-slot unblock"
+                            title="Eliminar este bloqueo"
+                          >
+                            <i className="bi bi-unlock"></i> Desbloquear
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
             </div>
           </div>
         </div>
+        )
       )}
 
         {/* ========================================================
             TAB 3: GESTIÓN DE CATÁLOGO & FOTOGRAFÍAS
             ======================================================== */}
         {activeTab === "catalogo" && (
+          !userHasPermission("catalogo") ? (
+            renderAccessGuard(
+              "catalogo",
+              "Edición de Joyas & Precios",
+              "Permite crear nuevas joyas en el catálogo, subir fotos y actualizar precios de venta."
+            )
+          ) : (
           <div className="admin-content-card">
             {/* Cabecera del catálogo con botones de acción */}
             <div className="admin-catalog-header">
@@ -2616,6 +3524,7 @@ export default function AdminCitas() {
               </div>
             )}
           </div>
+          )
         )}
 
         {/* ========================================================
@@ -2623,6 +3532,13 @@ export default function AdminCitas() {
             (Bodega, Sede Lima Centro, Sede Miraflores)
             ======================================================== */}
         {activeTab === "inventario" && (
+          !userHasPermission("inventario") && !isEffectiveMaster ? (
+            renderAccessGuard(
+              "inventario",
+              "Inventario & Stock",
+              "Permite administrar el inventario y stock de piezas y tallas en tu sede."
+            )
+          ) : (
           <div className="admin-content-card">
             {/* Cabecera del Panel de Inventario */}
             <div className="admin-catalog-header" style={{ marginBottom: "20px" }}>
@@ -2833,18 +3749,21 @@ export default function AdminCitas() {
                 <button
                   type="button"
                   onClick={handleCopyStockToAllRings}
+                  disabled={!canEditBodega}
                   className="btn-batch-action"
                   style={{
                     padding: "8px 12px",
                     fontSize: "12px",
                     fontWeight: "600",
-                    background: "#fdf8ee",
-                    border: "1px solid #e8d7b3",
-                    color: "#8a661c",
+                    background: canEditBodega ? "#fdf8ee" : "#f1f3f2",
+                    border: canEditBodega ? "1px solid #e8d7b3" : "1px solid #d0d7d3",
+                    color: canEditBodega ? "#8a661c" : "#8a9690",
+                    cursor: canEditBodega ? "pointer" : "not-allowed",
+                    opacity: canEditBodega ? 1 : 0.6,
                   }}
-                  title="Aplica la configuración de existencias de esta joya a todos los anillos y aros de la tienda"
+                  title={canEditBodega ? "Aplica la configuración de existencias de esta joya a todos los anillos y aros de la tienda" : "Requiere autorización de Vladimir para modificar masivamente el catálogo"}
                 >
-                  <i className="bi bi-intersect"></i> Copiar a todos los anillos
+                  <i className="bi bi-intersect"></i> Copiar a todos los anillos {!canEditBodega && "🔒"}
                 </button>
 
                 <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
@@ -2917,9 +3836,13 @@ export default function AdminCitas() {
                   type="button"
                   onClick={() => handleExportStockExcel("current")}
                   className="btn-inv-excel-table"
-                  title="Descargar las tallas de esta joya en Excel (.xls)"
+                  title={userHasPermission("descargar_excel") ? "Descargar las tallas de esta joya en Excel (.xls)" : "Requiere autorización de Vladimir para exportar"}
+                  style={{ opacity: userHasPermission("descargar_excel") ? 1 : 0.7 }}
                 >
                   <i className="bi bi-file-earmark-excel-fill"></i> Descargar Excel Tallas
+                  {!userHasPermission("descargar_excel") && (
+                    <span style={{ fontSize: "11px", marginLeft: "4px" }}>🔒</span>
+                  )}
                 </button>
 
                 <input
@@ -2931,6 +3854,22 @@ export default function AdminCitas() {
                 />
               </div>
             </div>
+
+            {/* Aviso de Inventario Local para administradores de sede */}
+            {!userHasPermission("inventario_global") && (
+              <div style={{ background: "#f0f7f3", border: "1.5px dashed #7eb499", padding: "10px 16px", borderRadius: "8px", margin: "14px 0", display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                <div style={{ fontSize: "13px", color: "#137748" }}>
+                  <i className="bi bi-geo-alt-fill"></i> <strong>Modo Sede Local ({effectiveUser?.sedeLabel})</strong>: Solo puedes editar las existencias físicas de tu sede. Bodega Central y otras sedes están protegidas.
+                </div>
+                <button
+                  type="button"
+                  onClick={() => handleSendPermissionRequest("inventario_global")}
+                  style={{ background: "#ffffff", border: "1px solid #7eb499", color: "#137748", borderRadius: "6px", padding: "5px 12px", fontSize: "12px", fontWeight: "600", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "6px" }}
+                >
+                  <i className="bi bi-shield-plus"></i> Solicitar Inventario Global a Vladimir
+                </button>
+              </div>
+            )}
 
             {/* Hint de desplazamiento para celulares */}
             <div className="inventory-mobile-scroll-hint">
@@ -2945,13 +3884,19 @@ export default function AdminCitas() {
                     <th className="inventory-col-talla" style={{ width: "160px" }}>Talla Oficial</th>
                     <th style={{ width: "130px" }}>Diámetro Int.</th>
                     <th style={{ width: "160px" }}>
-                      <span style={{ color: "#3b5bdb" }}><i className="bi bi-building-fill"></i> Bodega</span>
+                      <span style={{ color: "#3b5bdb" }}>
+                        <i className="bi bi-building-fill"></i> Bodega {!canEditBodega && "🔒"}
+                      </span>
                     </th>
                     <th style={{ width: "170px" }}>
-                      <span style={{ color: "#137748" }}><i className="bi bi-geo-alt-fill"></i> Sede Lima Centro</span>
+                      <span style={{ color: "#137748" }}>
+                        <i className="bi bi-geo-alt-fill"></i> Sede Lima Centro {!canEditLima && "🔒"}
+                      </span>
                     </th>
                     <th style={{ width: "170px" }}>
-                      <span style={{ color: "#7950f2" }}><i className="bi bi-gem"></i> Sede Miraflores</span>
+                      <span style={{ color: "#7950f2" }}>
+                        <i className="bi bi-gem"></i> Sede Miraflores {!canEditMiraflores && "🔒"}
+                      </span>
                     </th>
                     <th style={{ width: "120px" }}>Total</th>
                     <th style={{ width: "150px" }}>Disponibilidad</th>
@@ -2992,8 +3937,10 @@ export default function AdminCitas() {
                               <button
                                 type="button"
                                 className="inventory-step-btn"
+                                disabled={!canEditBodega}
                                 onClick={() => handleStockStepChange(inventoryGenderTab, sz.number, "bodega", -1)}
-                                title="Reducir 1 en Bodega"
+                                title={canEditBodega ? "Reducir 1 en Bodega" : "Requiere autorización de Vladimir"}
+                                style={{ opacity: canEditBodega ? 1 : 0.4 }}
                               >
                                 -
                               </button>
@@ -3002,14 +3949,19 @@ export default function AdminCitas() {
                                 min="0"
                                 className="inventory-num-input"
                                 value={b}
+                                disabled={!canEditBodega}
+                                title={canEditBodega ? "Editar stock de Bodega" : "Requiere autorización de Vladimir"}
+                                style={{ opacity: canEditBodega ? 1 : 0.6, cursor: canEditBodega ? "text" : "not-allowed" }}
                                 onFocus={(e) => e.target.select()}
                                 onChange={(e) => handleStockCellChange(inventoryGenderTab, sz.number, "bodega", e.target.value)}
                               />
                               <button
                                 type="button"
                                 className="inventory-step-btn"
+                                disabled={!canEditBodega}
                                 onClick={() => handleStockStepChange(inventoryGenderTab, sz.number, "bodega", 1)}
-                                title="Añadir 1 en Bodega"
+                                title={canEditBodega ? "Añadir 1 en Bodega" : "Requiere autorización de Vladimir"}
+                                style={{ opacity: canEditBodega ? 1 : 0.4 }}
                               >
                                 +
                               </button>
@@ -3021,8 +3973,10 @@ export default function AdminCitas() {
                               <button
                                 type="button"
                                 className="inventory-step-btn"
+                                disabled={!canEditLima}
                                 onClick={() => handleStockStepChange(inventoryGenderTab, sz.number, "lima-centro", -1)}
-                                title="Reducir 1 en Sede Lima Centro"
+                                title={canEditLima ? "Reducir 1 en Sede Lima Centro" : "Requiere autorización de Vladimir"}
+                                style={{ opacity: canEditLima ? 1 : 0.4 }}
                               >
                                 -
                               </button>
@@ -3031,14 +3985,19 @@ export default function AdminCitas() {
                                 min="0"
                                 className="inventory-num-input"
                                 value={lc}
+                                disabled={!canEditLima}
+                                title={canEditLima ? "Editar stock Lima Centro" : "Requiere autorización de Vladimir"}
+                                style={{ opacity: canEditLima ? 1 : 0.6, cursor: canEditLima ? "text" : "not-allowed" }}
                                 onFocus={(e) => e.target.select()}
                                 onChange={(e) => handleStockCellChange(inventoryGenderTab, sz.number, "lima-centro", e.target.value)}
                               />
                               <button
                                 type="button"
                                 className="inventory-step-btn"
+                                disabled={!canEditLima}
                                 onClick={() => handleStockStepChange(inventoryGenderTab, sz.number, "lima-centro", 1)}
-                                title="Añadir 1 en Sede Lima Centro"
+                                title={canEditLima ? "Añadir 1 en Sede Lima Centro" : "Requiere autorización de Vladimir"}
+                                style={{ opacity: canEditLima ? 1 : 0.4 }}
                               >
                                 +
                               </button>
@@ -3050,8 +4009,10 @@ export default function AdminCitas() {
                               <button
                                 type="button"
                                 className="inventory-step-btn"
+                                disabled={!canEditMiraflores}
                                 onClick={() => handleStockStepChange(inventoryGenderTab, sz.number, "miraflores", -1)}
-                                title="Reducir 1 en Sede Miraflores"
+                                title={canEditMiraflores ? "Reducir 1 en Sede Miraflores" : "Requiere autorización de Vladimir"}
+                                style={{ opacity: canEditMiraflores ? 1 : 0.4 }}
                               >
                                 -
                               </button>
@@ -3060,14 +4021,19 @@ export default function AdminCitas() {
                                 min="0"
                                 className="inventory-num-input"
                                 value={m}
+                                disabled={!canEditMiraflores}
+                                title={canEditMiraflores ? "Editar stock Miraflores" : "Requiere autorización de Vladimir"}
+                                style={{ opacity: canEditMiraflores ? 1 : 0.6, cursor: canEditMiraflores ? "text" : "not-allowed" }}
                                 onFocus={(e) => e.target.select()}
                                 onChange={(e) => handleStockCellChange(inventoryGenderTab, sz.number, "miraflores", e.target.value)}
                               />
                               <button
                                 type="button"
                                 className="inventory-step-btn"
+                                disabled={!canEditMiraflores}
                                 onClick={() => handleStockStepChange(inventoryGenderTab, sz.number, "miraflores", 1)}
-                                title="Añadir 1 en Sede Miraflores"
+                                title={canEditMiraflores ? "Añadir 1 en Sede Miraflores" : "Requiere autorización de Vladimir"}
+                                style={{ opacity: canEditMiraflores ? 1 : 0.4 }}
                               >
                                 +
                               </button>
@@ -3092,23 +4058,53 @@ export default function AdminCitas() {
                               <button
                                 type="button"
                                 className="btn-batch-action"
-                                style={{ padding: "4px 8px", fontSize: "11px" }}
-                                onClick={() => handleStockStepChange(inventoryGenderTab, sz.number, "bodega", 1)}
-                                title="Añadir +1 pieza a Bodega"
-                              >
-                                +1 Bod
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-batch-action"
-                                style={{ padding: "4px 8px", fontSize: "11px" }}
-                                onClick={() => {
-                                  handleStockStepMultiple(inventoryGenderTab, sz.number, { "lima-centro": 1, miraflores: 1 });
+                                disabled={!canEditBodega}
+                                style={{
+                                  padding: "4px 8px",
+                                  fontSize: "11px",
+                                  opacity: canEditBodega ? 1 : 0.4,
+                                  cursor: canEditBodega ? "pointer" : "not-allowed",
                                 }}
-                                title="Añadir +1 pieza a cada sede"
+                                onClick={() => handleStockStepChange(inventoryGenderTab, sz.number, "bodega", 1)}
+                                title={canEditBodega ? "Añadir +1 pieza a Bodega" : "Requiere autorización de Vladimir"}
                               >
-                                +1 Sedes
+                                +1 Bod {!canEditBodega && "🔒"}
                               </button>
+                              {canEditBodega ? (
+                                <button
+                                  type="button"
+                                  className="btn-batch-action"
+                                  style={{ padding: "4px 8px", fontSize: "11px" }}
+                                  onClick={() => {
+                                    handleStockStepMultiple(inventoryGenderTab, sz.number, { "lima-centro": 1, miraflores: 1 });
+                                  }}
+                                  title="Añadir +1 pieza a cada sede"
+                                >
+                                  +1 Sedes
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="btn-batch-action"
+                                  style={{
+                                    padding: "4px 8px",
+                                    fontSize: "11px",
+                                    background: "#eef6f1",
+                                    borderColor: "#a4d4b8",
+                                    color: "#137748",
+                                    fontWeight: "600",
+                                  }}
+                                  onClick={() => {
+                                    const mySede = effectiveUser?.sede;
+                                    if (mySede) {
+                                      handleStockStepChange(inventoryGenderTab, sz.number, mySede, 1);
+                                    }
+                                  }}
+                                  title={`Añadir +1 pieza a ${effectiveUser?.sedeLabel || "mi sede"}`}
+                                >
+                                  +1 Mi Sede
+                                </button>
+                              )}
                             </div>
                           </td>
                         </tr>
@@ -3124,33 +4120,56 @@ export default function AdminCitas() {
                 <span style={{ fontSize: "12.5px", fontWeight: "700", color: "#4f5f57" }}>
                   <i className="bi bi-magic"></i> Abastecimiento Rápido:
                 </span>
-                <button
-                  type="button"
-                  className="btn-batch-action"
-                  onClick={() => handleBatchSupplyLocation(inventoryGenderTab, "bodega", 2)}
-                >
-                  <i className="bi bi-building-add"></i> +2 Bodega (Todas las tallas)
-                </button>
+                {canEditBodega ? (
+                  <>
+                    <button
+                      type="button"
+                      className="btn-batch-action"
+                      onClick={() => handleBatchSupplyLocation(inventoryGenderTab, "bodega", 2)}
+                    >
+                      <i className="bi bi-building-add"></i> +2 Bodega (Todas las tallas)
+                    </button>
 
-                <button
-                  type="button"
-                  className="btn-batch-action"
-                  onClick={() => {
-                    handleBatchSupplyLocation(inventoryGenderTab, "lima-centro", 1);
-                    handleBatchSupplyLocation(inventoryGenderTab, "miraflores", 1);
-                  }}
-                >
-                  <i className="bi bi-geo-alt"></i> +1 a Cada Sede (Todas las tallas)
-                </button>
+                    <button
+                      type="button"
+                      className="btn-batch-action"
+                      onClick={() => {
+                        handleBatchSupplyLocation(inventoryGenderTab, "lima-centro", 1);
+                        handleBatchSupplyLocation(inventoryGenderTab, "miraflores", 1);
+                      }}
+                    >
+                      <i className="bi bi-geo-alt"></i> +1 a Cada Sede (Todas las tallas)
+                    </button>
 
-                <button
-                  type="button"
-                  className="btn-batch-action"
-                  onClick={handleResetCurrentInventory}
-                  style={{ color: "#8a5024" }}
-                >
-                  <i className="bi bi-arrow-counterclockwise"></i> Restablecer Stock Base
-                </button>
+                    <button
+                      type="button"
+                      className="btn-batch-action"
+                      onClick={handleResetCurrentInventory}
+                      style={{ color: "#8a5024" }}
+                    >
+                      <i className="bi bi-arrow-counterclockwise"></i> Restablecer Stock Base
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn-batch-action"
+                    style={{
+                      background: "#eef6f1",
+                      borderColor: "#a4d4b8",
+                      color: "#137748",
+                      fontWeight: "600",
+                    }}
+                    onClick={() => {
+                      const mySede = effectiveUser?.sede;
+                      if (mySede) {
+                        handleBatchSupplyLocation(inventoryGenderTab, mySede, 1);
+                      }
+                    }}
+                  >
+                    <i className="bi bi-geo-alt-fill"></i> +1 a Todas las Tallas ({effectiveUser?.sedeLabel || "Mi Sede"})
+                  </button>
+                )}
               </div>
 
               <button
@@ -3162,12 +4181,20 @@ export default function AdminCitas() {
               </button>
             </div>
           </div>
+          )
         )}
 
         {/* ========================================================
             TAB 3: GESTIÓN DE IMÁGENES DEL INICIO (PORTADA)
             ======================================================== */}
         {activeTab === "home_images" && (
+          !userHasPermission("home_images") ? (
+            renderAccessGuard(
+              "home_images",
+              "Banners & Portada de Inicio",
+              "Permite editar imágenes de inicio, colecciones, anillos de compromiso y anuncios."
+            )
+          ) : (
           <div className="admin-content-card">
             {/* Cabecera del panel de imágenes */}
             <div className="admin-catalog-header">
@@ -4063,12 +5090,20 @@ export default function AdminCitas() {
               </div>
             )}
           </div>
+          )
         )}
 
         {/* ========================================================
             TAB 5: GESTIÓN DE PEDIDOS Y CONTROL DE PROCESO DE TALLER
             ======================================================== */}
         {activeTab === "pedidos" && (
+          !userHasPermission("pedidos") && !userHasPermission("pedidos_global") && !isEffectiveMaster ? (
+            renderAccessGuard(
+              "pedidos",
+              "Supervisión de Pedidos en Taller",
+              "Permite supervisar los pedidos de clientes, notas de orfebrería y avance de fabricación en taller."
+            )
+          ) : (
           <div className="admin-content-card">
             {/* Cabecera del panel de pedidos */}
             <div className="admin-catalog-header">
@@ -4100,6 +5135,7 @@ export default function AdminCitas() {
                 </Link>
               </div>
             </div>
+
 
             {/* Barra de Filtros y Búsqueda de Pedidos */}
             <div className="admin-orders-controls">
@@ -4140,7 +5176,7 @@ export default function AdminCitas() {
                       setOrderClientFilter("todos");
                     }}
                   >
-                    Todos ({ordersList.length})
+                    Todos ({effectiveSedeOrders.length})
                   </button>
                 </div>
               </div>
@@ -4151,7 +5187,7 @@ export default function AdminCitas() {
                   Fase:
                 </span>
                 {ORDER_STAGES.map((stg) => {
-                  const count = ordersList.filter((o) => o.stage === stg.id).length;
+                  const count = effectiveSedeOrders.filter((o) => o.stage === stg.id).length;
                   const isActive = orderStageFilter === stg.id;
                   return (
                     <button
@@ -4526,12 +5562,20 @@ export default function AdminCitas() {
               })
             )}
           </div>
+          )
         )}
 
         {/* ========================================================
             TAB: CONTROL DE PAGOS Y VALIDACIÓN DE PEDIDOS (ADMIN)
             ======================================================== */}
         {activeTab === "finanzas" && (
+          !userHasPermission("finanzas") ? (
+            renderAccessGuard(
+              "finanzas",
+              "Control de Pagos & Validación de Pedidos",
+              "Supervisa los pagos de los pedidos de clientes, verifica si el pago fue realizado y confirma por qué medio se efectuó (BanBif, Banco de la Nación, BCP, Interbank, IziPay, Pichincha, Fondo Platino, Efectivo)."
+            )
+          ) : (
           <div className="admin-content-card payment-management-section">
             {/* Cabecera Concisa */}
             <div className="payment-management-header">
@@ -4549,6 +5593,7 @@ export default function AdminCitas() {
               </span>
             </div>
 
+
             {/* Barra de Filtros y Búsqueda */}
             <div className="payment-filters-toolbar">
               <div className="payment-filter-btns-wrap">
@@ -4557,7 +5602,7 @@ export default function AdminCitas() {
                   onClick={() => setPaymentStatusFilter("todos")}
                   className={`payment-filter-btn ${paymentStatusFilter === "todos" ? "active" : ""}`}
                 >
-                  Todos ({ordersList.length})
+                  Todos ({effectiveSedeOrders.length})
                 </button>
                 <button
                   type="button"
@@ -4758,7 +5803,7 @@ export default function AdminCitas() {
                               Medio de Pago Utilizado:
                             </label>
                             <select
-                              value={order.paymentMethod || "Visa"}
+                              value={order.paymentMethod || "BCP"}
                               onChange={(e) => handleUpdatePaymentMethod(order.id, e.target.value)}
                               className="payment-method-select"
                             >
@@ -4781,7 +5826,7 @@ export default function AdminCitas() {
                                   type="text"
                                   value={editingPaymentNotes[order.id] !== undefined ? editingPaymentNotes[order.id] : (order.paymentNotes || "")}
                                   onChange={(e) => setEditingPaymentNotes({ ...editingPaymentNotes, [order.id]: e.target.value })}
-                                  placeholder="Ej: BCP N° 492019 / Transferencia Yape"
+                                  placeholder="Ej: BCP N° 492019 / Op. Interbank / IziPay / Efectivo"
                                   className="payment-voucher-input"
                                 />
                                 <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
@@ -4830,7 +5875,13 @@ export default function AdminCitas() {
               </div>
             )}
           </div>
+          )
         )}
+
+        {/* ========================================================
+            TAB 6: GESTIÓN DE PERMISOS & SEDES (VLADIMIR MASTER)
+            ======================================================== */}
+        {activeTab === "permisos" && renderPermisosTab()}
 
         {/* Modal de Crear / Modificar Joya e Imagen */}
         {productModalOpen && (

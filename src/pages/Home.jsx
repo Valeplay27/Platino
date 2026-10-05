@@ -528,8 +528,8 @@ export default function Home() {
               >
                 Asesoría Online
               </button>
-              <Link to="/agendar-cita?tipo=gemologo" className="showroom-btn outline">
-                Cita con Gemólogo
+              <Link to="/agendar-cita" className="showroom-btn outline">
+                Agendar Cita en Sede
               </Link>
             </div>
           </div>

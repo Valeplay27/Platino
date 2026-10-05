@@ -191,7 +191,7 @@ function Category({ addToCart }) {
               ¿Prefieres ver estos modelos en persona?
             </h3>
             <p style={{ margin: 0, fontSize: "13px", color: "#66726c" }}>
-              Agenda una cita exclusiva en nuestras sedes de Lima Centro o Miraflores con un gemólogo.
+              Agenda una cita exclusiva en nuestras sedes de Lima Centro o Miraflores con un asesor de joyería.
             </p>
           </div>
 

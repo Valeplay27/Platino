@@ -4,13 +4,10 @@ import { sedesData } from "../data/sedes";
 import { TIME_SLOTS, isSlotBlocked, saveCita } from "../services/citasService";
 import "../../styles/citas.css";
 
-// Función para obtener la fecha mínima permitida según el tipo de servicio:
-// - Cita con Gemólogo: 3 días de anticipación
-// - Cita de Asesoría General: 1 día de anticipación (a partir de mañana)
-const getMinBookingDateString = (type = "asesoria") => {
-  const daysAdvance = type === "gemologo" ? 3 : 1;
+// Función para obtener la fecha mínima permitida para Asesoría General (1 día de anticipación, a partir de mañana)
+const getMinBookingDateString = () => {
   const d = new Date();
-  d.setDate(d.getDate() + daysAdvance);
+  d.setDate(d.getDate() + 1);
   const year = d.getFullYear();
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
@@ -22,7 +19,6 @@ export default function AgendarCita() {
 
   // Pre-selección desde query params si existen
   const initialSedeParam = searchParams.get("sede");
-  const initialTipoParam = searchParams.get("tipo");
 
   const [selectedSedeId, setSelectedSedeId] = useState(
     initialSedeParam && sedesData.some((s) => s.id === initialSedeParam)
@@ -30,25 +26,12 @@ export default function AgendarCita() {
       : sedesData[0].id
   );
 
-  const [serviceType, setServiceType] = useState(
-    initialTipoParam === "gemologo" ? "gemologo" : "asesoria"
-  );
+  const serviceType = "asesoria";
 
-  // Fecha mínima permitida (3 días para gemólogo, 1 día para asesoría general)
-  const minBookingDate = getMinBookingDateString(serviceType);
-  const [selectedDate, setSelectedDate] = useState(() =>
-    getMinBookingDateString(initialTipoParam === "gemologo" ? "gemologo" : "asesoria")
-  );
+  // Fecha mínima permitida (1 día de anticipación a partir de mañana)
+  const minBookingDate = getMinBookingDateString();
+  const [selectedDate, setSelectedDate] = useState(() => getMinBookingDateString());
   const [selectedTime, setSelectedTime] = useState("");
-
-  const handleServiceTypeChange = (newType) => {
-    setServiceType(newType);
-    const newMin = getMinBookingDateString(newType);
-    if (selectedDate < newMin) {
-      setSelectedDate(newMin);
-      setSelectedTime("");
-    }
-  };
 
   // Verificar si la fecha seleccionada cae domingo
   const isSunday = new Date(selectedDate + "T00:00:00").getDay() === 0;
@@ -76,11 +59,7 @@ export default function AgendarCita() {
     e.preventDefault();
 
     if (selectedDate < minBookingDate) {
-      alert(
-        serviceType === "gemologo"
-          ? "Por favor selecciona una fecha válida. Las citas con Gemólogo requieren al menos 3 días de anticipación para la preparación de instrumental y muestras."
-          : "Por favor selecciona una fecha válida a partir de mañana. Las citas de Asesoría General requieren al menos 1 día de anticipación."
-      );
+      alert("Por favor selecciona una fecha válida a partir de mañana. Las citas de Asesoría General requieren al menos 1 día de anticipación.");
       setSelectedDate(minBookingDate);
       setSelectedTime("");
       return;
@@ -100,8 +79,8 @@ export default function AgendarCita() {
       return;
     }
 
-    // Verificar si sigue libre en ese instante para este tipo de servicio
-    const check = isSlotBlocked(selectedSedeId, selectedDate, selectedTime, serviceType);
+    // Verificar si sigue libre en ese instante para Asesoría General
+    const check = isSlotBlocked(selectedSedeId, selectedDate, selectedTime, "asesoria");
     if (check.blocked) {
       alert(`Lo sentimos, este horario acaba de ser reservado o bloqueado (${check.reason}). Por favor elige otra hora.`);
       setSelectedTime("");
@@ -111,11 +90,8 @@ export default function AgendarCita() {
     const newCita = saveCita({
       sedeId: selectedSede.id,
       sedeName: selectedSede.name,
-      serviceType,
-      serviceTitle:
-        serviceType === "gemologo"
-          ? "Cita con Gemólogo (Análisis de Gemas y Diamantes)"
-          : "Cita de Asesoría General (Aros y Joyería Fina)",
+      serviceType: "asesoria",
+      serviceTitle: "Cita de Asesoría General (Aros y Joyería Fina)",
       date: selectedDate,
       time: selectedTime,
       clientName: clientName.trim(),
@@ -262,76 +238,20 @@ export default function AgendarCita() {
             </div>
           </div>
 
-          {/* PASO 2: TIPO DE SERVICIO (GEMOLOGÍA VS ASESORÍA) */}
+          {/* PASO 2: FECHA Y HORA DE ASESORÍA GENERAL */}
           <div className="booking-section-block">
             <h3 className="booking-section-title">
-              <span className="step-number">2</span> Tipo de Cita
+              <span className="step-number">2</span> Fecha y Hora de Atención
             </h3>
             <p className="booking-section-desc">
-              Elige el enfoque principal de tu visita:
-            </p>
-
-            <div className="service-type-grid">
-              {/* Opción 1: Gemología (3 días de anticipación) */}
-              <button
-                type="button"
-                className={`service-type-btn ${serviceType === "gemologo" ? "selected" : ""}`}
-                onClick={() => handleServiceTypeChange("gemologo")}
-              >
-                <div className="service-icon-circle">
-                  <i className="bi bi-gem"></i>
-                </div>
-                <div>
-                  <span className="service-anticipacion-tag gemologo">
-                    <i className="bi bi-clock-history"></i> Mínimo 3 días de anticipación
-                  </span>
-                  <h4 className="service-info-title">Cita con Gemólogo</h4>
-                  <p className="service-info-desc">
-                    Asesoría técnica y gemológica especializada: certificación GIA, análisis de diamantes, quilates, pureza y selección de cortes y gemas naturales.
-                  </p>
-                </div>
-              </button>
-
-              {/* Opción 2: Asesoría General (1 día de anticipación) */}
-              <button
-                type="button"
-                className={`service-type-btn ${serviceType === "asesoria" ? "selected" : ""}`}
-                onClick={() => handleServiceTypeChange("asesoria")}
-              >
-                <div className="service-icon-circle">
-                  <i className="bi bi-heart"></i>
-                </div>
-                <div>
-                  <span className="service-anticipacion-tag general">
-                    <i className="bi bi-clock-history"></i> 1 día de anticipación (desde mañana)
-                  </span>
-                  <h4 className="service-info-title">Cita de Asesoría General</h4>
-                  <p className="service-info-desc">
-                    Orientación para aros de matrimonio, anillos de promesa, regalos de aniversario, catálogo exclusivo y prueba de medidas y entallado en tienda.
-                  </p>
-                </div>
-              </button>
-            </div>
-          </div>
-
-          {/* PASO 3: FECHA Y HORA */}
-          <div className="booking-section-block">
-            <h3 className="booking-section-title">
-              <span className="step-number">3</span> Fecha y Hora de Atención
-            </h3>
-            <p className="booking-section-desc">
-              Atención de Lunes a Sábado de 10:00 am a 7:00 pm (Refrigerio de 1:00 pm a 2:00 pm). Los horarios bloqueados no están disponibles.
+              Atención personalizada para asesoría en joyería fina, alianzas de boda y anillos de compromiso. De Lunes a Sábado de 10:00 am a 7:00 pm (Refrigerio de 1:00 pm a 2:00 pm).
             </p>
 
             <div className="datetime-container">
               {/* Selector de Fecha */}
               <div className="date-picker-box">
                 <label htmlFor="cita-date">
-                  <i className="bi bi-calendar3"></i> Fecha de la cita (
-                  {serviceType === "gemologo"
-                    ? "mínimo 3 días de anticipación"
-                    : "mínimo 1 día de anticipación, a partir de mañana"}
-                  ):
+                  <i className="bi bi-calendar3"></i> Fecha de la cita (a partir de mañana):
                 </label>
                 <input
                   id="cita-date"
@@ -341,11 +261,7 @@ export default function AgendarCita() {
                   onChange={(e) => {
                     const val = e.target.value;
                     if (val < minBookingDate) {
-                      alert(
-                        serviceType === "gemologo"
-                          ? "Las citas con Gemólogo requieren al menos 3 días de anticipación para la preparación de instrumental y muestras."
-                          : "Las citas de Asesoría General deben reservarse con al menos 1 día de anticipación (a partir de mañana)."
-                      );
+                      alert("Las citas de Asesoría General deben reservarse con al menos 1 día de anticipación (a partir de mañana).");
                       setSelectedDate(minBookingDate);
                       setSelectedTime("");
                       return;
@@ -361,9 +277,7 @@ export default function AgendarCita() {
                   required
                 />
                 <span className="form-field-hint">
-                  {serviceType === "gemologo"
-                    ? `⏳ Citas con Gemólogo disponibles a partir del ${minBookingDate} (3 días de anticipación requeridos).`
-                    : `⏳ Citas de Asesoría General disponibles a partir de mañana (${minBookingDate}).`}
+                  ⏳ Citas de Asesoría General disponibles a partir de mañana ({minBookingDate}).
                 </span>
               </div>
 
@@ -392,7 +306,7 @@ export default function AgendarCita() {
                   <>
                     <div className="slots-grid">
                       {TIME_SLOTS.map((slot) => {
-                        const blockCheck = isSlotBlocked(selectedSedeId, selectedDate, slot, serviceType);
+                        const blockCheck = isSlotBlocked(selectedSedeId, selectedDate, slot, "asesoria");
                         const isSelected = selectedTime === slot;
 
                         return (
@@ -409,7 +323,7 @@ export default function AgendarCita() {
                             {slot}
                             {blockCheck.blocked && (
                               <span className="slot-status-hint">
-                                {serviceType === "gemologo" ? "No disponible" : "Bloqueado"}
+                                Bloqueado
                               </span>
                             )}
                           </button>
@@ -427,10 +341,10 @@ export default function AgendarCita() {
             </div>
           </div>
 
-          {/* PASO 4: DATOS DEL CLIENTE Y OBSERVACIÓN */}
+          {/* PASO 3: DATOS DEL CLIENTE Y OBSERVACIÓN */}
           <div className="booking-section-block">
             <h3 className="booking-section-title">
-              <span className="step-number">4</span> Tus Datos y Observación
+              <span className="step-number">3</span> Tus Datos y Observación
             </h3>
             <p className="booking-section-desc">
               Ingresa tus datos para confirmar tu cita y cuéntanos qué deseas consultar.
@@ -486,7 +400,7 @@ export default function AgendarCita() {
                   rows={3}
                 ></textarea>
                 <span className="form-field-hint">
-                  Esta observación le permitirá al gemólogo o asesor preparar las piezas ideales para tu visita.
+                  Esta observación le permitirá a tu asesor preparar las piezas ideales para tu visita.
                 </span>
               </div>
             </div>

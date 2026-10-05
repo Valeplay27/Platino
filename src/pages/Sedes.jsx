@@ -16,7 +16,7 @@ export default function Sedes() {
           <p className="sedes-hero-subtitle">
             Te invitamos a vivir la experiencia Platino Perú en persona.
             Encuentra tu sortija de compromiso o aros de matrimonio ideales
-            con la guía de nuestros expertos gemólogos.
+            con la guía de nuestros asesores expertos.
           </p>
         </div>
       </section>
@@ -164,7 +164,7 @@ export default function Sedes() {
         <div className="sedes-appointment-container">
           <h2 className="sedes-cta-title">¿Deseas una atención personalizada?</h2>
           <p className="sedes-cta-desc">
-            Reserva una cita con un gemólogo en cualquiera de nuestras sedes
+            Reserva una cita con un asesor en cualquiera de nuestras sedes
             de Lima Centro o Miraflores para una asesoría exclusiva y sin compromiso.
           </p>
           <div className="sedes-cta-buttons">
