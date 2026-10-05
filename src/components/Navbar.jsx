@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { getAnnouncementText, getAnnouncementActive } from "../services/homeImagesService";
 import { getFavoriteCount } from "../services/favoritesService";
@@ -16,7 +16,14 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
   const { user, openAuthModal } = useAuth();
   const [favCount, setFavCount] = useState(() => (user ? getFavoriteCount(user.email) : 0));
   const location = useLocation();
+  const navigate = useNavigate();
   const currentPath = location.pathname;
+
+  // Cerrar menú al cambiar de ruta
+  useEffect(() => {
+    setMenuOpen(false);
+    setSearchOpen(false);
+  }, [location.pathname]);
 
   // Estado dinámico del carrito (salto cuando hay joyas o al agregar)
   const [isCartJumping, setIsCartJumping] = useState(false);
@@ -45,6 +52,13 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
   const handleNavClick = () => {
     if (menuOpen) {
       setMenuOpen(false);
+    }
+  };
+
+  const handleSearchSubmit = (e) => {
+    if (e.key === "Enter" && searchQuery.trim()) {
+      setSearchOpen(false);
+      navigate(`/categoria/todas?q=${encodeURIComponent(searchQuery.trim())}`);
     }
   };
 
@@ -134,13 +148,7 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
             <img
               src={getAssetUrl("/images/platino-logo-gold.jpg")}
               alt="Platino Perú Insignia"
-              style={{
-                width: "34px",
-                height: "34px",
-                borderRadius: "7px",
-                objectFit: "cover",
-                boxShadow: "0 2px 8px rgba(197, 160, 89, 0.3)",
-              }}
+              className="brand-logo-img"
             />
             <span className="brand-name">PLATINO</span>
             <span className="brand-gem">❖</span>
@@ -227,7 +235,7 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
             <button
               className="mobile-menu-btn"
               onClick={() => setMenuOpen(!menuOpen)}
-              aria-label="Menú principal"
+              aria-label={menuOpen ? "Cerrar menú" : "Abrir menú principal"}
             >
               <i className={menuOpen ? "bi bi-x-lg" : "bi bi-list"}></i>
             </button>
@@ -244,11 +252,13 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                 placeholder="Buscar anillos de compromiso, aros de boda, diamantes..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={handleSearchSubmit}
                 autoFocus
               />
               <button
                 className="close-search-btn"
                 onClick={() => setSearchOpen(false)}
+                aria-label="Cerrar búsqueda"
               >
                 <i className="bi bi-x"></i>
               </button>
@@ -256,59 +266,128 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
           </div>
         )}
 
+        {/* Mobile Backdrop Overlay */}
+        {menuOpen && (
+          <div
+            className="mobile-nav-backdrop"
+            onClick={() => setMenuOpen(false)}
+            aria-hidden="true"
+          />
+        )}
+
         {/* Row 2: Centered Category Navigation Menu */}
         <nav className={`header-nav-menu ${menuOpen ? "open" : ""}`} aria-label="Navegación principal por categorías">
-          <ul className="nav-list">
-            <li className={`nav-item ${currentPath === "/" ? "active" : ""}`}>
-              <Link to="/" onClick={handleNavClick}>
-                INICIO
-              </Link>
-            </li>
-            <li className={`nav-item ${currentPath.includes("aros-boda") ? "active" : ""}`}>
-              <Link to="/categoria/aros-boda" onClick={handleNavClick}>
-                AROS DE BODA
-              </Link>
-            </li>
-            <li className={`nav-item ${currentPath.includes("anillo-compromiso") ? "active" : ""}`}>
-              <Link
-                to="/categoria/anillo-compromiso"
-                onClick={handleNavClick}
-              >
-                ANILLO DE COMPROMISO
-              </Link>
-            </li>
-            <li className={`nav-item ${currentPath.includes("anillo-promesa") ? "active" : ""}`}>
-              <Link
-                to="/categoria/anillo-promesa"
-                onClick={handleNavClick}
-              >
-                ANILLO DE PROMESA
-              </Link>
-            </li>
-            <li className={`nav-item ${currentPath.includes("aros-alianzas") ? "active" : ""}`}>
-              <Link
-                to="/categoria/aros-alianzas"
-                onClick={handleNavClick}
-              >
-                AROS DE ALIANZAS
-              </Link>
-            </li>
-            <li className={`nav-item ${currentPath.includes("joyeria") ? "active" : ""}`}>
-              <Link to="/categoria/joyeria" onClick={handleNavClick}>
-                JOYERÍA
-              </Link>
-            </li>
-            <li className={`nav-item ${currentPath.includes("regalos") ? "active" : ""}`}>
-              <Link to="/categoria/regalos" onClick={handleNavClick}>
-                REGALOS
-              </Link>
-            </li>
-            <li className={`nav-item ${currentPath.startsWith("/nosotros") ? "active" : ""}`}>
-              <Link to="/nosotros" onClick={handleNavClick}>
-                NOSOTROS
-              </Link>
-            </li>
-          </ul>
+          <div className="mobile-nav-inner">
+            <ul className="nav-list">
+              <li className={`nav-item ${currentPath === "/" ? "active" : ""}`}>
+                <Link to="/" onClick={handleNavClick}>
+                  <span>INICIO</span>
+                  <i className="bi bi-chevron-right mobile-nav-arrow"></i>
+                </Link>
+              </li>
+              <li className={`nav-item ${currentPath.includes("aros-boda") ? "active" : ""}`}>
+                <Link to="/categoria/aros-boda" onClick={handleNavClick}>
+                  <span>AROS DE BODA</span>
+                  <i className="bi bi-chevron-right mobile-nav-arrow"></i>
+                </Link>
+              </li>
+              <li className={`nav-item ${currentPath.includes("anillo-compromiso") ? "active" : ""}`}>
+                <Link
+                  to="/categoria/anillo-compromiso"
+                  onClick={handleNavClick}
+                >
+                  <span>ANILLO DE COMPROMISO</span>
+                  <i className="bi bi-chevron-right mobile-nav-arrow"></i>
+                </Link>
+              </li>
+              <li className={`nav-item ${currentPath.includes("anillo-promesa") ? "active" : ""}`}>
+                <Link
+                  to="/categoria/anillo-promesa"
+                  onClick={handleNavClick}
+                >
+                  <span>ANILLO DE PROMESA</span>
+                  <i className="bi bi-chevron-right mobile-nav-arrow"></i>
+                </Link>
+              </li>
+              <li className={`nav-item ${currentPath.includes("aros-alianzas") ? "active" : ""}`}>
+                <Link
+                  to="/categoria/aros-alianzas"
+                  onClick={handleNavClick}
+                >
+                  <span>AROS DE ALIANZAS</span>
+                  <i className="bi bi-chevron-right mobile-nav-arrow"></i>
+                </Link>
+              </li>
+              <li className={`nav-item ${currentPath.includes("joyeria") ? "active" : ""}`}>
+                <Link to="/categoria/joyeria" onClick={handleNavClick}>
+                  <span>JOYERÍA</span>
+                  <i className="bi bi-chevron-right mobile-nav-arrow"></i>
+                </Link>
+              </li>
+              <li className={`nav-item ${currentPath.includes("regalos") ? "active" : ""}`}>
+                <Link to="/categoria/regalos" onClick={handleNavClick}>
+                  <span>REGALOS</span>
+                  <i className="bi bi-chevron-right mobile-nav-arrow"></i>
+                </Link>
+              </li>
+              <li className={`nav-item ${currentPath.startsWith("/nosotros") ? "active" : ""}`}>
+                <Link to="/nosotros" onClick={handleNavClick}>
+                  <span>NOSOTROS</span>
+                  <i className="bi bi-chevron-right mobile-nav-arrow"></i>
+                </Link>
+              </li>
+            </ul>
+
+            {/* Mobile Extras: Sedes, Citas & WhatsApp */}
+            <div className="mobile-nav-extras">
+              <div className="mobile-nav-section-title">
+                <i className="bi bi-geo-alt-fill"></i> NUESTRAS SEDES & ASESORÍA
+              </div>
+              <div className="mobile-sedes-links">
+                <div className="mobile-sede-row">
+                  <span className="mobile-sede-name">Lima Centro:</span>
+                  <a
+                    href="https://wa.me/51927357217"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mobile-wa-btn"
+                    title="WhatsApp Lima Centro"
+                  >
+                    <i className="bi bi-whatsapp"></i> 927 357 217
+                  </a>
+                </div>
+                <div className="mobile-sede-row">
+                  <span className="mobile-sede-name">Miraflores:</span>
+                  <a
+                    href="https://wa.me/51984281116"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="mobile-wa-btn"
+                    title="WhatsApp Miraflores"
+                  >
+                    <i className="bi bi-whatsapp"></i> 984 281 116
+                  </a>
+                </div>
+              </div>
+
+              <div className="mobile-nav-action-buttons">
+                <Link
+                  to="/sedes"
+                  className="mobile-btn-sub"
+                  onClick={handleNavClick}
+                >
+                  <i className="bi bi-shop"></i> Ver Sedes
+                </Link>
+                <Link
+                  to="/agendar-cita"
+                  className="mobile-btn-main"
+                  onClick={handleNavClick}
+                >
+                  <i className="bi bi-calendar2-check"></i> Agendar Cita
+                </Link>
+              </div>
+            </div>
+          </div>
         </nav>
       </header>
     </>

@@ -62,13 +62,23 @@
   margin: 0 auto;
   padding: 12px 28px;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  gap: 24px;
+  gap: 20px;
 }
 
 .header-top-row .brand-logo {
   justify-self: center;
+}
+
+.brand-logo-img {
+  width: 34px;
+  height: 34px;
+  border-radius: 7px;
+  object-fit: cover;
+  box-shadow: 0 2px 8px rgba(197, 160, 89, 0.3);
+  flex-shrink: 0;
+  display: block;
 }
 
 .header-contact-links {
@@ -598,6 +608,12 @@
   background-color: var(--platino-gold);
 }
 
+.mobile-nav-arrow,
+.mobile-nav-extras,
+.mobile-nav-backdrop {
+  display: none;
+}
+
 /* 3. Footer Styles */
 .platino-footer {
   background-color: #ffffff;
@@ -759,32 +775,292 @@
 /* Mobile & Tablet Responsiveness */
 @media (max-width: 992px) {
   .header-top-row {
-    grid-template-columns: auto 1fr auto;
-    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
   }
 
   .header-contact-links {
     display: none;
   }
 
-  .mobile-menu-btn {
-    display: block;
+  .brand-logo {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+    white-space: nowrap;
+    text-decoration: none;
   }
 
+  .brand-logo-img {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+    flex-shrink: 0;
+  }
+
+  .brand-name {
+    font-size: 21px;
+    letter-spacing: 0.12em;
+    line-height: 1;
+  }
+
+  .brand-gem {
+    font-size: 13px;
+    line-height: 1;
+    transform: translateY(-0.5px);
+  }
+
+  .brand-country {
+    font-size: 18px;
+    letter-spacing: 0.14em;
+    line-height: 1;
+  }
+
+  .header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .action-icon-btn {
+    font-size: 17px;
+    padding: 6px;
+    min-width: 32px;
+    height: 32px;
+  }
+
+  .mobile-menu-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 34px;
+    height: 34px;
+    padding: 4px;
+    font-size: 22px;
+    color: var(--platino-green-dark);
+  }
+
+  /* Mobile Drawer Menu */
   .header-nav-menu {
     display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    width: 100%;
+    background: #ffffff;
+    border-top: 1px solid var(--platino-border);
+    border-bottom: 2px solid var(--platino-green-dark);
+    box-shadow: 0 16px 36px rgba(10, 39, 31, 0.18);
+    max-height: calc(100vh - 65px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    z-index: 90002;
+    padding: 0;
+    animation: mobileNavSlideDown 0.25s cubic-bezier(0.16, 1, 0.3, 1);
   }
 
   .header-nav-menu.open {
     display: block;
-    border-bottom: 1px solid var(--platino-border);
+  }
+
+  .mobile-nav-inner {
+    padding: 12px 18px 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
   }
 
   .nav-list {
     flex-direction: column;
-    align-items: flex-start;
-    gap: 16px;
-    padding: 16px 8px;
+    align-items: stretch;
+    gap: 4px;
+    padding: 0;
+    margin: 0;
+    width: 100%;
+  }
+
+  .nav-item {
+    width: 100%;
+    border-bottom: 1px solid #f2efea;
+  }
+
+  .nav-item a {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 13px 8px;
+    font-size: 13.5px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    color: #1a2a22;
+    text-decoration: none;
+    transition: background 0.2s, color 0.2s;
+    border-radius: 6px;
+  }
+
+  .nav-item a::after {
+    display: none;
+  }
+
+  .nav-item a:hover,
+  .nav-item.active a {
+    background: #f7f5ef;
+    color: var(--platino-green-dark);
+    padding-left: 12px;
+  }
+
+  .mobile-nav-arrow {
+    display: block;
+    font-size: 11px;
+    color: var(--platino-gold);
+    transition: transform 0.2s;
+  }
+
+  .nav-item a:hover .mobile-nav-arrow {
+    transform: translateX(3px);
+  }
+
+  /* Mobile Extras Box */
+  .mobile-nav-extras {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    background: #faf8f4;
+    border: 1px solid #ebe4d5;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-top: 8px;
+  }
+
+  .mobile-nav-section-title {
+    font-family: var(--font-sans);
+    font-size: 10.5px;
+    font-weight: 700;
+    letter-spacing: 0.12em;
+    color: var(--platino-gold);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    text-transform: uppercase;
+  }
+
+  .mobile-sedes-links {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .mobile-sede-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    font-size: 12px;
+    color: #2c3c33;
+    padding: 6px 0;
+    border-bottom: 1px dashed #e3ddd0;
+  }
+
+  .mobile-sede-name {
+    font-weight: 600;
+  }
+
+  .mobile-wa-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    background: #eef8f2;
+    color: #13743a;
+    font-weight: 700;
+    font-size: 11.5px;
+    padding: 4px 10px;
+    border-radius: 9999px;
+    border: 1px solid #c2e6cf;
+    text-decoration: none;
+    transition: all 0.2s;
+  }
+
+  .mobile-wa-btn i {
+    color: #25d366;
+    font-size: 13px;
+  }
+
+  .mobile-wa-btn:hover {
+    background: #25d366;
+    color: #ffffff;
+    border-color: #25d366;
+  }
+
+  .mobile-wa-btn:hover i {
+    color: #ffffff;
+  }
+
+  .mobile-nav-action-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-top: 6px;
+  }
+
+  .mobile-btn-sub,
+  .mobile-btn-main {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 9px 12px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 700;
+    text-decoration: none;
+    letter-spacing: 0.05em;
+    transition: all 0.2s;
+  }
+
+  .mobile-btn-sub {
+    background: #ffffff;
+    color: var(--platino-green-dark);
+    border: 1px solid #d4cbb8;
+  }
+
+  .mobile-btn-main {
+    background: var(--platino-green-dark);
+    color: #ffffff;
+    border: 1px solid var(--platino-green-dark);
+  }
+
+  .mobile-btn-main:hover {
+    background: #0f2d22;
+  }
+
+  .mobile-nav-backdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(10, 39, 31, 0.45);
+    backdrop-filter: blur(2px);
+    z-index: 89999;
+  }
+
+  @keyframes mobileNavSlideDown {
+    from {
+      opacity: 0;
+      transform: translateY(-8px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .footer-columns-grid {
@@ -805,23 +1081,133 @@
   }
 }
 
-@media (max-width: 576px) {
+@media (max-width: 768px) {
+  .header-search-drawer {
+    padding: 8px 14px;
+  }
+
+  .search-input-wrapper {
+    padding: 6px 12px;
+    gap: 8px;
+  }
+
+  .search-input-wrapper input {
+    font-size: 12.5px;
+  }
+}
+
+@media (max-width: 520px) {
   .announcement-bar {
-    font-size: 10px;
+    font-size: 10.5px;
     padding: 6px 10px;
+    line-height: 1.35;
+  }
+
+  .header-top-row {
+    padding: 8px 12px;
+    gap: 6px;
+  }
+
+  .brand-logo {
+    gap: 6px;
+  }
+
+  .brand-logo-img {
+    width: 25px;
+    height: 25px;
+    border-radius: 5px;
   }
 
   .brand-name {
-    font-size: 21px;
+    font-size: 17px;
+    letter-spacing: 0.1em;
+  }
+
+  .brand-gem {
+    font-size: 10px;
   }
 
   .brand-country {
-    font-size: 19px;
+    font-size: 15px;
+    letter-spacing: 0.12em;
+  }
+
+  .header-actions {
+    gap: 5px;
+  }
+
+  .action-icon-btn {
+    font-size: 16px;
+    padding: 4px;
+    min-width: 29px;
+    height: 29px;
+  }
+
+  .mobile-menu-btn {
+    font-size: 21px;
+    padding: 4px;
+    min-width: 30px;
+    height: 30px;
+  }
+
+  .cart-badge {
+    top: -2px;
+    right: -4px;
+    width: 15px;
+    height: 15px;
+    font-size: 8.5px;
   }
 
   .footer-columns-grid {
     grid-template-columns: 1fr;
     gap: 24px;
+  }
+}
+
+@media (max-width: 380px) {
+  .header-top-row {
+    padding: 8px 8px;
+    gap: 4px;
+  }
+
+  .brand-logo {
+    gap: 5px;
+  }
+
+  .brand-logo-img {
+    width: 22px;
+    height: 22px;
+  }
+
+  .brand-name {
+    font-size: 15px;
+    letter-spacing: 0.08em;
+  }
+
+  .brand-gem {
+    font-size: 9px;
+  }
+
+  .brand-country {
+    font-size: 13px;
+    letter-spacing: 0.1em;
+  }
+
+  .header-actions {
+    gap: 3px;
+  }
+
+  .action-icon-btn {
+    padding: 3px;
+    min-width: 26px;
+    height: 26px;
+    font-size: 15px;
+  }
+
+  .mobile-menu-btn {
+    min-width: 28px;
+    height: 28px;
+    font-size: 19px;
   }
 }
 
