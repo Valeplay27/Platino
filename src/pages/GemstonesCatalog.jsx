@@ -1,7 +1,6 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
-  CERTIFIED_GEMSTONES,
   GEM_SHAPES_DATA,
   GEM_TYPES,
   DIAMOND_COLORS,
@@ -10,15 +9,30 @@ import {
 } from "../data/gemstones";
 import { DiamondCutIcon } from "../components/GemstoneIcons";
 import GemstoneStoneVisual from "../components/GemstoneStoneVisual";
+import { useAuth } from "../context/useAuth";
+import { getUserFavorites, toggleUserFavorite } from "../services/favoritesService";
+import { getStoredGemstones } from "../services/gemstonesService";
 import "../../styles/gemstones.css";
 
 export default function GemstonesCatalog() {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { user, openAuthModal } = useAuth();
+
+  // Lista dinámica de gemas (sincronizada con el panel de administración)
+  const [gemstonesList, setGemstonesList] = useState(() => getStoredGemstones());
+
+  useEffect(() => {
+    const handleGemUpdate = () => {
+      setGemstonesList(getStoredGemstones());
+    };
+    window.addEventListener("platino_gemstones_updated", handleGemUpdate);
+    return () => window.removeEventListener("platino_gemstones_updated", handleGemUpdate);
+  }, []);
 
   // Estados de filtros
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState("todos");
-  const selectedShape = searchParams.get("forma") || "todas";
+  const [selectedShape, setSelectedShape] = useState(() => searchParams.get("forma") || "todas");
   const [selectedDiamondColor, setSelectedDiamondColor] = useState("todos");
   const [selectedGemColor, setSelectedGemColor] = useState("todos");
   const [selectedClarity, setSelectedClarity] = useState("todos");
@@ -29,35 +43,127 @@ export default function GemstonesCatalog() {
   // Modal de detalle de gema
   const [detailGem, setDetailGem] = useState(null);
 
-  // Actualizar URL cuando el usuario cambia de forma
+  // Estado reactivo de favoritos del usuario
+  const [favoriteIds, setFavoriteIds] = useState(() => {
+    if (!user?.email) return new Set();
+    const favs = getUserFavorites(user.email);
+    return new Set(favs.map((f) => String(f.id)));
+  });
+
+  useEffect(() => {
+    const updateFavs = () => {
+      if (user?.email) {
+        const favs = getUserFavorites(user.email);
+        setFavoriteIds(new Set(favs.map((f) => String(f.id))));
+      } else {
+        setFavoriteIds(new Set());
+      }
+    };
+    updateFavs();
+    window.addEventListener("platino_favorites_updated", updateFavs);
+    return () => window.removeEventListener("platino_favorites_updated", updateFavs);
+  }, [user]);
+
+  // Sincronizar selectedShape si la URL cambia externamente
+  useEffect(() => {
+    const urlShape = searchParams.get("forma") || "todas";
+    if (urlShape !== selectedShape) {
+      setSelectedShape(urlShape);
+    }
+  }, [searchParams]);
+
+  const handleToggleFavorite = (e, gem) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) {
+      if (openAuthModal) openAuthModal("login");
+      return;
+    }
+    toggleUserFavorite(user.email, {
+      id: gem.id,
+      name: gem.name,
+      price: gem.price,
+      image: "/images/secret-garden-white.jpg",
+      metal: "Gema Certificada",
+      metalId: gem.shape,
+      category: "Diamantes & Gemas",
+      type: "gema",
+      subtitle: `${gem.carat} ct · ${gem.cutQuality} · Cert. ${gem.certNumber}`,
+    });
+  };
+
+  // Actualizar forma en memoria sin recargar ni alterar el scroll de la página
   const handleShapeSelect = (shapeId) => {
+    setSelectedShape(shapeId);
     const nextParams = new URLSearchParams(searchParams);
     if (shapeId === "todas") {
       nextParams.delete("forma");
     } else {
       nextParams.set("forma", shapeId);
     }
-    setSearchParams(nextParams);
+    setSearchParams(nextParams, { replace: true, preventScrollReset: true });
   };
+
+  // Lista de filtros actualmente activos para remoción rápida
+  const activeFilters = useMemo(() => {
+    const list = [];
+    if (searchQuery.trim()) {
+      list.push({ key: "query", label: `"${searchQuery}"`, clear: () => setSearchQuery("") });
+    }
+    if (selectedType !== "todos") {
+      const t = GEM_TYPES.find((x) => x.id === selectedType);
+      list.push({ key: "type", label: t ? t.label : selectedType, clear: () => setSelectedType("todos") });
+    }
+    if (selectedShape !== "todas") {
+      const s = GEM_SHAPES_DATA.find((x) => x.id === selectedShape);
+      list.push({ key: "shape", label: `Corte ${s ? s.name : selectedShape}`, clear: () => handleShapeSelect("todas") });
+    }
+    if (selectedDiamondColor !== "todos") {
+      list.push({ key: "dColor", label: `Color ${selectedDiamondColor}`, clear: () => setSelectedDiamondColor("todos") });
+    }
+    if (selectedGemColor !== "todos") {
+      const gc = GEM_COLORS.find((x) => x.id === selectedGemColor);
+      list.push({ key: "gColor", label: `Tono ${gc ? gc.label : selectedGemColor}`, clear: () => setSelectedGemColor("todos") });
+    }
+    if (selectedClarity !== "todos") {
+      list.push({ key: "clarity", label: `Pureza ${selectedClarity}`, clear: () => setSelectedClarity("todos") });
+    }
+    if (selectedMmRange !== "todos") {
+      list.push({ key: "mm", label: "Tamaño mm", clear: () => setSelectedMmRange("todos") });
+    }
+    if (selectedCaratRange !== "todos") {
+      list.push({ key: "carat", label: "Rango Carat", clear: () => setSelectedCaratRange("todos") });
+    }
+    return list;
+  }, [
+    searchQuery,
+    selectedType,
+    selectedShape,
+    selectedDiamondColor,
+    selectedGemColor,
+    selectedClarity,
+    selectedMmRange,
+    selectedCaratRange,
+  ]);
 
   // Contadores por forma para los chips
   const shapeCounts = useMemo(() => {
     const counts = {};
     GEM_SHAPES_DATA.forEach((s) => {
-      counts[s.id] = CERTIFIED_GEMSTONES.filter((g) => g.shape === s.id).length;
+      counts[s.id] = gemstonesList.filter((g) => g.shape === s.id).length;
     });
     return counts;
-  }, []);
+  }, [gemstonesList]);
 
   // Filtrado de gemas
   const filteredGemstones = useMemo(() => {
-    return CERTIFIED_GEMSTONES.filter((gem) => {
+    return gemstonesList.filter((gem) => {
       // 1. Búsqueda por texto (nombre, cert, corte)
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
-        const matchName = gem.name.toLowerCase().includes(q);
-        const matchCert = gem.certNumber.toLowerCase().includes(q);
-        const matchShape = gem.shape.toLowerCase().includes(q);
+        const matchName = gem.name?.toLowerCase().includes(q);
+        const matchCert = gem.certNumber?.toLowerCase().includes(q);
+        const matchShape = gem.shape?.toLowerCase().includes(q);
         if (!matchName && !matchCert && !matchShape) return false;
       }
 
@@ -134,7 +240,7 @@ export default function GemstonesCatalog() {
     setSortBy("destacados");
     const nextParams = new URLSearchParams(searchParams);
     nextParams.delete("forma");
-    setSearchParams(nextParams);
+    setSearchParams(nextParams, { replace: true, preventScrollReset: true });
   };
 
   const currentShapeObj = GEM_SHAPES_DATA.find((s) => s.id === selectedShape);
@@ -251,7 +357,7 @@ export default function GemstonesCatalog() {
                   onClick={() => handleShapeSelect("todas")}
                 >
                   <span className="shape-chip-name">Todas</span>
-                  <span className="shape-chip-count">{CERTIFIED_GEMSTONES.length}</span>
+                  <span className="shape-chip-count">{gemstonesList.length}</span>
                 </button>
 
                 {GEM_SHAPES_DATA.map((shape) => {
@@ -305,29 +411,32 @@ export default function GemstonesCatalog() {
               <div className="gem-color-swatches">
                 <button
                   type="button"
-                  className={`color-swatch-item ${selectedGemColor === "todos" ? "active" : ""}`}
+                  className={`color-swatch-item all-swatch ${selectedGemColor === "todos" ? "active" : ""}`}
                   onClick={() => setSelectedGemColor("todos")}
-                  title="Todos los colores"
+                  title="Todos los colores y tonos"
                 >
                   <span className="swatch-circle all">❖</span>
-                  <span className="swatch-name">Todos</span>
+                  <span className="swatch-name">Todos los Tonos</span>
                 </button>
 
-                {GEM_COLORS.map((gc) => (
-                  <button
-                    key={gc.id}
-                    type="button"
-                    className={`color-swatch-item ${selectedGemColor === gc.id ? "active" : ""}`}
-                    onClick={() => setSelectedGemColor(gc.id)}
-                    title={gc.label}
-                  >
-                    <span
-                      className="swatch-circle"
-                      style={{ backgroundColor: gc.hex }}
-                    />
-                    <span className="swatch-name">{gc.label}</span>
-                  </button>
-                ))}
+                {GEM_COLORS.map((gc) => {
+                  const displayName = gc.id === "incoloro" ? "Incoloro" : gc.label;
+                  return (
+                    <button
+                      key={gc.id}
+                      type="button"
+                      className={`color-swatch-item ${selectedGemColor === gc.id ? "active" : ""}`}
+                      onClick={() => setSelectedGemColor(gc.id)}
+                      title={gc.label}
+                    >
+                      <span
+                        className="swatch-circle"
+                        style={{ backgroundColor: gc.hex }}
+                      />
+                      <span className="swatch-name">{displayName}</span>
+                    </button>
+                  );
+                })}
               </div>
             </div>
 
@@ -433,108 +542,301 @@ export default function GemstonesCatalog() {
               </div>
             </div>
 
+            {/* Fila de Filtros Activos con eliminación rápida sin recarga */}
+            {activeFilters.length > 0 && (
+              <div className="active-filters-bar">
+                <span className="active-filters-title">Filtros activos:</span>
+                <div className="active-filters-chips">
+                  {activeFilters.map((f) => (
+                    <button
+                      key={f.key}
+                      type="button"
+                      className="active-filter-badge"
+                      onClick={f.clear}
+                      title={`Quitar ${f.label}`}
+                    >
+                      <span>{f.label}</span>
+                      <i className="bi bi-x"></i>
+                    </button>
+                  ))}
+                  <button
+                    type="button"
+                    className="btn-clear-all-inline"
+                    onClick={handleResetFilters}
+                  >
+                    Limpiar todos
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Grid de Gemas */}
             {filteredGemstones.length === 0 ? (
               <div className="no-gems-found">
                 <i className="bi bi-gem"></i>
                 <h3>No se encontraron gemas con estos criterios</h3>
                 <p>
-                  Intenta ampliar los rangos de quilate, pureza o forma para ver más opciones disponibles en stock.
+                  {activeFilters.length > 1
+                    ? `Tienes ${activeFilters.length} filtros combinados activos. Prueba quitando alguno para ver gemas disponibles sin perder tu selección principal:`
+                    : "Intenta ampliar los rangos de quilate, pureza o forma para ver más opciones disponibles en stock."}
                 </p>
+
+                {/* Accesos directos para quitar filtros individuales en 1 clic */}
+                {activeFilters.length > 0 && (
+                  <div className="no-gems-quick-adjust">
+                    {activeFilters.map((f) => (
+                      <button
+                        key={f.key}
+                        type="button"
+                        className="btn-remove-single-filter"
+                        onClick={f.clear}
+                      >
+                        <i className="bi bi-dash-circle"></i>
+                        <span>Quitar {f.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
                 <button
                   type="button"
                   onClick={handleResetFilters}
                   className="btn-catalog-cta"
-                  style={{ marginTop: "16px" }}
                 >
-                  Ver Todas las Gemas
+                  <i className="bi bi-arrow-counterclockwise"></i>
+                  <span>Ver Todas las Gemas Disponibles</span>
                 </button>
               </div>
             ) : (
               <div className="gemstones-grid">
-                {filteredGemstones.map((gem) => (
-                  <div key={gem.id} className="gem-card">
-                    {/* Badge de Certificación */}
-                    <div className="gem-card-header">
-                      <span className="cert-pill">
-                        <i className="bi bi-patch-check-fill"></i> {gem.certificate}
-                      </span>
-                      <span className="stock-pill">En Stock</span>
-                    </div>
+                {filteredGemstones.map((gem) => {
+                  const isFav = favoriteIds.has(String(gem.id));
+                  return (
+                    <div key={gem.id} className="gem-card">
+                      {/* Badge de Certificación, Stock y Favoritos */}
+                      <div className="gem-card-header">
+                        <div className="gem-header-left">
+                          <span className="cert-pill">
+                            <i className="bi bi-patch-check-fill" style={{ color: "#C6AC7F" }}></i>
+                            <span>{gem.certificate}</span>
+                          </span>
+                          <span className="stock-pill">
+                            <span className="stock-pulse-dot"></span>
+                            <span>En Stock</span>
+                          </span>
+                        </div>
 
-                    {/* Previsualización visual de la gema con facetas y brillos */}
-                    <div
-                      className="gem-card-visual-wrapper"
-                      onClick={() => setDetailGem(gem)}
-                      title="Haz clic para inspeccionar detalles y certificado"
-                    >
-                      <GemstoneStoneVisual
-                        shape={gem.shape}
-                        color={gem.gemColor}
-                        size={150}
-                        carat={`${gem.carat} ct`}
-                      />
-                    </div>
-
-                    {/* Información y 4Cs */}
-                    <div className="gem-card-info">
-                      <h3 className="gem-card-title">{gem.name}</h3>
-
-                      <div className="gem-4c-specs">
-                        <div className="spec-pill">
-                          <span className="spec-name">Color</span>
-                          <span className="spec-val">{gem.color}</span>
-                        </div>
-                        <div className="spec-pill">
-                          <span className="spec-name">Pureza</span>
-                          <span className="spec-val">{gem.clarity}</span>
-                        </div>
-                        <div className="spec-pill">
-                          <span className="spec-name">Corte</span>
-                          <span className="spec-val">{gem.cutQuality}</span>
-                        </div>
-                        <div className="spec-pill">
-                          <span className="spec-name">Medidas</span>
-                          <span className="spec-val">{gem.dimensions}</span>
-                        </div>
+                        <button
+                          type="button"
+                          className={`gem-favorite-btn ${isFav ? "active" : ""}`}
+                          onClick={(e) => handleToggleFavorite(e, gem)}
+                          title={isFav ? "Quitar de favoritos" : "Guardar en mis favoritos"}
+                          aria-label="Guardar gema en favoritos"
+                        >
+                          <i className={isFav ? "bi bi-heart-fill" : "bi bi-heart"}></i>
+                        </button>
                       </div>
 
-                      <div className="gem-card-cert-row">
-                        <span>Certificado: <strong>{gem.certNumber}</strong></span>
-                        <span>Origen: {gem.origin}</span>
+                      {/* Previsualización visual de la gema con facetas y brillos o foto real */}
+                      <div
+                        className="gem-card-visual-wrapper"
+                        onClick={() => setDetailGem(gem)}
+                        title="Haz clic para inspeccionar detalles y certificado"
+                      >
+                        {gem.image ? (
+                          <div className="gem-real-photo-preview">
+                            <img
+                              src={gem.image}
+                              alt={gem.name}
+                              className="gem-photo-img"
+                              loading="lazy"
+                            />
+                            <span className="photo-verified-tag">
+                              <i className="bi bi-camera-fill"></i> Foto Real
+                            </span>
+                          </div>
+                        ) : (
+                          <GemstoneStoneVisual
+                            shape={gem.shape}
+                            color={gem.gemColor}
+                            size={155}
+                            carat={`${gem.carat} ct`}
+                          />
+                        )}
                       </div>
 
-                      {/* Precio y Botones de Acción */}
-                      <div className="gem-card-footer">
-                        <div className="gem-price-box">
-                          <span className="price-label">Precio Gema:</span>
-                          <span className="gem-price">{gem.priceFormatted}</span>
+                      {/* Información y 4Cs */}
+                      <div className="gem-card-info">
+                        <div className="gem-card-shape-badge">
+                          <span className="gem-shape-icon-mini">
+                            <DiamondCutIcon shape={gem.shape} size={14} />
+                          </span>
+                          <span>Corte {gem.shape.charAt(0).toUpperCase() + gem.shape.slice(1)}</span>
+                          <span className="gem-carat-accent">{gem.carat} ct</span>
                         </div>
 
-                        <div className="gem-actions-row">
-                          <button
-                            type="button"
-                            onClick={() => setDetailGem(gem)}
-                            className="btn-inspect-gem"
-                            title="Ver ficha técnica completa"
-                          >
-                            <i className="bi bi-eye"></i> Detalles
-                          </button>
+                        <h3 className="gem-card-title">{gem.name}</h3>
 
+                        {/* Nueva matriz estructurada de especificaciones (Solución al desborde de Medidas) */}
+                        <div className="gem-specs-structured">
+                          <div className="specs-row-trio">
+                            <div className="spec-cell">
+                              <span className="spec-label">Color</span>
+                              <span className="spec-value">{gem.color}</span>
+                            </div>
+                            <div className="spec-cell">
+                              <span className="spec-label">Pureza</span>
+                              <span className="spec-value">{gem.clarity}</span>
+                            </div>
+                            <div className="spec-cell">
+                              <span className="spec-label">Corte</span>
+                              <span className="spec-value">{gem.cutQuality}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="specs-row-duo">
+                            <div className="spec-cell">
+                              <span className="spec-label">Peso / Carat</span>
+                              <span className="spec-value"><strong>{gem.carat} ct</strong></span>
+                            </div>
+                            <div className="spec-cell spec-cell-dimensions">
+                              <span className="spec-label">Medidas Reales</span>
+                              <span className="spec-value" title={gem.dimensions}>{gem.dimensions}</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="gem-card-cert-row">
+                          <span>
+                            <i className="bi bi-shield-check" style={{ color: "#C6AC7F", marginRight: "4px" }}></i>
+                            Inscripción Láser: <strong>{gem.certNumber}</strong>
+                          </span>
+                          <span>
+                            <i className="bi bi-geo-alt" style={{ color: "#71857c", marginRight: "3px" }}></i>
+                            {gem.origin}
+                          </span>
+                        </div>
+
+                        {/* Precio y Botones de Acción */}
+                        <div className="gem-card-footer">
+                          <div className="gem-price-box">
+                            <span className="price-label">Precio Gema:</span>
+                            <span className="gem-price">{gem.priceFormatted}</span>
+                          </div>
+
+                          <div className="gem-actions-row">
+                            <button
+                              type="button"
+                              onClick={() => setDetailGem(gem)}
+                              className="btn-inspect-gem"
+                              title="Ver ficha técnica completa"
+                            >
+                              <i className="bi bi-eye-fill" style={{ color: "#C6AC7F" }}></i>
+                              <span>Detalles</span>
+                            </button>
+
+                            <Link
+                              to={`/agendar-cita?gema=${encodeURIComponent(gem.name)}&cert=${gem.certNumber}`}
+                              className="btn-book-gem"
+                              title="Ver en vivo en nuestra boutique"
+                            >
+                              <i className="bi bi-calendar-check-fill" style={{ color: "#C6AC7F" }}></i>
+                              <span>Agendar Cita</span>
+                            </Link>
+                          </div>
+
+                          {/* Enlace directo a montaje en sortija */}
                           <Link
-                            to={`/agendar-cita?gema=${encodeURIComponent(gem.name)}&cert=${gem.certNumber}`}
-                            className="btn-book-gem"
-                            title="Ver en vivo en nuestra joyería"
+                            to={`/categoria/anillos-de-compromiso?gema_referencia=${encodeURIComponent(gem.name)}`}
+                            className="gem-mount-link"
                           >
-                            <i className="bi bi-calendar-check"></i> Agendar Cita
+                            <i className="bi bi-magic" style={{ color: "#C6AC7F" }}></i>
+                            <span>Montar en Sortija Platino Atelier</span>
+                            <i className="bi bi-arrow-right-short"></i>
                           </Link>
                         </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
+
+            {/* Secciones de Valor y Asesoría que equilibran la columna y evitan el vacío */}
+            <div className="gemstones-bottom-showcase">
+              {/* Banner 1: Platino Atelier - Monta tu gema en un anillo */}
+              <div className="atelier-ring-banner">
+                <div className="atelier-content">
+                  <span className="atelier-eyebrow">
+                    <i className="bi bi-gem"></i> SERVICIO PLATINO ATELIER
+                  </span>
+                  <h3>¿Deseas montar esta gema en una sortija única?</h3>
+                  <p>
+                    Selecciona tu diamante o gema certificada y nuestros maestros orfebres la engastarán a medida en una montura exclusiva de <strong>Oro 18k</strong> (Blanco, Amarillo o Rosa) o <strong>Platino 950</strong>.
+                  </p>
+                  <div className="atelier-steps">
+                    <div className="atelier-step">
+                      <span className="step-num">1</span>
+                      <span className="step-text">Elige tu Gema Certificada</span>
+                    </div>
+                    <div className="atelier-step-arrow">→</div>
+                    <div className="atelier-step">
+                      <span className="step-num">2</span>
+                      <span className="step-text">Selecciona tu Montura en Oro 18k</span>
+                    </div>
+                    <div className="atelier-step-arrow">→</div>
+                    <div className="atelier-step">
+                      <span className="step-num">3</span>
+                      <span className="step-text">Grabado Láser & Estuche de Lujo</span>
+                    </div>
+                  </div>
+                </div>
+                <div className="atelier-actions">
+                  <Link to="/categoria/anillos-de-compromiso" className="btn-atelier-primary">
+                    <i className="bi bi-ring"></i> Ver Monturas de Sortijas
+                  </Link>
+                  <a
+                    href="https://wa.me/51927357217?text=Hola%20Platino%20Perú,%20deseo%20asesoría%20para%20montar%20una%20gema%20certificada%20en%20una%20sortija"
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-atelier-secondary"
+                  >
+                    <i className="bi bi-whatsapp"></i> Hablar con un Gemólogo
+                  </a>
+                </div>
+              </div>
+
+              {/* Banner 2: Pilares de Garantía y Confianza Platino */}
+              <div className="gem-trust-pillars">
+                <div className="trust-pillar-card">
+                  <div className="trust-pillar-icon">
+                    <i className="bi bi-shield-check"></i>
+                  </div>
+                  <h4>Inscripción Láser en Filetín</h4>
+                  <p>
+                    Cada diamante lleva micro-grabado su número de certificado GIA o IGI, verificable en 10x bajo microscopio gemológico.
+                  </p>
+                </div>
+                <div className="trust-pillar-card">
+                  <div className="trust-pillar-icon">
+                    <i className="bi bi-globe-americas"></i>
+                  </div>
+                  <h4>Trazabilidad Ética 100%</h4>
+                  <p>
+                    Cumplimos estrictamente el Proceso Kimberley, garantizando gemas libres de conflicto y de origen responsable.
+                  </p>
+                </div>
+                <div className="trust-pillar-card">
+                  <div className="trust-pillar-icon">
+                    <i className="bi bi-award"></i>
+                  </div>
+                  <h4>Garantía Platino Care</h4>
+                  <p>
+                    Limpieza por ultrasonido, inspección anual de garras y pulido de cortesía incluido en cada joya confeccionada.
+                  </p>
+                </div>
+              </div>
+            </div>
           </main>
         </div>
       </div>
@@ -562,12 +864,25 @@ export default function GemstonesCatalog() {
               {/* Lado Izquierdo: Visualizador de la Gema */}
               <div className="gem-modal-visual-side">
                 <div className="gem-modal-visual-bg">
-                  <GemstoneStoneVisual
-                    shape={detailGem.shape}
-                    color={detailGem.gemColor}
-                    size={220}
-                    carat={`${detailGem.carat} ct`}
-                  />
+                  {detailGem.image ? (
+                    <div className="gem-modal-real-photo">
+                      <img
+                        src={detailGem.image}
+                        alt={detailGem.name}
+                        className="gem-modal-photo-img"
+                      />
+                      <span className="photo-verified-tag">
+                        <i className="bi bi-camera-fill"></i> Fotografía Real
+                      </span>
+                    </div>
+                  ) : (
+                    <GemstoneStoneVisual
+                      shape={detailGem.shape}
+                      color={detailGem.gemColor}
+                      size={220}
+                      carat={`${detailGem.carat} ct`}
+                    />
+                  )}
                 </div>
 
                 <div className="gem-cert-badge-box">

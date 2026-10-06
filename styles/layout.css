@@ -1,14 +1,16 @@
-/* Platino Perú - Luxury Layout & Navigation Styles */
+/* Platino Perú - Official Corporate Brand Palette */
 :root {
-  --platino-green-dark: #0a271f;
-  --platino-green: #14382c;
-  --platino-green-light: #1f4d3d;
-  --platino-gold: #c5a059;
-  --platino-gold-light: #e5cb9b;
-  --platino-cream: #faf8f5;
-  --platino-text-dark: #1f2421;
+  --platino-green-dark: #113B3A; /* RGB: 17, 59, 58 */
+  --platino-green: #113B3A;      /* RGB: 17, 59, 58 */
+  --platino-green-light: #F2F9F2;/* RGB: 242, 249, 242 (Menta suave) */
+  --platino-gold: #C6AC7F;       /* RGB: 198, 172, 127 (Dorado oficial) */
+  --platino-gold-light: #dfcaa7; /* Tonalidad suave del dorado */
+  --platino-cream: #FDF9F2;      /* RGB: 253, 249, 242 (Marfil / Crema) */
+  --platino-bg-mint: #F2F9F2;    /* RGB: 242, 249, 242 */
+  --platino-bg-ivory: #FDF9F2;   /* RGB: 253, 249, 242 */
+  --platino-text-dark: #113B3A;  /* Verde oscuro corporativo */
   --platino-text-muted: #5e6863;
-  --platino-border: #e8e6e1;
+  --platino-border: #e2e8e2;
   --platino-white: #ffffff;
   --font-serif: "Cormorant Garamond", "Playfair Display", Georgia, serif;
   --font-sans: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -65,6 +67,8 @@
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 20px;
+  position: relative;
+  z-index: 90010;
 }
 
 .header-top-row .brand-logo {
@@ -171,9 +175,7 @@
 .header-utility-group {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding-left: 14px;
-  border-left: 1px solid var(--platino-border);
+  gap: 12px;
   white-space: nowrap;
 }
 
@@ -232,6 +234,8 @@
   align-items: center;
   justify-content: flex-end;
   gap: 16px;
+  position: relative;
+  z-index: 90020;
 }
 
 .action-icon-btn {
@@ -298,23 +302,23 @@
 .platino-brand-bag .bag-handles {
   width: 13px;
   height: 8px;
-  border: 2px solid #b88d38;
+  border: 2px solid var(--platino-gold, #C6AC7F);
   border-bottom: none;
   border-radius: 7px 7px 0 0;
   margin-bottom: -1px;
 }
 
-/* Cuerpo de la bolsa color Oro Champán de alta joyería */
+/* Cuerpo de la bolsa color Oro oficial de Platino */
 .platino-brand-bag .bag-body {
   width: 23px;
   height: 19px;
-  background: linear-gradient(135deg, #f5e4bc 0%, #d4af37 45%, #b3883b 100%);
+  background: linear-gradient(135deg, #dfcaa7 0%, #C6AC7F 50%, #b39766 100%);
   border: 1px solid #ffffff;
   border-radius: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 3px 10px rgba(197, 160, 89, 0.45);
+  box-shadow: 0 3px 10px rgba(198, 172, 127, 0.45);
   position: relative;
   overflow: hidden;
 }
@@ -544,7 +548,7 @@
   padding: 13px 24px;
   background: var(--platino-white);
   position: relative;
-  z-index: 90001;
+  z-index: 100;
   pointer-events: auto;
 }
 

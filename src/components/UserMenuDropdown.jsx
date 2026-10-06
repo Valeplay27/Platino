@@ -105,122 +105,184 @@ export default function UserMenuDropdown() {
           <ul className="user-dropdown-list">
             {isAdmin ? (
               <>
-                {canSeeCitas && (
-                  <li>
-                    <Link
-                      to="/admin/citas"
-                      className="user-dropdown-item admin-highlight"
-                      onClick={() => setDropdownOpen(false)}
-                    >
-                      <i className="bi bi-calendar2-check"></i>
-                      <span>Citas & Horarios</span>
-                    </Link>
-                  </li>
+                {/* 1. OPERACIONES & TALLER */}
+                {(canSeePagos || canSeePedidos || canSeeCitas) && (
+                  <>
+                    <li className="user-dropdown-section-title">
+                      Operaciones & Taller
+                    </li>
+                    {canSeePagos && (
+                      <li>
+                        <Link
+                          to="/admin/pagos"
+                          className="user-dropdown-item"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          <i className="bi bi-wallet2"></i>
+                          <span>Control de Pagos & Pedidos</span>
+                        </Link>
+                      </li>
+                    )}
+                    {canSeePedidos && (
+                      <li>
+                        <Link
+                          to="/admin/pedidos"
+                          className="user-dropdown-item"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          <i className="bi bi-box-seam"></i>
+                          <span>Pedidos en Taller</span>
+                        </Link>
+                      </li>
+                    )}
+                    {canSeeCitas && (
+                      <li>
+                        <Link
+                          to="/admin/citas"
+                          className="user-dropdown-item"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          <i className="bi bi-calendar2-check"></i>
+                          <span>Citas & Horarios</span>
+                        </Link>
+                      </li>
+                    )}
+                  </>
                 )}
 
-                {canSeeCatalogo && (
-                  <li>
-                    <Link
-                      to="/admin/catalogo"
-                      className="user-dropdown-item"
-                      onClick={() => setDropdownOpen(false)}
-                    >
-                      <i className="bi bi-gem"></i>
-                      <span>Crear Portafolio / Catálogo</span>
-                    </Link>
-                  </li>
+                {/* 2. CATÁLOGO & INVENTARIO */}
+                {(canSeeCatalogo || canSeeInventario) && (
+                  <>
+                    <li className="user-dropdown-divider"></li>
+                    <li className="user-dropdown-section-title">
+                      Catálogo & Stock
+                    </li>
+                    {canSeeCatalogo && (
+                      <li>
+                        <Link
+                          to="/admin/catalogo"
+                          className="user-dropdown-item"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          <i className="bi bi-gem"></i>
+                          <span>Crear Portafolio / Catálogo</span>
+                        </Link>
+                      </li>
+                    )}
+                    {canSeeInventario && (
+                      <li>
+                        <Link
+                          to="/admin/inventario"
+                          className="user-dropdown-item"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          <i className="bi bi-boxes"></i>
+                          <span>Inventario & Stock</span>
+                        </Link>
+                      </li>
+                    )}
+                    {canSeeCatalogo && (
+                      <li>
+                        <Link
+                          to="/admin/gemas"
+                          className="user-dropdown-item"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          <i className="bi bi-gem"></i>
+                          <span>Gemas & Diamantes Certificados</span>
+                        </Link>
+                      </li>
+                    )}
+                  </>
                 )}
 
-                {canSeeInventario && (
-                  <li>
-                    <Link
-                      to="/admin/inventario"
-                      className="user-dropdown-item"
-                      onClick={() => setDropdownOpen(false)}
-                    >
-                      <i className="bi bi-boxes"></i>
-                      <span>Inventario & Stock</span>
-                    </Link>
-                  </li>
+                {/* 3. TIENDA & CONTENIDO WEB */}
+                {(canSeeImagenes || canSeeNosotros) && (
+                  <>
+                    <li className="user-dropdown-divider"></li>
+                    <li className="user-dropdown-section-title">
+                      Tienda & Contenido Web
+                    </li>
+                    {canSeeImagenes && (
+                      <li>
+                        <Link
+                          to="/admin/imagenes"
+                          className="user-dropdown-item"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          <i className="bi bi-images"></i>
+                          <span>Imágenes del Inicio</span>
+                        </Link>
+                      </li>
+                    )}
+                    {canSeeNosotros && (
+                      <li>
+                        <Link
+                          to="/nosotros"
+                          className="user-dropdown-item"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          <i className="bi bi-journal-richtext"></i>
+                          <span>Editar Historia (Nosotros)</span>
+                        </Link>
+                      </li>
+                    )}
+                  </>
                 )}
 
-                {canSeePedidos && (
-                  <li>
-                    <Link
-                      to="/admin/pedidos"
-                      className="user-dropdown-item"
-                      onClick={() => setDropdownOpen(false)}
-                    >
-                      <i className="bi bi-box-seam"></i>
-                      <span>Pedidos en Taller</span>
-                    </Link>
-                  </li>
-                )}
-
-                {canSeeImagenes && (
-                  <li>
-                    <Link
-                      to="/admin/imagenes"
-                      className="user-dropdown-item"
-                      onClick={() => setDropdownOpen(false)}
-                    >
-                      <i className="bi bi-images"></i>
-                      <span>Imágenes del Inicio</span>
-                    </Link>
-                  </li>
-                )}
-
-                {canSeePagos && (
-                  <li>
-                    <Link
-                      to="/admin/pagos"
-                      className="user-dropdown-item"
-                      onClick={() => setDropdownOpen(false)}
-                      style={{ background: "#f0fdf4", borderLeft: "3px solid #16a34a" }}
-                    >
-                      <i className="bi bi-wallet2" style={{ color: "#16a34a" }}></i>
-                      <span>Control de Pagos & Pedidos</span>
-                    </Link>
-                  </li>
-                )}
-
-                {canSeeNosotros && (
-                  <li>
-                    <Link
-                      to="/nosotros"
-                      className="user-dropdown-item"
-                      onClick={() => setDropdownOpen(false)}
-                    >
-                      <i className="bi bi-journal-richtext" style={{ color: "var(--platino-gold)" }}></i>
-                      <span>Editar Historia (Nosotros)</span>
-                    </Link>
-                  </li>
-                )}
-
+                {/* 4. ADMINISTRACIÓN CENTRAL */}
                 {isMaster && (
-                  <li>
-                    <Link
-                      to="/admin?tab=permisos"
-                      className="user-dropdown-item"
-                      onClick={() => setDropdownOpen(false)}
-                      style={{ background: "#fffbeb", borderLeft: "3px solid #d97706" }}
-                    >
-                      <i className="bi bi-shield-shaded" style={{ color: "#d97706" }}></i>
-                      <span style={{ fontWeight: 600 }}>Gestión de Permisos & Sedes</span>
-                    </Link>
-                  </li>
+                  <>
+                    <li className="user-dropdown-divider"></li>
+                    <li className="user-dropdown-section-title master-title">
+                      <i className="bi bi-shield-check" style={{ width: "auto", fontSize: "11px", color: "var(--platino-gold)" }}></i>
+                      <span>Administración Central</span>
+                    </li>
+                    <li>
+                      <Link
+                        to="/admin?tab=permisos"
+                        className="user-dropdown-item master-item"
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <i className="bi bi-shield-shaded"></i>
+                        <span>Gestión de Permisos & Sedes</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        to="/admin?tab=reclamaciones"
+                        className="user-dropdown-item master-item"
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <i className="bi bi-book-half"></i>
+                        <span>Libro de Reclamaciones</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        to="/admin?tab=platino_care"
+                        className="user-dropdown-item master-item"
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <i className="bi bi-shield-fill-check"></i>
+                        <span>Platino Care & Garantías</span>
+                      </Link>
+                    </li>
+                  </>
                 )}
               </>
             ) : (
               <>
+                <li className="user-dropdown-section-title">
+                  Mi Cuenta Platino
+                </li>
                 <li>
                   <Link
                     to="/mis-pedidos"
                     className="user-dropdown-item"
-                    style={{ fontWeight: 600, color: "var(--platino-green-dark)" }}
                     onClick={() => setDropdownOpen(false)}
                   >
-                    <i className="bi bi-box-seam" style={{ color: "var(--platino-gold)" }}></i>
+                    <i className="bi bi-box-seam"></i>
                     <span>Mis Pedidos y Seguimiento</span>
                   </Link>
                 </li>

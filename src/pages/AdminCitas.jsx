@@ -73,6 +73,10 @@ import {
   toggleUserPermission,
   getActivePendingRequest,
 } from "../services/permissionsService";
+import { getReclamaciones } from "../services/reclamacionesService";
+import AdminReclamacionesTab from "../components/AdminReclamacionesTab";
+import AdminPlatinoCareTab from "../components/AdminPlatinoCareTab";
+import AdminGemstonesTab from "../components/AdminGemstonesTab";
 import "../../styles/citas.css";
 import "../../styles/orders.css";
 
@@ -210,6 +214,28 @@ export default function AdminCitas() {
     )
       return "permisos";
     if (
+      location.pathname === "/admin/reclamaciones" ||
+      location.pathname === "/admin/libro-reclamaciones" ||
+      searchParams.get("tab") === "reclamaciones" ||
+      searchParams.get("tab") === "libro-reclamaciones"
+    )
+      return "reclamaciones";
+    if (
+      location.pathname === "/admin/platino-care" ||
+      location.pathname === "/admin/care" ||
+      searchParams.get("tab") === "platino_care" ||
+      searchParams.get("tab") === "care" ||
+      searchParams.get("tab") === "platino-care"
+    )
+      return "platino_care";
+    if (
+      location.pathname === "/admin/gemas" ||
+      location.pathname === "/admin/diamantes" ||
+      searchParams.get("tab") === "gemas" ||
+      searchParams.get("tab") === "diamantes"
+    )
+      return "gemas";
+    if (
       searchParams.get("tab") === "finanzas" ||
       searchParams.get("tab") === "ganancias" ||
       searchParams.get("tab") === "pagos"
@@ -238,6 +264,9 @@ export default function AdminCitas() {
   const [passwordChangeFeedback, setPasswordChangeFeedback] = useState("");
   const [copiedEmail, setCopiedEmail] = useState(null);
 
+  // Estado del Libro de Reclamaciones (INDECOPI)
+  const [reclamacionesList, setReclamacionesList] = useState(() => getReclamaciones());
+
   // Escuchar actualizaciones de permisos, solicitudes y contraseñas en tiempo real
   useEffect(() => {
     const handlePermUpdate = () => {
@@ -249,13 +278,22 @@ export default function AdminCitas() {
     const handleCredsUpdate = () => {
       setAdminAccountsList(getAdminAccounts());
     };
+    const handleRecUpdate = (e) => {
+      if (e.detail && Array.isArray(e.detail)) {
+        setReclamacionesList(e.detail);
+      } else {
+        setReclamacionesList(getReclamaciones());
+      }
+    };
     window.addEventListener("platino_permissions_updated", handlePermUpdate);
     window.addEventListener("platino_permission_requests_updated", handleReqUpdate);
     window.addEventListener("platino_admin_credentials_updated", handleCredsUpdate);
+    window.addEventListener("platino_reclamaciones_updated", handleRecUpdate);
     return () => {
       window.removeEventListener("platino_permissions_updated", handlePermUpdate);
       window.removeEventListener("platino_permission_requests_updated", handleReqUpdate);
       window.removeEventListener("platino_admin_credentials_updated", handleCredsUpdate);
+      window.removeEventListener("platino_reclamaciones_updated", handleRecUpdate);
     };
   }, []);
 
@@ -2477,6 +2515,12 @@ export default function AdminCitas() {
                   ? "Control de Pagos & Validación de Pedidos"
                   : activeTab === "permisos"
                   ? "Gestión de Permisos & Sedes (Panel de Vladimir)"
+                  : activeTab === "reclamaciones"
+                  ? "Libro de Reclamaciones Virtual - Supervisión Legal (INDECOPI)"
+                  : activeTab === "platino_care"
+                  ? "Gestión y Tarifas de Platino Care (Garantías)"
+                  : activeTab === "gemas"
+                  ? "Gestión y Creación de Diamantes & Gemas Certificadas"
                   : "Panel Administrativo de Citas"}
               </h1>
               {isMaster ? (
@@ -2506,11 +2550,103 @@ export default function AdminCitas() {
                 ? "Supervisa los pedidos de los clientes, valida si el pago fue realizado y confirma por qué medio de pago se efectuó la transacción (BanBif, Banco de la Nación, BCP, Interbank, IziPay, Pichincha, Fondo Platino, Efectivo)."
                 : activeTab === "permisos"
                 ? "Supervisa autorizaciones, aprueba solicitudes de administradores de sede y administra la matriz de accesos."
+                : activeTab === "reclamaciones"
+                ? "Auditoría oficial del Libro de Reclamaciones conforme a la Ley N° 29571. Revisa quejas y reclamos y registra la respuesta legal del proveedor (plazo máximo: 15 días hábiles)."
+                : activeTab === "platino_care"
+                ? "Configura las coberturas del programa de garantía oficial Platino Care, precios y planes visibles en la tienda."
+                : activeTab === "gemas"
+                ? "Crea y administra gemas con atributos GIA/IGI, pureza, quilates, dimensiones, corte y fotografías de alta resolución."
                 : "Gestiona reservas, revisa observaciones de clientes y bloquea u habilita horarios de atención."}
             </p>
           </div>
 
           <div className="admin-top-actions">
+            {isMaster && activeTab !== "gemas" && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("gemas")}
+                className="admin-view-store-btn"
+                style={{
+                  background: "#113B3A",
+                  borderColor: "#113B3A",
+                  color: "#ffffff",
+                  fontWeight: 600,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  cursor: "pointer",
+                }}
+              >
+                <i className="bi bi-gem" style={{ color: "#C6AC7F" }}></i>
+                Gemas & Diamantes
+              </button>
+            )}
+            {isMaster && activeTab === "gemas" && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("citas")}
+                className="admin-view-store-btn"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  cursor: "pointer",
+                }}
+              >
+                <i className="bi bi-arrow-left"></i>
+                Volver a Citas & Horarios
+              </button>
+            )}
+            {isMaster && activeTab !== "reclamaciones" && activeTab !== "platino_care" && activeTab !== "gemas" && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("reclamaciones")}
+                className="admin-view-store-btn"
+                style={{
+                  background: "#113B3A",
+                  borderColor: "#113B3A",
+                  color: "#ffffff",
+                  fontWeight: 600,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  cursor: "pointer",
+                }}
+              >
+                <i className="bi bi-book-half" style={{ color: "#C6AC7F" }}></i>
+                Libro de Reclamaciones
+                {reclamacionesList.filter((r) => r.estado === "pendiente").length > 0 && (
+                  <span
+                    style={{
+                      background: "#ef4444",
+                      color: "#fff",
+                      fontSize: "11px",
+                      padding: "1px 6px",
+                      borderRadius: "10px",
+                      fontWeight: 700,
+                    }}
+                  >
+                    {reclamacionesList.filter((r) => r.estado === "pendiente").length}
+                  </span>
+                )}
+              </button>
+            )}
+            {isMaster && activeTab === "reclamaciones" && (
+              <button
+                type="button"
+                onClick={() => setActiveTab("citas")}
+                className="admin-view-store-btn"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  cursor: "pointer",
+                }}
+              >
+                <i className="bi bi-arrow-left"></i>
+                Volver a Citas & Horarios
+              </button>
+            )}
             <Link to="/" className="admin-view-store-btn" target="_blank" rel="noopener noreferrer">
               <i className="bi bi-box-arrow-up-right"></i> Ver Tienda Pública
             </Link>
@@ -2540,7 +2676,55 @@ export default function AdminCitas() {
         )}
 
         {/* Métricas Resumen Dinámicas según la pestaña */}
-        {activeTab === "permisos" ? (
+        {activeTab === "reclamaciones" ? (
+          <div className="admin-metrics-row">
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#C6AC7F", background: "#FDF9F2", border: "1px solid rgba(198, 172, 127, 0.4)" }}>
+                <i className="bi bi-book-half"></i>
+              </div>
+              <div>
+                <h3 className="metric-val">{reclamacionesList.length}</h3>
+                <p className="metric-lbl">Total Hojas Registradas</p>
+              </div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#b91c1c", background: "#fee2e2" }}>
+                <i className="bi bi-clock-history"></i>
+              </div>
+              <div>
+                <h3 className="metric-val" style={{ color: "#b91c1c" }}>
+                  {reclamacionesList.filter((r) => r.estado === "pendiente").length}
+                </h3>
+                <p className="metric-lbl">Pendientes de Respuesta</p>
+              </div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#d97706", background: "#fef3c7" }}>
+                <i className="bi bi-hourglass-split"></i>
+              </div>
+              <div>
+                <h3 className="metric-val" style={{ color: "#d97706" }}>
+                  {reclamacionesList.filter((r) => r.estado === "en_proceso").length}
+                </h3>
+                <p className="metric-lbl">En Trámite / Proceso</p>
+              </div>
+            </div>
+
+            <div className="metric-card">
+              <div className="metric-icon-box" style={{ color: "#166e37", background: "#e8f6ed" }}>
+                <i className="bi bi-check-circle-fill"></i>
+              </div>
+              <div>
+                <h3 className="metric-val" style={{ color: "#166e37" }}>
+                  {reclamacionesList.filter((r) => r.estado === "atendido").length}
+                </h3>
+                <p className="metric-lbl">Atendidos Formalmente</p>
+              </div>
+            </div>
+          </div>
+        ) : activeTab === "permisos" ? (
           <div className="admin-metrics-row">
             <div className="metric-card">
               <div className="metric-icon-box" style={{ color: "#d97706", background: "#fef3c7" }}>
@@ -5882,6 +6066,27 @@ export default function AdminCitas() {
             TAB 6: GESTIÓN DE PERMISOS & SEDES (VLADIMIR MASTER)
             ======================================================== */}
         {activeTab === "permisos" && renderPermisosTab()}
+
+        {/* ========================================================
+            TAB 7: LIBRO DE RECLAMACIONES (EXCLUSIVO VLADIMIR MASTER)
+            ======================================================== */}
+        {activeTab === "reclamaciones" && (
+          <AdminReclamacionesTab isMaster={isEffectiveMaster} />
+        )}
+
+        {/* ========================================================
+            TAB 8: GESTIÓN DE PLATINO CARE Y GARANTÍAS
+            ======================================================== */}
+        {activeTab === "platino_care" && (
+          <AdminPlatinoCareTab isMaster={isEffectiveMaster} />
+        )}
+
+        {/* ========================================================
+            TAB 9: GESTIÓN DE GEMAS & DIAMANTES CERTIFICADOS
+            ======================================================== */}
+        {activeTab === "gemas" && (
+          <AdminGemstonesTab isMaster={isEffectiveMaster} />
+        )}
 
         {/* Modal de Crear / Modificar Joya e Imagen */}
         {productModalOpen && (

@@ -60,7 +60,7 @@ function Cart({ cart, updateQuantity }) {
                   style={{
                     width: "22px",
                     height: "12px",
-                    border: "3px solid #b88d38",
+                    border: "3px solid #C6AC7F",
                     borderBottom: "none",
                     borderRadius: "12px 12px 0 0",
                     marginBottom: "-1px",
@@ -71,13 +71,13 @@ function Cart({ cart, updateQuantity }) {
                   style={{
                     width: "44px",
                     height: "36px",
-                    background: "linear-gradient(135deg, #f5e4bc 0%, #d4af37 45%, #b3883b 100%)",
+                    background: "linear-gradient(135deg, #dfcaa7 0%, #C6AC7F 50%, #b39766 100%)",
                     border: "1.5px solid #ffffff",
                     borderRadius: "6px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: "0 4px 12px rgba(197, 160, 89, 0.45)",
+                    boxShadow: "0 4px 12px rgba(198, 172, 127, 0.45)",
                     position: "relative",
                   }}
                 >
@@ -209,7 +209,7 @@ function Cart({ cart, updateQuantity }) {
                   style={{
                     width: "32px",
                     height: "17px",
-                    border: "3.5px solid #b88d38",
+                    border: "3.5px solid #C6AC7F",
                     borderBottom: "none",
                     borderRadius: "15px 15px 0 0",
                     marginBottom: "-1px",
@@ -219,13 +219,13 @@ function Cart({ cart, updateQuantity }) {
                   style={{
                     width: "62px",
                     height: "52px",
-                    background: "linear-gradient(135deg, #f5e4bc 0%, #d4af37 45%, #b3883b 100%)",
+                    background: "linear-gradient(135deg, #dfcaa7 0%, #C6AC7F 50%, #b39766 100%)",
                     border: "2px solid #ffffff",
                     borderRadius: "10px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: "0 8px 24px rgba(197, 160, 89, 0.45)",
+                    boxShadow: "0 8px 24px rgba(198, 172, 127, 0.45)",
                   }}
                 >
                   <img

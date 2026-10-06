@@ -18,6 +18,7 @@ import { AuthProvider } from './context/AuthContext'
 import AuthModal from './components/AuthModal'
 import ScrollToTop from './components/ScrollToTop'
 import Nosotros from './pages/Nosotros'
+import LibroReclamaciones from './pages/LibroReclamaciones'
 import CartDrawer from './components/CartDrawer'
 import './App.css'
 
@@ -96,6 +97,9 @@ function App() {
             <Route path="/favoritos" element={<Favorites addToCart={addToCart} />} />
             <Route path="/nosotros" element={<Nosotros />} />
             <Route path="/nosotros/:subpage" element={<Nosotros />} />
+            <Route path="/libro-de-reclamaciones" element={<LibroReclamaciones />} />
+            <Route path="/reclamaciones" element={<LibroReclamaciones />} />
+            <Route path="/libro-reclamaciones" element={<LibroReclamaciones />} />
             <Route path="/mis-pedidos" element={<ClientOrders addToCart={addToCart} />} />
             <Route path="/seguimiento" element={<ClientOrders />} />
             <Route path="/cliente/pedidos" element={<ClientOrders />} />
@@ -112,6 +116,13 @@ function App() {
             <Route path="/admin/ganancias" element={<AdminCitas />} />
             <Route path="/admin/pagos" element={<AdminCitas />} />
             <Route path="/admin/permisos" element={<AdminCitas />} />
+            <Route path="/admin/reclamaciones" element={<AdminCitas />} />
+            <Route path="/admin/libro-reclamaciones" element={<AdminCitas />} />
+            <Route path="/admin/platino-care" element={<AdminCitas />} />
+            <Route path="/admin/care" element={<AdminCitas />} />
+            <Route path="/admin/gemas" element={<AdminCitas />} />
+            <Route path="/admin/diamantes" element={<AdminCitas />} />
+            <Route path="/admin/catalogo-gemas" element={<AdminCitas />} />
             <Route path="/dashboard" element={<AdminCitas />} />
           </Routes>
         </main>

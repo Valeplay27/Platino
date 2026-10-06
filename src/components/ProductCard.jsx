@@ -142,7 +142,7 @@ function ProductCard({ product, addToCart }) {
           <Link
             to={`/producto/${product.id}`}
             className="card-action-btn"
-            style={{ textDecoration: "none", borderRadius: "9999px", flex: 1, margin: 0 }}
+            style={{ flex: 1, margin: 0 }}
           >
             <span>
               {product.type === "accesorio" ? "Elegir Joya" : "Personalizar Joya"}
@@ -166,34 +166,6 @@ function ProductCard({ product, addToCart }) {
               }}
               title="Añadir a la bolsa de compras"
               aria-label={`Añadir ${product.name} a la bolsa`}
-              style={{
-                width: "40px",
-                height: "40px",
-                borderRadius: "50%",
-                border: "1.5px solid #b88d38",
-                background: "linear-gradient(135deg, #f5e4bc 0%, #d4af37 45%, #b3883b 100%)",
-                color: "#0a271f",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "15px",
-                cursor: "pointer",
-                transition: "all 0.25s ease",
-                flexShrink: 0,
-                boxShadow: "0 3px 10px rgba(197, 160, 89, 0.35)",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "#0e2920";
-                e.currentTarget.style.borderColor = "#0e2920";
-                e.currentTarget.style.color = "#ffffff";
-                e.currentTarget.style.transform = "scale(1.08)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "linear-gradient(135deg, #f5e4bc 0%, #d4af37 45%, #b3883b 100%)";
-                e.currentTarget.style.borderColor = "#b88d38";
-                e.currentTarget.style.color = "#0a271f";
-                e.currentTarget.style.transform = "scale(1)";
-              }}
             >
               <i className="bi bi-bag-plus"></i>
             </button>

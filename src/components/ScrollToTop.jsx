@@ -7,10 +7,10 @@ import { useLocation } from "react-router-dom";
  * whenever the route pathname or search parameters change.
  */
 export default function ScrollToTop() {
-  const { pathname, search } = useLocation();
+  const { pathname } = useLocation();
 
   useEffect(() => {
-    // Immediate scroll to top on every navigation
+    // Only scroll to top on page route changes, not query parameter filters
     try {
       window.scrollTo({
         top: 0,
@@ -20,7 +20,7 @@ export default function ScrollToTop() {
     } catch {
       window.scrollTo(0, 0);
     }
-  }, [pathname, search]);
+  }, [pathname]);
 
   return null;
 }

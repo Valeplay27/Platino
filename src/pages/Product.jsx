@@ -15,6 +15,7 @@ import {
 import { getProductById, getCatalogProducts } from "../services/catalogService";
 import { useAuth } from "../context/useAuth";
 import { isUserFavorite, toggleUserFavorite } from "../services/favoritesService";
+import { getPlatinoCareConfig } from "../services/platinoCareService";
 import { DiamondCutIcon } from "../components/GemstoneIcons";
 import { getAssetUrl } from "../utils/assetHelper";
 import "../../styles/product.css";
@@ -168,7 +169,18 @@ export default function Product({ addToCart }) {
     product.presentationOptions?.[0]?.id || "caja-verde-lujo"
   );
   const [platinoCarePlan, setPlatinoCarePlan] = useState("cortesia"); // 'cortesia' o 'plus'
+  const [platinoCareConfig, setPlatinoCareConfig] = useState(() => getPlatinoCareConfig());
   const [openCareAccordion, setOpenCareAccordion] = useState(null);
+
+  useEffect(() => {
+    const handleCareUpdate = () => {
+      setPlatinoCareConfig(getPlatinoCareConfig());
+    };
+    window.addEventListener("platino_care_updated", handleCareUpdate);
+    return () => window.removeEventListener("platino_care_updated", handleCareUpdate);
+  }, []);
+
+  const carePlusPrice = platinoCareConfig?.plus?.price ?? 90;
 
   // Acordeón de FAQs
   const [openFaqIndex, setOpenFaqIndex] = useState(null);
@@ -312,7 +324,7 @@ export default function Product({ addToCart }) {
       stockUnits: currentTotalStock,
       deliveryDays,
       estimatedDeliveryDate: deliveryDateFormatted,
-      price: product.price + (platinoCarePlan === "plus" && !isAccesorio ? 90 : 0),
+      price: product.price + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0),
       image: mainImage || product.image,
     };
     addToCart(customProduct);
@@ -1400,60 +1412,38 @@ export default function Product({ addToCart }) {
                         style={{ width: "32px", height: "32px", borderRadius: "50%", objectFit: "cover" }}
                       />
                       <div>
-                        <h4 style={{ margin: 0, fontSize: "14.5px", fontWeight: "700", color: "#0f2a24" }}>PLATINO CARE</h4>
-                        <span style={{ fontSize: "11px", color: "#c5a059", fontWeight: "700", letterSpacing: "0.08em" }}>PROGRAMA OFICIAL DE CUIDADO</span>
+                        <h4 style={{ margin: 0, fontSize: "14.5px", fontWeight: "700", color: "#0f2a24" }}>
+                          {platinoCareConfig?.name || "PLATINO CARE"}
+                        </h4>
+                        <span style={{ fontSize: "11px", color: "#c5a059", fontWeight: "700", letterSpacing: "0.08em" }}>
+                          {platinoCareConfig?.tagline || "PROGRAMA OFICIAL DE CUIDADO"}
+                        </span>
                       </div>
                     </div>
                   </div>
 
                   <div className="platino-care-accordions" style={{ marginTop: "12px" }}>
-                    <div className="care-accordion-item">
-                      <button
-                        type="button"
-                        className="care-accordion-trigger"
-                        onClick={() => toggleCareAccordion(1)}
-                      >
-                        <span>Garantía de por vida del material</span>
-                        <i className={openCareAccordion === 1 ? "bi bi-chevron-up" : "bi bi-chevron-down"}></i>
-                      </button>
-                      {openCareAccordion === 1 && (
-                        <div className="care-accordion-content">
-                          Certificamos la ley y pureza del Oro 18K y Plata 950 de por vida ante cualquier auditoría gemológica.
+                    {(platinoCareConfig?.benefits || []).map((benefit, idx) => {
+                      const benefitId = benefit.id || idx + 1;
+                      const isOpen = openCareAccordion === benefitId;
+                      return (
+                        <div key={benefitId} className="care-accordion-item">
+                          <button
+                            type="button"
+                            className="care-accordion-trigger"
+                            onClick={() => toggleCareAccordion(benefitId)}
+                          >
+                            <span>{benefit.title}</span>
+                            <i className={isOpen ? "bi bi-chevron-up" : "bi bi-chevron-down"}></i>
+                          </button>
+                          {isOpen && (
+                            <div className="care-accordion-content">
+                              {benefit.content}
+                            </div>
+                          )}
                         </div>
-                      )}
-                    </div>
-
-                    <div className="care-accordion-item">
-                      <button
-                        type="button"
-                        className="care-accordion-trigger"
-                        onClick={() => toggleCareAccordion(2)}
-                      >
-                        <span>Mantenimiento y pulido profesional</span>
-                        <i className={openCareAccordion === 2 ? "bi bi-chevron-up" : "bi bi-chevron-down"}></i>
-                      </button>
-                      {openCareAccordion === 2 && (
-                        <div className="care-accordion-content">
-                          Incluye pulido ultrasónico profesional y ajuste periódico de garras para un brillo eterno.
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="care-accordion-item">
-                      <button
-                        type="button"
-                        className="care-accordion-trigger"
-                        onClick={() => toggleCareAccordion(3)}
-                      >
-                        <span>Entallado gratuito (1 sola vez)*</span>
-                        <i className={openCareAccordion === 3 ? "bi bi-chevron-up" : "bi bi-chevron-down"}></i>
-                      </button>
-                      {openCareAccordion === 3 && (
-                        <div className="care-accordion-content">
-                          Si la medida no es exacta al recibir tu joya, realizamos el ajuste de hasta 2 tallas sin costo.
-                        </div>
-                      )}
-                    </div>
+                      );
+                    })}
                   </div>
 
                   {/* Botones de Plan Platino Care */}
@@ -1463,8 +1453,10 @@ export default function Product({ addToCart }) {
                       className={`btn-care-plus ${platinoCarePlan === "plus" ? "active" : ""}`}
                       onClick={() => setPlatinoCarePlan("plus")}
                     >
-                      <span>AÑADIR PLATINO CARE +</span>
-                      <span className="care-price-sub">PAGO ÚNICO S/. 90</span>
+                      <span>{platinoCareConfig?.plus?.title || "AÑADIR PLATINO CARE +"}</span>
+                      <span className="care-price-sub">
+                        {platinoCareConfig?.plus?.subtitle || `PAGO ÚNICO S/. ${carePlusPrice}`}
+                      </span>
                     </button>
 
                     <button
@@ -1472,8 +1464,10 @@ export default function Product({ addToCart }) {
                       className={`btn-care-courtesy ${platinoCarePlan === "cortesia" ? "active" : ""}`}
                       onClick={() => setPlatinoCarePlan("cortesia")}
                     >
-                      <span>AÑADIR PLATINO CARE</span>
-                      <span className="care-price-sub">CORTESÍA CON TU COMPRA S/. 0</span>
+                      <span>{platinoCareConfig?.cortesia?.title || "AÑADIR PLATINO CARE"}</span>
+                      <span className="care-price-sub">
+                        {platinoCareConfig?.cortesia?.subtitle || "CORTESÍA CON TU COMPRA S/. 0"}
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -1699,10 +1693,10 @@ export default function Product({ addToCart }) {
               {isAccesorio ? (
                 <div><strong>Presentación:</strong> {product.presentationOptions?.find((o) => o.id === selectedPresentation)?.name}</div>
               ) : (
-                <div><strong>Garantía:</strong> Platino Care {platinoCarePlan === "plus" ? "+ (S/. 90)" : "Cortesía (S/. 0)"}</div>
+                <div><strong>Garantía:</strong> Platino Care {platinoCarePlan === "plus" ? `+ (S/. ${carePlusPrice})` : "Cortesía (S/. 0)"}</div>
               )}
               <div style={{ borderTop: "1px solid #e8e4db", paddingTop: "10px", marginTop: "10px", fontSize: "17px", fontWeight: "700", color: "#17241e" }}>
-                Total: {formatPrice(product.price + (platinoCarePlan === "plus" && !isAccesorio ? 90 : 0))}
+                Total: {formatPrice(product.price + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0))}
               </div>
             </div>
 
@@ -1752,7 +1746,7 @@ export default function Product({ addToCart }) {
                       stockUnits: currentTotalStock,
                       deliveryDays,
                       estimatedDeliveryDate: deliveryDateFormatted,
-                      price: product.price + (platinoCarePlan === "plus" && !isAccesorio ? 90 : 0),
+                      price: product.price + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0),
                       image: mainImage || product.image,
                     };
                     addToCart(customProduct);

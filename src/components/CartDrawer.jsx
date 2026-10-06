@@ -68,7 +68,7 @@ export default function CartDrawer({
                   style={{
                     width: "14px",
                     height: "8px",
-                    border: "2px solid #b88d38",
+                    border: "2px solid #C6AC7F",
                     borderBottom: "none",
                     borderRadius: "6px 6px 0 0",
                     marginBottom: "-1px",
@@ -78,13 +78,13 @@ export default function CartDrawer({
                   style={{
                     width: "26px",
                     height: "22px",
-                    background: "linear-gradient(135deg, #f5e4bc 0%, #d4af37 45%, #b3883b 100%)",
+                    background: "linear-gradient(135deg, #dfcaa7 0%, #C6AC7F 50%, #b39766 100%)",
                     border: "1.2px solid #ffffff",
                     borderRadius: "4px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: "0 3px 8px rgba(197, 160, 89, 0.4)",
+                    boxShadow: "0 3px 8px rgba(198, 172, 127, 0.4)",
                   }}
                 >
                   <img
@@ -152,7 +152,7 @@ export default function CartDrawer({
                   style={{
                     width: "24px",
                     height: "13px",
-                    border: "3px solid #b88d38",
+                    border: "3px solid #C6AC7F",
                     borderBottom: "none",
                     borderRadius: "12px 12px 0 0",
                     marginBottom: "-1px",
@@ -162,13 +162,13 @@ export default function CartDrawer({
                   style={{
                     width: "50px",
                     height: "42px",
-                    background: "linear-gradient(135deg, #f5e4bc 0%, #d4af37 45%, #b3883b 100%)",
+                    background: "linear-gradient(135deg, #dfcaa7 0%, #C6AC7F 50%, #b39766 100%)",
                     border: "1.8px solid #ffffff",
                     borderRadius: "8px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    boxShadow: "0 6px 18px rgba(197, 160, 89, 0.45)",
+                    boxShadow: "0 6px 18px rgba(198, 172, 127, 0.45)",
                   }}
                 >
                   <img

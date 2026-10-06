@@ -223,6 +223,15 @@ export const PERMISSIONS_CATALOG = [
     icon: "bi-file-earmark-excel",
     defaultForSede: true,
   },
+  {
+    key: "reclamaciones",
+    name: "Libro de Reclamaciones (INDECOPI)",
+    shortLabel: "Libro de Reclamaciones",
+    description: "Supervisión y atención de hojas de reclamo y queja de consumidores (Exclusivo Super Administrador Principal).",
+    category: "Legal & Reclamos",
+    icon: "bi-book-half",
+    defaultForSede: false,
+  },
 ];
 
 // Matriz de permisos inicial por defecto

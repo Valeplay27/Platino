@@ -100,45 +100,13 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
         {/* Row 1: Contact/Sedes on Left, Logo Center, Actions Right */}
         <div className="header-top-row">
           <div className="header-contact-links">
-            <div className="header-sedes-stacked">
-              <div className="top-sede-line">
-                <span className="top-sede-label">
-                  <i className="bi bi-geo-alt-fill"></i> Sede Lima Centro:
-                </span>
-                <a
-                  href="https://wa.me/51927357217"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="top-wa-mini"
-                  title="WhatsApp Lima Centro: 927 357 217"
-                >
-                  <i className="bi bi-whatsapp"></i> 927 357 217
-                </a>
-              </div>
-
-              <div className="top-sede-line">
-                <span className="top-sede-label">
-                  <i className="bi bi-geo-alt-fill"></i> Sede Miraflores:
-                </span>
-                <a
-                  href="https://wa.me/51984281116"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="top-wa-mini"
-                  title="WhatsApp Miraflores: 984 281 116"
-                >
-                  <i className="bi bi-whatsapp"></i> 984 281 116
-                </a>
-              </div>
-            </div>
-
             <div className="header-utility-group">
               <Link to="/sedes" className="top-utility-link">
-                Sedes
+                <i className="bi bi-geo-alt me-1"></i> Sedes
               </Link>
               <span className="divider-dot">•</span>
               <Link to="/agendar-cita" className="top-utility-link">
-                Agendar Cita
+                <i className="bi bi-calendar2-check me-1"></i> Agendar Cita
               </Link>
             </div>
           </div>
