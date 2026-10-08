@@ -552,16 +552,198 @@
   box-shadow: 0 0 0 3.5px rgba(15, 42, 36, 0.14);
 }
 
-/* Double Sizes for Aros */
-.double-sizes-grid {
+/* ========================================================
+   DOUBLE SIZES FOR AROS (DISEÑO ESPACIOSO Y ELEGANTE)
+   ======================================================== */
+.double-sizes-block {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.double-sizes-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #efeae1;
+  margin-bottom: 4px;
+}
+
+.double-sizes-header-title-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.double-sizes-header-badge {
+  background: #fbf5e8;
+  color: #8c6e2d;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 9999px;
+  border: 1px solid #ebd9a9;
+}
+
+.double-sizes-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.double-selects-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 18px;
+  gap: 16px;
+}
+
+.double-select-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.double-select-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.double-select-gender-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 6px;
+  letter-spacing: 0.02em;
+}
+
+.double-select-gender-pill.dama {
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+}
+
+.double-select-gender-pill.varon {
+  background: #dbeafe;
+  color: #1e40af;
+  border: 1px solid #bfdbfe;
+}
+
+.double-select-range-hint {
+  font-size: 11px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.double-advice-banner {
+  margin-top: 4px;
+}
+
+.double-stock-cards-container {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 4px;
+}
+
+.double-stock-single-card {
+  background: #ffffff;
+  border: 1px solid #e2ddd3;
+  border-radius: 12px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  box-shadow: 0 2px 6px rgba(15, 42, 36, 0.02);
+}
+
+.double-stock-pill-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.double-stock-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.double-stock-dot.dama {
+  background: #d97706;
+}
+
+.double-stock-dot.varon {
+  background: #2563eb;
+}
+
+.double-stock-item-title {
+  font-size: 12px;
+  color: #1a2e26;
+  font-weight: 600;
+}
+
+.double-stock-info-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.double-stock-status-pill {
+  font-size: 11.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.double-stock-status-pill.ok {
+  color: #15803d;
+}
+
+.double-stock-status-pill.low {
+  color: #b45309;
+}
+
+.double-stock-breakdown {
+  font-size: 10.5px;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.double-stock-badge-text {
+  font-size: 11.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.double-stock-badge-text.advisor {
+  color: #b45309;
+  font-weight: 600;
+}
+
+.double-stock-badge-text.order {
+  color: #475569;
+  font-style: italic;
 }
 
 @media (max-width: 600px) {
-  .double-sizes-grid {
+  .double-selects-grid {
     grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .double-stock-cards-container {
+    grid-template-columns: 1fr;
+    gap: 8px;
   }
 }
 
@@ -858,6 +1040,18 @@
   color: inherit;
 }
 
+.gem-shape-btn-img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.1));
+  transition: transform 0.25s ease;
+}
+
+.gem-shape-btn:hover .gem-shape-btn-img {
+  transform: scale(1.15);
+}
+
 .gem-shape-btn.selected .gem-shape-icon-box {
   color: var(--platino-gold);
 }
@@ -894,6 +1088,15 @@
   color: var(--platino-gold);
   flex-shrink: 0;
   box-shadow: 0 2px 8px rgba(15, 42, 36, 0.08);
+  overflow: hidden;
+  padding: 4px;
+}
+
+.gem-detail-header-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.12));
 }
 
 .gem-detail-carat-pill {
@@ -1325,6 +1528,7 @@
     width: 70px;
   }
 
+  .double-selects-grid,
   .double-sizes-grid {
     grid-template-columns: 1fr;
   }
@@ -2133,3 +2337,138 @@
   font-size: 18px;
   flex-shrink: 0;
 }
+
+/* ========================================================
+   PRESENTATION & BOX REFERENCE CARD (PASO 2/3)
+   ======================================================== */
+.presentation-config-block {
+  background: #ffffff;
+  border: 1px solid #e7e2d7;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.presentation-ref-card {
+  margin-top: 14px;
+  display: flex;
+  gap: 16px;
+  background: linear-gradient(135deg, #fdfbf7 0%, #f7f3ec 100%);
+  border: 1px solid #e5dcce;
+  border-radius: 14px;
+  padding: 14px;
+  align-items: center;
+  transition: all 0.25s ease;
+  box-shadow: 0 4px 12px rgba(15, 42, 36, 0.03);
+}
+
+.presentation-ref-card:hover {
+  border-color: #c5a059;
+  box-shadow: 0 6px 18px rgba(197, 160, 89, 0.12);
+}
+
+.presentation-ref-img-wrap {
+  position: relative;
+  width: 110px;
+  height: 110px;
+  border-radius: 10px;
+  overflow: hidden;
+  flex-shrink: 0;
+  border: 1px solid #d9d0c1;
+  background: #ffffff;
+}
+
+.presentation-ref-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+}
+
+.presentation-ref-card:hover .presentation-ref-img {
+  transform: scale(1.05);
+}
+
+.presentation-ref-badge {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  text-align: center;
+  font-size: 9.5px;
+  font-weight: 700;
+  padding: 2px 4px;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+}
+
+.presentation-ref-badge.free {
+  background: rgba(19, 119, 72, 0.9);
+  color: #ffffff;
+}
+
+.presentation-ref-badge.extra {
+  background: rgba(180, 83, 9, 0.9);
+  color: #ffffff;
+}
+
+.presentation-ref-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.presentation-ref-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.presentation-ref-name {
+  font-size: 13.5px;
+  color: #0f2a24;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.presentation-ref-desc {
+  margin: 0;
+  font-size: 12px;
+  color: #55645c;
+  line-height: 1.45;
+}
+
+.btn-view-box-main {
+  align-self: flex-start;
+  margin-top: 4px;
+  background: #ffffff;
+  border: 1px solid #c5a059;
+  color: #8c6e2d;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all 0.2s ease;
+}
+
+.btn-view-box-main:hover {
+  background: #0f2a24;
+  color: #ffffff;
+  border-color: #0f2a24;
+}
+
+@media (max-width: 576px) {
+  .presentation-ref-card {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .presentation-ref-img-wrap {
+    width: 100%;
+    height: 140px;
+  }
+}
+

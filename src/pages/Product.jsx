@@ -23,8 +23,26 @@ import "../../styles/product.css";
 export default function Product({ addToCart }) {
   const { productId } = useParams();
   const navigate = useNavigate();
-  const product = useMemo(() => {
+  const [product, setProduct] = useState(() => {
     return getProductById(productId) || getCatalogProducts()[0];
+  });
+
+  useEffect(() => {
+    const refreshProduct = () => {
+      const found = getProductById(productId);
+      if (found) {
+        setProduct(found);
+      } else {
+        setProduct(getCatalogProducts()[0]);
+      }
+    };
+    refreshProduct();
+    window.addEventListener("catalog_updated", refreshProduct);
+    window.addEventListener("storage", refreshProduct);
+    return () => {
+      window.removeEventListener("catalog_updated", refreshProduct);
+      window.removeEventListener("storage", refreshProduct);
+    };
   }, [productId]);
   const { user, openAuthModal } = useAuth();
 
@@ -49,12 +67,35 @@ export default function Product({ addToCart }) {
     setActiveImageIdx(0);
   }, [product.id]);
 
-  // Galería de imágenes
+  // Galería de imágenes (incluye fotos de la joya + variantes de metales + caja de presentación en el portafolio)
   const galleryImages = useMemo(() => {
-    return product.gallery && product.gallery.length > 0
-      ? product.gallery
-      : [product.image];
-  }, [product.gallery, product.image]);
+    const imagesSet = new Set();
+    if (product.image) imagesSet.add(product.image);
+
+    if (Array.isArray(product.gallery)) {
+      product.gallery.forEach((img) => {
+        if (img && typeof img === "string" && img.trim()) imagesSet.add(img.trim());
+      });
+    }
+
+    if (product.metalImages && typeof product.metalImages === "object") {
+      Object.values(product.metalImages).forEach((img) => {
+        if (img && typeof img === "string" && img.trim()) imagesSet.add(img.trim());
+      });
+    }
+
+    const boxSrc = product.boxImage || "/images/detail-box-green.jpg";
+    if (boxSrc && typeof boxSrc === "string" && boxSrc.trim()) {
+      imagesSet.add(boxSrc.trim());
+    }
+
+    if (imagesSet.size === 0) {
+      imagesSet.add("/images/aros-boda-taller.jpg");
+      imagesSet.add("/images/detail-box-green.jpg");
+    }
+
+    return Array.from(imagesSet);
+  }, [product.gallery, product.image, product.metalImages, product.boxImage]);
 
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [zoomOpen, setZoomOpen] = useState(false);
@@ -152,22 +193,95 @@ export default function Product({ addToCart }) {
     };
   }, [product?.id, product?.hasDoubleSizes]);
 
-  // Tallas (Dama: 05 al 27 | Varón: 10 al 37)
-  const [targetGender, setTargetGender] = useState("dama"); // 'dama' | 'varon' | 'ambos'
+  const cat = (product?.category || "").toLowerCase();
+  const prodType = (product?.type || "").toLowerCase();
+  const prodName = (product?.name || "").toLowerCase();
+  const isAros =
+    prodType === "aros" ||
+    cat.includes("aro") ||
+    cat.includes("boda") ||
+    cat.includes("alianza") ||
+    cat.includes("matrimonio") ||
+    prodName.includes("aro") ||
+    prodName.includes("alianza") ||
+    prodName.includes("matrimonio") ||
+    !!product?.hasDoubleSizes;
+  const isAccesorio =
+    prodType === "accesorio" ||
+    cat.includes("accesorio") ||
+    cat.includes("collar") ||
+    cat.includes("pulsera") ||
+    cat.includes("aretes");
+  const isAnillo = prodType === "anillo" || (!isAros && !isAccesorio);
+
+  // Tallas: Para aros de matrimonio y alianzas -> ambos (dama y varón); para anillos de compromiso y promesa -> dama
+  const defaultTargetGender = isAros ? "ambos" : "dama";
+  const [targetGender, setTargetGender] = useState(defaultTargetGender);
+
+  useEffect(() => {
+    setTargetGender(isAros ? "ambos" : "dama");
+  }, [product?.id, isAros]);
+
   const [selectedSizeDama, setSelectedSizeDama] = useState("12");
   const [selectedSizeVaron, setSelectedSizeVaron] = useState("20");
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
-  const [sizeGuideTab, setSizeGuideTab] = useState("dama"); // 'dama' | 'varon'
+  const [sizeGuideTab, setSizeGuideTab] = useState(isAros ? "ambos" : "dama");
 
   // Gemas
   const [selectedGemShape, setSelectedGemShape] = useState(
     GEM_SHAPES_PRODUCT[0]
   );
 
-  // Presentación / Platino Care
+  // Presentación / Opciones de Estuches con fotos y detalles
+  const presentationOptionsList = useMemo(() => {
+    if (product.presentationOptions && product.presentationOptions.length > 0) {
+      return product.presentationOptions.map((opt) => ({
+        ...opt,
+        image: opt.image || (opt.id === "estuche-terciopelo"
+          ? "/images/box-presentation.jpg"
+          : opt.id === "caja-madera"
+          ? "/images/detail-packaging.jpg"
+          : (product.boxImage || "/images/detail-box-green.jpg")),
+        description: opt.description || (opt.id === "estuche-terciopelo"
+          ? "Estuche premium de terciopelo negro mate tacto suave, ideal para pedida de mano y bodas."
+          : opt.id === "caja-madera"
+          ? "Caja de madera noble con acabado piano brillante e iluminación LED focalizada al abrir para máxima sorpresa."
+          : "Estuche rígido icónico verde esmeralda Platino con interior de gamuza aterciopelada y detalles dorados.")
+      }));
+    }
+    return [
+      {
+        id: "caja-verde-lujo",
+        name: "Caja de Lujo Esmeralda Platino (Recomendado)",
+        price: 0,
+        image: product.boxImage || "/images/detail-box-green.jpg",
+        description: "Estuche rígido icónico verde esmeralda Platino con interior de gamuza aterciopelada y detalles dorados."
+      },
+      {
+        id: "estuche-terciopelo",
+        name: "Estuche de Terciopelo Negro Nupcial",
+        price: 25,
+        image: "/images/box-presentation.jpg",
+        description: "Estuche premium de terciopelo negro mate tacto suave, ideal para pedida de mano y bodas."
+      },
+      {
+        id: "caja-madera",
+        name: "Caja de Madera Laqueada con Luz LED Nupcial",
+        price: 60,
+        image: "/images/detail-packaging.jpg",
+        description: "Caja de madera noble con acabado piano brillante e iluminación LED focalizada al abrir para máxima sorpresa."
+      }
+    ];
+  }, [product.presentationOptions, product.boxImage]);
+
   const [selectedPresentation, setSelectedPresentation] = useState(
     product.presentationOptions?.[0]?.id || "caja-verde-lujo"
   );
+
+  const selectedPresentationObj = useMemo(() => {
+    return presentationOptionsList.find((p) => p.id === selectedPresentation) || presentationOptionsList[0];
+  }, [presentationOptionsList, selectedPresentation]);
+
   const [platinoCarePlan, setPlatinoCarePlan] = useState("cortesia"); // 'cortesia' o 'plus'
   const [platinoCareConfig, setPlatinoCareConfig] = useState(() => getPlatinoCareConfig());
   const [openCareAccordion, setOpenCareAccordion] = useState(null);
@@ -187,10 +301,6 @@ export default function Product({ addToCart }) {
 
   // Modal de resumen / confirmación
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
-
-  const isAccesorio = product.type === "accesorio";
-  const isAros = product.type === "aros";
-  const isAnillo = product.type === "anillo";
 
   // Grabado Personalizado en la Joya (SÍ / NO)
   const [hasEngraving, setHasEngraving] = useState(false);
@@ -235,6 +345,10 @@ export default function Product({ addToCart }) {
     return formatted.charAt(0).toUpperCase() + formatted.slice(1);
   }, [deliveryDays]);
 
+  // Regla del usuario: Solo mostrar tiempo de entrega rápida (2 o 7 días) en accesorios (opcional según configuración).
+  // En anillos de compromiso, aros de matrimonio, alianzas de amor y promesa, se elimina por completo.
+  const shouldShowDelivery = isAccesorio && product.showDeliveryEstimate !== false;
+
   // Función para resolver la URL de la imagen según el material seleccionado
   const getImageUrlForMetal = (metalId) => {
     if (product.metalImages && product.metalImages[metalId]) {
@@ -259,17 +373,52 @@ export default function Product({ addToCart }) {
     setMainImage(getImageUrlForMetal(selectedMetal?.id));
   }, [product.id, selectedMetal?.id]);
 
+  // Al cambiar de paso: si entra al paso de Complementos & Estuche (Paso 2 o 3 según gemas), mostrar la caja en el visor principal
+  const isPresentationStep = (!product.hasGemSelection || isAccesorio) ? currentStep === 2 : currentStep === 3;
+  useEffect(() => {
+    if (isPresentationStep) {
+      if (selectedPresentationObj?.image) {
+        setMainImage(getAssetUrl(selectedPresentationObj.image));
+      }
+    } else if (currentStep === 1) {
+      setMainImage(getImageUrlForMetal(selectedMetal?.id));
+    }
+  }, [currentStep, isPresentationStep, selectedPresentationObj?.image]);
+
   // 2. Función que actualiza el estado con la URL de la imagen correspondiente al presionar un botón de material
   const handleSelectMetal = (metal) => {
     setSelectedMetal(metal);
     const newImageUrl = getImageUrlForMetal(metal.id);
     setMainImage(newImageUrl);
+
+    // Sincronizar miniatura activa del portafolio si coincide con el metal seleccionado
+    const foundIdx = galleryImages.findIndex(
+      (img) => img === newImageUrl || getAssetUrl(img) === newImageUrl
+    );
+    if (foundIdx !== -1) {
+      setActiveImageIdx(foundIdx);
+    }
   };
 
-  // Selección de miniaturas
+  // Selección de miniaturas (portafolio de fotos)
   const handleSelectThumbnail = (imgUrl, idx) => {
     setActiveImageIdx(idx);
     setMainImage(getAssetUrl(imgUrl));
+
+    // Si la miniatura seleccionada coincide con la foto de un metal disponible, seleccionamos ese metal
+    if (product.metalImages && typeof product.metalImages === "object") {
+      const matched = Object.entries(product.metalImages).find(
+        ([, url]) => url && (url === imgUrl || getAssetUrl(url) === getAssetUrl(imgUrl))
+      );
+      if (matched) {
+        const foundMetal = (product.availableMetals || METALS).find(
+          (m) => m.id === matched[0] || m.name === matched[0]
+        );
+        if (foundMetal) {
+          setSelectedMetal(foundMetal);
+        }
+      }
+    }
   };
 
   // Navegación del slider
@@ -322,8 +471,8 @@ export default function Product({ addToCart }) {
         (isAros && targetGender === "ambos" && (selectedSizeDama === "asesor" || selectedSizeVaron === "asesor")) ||
         (targetGender === "varon" ? selectedSizeVaron === "asesor" : selectedSizeDama === "asesor"),
       stockUnits: currentTotalStock,
-      deliveryDays,
-      estimatedDeliveryDate: deliveryDateFormatted,
+      deliveryDays: shouldShowDelivery ? deliveryDays : undefined,
+      estimatedDeliveryDate: shouldShowDelivery ? deliveryDateFormatted : undefined,
       price: product.price + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0),
       image: mainImage || product.image,
     };
@@ -362,8 +511,10 @@ export default function Product({ addToCart }) {
       ? `*Grabado personalizado:* SÍ SOLICITA (Personalización a coordinar por WhatsApp)%0A`
       : `*Grabado personalizado:* No solicitado%0A`;
 
-    // Stock y Tiempo de Entrega (Regla: 2 unidades en stock = 7 días de entrega; de lo contrario = 2 días)
-    const stockDetails = `*Stock disponible:* ${currentTotalStock} unidades disponibles%0A*Tiempo de entrega:* ${deliveryDays} días hábiles (Listo aprox: ${deliveryDateFormatted})%0A`;
+    // Stock y Tiempo de Entrega (solo en accesorios si está activo)
+    const stockDetails = shouldShowDelivery
+      ? `*Stock disponible:* ${currentTotalStock} unidades disponibles%0A*Tiempo de entrega:* ${deliveryDays} días hábiles (Listo aprox: ${deliveryDateFormatted})%0A`
+      : `*Stock disponible:* ${currentTotalStock} unidades disponibles%0A`;
 
     const text = `¡Hola Platino Perú! Estoy interesado en ordenar esta joya personalizada:%0A%0A*Producto:* ${product.name}%0A*Metal seleccionado:* ${selectedMetal.name}%0A${sizeDetails}${
       product.hasGemSelection
@@ -541,18 +692,19 @@ export default function Product({ addToCart }) {
       <section className="product-main-container">
         {/* Columna Izquierda: Galería */}
         <div className="product-gallery-side">
-          {/* Miniaturas verticales */}
+          {/* Miniaturas verticales (Portafolio de la Joya) */}
           <div className="product-thumbnails-col">
             {galleryImages.map((img, idx) => (
               <button
-                key={idx}
+                key={`${img}-${idx}`}
                 type="button"
                 className={`thumb-btn ${activeImageIdx === idx ? "active" : ""}`}
                 onClick={() => handleSelectThumbnail(img, idx)}
                 aria-label={`Ver vista ${idx + 1}`}
+                title={img === product.boxImage ? "Caja de presentación" : `Vista ${idx + 1}`}
               >
                 <img
-                  src={idx === 0 ? mainImage : getAssetUrl(img)}
+                  src={getAssetUrl(img)}
                   alt={`Miniatura ${idx + 1}`}
                   onError={(e) => {
                     e.currentTarget.onerror = null;
@@ -702,102 +854,20 @@ export default function Product({ addToCart }) {
                 </div>
               )}
 
-              {/* 2. PREGUNTA: ¿PARA QUIÉN ES LA JOYA? Y DESPRENDIMIENTO DE TALLAS */}
+              {/* 2. DESPRENDIMIENTO DIRECTO DE TALLAS */}
               {!isAccesorio && (
                 <div className="config-block size-config-container">
-                  {/* PREGUNTA PARA VARÓN O MUJER */}
-                  <div className="target-gender-block">
-                    <div className="target-gender-header-row">
-                      <div className="target-gender-label">
-                        <i className="bi bi-people" style={{ color: "#c5a059", fontSize: "17px" }}></i>
-                        <span>¿Para quién es la joya?</span>
-                      </div>
-                      {targetGender && (
-                        <button
-                          type="button"
-                          className="btn-undo-gender"
-                          onClick={() => setTargetGender(null)}
-                          title="Deshacer selección para volver a elegir"
-                        >
-                          <i className="bi bi-arrow-counterclockwise"></i>
-                          <span>Deshacer elección</span>
-                        </button>
-                      )}
-                    </div>
-                    <div className="target-gender-options">
-                      <button
-                        type="button"
-                        className={`btn-gender-target ${targetGender === "dama" ? "active" : ""}`}
-                        onClick={() => {
-                          setTargetGender(targetGender === "dama" ? null : "dama");
-                          setSizeGuideTab("dama");
-                        }}
-                        title={targetGender === "dama" ? "Clic para deseleccionar" : "Seleccionar para Mujer"}
-                      >
-                        <i className="bi bi-gender-female"></i>
-                        <span>Para Mujer (Dama)</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        className={`btn-gender-target ${targetGender === "varon" ? "active" : ""}`}
-                        onClick={() => {
-                          setTargetGender(targetGender === "varon" ? null : "varon");
-                          setSizeGuideTab("varon");
-                        }}
-                        title={targetGender === "varon" ? "Clic para deseleccionar" : "Seleccionar para Varón"}
-                      >
-                        <i className="bi bi-gender-male"></i>
-                        <span>Para Varón (Caballero)</span>
-                      </button>
-
-                      {isAros && (
-                        <button
-                          type="button"
-                          className={`btn-gender-target ${targetGender === "ambos" ? "active" : ""}`}
-                          onClick={() => setTargetGender(targetGender === "ambos" ? null : "ambos")}
-                          title={targetGender === "ambos" ? "Clic para deseleccionar" : "Seleccionar Ambos"}
-                        >
-                          <i className="bi bi-hearts"></i>
-                          <span>Ambos (Par de Aros)</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  {!targetGender && (
-                    <div className="gender-unselected-hint">
-                      <i className="bi bi-info-circle"></i>
-                      <span>Por favor selecciona si la joya es para <strong>Mujer</strong> o para <strong>Varón</strong> para desplegar las tallas y stock correspondiente.</span>
-                    </div>
-                  )}
-
-                  {/* DESPRENDIMIENTO DE TALLAS SEGÚN LA ELECCIÓN */}
-                  {targetGender === "dama" && (
-                    <div className="size-dropdown-section">
-                      <div className="config-block-header">
-                        <span className="config-block-title">Talla Dama (05 al 27)</span>
-                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                          <Link
-                            to={`/agendar-cita?tab=inventario&prod=${product.id}`}
-                            className="link-admin-stock-sync"
-                            title="Gestionar existencias en Bodega y Sedes en el panel Admin"
-                            style={{
-                              fontSize: "11px",
-                              color: "#245037",
-                              textDecoration: "none",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              padding: "2px 7px",
-                              borderRadius: "4px",
-                              background: "#eaf3ee",
-                              border: "1px solid #b7d6c5",
-                              fontWeight: "600",
-                            }}
-                          >
-                            <i className="bi bi-boxes" style={{ color: "#137748" }}></i> Stock Admin
-                          </Link>
+                  {isAros ? (
+                    /* Para Aros de Matrimonio y Alianzas: Ambas Tallas (Dama y Varón) */
+                    <div className="double-sizes-block">
+                      {/* Cabecera unificada y despejada */}
+                      <div className="config-block-header double-sizes-header-bar">
+                        <div className="double-sizes-header-title-box">
+                          <i className="bi bi-hearts" style={{ color: "#c5a059", fontSize: "16px" }}></i>
+                          <span className="config-block-title">Tallas del Par de Aros</span>
+                          <span className="double-sizes-header-badge">Dama & Varón</span>
+                        </div>
+                        <div className="double-sizes-header-actions">
                           <button
                             type="button"
                             className="link-guia-tallas"
@@ -809,6 +879,148 @@ export default function Product({ addToCart }) {
                             <i className="bi bi-rulers"></i> Guía de Tallas
                           </button>
                         </div>
+                      </div>
+
+                      {/* Selectores lado a lado con diseño aireado */}
+                      <div className="double-selects-grid">
+                        <div className="double-select-col">
+                          <label className="double-select-label">
+                            <span className="double-select-gender-pill dama">
+                              <i className="bi bi-gender-female"></i> Dama
+                            </span>
+                            <span className="double-select-range-hint">Medida 05 al 27</span>
+                          </label>
+                          <select
+                            value={selectedSizeDama}
+                            onChange={(e) => setSelectedSizeDama(e.target.value)}
+                            className="select-talla-dropdown"
+                          >
+                            <option value="asesor">¿No sabes tu talla? Asesoramiento</option>
+                            {DAMA_SIZES.map((sz) => {
+                              const avail = getSizeAvailability(productStock, "dama", sz.number);
+                              return (
+                                <option key={sz.number} value={sz.number}>
+                                  {sz.label} ({avail.total > 0 ? `${avail.total} en stock` : "Sin stock"})
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+
+                        <div className="double-select-col">
+                          <label className="double-select-label">
+                            <span className="double-select-gender-pill varon">
+                              <i className="bi bi-gender-male"></i> Varón
+                            </span>
+                            <span className="double-select-range-hint">Medida 10 al 37</span>
+                          </label>
+                          <select
+                            value={selectedSizeVaron}
+                            onChange={(e) => setSelectedSizeVaron(e.target.value)}
+                            className="select-talla-dropdown"
+                          >
+                            <option value="asesor">¿No sabes tu talla? Asesoramiento</option>
+                            {VARON_SIZES.map((sz) => {
+                              const avail = getSizeAvailability(productStock, "varon", sz.number);
+                              return (
+                                <option key={sz.number} value={sz.number}>
+                                  {sz.label} ({avail.total > 0 ? `${avail.total} en stock` : "Sin stock"})
+                                </option>
+                              );
+                            })}
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Banner de Asesoría de Medida Unificado a todo el ancho */}
+                      <div className="size-advice-banner double-advice-banner">
+                        <div className="size-advice-text">
+                          <i className="bi bi-question-circle"></i>
+                          <span>¿No están seguros de la medida exacta de dama o varón?</span>
+                        </div>
+                        <button
+                          type="button"
+                          className="btn-open-size-advice"
+                          onClick={() => setSizeAdviceModalOpen(true)}
+                        >
+                          Asesoría de Medida
+                        </button>
+                      </div>
+
+                      {/* Stock Resumen Elegante para Ambos Aros */}
+                      <div className="double-stock-cards-container">
+                        <div className="double-stock-single-card">
+                          <div className="double-stock-pill-row">
+                            <span className="double-stock-dot dama"></span>
+                            <span className="double-stock-item-title">Aro Dama (Talla {selectedSizeDama})</span>
+                          </div>
+                          {selectedSizeDama === "asesor" ? (
+                            <span className="double-stock-badge-text advisor">
+                              <i className="bi bi-info-circle"></i> Asesoría de medida solicitada
+                            </span>
+                          ) : (() => {
+                            const av = getSizeAvailability(productStock, "dama", selectedSizeDama);
+                            return av.total > 0 ? (
+                              <div className="double-stock-info-wrap">
+                                <span className={`double-stock-status-pill ${av.total <= 2 ? "low" : "ok"}`}>
+                                  <i className="bi bi-check2-circle"></i> {av.total} unids disponibles {av.total <= 2 ? "(Últimas)" : ""}
+                                </span>
+                                <span className="double-stock-breakdown">
+                                  Centro: {(av.bodega || 0) + (av.limaCentro || 0)} • Miraflores: {av.miraflores}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="double-stock-badge-text order">
+                                <i className="bi bi-clock-history"></i> Fabricación a pedido en taller
+                              </span>
+                            );
+                          })()}
+                        </div>
+
+                        <div className="double-stock-single-card">
+                          <div className="double-stock-pill-row">
+                            <span className="double-stock-dot varon"></span>
+                            <span className="double-stock-item-title">Aro Varón (Talla {selectedSizeVaron})</span>
+                          </div>
+                          {selectedSizeVaron === "asesor" ? (
+                            <span className="double-stock-badge-text advisor">
+                              <i className="bi bi-info-circle"></i> Asesoría de medida solicitada
+                            </span>
+                          ) : (() => {
+                            const av = getSizeAvailability(productStock, "varon", selectedSizeVaron);
+                            return av.total > 0 ? (
+                              <div className="double-stock-info-wrap">
+                                <span className={`double-stock-status-pill ${av.total <= 2 ? "low" : "ok"}`}>
+                                  <i className="bi bi-check2-circle"></i> {av.total} unids disponibles {av.total <= 2 ? "(Últimas)" : ""}
+                                </span>
+                                <span className="double-stock-breakdown">
+                                  Centro: {(av.bodega || 0) + (av.limaCentro || 0)} • Miraflores: {av.miraflores}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="double-stock-badge-text order">
+                                <i className="bi bi-clock-history"></i> Fabricación a pedido en taller
+                              </span>
+                            );
+                          })()}
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Para Anillos de Compromiso, Promesa y Solitarios: Talla Dama de Frente */
+                    <div className="size-dropdown-section">
+                      <div className="config-block-header">
+                        <span className="config-block-title">Talla Dama (05 al 27)</span>
+                        <button
+                          type="button"
+                          className="link-guia-tallas"
+                          onClick={() => {
+                            setSizeGuideTab("dama");
+                            setSizeGuideOpen(true);
+                          }}
+                        >
+                          <i className="bi bi-rulers"></i> Guía de Tallas
+                        </button>
                       </div>
                       <select
                         value={selectedSizeDama}
@@ -854,7 +1066,7 @@ export default function Product({ addToCart }) {
                                     {av.total <= 2 ? " (Últimas unidades)" : ""}
                                   </span>
                                   <span style={{ fontSize: "11px", opacity: 0.85 }}>
-                                    Bodega: <strong>{av.bodega}</strong> • Lima Centro: <strong>{av.limaCentro}</strong> • Miraflores: <strong>{av.miraflores}</strong>
+                                    Centro: <strong>{(av.bodega || 0) + (av.limaCentro || 0)}</strong> • Miraflores: <strong>{av.miraflores}</strong>
                                   </span>
                                 </div>
                               </div>
@@ -867,295 +1079,6 @@ export default function Product({ addToCart }) {
                           })()}
                         </div>
                       )}
-                    </div>
-                  )}
-
-                  {targetGender === "varon" && (
-                    <div className="size-dropdown-section">
-                      <div className="config-block-header">
-                        <span className="config-block-title">Talla Varón (10 al 37)</span>
-                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                          <Link
-                            to={`/agendar-cita?tab=inventario&prod=${product.id}`}
-                            className="link-admin-stock-sync"
-                            title="Gestionar existencias en Bodega y Sedes en el panel Admin"
-                            style={{
-                              fontSize: "11px",
-                              color: "#245037",
-                              textDecoration: "none",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                              padding: "2px 7px",
-                              borderRadius: "4px",
-                              background: "#eaf3ee",
-                              border: "1px solid #b7d6c5",
-                              fontWeight: "600",
-                            }}
-                          >
-                            <i className="bi bi-boxes" style={{ color: "#137748" }}></i> Stock Admin
-                          </Link>
-                          <button
-                            type="button"
-                            className="link-guia-tallas"
-                            onClick={() => {
-                              setSizeGuideTab("varon");
-                              setSizeGuideOpen(true);
-                            }}
-                          >
-                            <i className="bi bi-rulers"></i> Guía de Tallas
-                          </button>
-                        </div>
-                      </div>
-                      <select
-                        value={selectedSizeVaron}
-                        onChange={(e) => setSelectedSizeVaron(e.target.value)}
-                        className="select-talla-dropdown"
-                      >
-                        <option value="asesor">¿No sabes tu talla? Solicitar asesoramiento de medida</option>
-                        {VARON_SIZES.map((sz) => {
-                          const avail = getSizeAvailability(productStock, "varon", sz.number);
-                          return (
-                            <option key={sz.number} value={sz.number}>
-                              {sz.label} ({avail.total > 0 ? `${avail.total} en stock` : "Sin stock"})
-                            </option>
-                          );
-                        })}
-                      </select>
-
-                      <div className="size-advice-banner">
-                        <div className="size-advice-text">
-                          <i className="bi bi-question-circle"></i>
-                          <span>¿No estás seguro de la talla?</span>
-                        </div>
-                        <button
-                          type="button"
-                          className="btn-open-size-advice"
-                          onClick={() => setSizeAdviceModalOpen(true)}
-                        >
-                          Asesoría de Medida
-                        </button>
-                      </div>
-
-                      {/* Stock General por Talla (Varón) */}
-                      {selectedSizeVaron !== "asesor" && (
-                        <div className="size-stock-general">
-                          {(() => {
-                            const av = getSizeAvailability(productStock, "varon", selectedSizeVaron);
-                            return av.total > 0 ? (
-                              <div className={`stock-general-badge ${av.total <= 2 ? "low-stock" : "in-stock"}`}>
-                                <i className={av.total <= 2 ? "bi bi-exclamation-circle-fill" : "bi bi-check-circle-fill"}></i>
-                                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                                  <span>
-                                    Stock disponible: <strong>{av.total} {av.total === 1 ? "unidad" : "unidades"}</strong>
-                                    {av.total <= 2 ? " (Últimas unidades)" : ""}
-                                  </span>
-                                  <span style={{ fontSize: "11px", opacity: 0.85 }}>
-                                    Bodega: <strong>{av.bodega}</strong> • Lima Centro: <strong>{av.limaCentro}</strong> • Miraflores: <strong>{av.miraflores}</strong>
-                                  </span>
-                                </div>
-                              </div>
-                            ) : (
-                              <div className="stock-general-badge out-of-stock">
-                                <i className="bi bi-clock-history"></i>
-                                <span>Disponible a pedido (Fabricación en taller)</span>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {targetGender === "ambos" && isAros && (
-                    <div className="double-sizes-grid">
-                      <div>
-                        <div className="config-block-header">
-                          <span className="config-block-title">Talla Dama (05 al 27)</span>
-                          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                            <Link
-                              to={`/agendar-cita?tab=inventario&prod=${product.id}`}
-                              className="link-admin-stock-sync"
-                              title="Gestionar existencias en Bodega y Sedes en el panel Admin"
-                              style={{
-                                fontSize: "11px",
-                                color: "#245037",
-                                textDecoration: "none",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "4px",
-                                padding: "2px 7px",
-                                borderRadius: "4px",
-                                background: "#eaf3ee",
-                                border: "1px solid #b7d6c5",
-                                fontWeight: "600",
-                              }}
-                            >
-                              <i className="bi bi-boxes" style={{ color: "#137748" }}></i> Stock Admin
-                            </Link>
-                            <button
-                              type="button"
-                              className="link-guia-tallas"
-                              onClick={() => {
-                                setSizeGuideTab("dama");
-                                setSizeGuideOpen(true);
-                              }}
-                            >
-                              <i className="bi bi-rulers"></i> Guía de Tallas
-                            </button>
-                          </div>
-                        </div>
-                        <select
-                          value={selectedSizeDama}
-                          onChange={(e) => setSelectedSizeDama(e.target.value)}
-                          className="select-talla-dropdown"
-                        >
-                          <option value="asesor">¿No sabes tu talla? Solicitar asesoramiento de medida</option>
-                          {DAMA_SIZES.map((sz) => {
-                            const avail = getSizeAvailability(productStock, "dama", sz.number);
-                            return (
-                              <option key={sz.number} value={sz.number}>
-                                {sz.label} ({avail.total > 0 ? `${avail.total} en stock` : "Sin stock"})
-                              </option>
-                            );
-                          })}
-                        </select>
-
-                        <div className="size-advice-banner">
-                          <div className="size-advice-text">
-                            <i className="bi bi-question-circle"></i>
-                            <span>¿No estás seguro de la talla?</span>
-                          </div>
-                          <button
-                            type="button"
-                            className="btn-open-size-advice"
-                            onClick={() => setSizeAdviceModalOpen(true)}
-                          >
-                            Asesoría de Medida
-                          </button>
-                        </div>
-
-                        {selectedSizeDama !== "asesor" && (
-                          <div className="size-stock-general">
-                            {(() => {
-                              const av = getSizeAvailability(productStock, "dama", selectedSizeDama);
-                              return av.total > 0 ? (
-                                <div className={`stock-general-badge ${av.total <= 2 ? "low-stock" : "in-stock"}`}>
-                                  <i className={av.total <= 2 ? "bi bi-exclamation-circle-fill" : "bi bi-check-circle-fill"}></i>
-                                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                                    <span>
-                                      Stock disponible: <strong>{av.total} {av.total === 1 ? "unidad" : "unidades"}</strong>
-                                      {av.total <= 2 ? " (Últimas unidades)" : ""}
-                                    </span>
-                                    <span style={{ fontSize: "11px", opacity: 0.85 }}>
-                                      Bodega: <strong>{av.bodega}</strong> • Lima Centro: <strong>{av.limaCentro}</strong> • Miraflores: <strong>{av.miraflores}</strong>
-                                    </span>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="stock-general-badge out-of-stock">
-                                  <i className="bi bi-clock-history"></i>
-                                  <span>Disponible a pedido (Fabricación en taller)</span>
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        )}
-                      </div>
-
-                      <div>
-                        <div className="config-block-header">
-                          <span className="config-block-title">Talla Varón (10 al 37)</span>
-                          <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                            <Link
-                              to={`/agendar-cita?tab=inventario&prod=${product.id}`}
-                              className="link-admin-stock-sync"
-                              title="Gestionar existencias en Bodega y Sedes en el panel Admin"
-                              style={{
-                                fontSize: "11px",
-                                color: "#245037",
-                                textDecoration: "none",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "4px",
-                                padding: "2px 7px",
-                                borderRadius: "4px",
-                                background: "#eaf3ee",
-                                border: "1px solid #b7d6c5",
-                                fontWeight: "600",
-                              }}
-                            >
-                              <i className="bi bi-boxes" style={{ color: "#137748" }}></i> Stock Admin
-                            </Link>
-                            <button
-                              type="button"
-                              className="link-guia-tallas"
-                              onClick={() => {
-                                setSizeGuideTab("varon");
-                                setSizeGuideOpen(true);
-                              }}
-                            >
-                              <i className="bi bi-rulers"></i> Guía de Tallas
-                            </button>
-                          </div>
-                        </div>
-                        <select
-                          value={selectedSizeVaron}
-                          onChange={(e) => setSelectedSizeVaron(e.target.value)}
-                          className="select-talla-dropdown"
-                        >
-                          <option value="asesor">¿No sabes tu talla? Solicitar asesoramiento de medida</option>
-                          {VARON_SIZES.map((sz) => {
-                            const avail = getSizeAvailability(productStock, "varon", sz.number);
-                            return (
-                              <option key={sz.number} value={sz.number}>
-                                {sz.label} ({avail.total > 0 ? `${avail.total} en stock` : "Sin stock"})
-                              </option>
-                            );
-                          })}
-                        </select>
-
-                        <div className="size-advice-banner">
-                          <div className="size-advice-text">
-                            <i className="bi bi-question-circle"></i>
-                            <span>¿No estás seguro de la talla?</span>
-                          </div>
-                          <button
-                            type="button"
-                            className="btn-open-size-advice"
-                            onClick={() => setSizeAdviceModalOpen(true)}
-                          >
-                            Asesoría de Medida
-                          </button>
-                        </div>
-
-                        {selectedSizeVaron !== "asesor" && (
-                          <div className="size-stock-general">
-                            {(() => {
-                              const av = getSizeAvailability(productStock, "varon", selectedSizeVaron);
-                              return av.total > 0 ? (
-                                <div className={`stock-general-badge ${av.total <= 2 ? "low-stock" : "in-stock"}`}>
-                                  <i className={av.total <= 2 ? "bi bi-exclamation-circle-fill" : "bi bi-check-circle-fill"}></i>
-                                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                                    <span>
-                                      Stock disponible: <strong>{av.total} {av.total === 1 ? "unidad" : "unidades"}</strong>
-                                      {av.total <= 2 ? " (Últimas unidades)" : ""}
-                                    </span>
-                                    <span style={{ fontSize: "11px", opacity: 0.85 }}>
-                                      Bodega: <strong>{av.bodega}</strong> • Lima Centro: <strong>{av.limaCentro}</strong> • Miraflores: <strong>{av.miraflores}</strong>
-                                    </span>
-                                  </div>
-                                </div>
-                              ) : (
-                                <div className="stock-general-badge out-of-stock">
-                                  <i className="bi bi-clock-history"></i>
-                                  <span>Disponible a pedido (Fabricación en taller)</span>
-                                </div>
-                              );
-                            })()}
-                          </div>
-                        )}
-                      </div>
                     </div>
                   )}
                 </div>
@@ -1196,34 +1119,36 @@ export default function Product({ addToCart }) {
                 </div>
               )}
 
-              {/* 4. APARTADO: TIEMPO DE ENTREGA DINÁMICO SEGÚN STOCK DE UNIDADES */}
-              <div className={`delivery-estimate-card ${deliveryDays === 7 ? "slow-7days" : "fast-2days"}`}>
-                <i className={`bi ${deliveryDays === 7 ? "bi-clock-history" : "bi-lightning-charge-fill"} delivery-estimate-icon`}></i>
-                <div>
-                  <div className="delivery-estimate-title">
-                    {deliveryDays === 7 ? (
-                      <>
-                        <span>Tiempo de Entrega: 7 Días Hábiles</span>
-                        <span style={{ fontSize: "11px", background: "#fef3c7", color: "#92400e", padding: "1px 8px", borderRadius: "10px", fontWeight: "700" }}>
-                          Stock de 2 Unidades
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <span>Entrega Rápida en solo 2 Días Hábiles</span>
-                        <span style={{ fontSize: "11px", background: "#d1fae5", color: "#065f46", padding: "1px 8px", borderRadius: "10px", fontWeight: "700" }}>
-                          Despacho Inmediato
-                        </span>
-                      </>
-                    )}
+              {/* 4. APARTADO: TIEMPO DE ENTREGA (SOLO ACCESORIOS SI ESTÁ ACTIVO) */}
+              {shouldShowDelivery && (
+                <div className={`delivery-estimate-card ${deliveryDays === 7 ? "slow-7days" : "fast-2days"}`}>
+                  <i className={`bi ${deliveryDays === 7 ? "bi-clock-history" : "bi-lightning-charge-fill"} delivery-estimate-icon`}></i>
+                  <div>
+                    <div className="delivery-estimate-title">
+                      {deliveryDays === 7 ? (
+                        <>
+                          <span>Tiempo de Entrega: 7 Días Hábiles</span>
+                          <span style={{ fontSize: "11px", background: "#fef3c7", color: "#92400e", padding: "1px 8px", borderRadius: "10px", fontWeight: "700" }}>
+                            Stock de 2 Unidades
+                          </span>
+                        </>
+                      ) : (
+                        <>
+                          <span>Entrega Rápida en solo 2 Días Hábiles</span>
+                          <span style={{ fontSize: "11px", background: "#d1fae5", color: "#065f46", padding: "1px 8px", borderRadius: "10px", fontWeight: "700" }}>
+                            Despacho Inmediato
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    <p style={{ margin: "2px 0 0", fontSize: "12.5px" }}>
+                      {deliveryDays === 7
+                        ? `Al registrarse 2 unidades en almacén, tu joya pasa por ajuste y preparación en taller. Lista para entrega el ${deliveryDateFormatted}.`
+                        : `Disponibilidad inmediata en stock (${currentTotalStock} unidades disponibles). Lista para entrega o despacho el ${deliveryDateFormatted}.`}
+                    </p>
                   </div>
-                  <p style={{ margin: "2px 0 0", fontSize: "12.5px" }}>
-                    {deliveryDays === 7
-                      ? `Al registrarse 2 unidades en almacén, tu joya pasa por ajuste y preparación en taller. Lista para entrega el ${deliveryDateFormatted}.`
-                      : `Disponibilidad inmediata en stock (${currentTotalStock} unidades disponibles). Lista para entrega o despacho el ${deliveryDateFormatted}.`}
-                  </p>
                 </div>
-              </div>
+              )}
 
               {/* BOTONES DE NAVEGACIÓN DEL PASO 1 */}
               <div className="wizard-step-dual-actions">
@@ -1285,7 +1210,11 @@ export default function Product({ addToCart }) {
                         title={`${shape.name}: ${shape.desc || ""}`}
                       >
                         <div className="gem-shape-icon-box">
-                          <DiamondCutIcon shape={shape.id} size={28} />
+                          {shape.image ? (
+                            <img src={shape.image} alt={shape.name} className="gem-shape-btn-img" />
+                          ) : (
+                            <DiamondCutIcon shape={shape.id} size={28} />
+                          )}
                         </div>
                         <span className="gem-shape-btn-name">{shape.name}</span>
                       </button>
@@ -1305,7 +1234,11 @@ export default function Product({ addToCart }) {
                 <div className="gem-selected-detail-card">
                   <div className="gem-selected-header-row">
                     <div className="gem-detail-icon-circle">
-                      <DiamondCutIcon shape={selectedGemShape.id} size={40} />
+                      {selectedGemShape.image ? (
+                        <img src={selectedGemShape.image} alt={selectedGemShape.name} className="gem-detail-header-img" />
+                      ) : (
+                        <DiamondCutIcon shape={selectedGemShape.id} size={40} />
+                      )}
                     </div>
                     <div style={{ flex: 1 }}>
                       <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
@@ -1474,25 +1407,60 @@ export default function Product({ addToCart }) {
               )}
 
               {/* ESTUCHE / PRESENTACIÓN */}
-              <div className="config-block" style={{ marginTop: "16px" }}>
+              <div className="config-block presentation-config-block" style={{ marginTop: "16px" }}>
                 <div className="config-block-header">
                   <span className="config-block-title">Elige tu Presentación y Estuche</span>
                 </div>
                 <select
                   value={selectedPresentation}
-                  onChange={(e) => setSelectedPresentation(e.target.value)}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSelectedPresentation(val);
+                    const found = presentationOptionsList.find((opt) => opt.id === val);
+                    if (found?.image) {
+                      setMainImage(getAssetUrl(found.image));
+                    }
+                  }}
                   className="select-talla-dropdown"
                 >
-                  {(product.presentationOptions || [
-                    { id: "caja-verde-lujo", name: "Caja de Lujo Esmeralda Platino (Recomendado)", price: 0 },
-                    { id: "estuche-terciopelo", name: "Estuche de Terciopelo Negro Nupcial", price: 25 },
-                    { id: "caja-madera", name: "Caja de Madera Laqueada con Luz LED Nupcial", price: 60 }
-                  ]).map((opt) => (
+                  {presentationOptionsList.map((opt) => (
                     <option key={opt.id} value={opt.id}>
                       {opt.name} {opt.price > 0 ? `(+S/. ${opt.price})` : "(Incluido de Cortesía)"}
                     </option>
                   ))}
                 </select>
+
+                {/* Tarjeta con foto de referencia del estuche */}
+                <div className="presentation-ref-card">
+                  <div className="presentation-ref-img-wrap">
+                    <img
+                      src={getAssetUrl(selectedPresentationObj.image)}
+                      alt={selectedPresentationObj.name}
+                      className="presentation-ref-img"
+                    />
+                    <span className={`presentation-ref-badge ${selectedPresentationObj.price > 0 ? "extra" : "free"}`}>
+                      {selectedPresentationObj.price > 0 ? `+S/. ${selectedPresentationObj.price}` : "Incluido de Cortesía"}
+                    </span>
+                  </div>
+                  <div className="presentation-ref-info">
+                    <div className="presentation-ref-header">
+                      <i className="bi bi-box-seam" style={{ color: "#c5a059", fontSize: "16px" }}></i>
+                      <strong className="presentation-ref-name">{selectedPresentationObj.name}</strong>
+                    </div>
+                    <p className="presentation-ref-desc">
+                      {selectedPresentationObj.description}
+                    </p>
+                    <button
+                      type="button"
+                      className="btn-view-box-main"
+                      onClick={() => setMainImage(getAssetUrl(selectedPresentationObj.image))}
+                      title="Ver fotografía de la caja en el visor principal de la izquierda"
+                    >
+                      <i className="bi bi-eye"></i>
+                      <span>Ver en visor principal</span>
+                    </button>
+                  </div>
+                </div>
               </div>
 
               {/* Resumen Final de Personalización */}
@@ -1513,10 +1481,12 @@ export default function Product({ addToCart }) {
                     </div>
                   </>
                 )}
-                <div className="step-review-line" style={{ fontWeight: "700", color: "#0f2a24" }}>
-                  <i className="bi bi-truck" style={{ color: deliveryDays === 7 ? "#b45309" : "#15803d" }}></i>
-                  <span>Entrega estimada: {deliveryDays} días hábiles ({deliveryDateFormatted})</span>
-                </div>
+                {shouldShowDelivery && (
+                  <div className="step-review-line" style={{ fontWeight: "700", color: "#0f2a24" }}>
+                    <i className="bi bi-truck" style={{ color: deliveryDays === 7 ? "#b45309" : "#15803d" }}></i>
+                    <span>Entrega estimada: {deliveryDays} días hábiles ({deliveryDateFormatted})</span>
+                  </div>
+                )}
               </div>
 
               {/* Botones de navegación del Paso 3 / Final */}
@@ -1683,13 +1653,15 @@ export default function Product({ addToCart }) {
               <div>
                 <strong>Stock Disponible:</strong> {currentTotalStock} {currentTotalStock === 1 ? "unidad" : "unidades"}
               </div>
-              <div>
-                <strong>Plazo de Entrega:</strong>{" "}
-                <span style={{ color: deliveryDays === 7 ? "#9a3412" : "#166534", fontWeight: "600" }}>
-                  {deliveryDays === 7 ? "7 días hábiles (Ajuste en taller por stock reducido)" : "2 días hábiles (Despacho exprés)"}
-                </span>{" "}
-                — {deliveryDateFormatted}
-              </div>
+              {shouldShowDelivery && (
+                <div>
+                  <strong>Plazo de Entrega:</strong>{" "}
+                  <span style={{ color: deliveryDays === 7 ? "#9a3412" : "#166534", fontWeight: "600" }}>
+                    {deliveryDays === 7 ? "7 días hábiles (Ajuste en taller por stock reducido)" : "2 días hábiles (Despacho exprés)"}
+                  </span>{" "}
+                  — {deliveryDateFormatted}
+                </div>
+              )}
               {isAccesorio ? (
                 <div><strong>Presentación:</strong> {product.presentationOptions?.find((o) => o.id === selectedPresentation)?.name}</div>
               ) : (

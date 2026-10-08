@@ -10,45 +10,46 @@ const normalizeProductMetals = (prod) => {
     prod.metalImages ||
     defaultProdMatch?.metalImages ||
     (prod.id === "aros-trial" ? DEFAULT_METAL_IMAGES : null);
+  const boxImage = prod.boxImage || defaultProdMatch?.boxImage || "/images/detail-box-green.jpg";
 
+  // Reconstruir portafolio de galería unificando foto principal, variantes por metal y caja de presentación
+  const metalValues = metalImages && typeof metalImages === "object" ? Object.values(metalImages) : [];
+  const existingGallery = Array.isArray(prod.gallery) && prod.gallery.length > 0
+    ? prod.gallery
+    : (Array.isArray(defaultProdMatch?.gallery) ? defaultProdMatch.gallery : []);
+  const allGalleryImgs = [
+    prod.image || defaultProdMatch?.image || "/images/cat-compromiso.jpg",
+    ...metalValues,
+    boxImage,
+    ...existingGallery,
+  ].filter(Boolean);
+  const combinedGallery = Array.from(new Set(allGalleryImgs));
+
+  let finalMetals = METALS;
   if (Array.isArray(prod.availableMetals) && prod.availableMetals.length > 0) {
-    // Si tiene la configuración antigua de 4 metales por defecto, actualizar a los 10 oficiales
     const isOldDefault =
       prod.availableMetals.length === 4 &&
       prod.availableMetals.some((m) => m.id === "oro-blanco-18k") &&
       !prod.availableMetals.some((m) => m.id === "oro-18k-blanco");
 
-    if (isOldDefault) {
-      return {
-        ...prod,
-        categories,
-        availableMetals: METALS,
-        selectedMetal: prod.selectedMetal || "Oro 18k Blanco",
-        metalImages,
-      };
+    if (!isOldDefault) {
+      finalMetals = prod.availableMetals.map((m) => {
+        const match = METALS.find((def) => def.id === m.id || def.name === m.name);
+        return match ? { ...match } : m;
+      });
     }
-
-    // Asegurar que cada metal tenga las propiedades oficiales actualizadas
-    const enriched = prod.availableMetals.map((m) => {
-      const match = METALS.find((def) => def.id === m.id || def.name === m.name);
-      return match ? { ...match } : m;
-    });
-
-    return {
-      ...prod,
-      categories,
-      availableMetals: enriched,
-      metalImages,
-    };
   }
 
-  // Si no tiene metales definidos, asignar los 10 oficiales
   return {
     ...prod,
     categories,
-    availableMetals: METALS,
+    availableMetals: finalMetals,
     selectedMetal: prod.selectedMetal || "Oro 18k Blanco",
     metalImages,
+    boxImage,
+    gallery: combinedGallery,
+    hasPresentationChoice: prod.hasPresentationChoice ?? true,
+    showDeliveryEstimate: prod.showDeliveryEstimate,
   };
 };
 
@@ -117,6 +118,17 @@ export const createProduct = (productData) => {
   ) + `-${Date.now().toString().slice(-4)}`;
 
   const numPrice = Number(productData.price) || 0;
+  const finalBoxImage = productData.boxImage || "/images/detail-box-green.jpg";
+  const metalValues = productData.metalImages && typeof productData.metalImages === "object"
+    ? Object.values(productData.metalImages)
+    : [];
+  const allGalleryImgs = [
+    productData.image || "/images/cat-compromiso.jpg",
+    ...metalValues,
+    finalBoxImage,
+    ...(Array.isArray(productData.gallery) ? productData.gallery : []),
+  ].filter(Boolean);
+  const combinedGallery = Array.from(new Set(allGalleryImgs));
 
   const newProduct = {
     id: cleanId,
@@ -129,10 +141,9 @@ export const createProduct = (productData) => {
     price: numPrice,
     priceFormatted: formatPrice(numPrice),
     image: productData.image || "/images/cat-compromiso.jpg",
+    boxImage: finalBoxImage,
     metalImages: productData.metalImages || null,
-    gallery: Array.isArray(productData.gallery) && productData.gallery.length > 0
-      ? productData.gallery
-      : [productData.image || "/images/cat-compromiso.jpg"],
+    gallery: combinedGallery,
     badge: productData.badge?.trim() || "Nuevo",
     selectedMetal: productData.selectedMetal || "Oro 18k Blanco",
     availableMetals:
@@ -143,6 +154,31 @@ export const createProduct = (productData) => {
     description: productData.description?.trim() || "Joya artesanal con certificación y acabados de alta calidad.",
     hasGemSelection: productData.hasGemSelection ?? true,
     hasDoubleSizes: productData.hasDoubleSizes ?? false,
+    hasPresentationChoice: productData.hasPresentationChoice ?? true,
+    presentationOptions: productData.presentationOptions || [
+      {
+        id: "caja-verde-lujo",
+        name: "Caja de Lujo Esmeralda Platino (Recomendado)",
+        price: 0,
+        image: finalBoxImage,
+        description: "Estuche rígido icónico verde esmeralda Platino con interior de gamuza aterciopelada y detalles dorados."
+      },
+      {
+        id: "estuche-terciopelo",
+        name: "Estuche de Terciopelo Negro Nupcial",
+        price: 25,
+        image: "/images/box-presentation.jpg",
+        description: "Estuche premium de terciopelo negro mate tacto suave, ideal para pedida de mano y bodas."
+      },
+      {
+        id: "caja-madera",
+        name: "Caja de Madera Laqueada con Luz LED Nupcial",
+        price: 60,
+        image: "/images/detail-packaging.jpg",
+        description: "Caja de madera noble con acabado piano brillante e iluminación LED focalizada al abrir para máxima sorpresa."
+      }
+    ],
+    showDeliveryEstimate: productData.showDeliveryEstimate,
     createdAt: new Date().toISOString(),
   };
 
@@ -166,12 +202,29 @@ export const updateProduct = (id, updatedFields) => {
     : current.price;
 
   const newImage = updatedFields.image !== undefined ? updatedFields.image : current.image;
+  const finalBoxImage = updatedFields.boxImage !== undefined
+    ? updatedFields.boxImage
+    : (current.boxImage || "/images/detail-box-green.jpg");
 
-  // Actualizar galería si la imagen principal cambió y no se proveyó una nueva galería
-  let newGallery = updatedFields.gallery || current.gallery;
-  if (updatedFields.image && (!updatedFields.gallery || updatedFields.gallery.length === 0)) {
-    newGallery = [newImage, ...(current.gallery?.slice(1) || [])];
-  }
+  const finalMetalImages = updatedFields.metalImages !== undefined
+    ? updatedFields.metalImages
+    : (current.metalImages || null);
+
+  const metalValues = finalMetalImages && typeof finalMetalImages === "object"
+    ? Object.values(finalMetalImages)
+    : [];
+
+  const existingGallery = Array.isArray(updatedFields.gallery) && updatedFields.gallery.length > 0
+    ? updatedFields.gallery
+    : (Array.isArray(current.gallery) ? current.gallery : []);
+
+  const allGalleryImgs = [
+    newImage,
+    ...metalValues,
+    finalBoxImage,
+    ...existingGallery,
+  ].filter(Boolean);
+  const combinedGallery = Array.from(new Set(allGalleryImgs));
 
   const updatedProduct = {
     ...current,
@@ -179,8 +232,12 @@ export const updateProduct = (id, updatedFields) => {
     price: numPrice,
     priceFormatted: formatPrice(numPrice),
     image: newImage,
-    gallery: newGallery,
-    metalImages: updatedFields.metalImages !== undefined ? updatedFields.metalImages : (current.metalImages || null),
+    boxImage: finalBoxImage,
+    gallery: combinedGallery,
+    metalImages: finalMetalImages,
+    showDeliveryEstimate: updatedFields.showDeliveryEstimate !== undefined
+      ? updatedFields.showDeliveryEstimate
+      : current.showDeliveryEstimate,
     updatedAt: new Date().toISOString(),
   };
 

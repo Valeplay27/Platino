@@ -289,7 +289,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
           </div>
           <div>
             <div className="gem-kpi-val">{kpis.naturales}</div>
-            <div className="gem-kpi-lbl">Diamantes Naturales (GIA)</div>
+            <div className="gem-kpi-lbl">Diamantes Naturales</div>
           </div>
         </div>
 

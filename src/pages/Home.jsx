@@ -8,15 +8,19 @@ import { getHomeImages } from "../services/homeImagesService";
 import { getAssetUrl } from "../utils/assetHelper";
 import "../../styles/home.css";
 
-const GEM_SHAPES = [
-  { id: "oval", name: "Oval", image: getAssetUrl("/images/gem-shapes/oval.png"), desc: "Silueta alargada que estiliza la mano con brillo suave y elegante.", ratio: "1.35 - 1.50", popularCarat: "1.25 ct" },
-  { id: "redondo", name: "Round", image: getAssetUrl("/images/gem-shapes/redondo.png"), desc: "El corte clásico por excelencia, diseñado para maximizar el fuego y refracción.", ratio: "1.00", popularCarat: "1.00 ct" },
-  { id: "esmeralda", name: "Emerald", image: getAssetUrl("/images/gem-shapes/esmeralda.png"), desc: "Corte escalonado de gran claridad con reflejos tipo sala de espejos.", ratio: "1.30 - 1.45", popularCarat: "1.50 ct" },
-  { id: "marquesa", name: "Marquise", image: getAssetUrl("/images/gem-shapes/marquesa.png"), desc: "Silueta regia de puntas afiladas con máxima superficie visual por quilate.", ratio: "1.75 - 2.15", popularCarat: "1.05 ct" },
-  { id: "radiante", name: "Radiant", image: getAssetUrl("/images/gem-shapes/radiante.png"), desc: "Esquinas truncadas con patrón de facetas brillantes de destello vibrante.", ratio: "1.20 - 1.35", popularCarat: "1.20 ct" },
-  { id: "pera", name: "Pear", image: getAssetUrl("/images/gem-shapes/pera.png"), desc: "Lágrima luminosa que fusiona la suavidad del redondo con el corte marquesa.", ratio: "1.50 - 1.70", popularCarat: "1.20 ct" },
-  { id: "cojin", name: "Cushion", image: getAssetUrl("/images/gem-shapes/cojin.png"), desc: "Bordes redondeados de inspiración vintage con facetas profundas y luminosas.", ratio: "1.00 - 1.05", popularCarat: "1.30 ct" },
-  { id: "princesa", name: "Princess", image: getAssetUrl("/images/gem-shapes/princesa.png"), desc: "Corte cuadrado contemporáneo de líneas puras con destello geométrico.", ratio: "1.00 - 1.03", popularCarat: "1.10 ct" },
+const DIAMOND_SHAPES_BE = [
+  // Fila 1 (5 columnas)
+  { id: "oval", name: "Oval", image: getAssetUrl("/images/gem-shapes/oval.webp"), link: "/catalogo-gemas?forma=oval" },
+  { id: "redondo", name: "Round", image: getAssetUrl("/images/gem-shapes/redondo.webp"), link: "/catalogo-gemas?forma=redondo" },
+  { id: "esmeralda", name: "Emerald", image: getAssetUrl("/images/gem-shapes/esmeralda.webp"), link: "/catalogo-gemas?forma=esmeralda" },
+  { id: "marquesa", name: "Marquise", image: getAssetUrl("/images/gem-shapes/marquesa.webp"), link: "/catalogo-gemas?forma=marquesa" },
+  { id: "ver-mas", name: "Ver más", isVerMas: true, link: "/catalogo-gemas" },
+  // Fila 2 (5 columnas)
+  { id: "pera", name: "Pear", image: getAssetUrl("/images/gem-shapes/pera.webp"), link: "/catalogo-gemas?forma=pera" },
+  { id: "cojin-alargado", name: "Elongated Cushion", image: getAssetUrl("/images/gem-shapes/cojin-alargado.webp"), link: "/catalogo-gemas?forma=cojin-alargado" },
+  { id: "cojin", name: "Cushion", image: getAssetUrl("/images/gem-shapes/cojin.webp"), link: "/catalogo-gemas?forma=cojin" },
+  { id: "princesa", name: "Princess", image: getAssetUrl("/images/gem-shapes/princesa.webp"), link: "/catalogo-gemas?forma=princesa" },
+  { id: "asscher", name: "Asscher", image: getAssetUrl("/images/gem-shapes/asscher.webp"), link: "/catalogo-gemas?forma=asscher" },
 ];
 
 const TRUST_BADGES = [
@@ -28,7 +32,6 @@ const TRUST_BADGES = [
 ];
 
 export default function Home() {
-  const [selectedCut, setSelectedCut] = useState(GEM_SHAPES[0]);
   const [asesoriaModalOpen, setAsesoriaModalOpen] = useState(false);
   const [homeImages, setHomeImages] = useState(getHomeImages);
 
@@ -297,67 +300,66 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 3. SELECCIONA LA FORMA DE TU GEMA */}
-      <section className="gem-selector-section">
-        <div className="gem-selector-layout">
-          {/* Columna Izquierda: Vista interactiva y luminosa de la gema seleccionada */}
-          <div className="gem-preview-col">
-            <h2 className="gem-section-heading">
-              Selecciona la forma de tu gema
+      {/* 3. SHOP DIAMONDS BY SHAPE (ESTILO BRILLIANT EARTH) */}
+      <section className="be-shapes-section">
+        <div className="be-shapes-container">
+          {/* Columna Izquierda: Título y Anillo Solitario */}
+          <div className="be-shapes-left-col">
+            <h2 className="be-shapes-title">
+              Shop Diamonds by Shape
             </h2>
 
-            <div className="gem-preview-box">
-              <GemstoneStoneVisual
-                shape={selectedCut.id}
-                size={175}
-                color="incoloro"
-                carat={selectedCut.popularCarat}
-                showSparkle={true}
-              />
-            </div>
-
-            <div className="gem-active-badge">
-              <span>Corte {selectedCut.name} Seleccionado</span>
-            </div>
-
-            <p className="gem-cut-desc-text">
-              {selectedCut.desc}
-            </p>
-
-            <div className="gem-cut-specs-pill">
-              <span>Proporción: <strong>{selectedCut.ratio}</strong></span>
-              <span className="gem-spec-dot">•</span>
-              <span>Quilates sugeridos: <strong>{selectedCut.popularCarat}</strong></span>
-            </div>
-
-            {/* Botón redondeado para ir al Catálogo de Gemas con el filtro de esa piedra */}
             <Link
-              to={`/catalogo-gemas?forma=${selectedCut.id}`}
-              className="btn-go-gemstones-catalog"
-              title={`Ver todos los diamantes y gemas certificadas corte ${selectedCut.name}`}
+              to="/categoria/anillos-compromiso"
+              className="be-shapes-ring-wrap"
+              title="Explorar anillos de compromiso solitarios"
             >
-              <span>Ver Catálogo de Gemas {selectedCut.name}</span>
-              <i className="bi bi-arrow-right"></i>
+              <img
+                src={getAssetUrl("/images/gem-shapes/solitaire-ring.png")}
+                alt="Sortija Solitario con Diamante"
+                className="be-shapes-ring-img"
+              />
             </Link>
           </div>
 
-          {/* Columna Derecha: Cuadrícula 4x2 de las 8 Formas exactas de referencia */}
-          <div className="gem-grid-col">
-            {GEM_SHAPES.map((gem) => {
-              const isActive = selectedCut.id === gem.id;
+          {/* Columna Derecha: Cuadrícula 5x2 de Formas de Diamante */}
+          <div className="be-shapes-grid">
+            {DIAMOND_SHAPES_BE.map((shape) => {
+              if (shape.isVerMas) {
+                return (
+                  <Link
+                    key="ver-mas"
+                    to={shape.link}
+                    className="be-shape-item be-ver-mas-item"
+                    title="Ver más cortes y gemas en el catálogo"
+                  >
+                    <div className="be-shape-img-wrap">
+                      <div className="be-ver-mas-icon">
+                        <i className="bi bi-arrow-right"></i>
+                      </div>
+                    </div>
+                    <span className="be-shape-label">{shape.name}</span>
+                  </Link>
+                );
+              }
+
               return (
-                <button
-                  type="button"
-                  key={gem.id}
-                  className={`gem-cut-btn ${isActive ? "active" : ""}`}
-                  onClick={() => setSelectedCut(gem)}
-                  title={`Seleccionar diamante corte ${gem.name}: ${gem.desc}`}
+                <Link
+                  key={shape.id}
+                  to={shape.link}
+                  className="be-shape-item"
+                  title={`Ver diamantes y gemas corte ${shape.name}`}
                 >
-                  <div className="gem-icon-container">
-                    <DiamondCutIcon shape={gem.id} size={42} />
+                  <div className="be-shape-img-wrap">
+                    <img
+                      src={shape.image}
+                      alt={`Diamante corte ${shape.name}`}
+                      className="be-shape-img"
+                      loading="lazy"
+                    />
                   </div>
-                  <span className="gem-cut-label">{gem.name}</span>
-                </button>
+                  <span className="be-shape-label">{shape.name}</span>
+                </Link>
               );
             })}
           </div>

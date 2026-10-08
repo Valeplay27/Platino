@@ -371,7 +371,11 @@ export default function GemstonesCatalog() {
                       onClick={() => handleShapeSelect(shape.id)}
                     >
                       <div className="shape-chip-icon">
-                        <DiamondCutIcon shape={shape.id} size={20} />
+                        {shape.image ? (
+                          <img src={shape.image} alt={shape.name} className="shape-chip-thumb-img" />
+                        ) : (
+                          <DiamondCutIcon shape={shape.id} size={20} />
+                        )}
                       </div>
                       <span className="shape-chip-name">{shape.name}</span>
                       <span className="shape-chip-count">{count}</span>

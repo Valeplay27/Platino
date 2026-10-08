@@ -22,3 +22,14 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Base de datos Platino (archivos binarios, dumps y esquemas locales)
+database/
+*.db
+*.sqlite
+*.sqlite3
+*.sql
+
+# Scratch y archivos temporales
+scratch/
+

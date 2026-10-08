@@ -347,50 +347,56 @@
 
 @media (max-width: 640px) {
   .catalog-container {
-    padding: 20px 14px 0;
+    padding: 20px 16px 0;
   }
-  .catalog-grid {
-    grid-template-columns: repeat(2, 1fr);
-    gap: 12px;
-  }
-  .platino-product-card {
-    border-radius: 12px;
-  }
-  .card-image-wrapper a {
-    padding: 6px;
-  }
-  .card-info {
-    padding: 10px 12px 14px;
-    gap: 4px;
-  }
-  .card-title {
-    font-size: 15px;
-  }
-  .card-price {
-    font-size: 13.5px;
-  }
-  .card-badge-pill {
-    font-size: 8.5px;
-    padding: 4px 8px;
-    top: 10px;
-    left: 10px;
-  }
-  .card-wishlist-btn {
-    width: 30px;
-    height: 30px;
-    font-size: 13px;
-    top: 10px;
-    right: 10px;
-  }
-  .card-action-btn {
-    padding-top: 10px;
-    font-size: 10px;
-  }
-}
-
-@media (max-width: 360px) {
   .catalog-grid {
     grid-template-columns: 1fr;
-    gap: 16px;
+    gap: 22px;
+    max-width: 440px;
+    margin: 0 auto;
+  }
+  .platino-product-card {
+    border-radius: 16px;
+  }
+  .card-image-wrapper a {
+    padding: 12px;
+  }
+  .card-metal-swatches {
+    padding: 12px 14px 4px;
+    gap: 8px;
+  }
+  .card-swatch-dot {
+    width: 20px;
+    height: 20px;
+  }
+  .card-info {
+    padding: 14px 18px 20px;
+    gap: 6px;
+  }
+  .card-subtitle {
+    font-size: 11px;
+  }
+  .card-title {
+    font-size: 18px;
+  }
+  .card-price {
+    font-size: 16px;
+  }
+  .card-badge-pill {
+    font-size: 9.5px;
+    padding: 5px 12px;
+    top: 12px;
+    left: 12px;
+  }
+  .card-wishlist-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 15px;
+    top: 12px;
+    right: 12px;
+  }
+  .card-action-btn {
+    padding: 12px 20px;
+    font-size: 11px;
   }
 }

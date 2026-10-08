@@ -102,14 +102,16 @@ export const RING_SIZES = [
 ];
 
 export const GEM_SHAPES_PRODUCT = [
-  { id: "redondo", name: "Redondo", desc: "El corte clásico por excelencia, diseñado para maximizar el fuego y refracción.", ratio: "1.00", popularCarat: "1.00 ct", icon: "bi bi-circle" },
-  { id: "oval", name: "Oval", desc: "Silueta alargada que estiliza la mano con brillo suave y elegante.", ratio: "1.35 - 1.50", popularCarat: "1.25 ct", icon: "bi bi-egg" },
-  { id: "esmeralda", name: "Esmeralda", desc: "Corte escalonado de gran claridad con reflejos tipo sala de espejos.", ratio: "1.30 - 1.45", popularCarat: "1.50 ct", icon: "bi bi-app" },
-  { id: "marquesa", name: "Marquise", desc: "Silueta regia de puntas afiladas con máxima superficie visual por quilate.", ratio: "1.75 - 2.15", popularCarat: "1.05 ct", icon: "bi bi-suit-diamond" },
-  { id: "radiante", name: "Radiant", desc: "Esquinas truncadas con patrón de facetas brillantes de destello vibrante.", ratio: "1.20 - 1.35", popularCarat: "1.20 ct", icon: "bi bi-gem" },
-  { id: "pera", name: "Pera", desc: "Lágrima luminosa que fusiona la suavidad del redondo con el corte marquesa.", ratio: "1.50 - 1.70", popularCarat: "1.20 ct", icon: "bi bi-droplet" },
-  { id: "cojin", name: "Cojín", desc: "Bordes redondeados de inspiración vintage con facetas profundas y luminosas.", ratio: "1.00 - 1.05", popularCarat: "1.30 ct", icon: "bi bi-square" },
-  { id: "princesa", name: "Princess", desc: "Corte cuadrado contemporáneo de líneas puras con destello geométrico.", ratio: "1.00 - 1.03", popularCarat: "1.10 ct", icon: "bi bi-bounding-box" },
+  { id: "oval", name: "Oval", image: getAssetUrl("/images/gem-shapes/oval.webp"), desc: "Silueta alargada que estiliza la mano con brillo suave y elegante.", ratio: "1.35 - 1.50", popularCarat: "1.25 ct", icon: "bi bi-egg" },
+  { id: "redondo", name: "Redondo", image: getAssetUrl("/images/gem-shapes/redondo.webp"), desc: "El corte clásico por excelencia, diseñado para maximizar el fuego y refracción.", ratio: "1.00", popularCarat: "1.00 ct", icon: "bi bi-circle" },
+  { id: "esmeralda", name: "Esmeralda", image: getAssetUrl("/images/gem-shapes/esmeralda.webp"), desc: "Corte escalonado de gran claridad con reflejos tipo sala de espejos.", ratio: "1.30 - 1.45", popularCarat: "1.50 ct", icon: "bi bi-app" },
+  { id: "marquesa", name: "Marquise", image: getAssetUrl("/images/gem-shapes/marquesa.webp"), desc: "Silueta regia de puntas afiladas con máxima superficie visual por quilate.", ratio: "1.75 - 2.15", popularCarat: "1.05 ct", icon: "bi bi-suit-diamond" },
+  { id: "radiante", name: "Radiant", image: getAssetUrl("/images/gem-shapes/radiante.webp"), desc: "Esquinas truncadas con patrón de facetas brillantes de destello vibrante.", ratio: "1.20 - 1.35", popularCarat: "1.20 ct", icon: "bi bi-gem" },
+  { id: "pera", name: "Pera", image: getAssetUrl("/images/gem-shapes/pera.webp"), desc: "Lágrima luminosa que fusiona la suavidad del redondo con el corte marquesa.", ratio: "1.50 - 1.70", popularCarat: "1.20 ct", icon: "bi bi-droplet" },
+  { id: "cojin-alargado", name: "Cojín Alargado", image: getAssetUrl("/images/gem-shapes/cojin-alargado.webp"), desc: "Elegante variante alargada que combina la suavidad del cojín con la presencia del corte esmeralda.", ratio: "1.15 - 1.30", popularCarat: "1.40 ct", icon: "bi bi-square" },
+  { id: "cojin", name: "Cojín", image: getAssetUrl("/images/gem-shapes/cojin.webp"), desc: "Bordes redondeados de inspiración vintage con facetas profundas y luminosas.", ratio: "1.00 - 1.05", popularCarat: "1.30 ct", icon: "bi bi-square" },
+  { id: "princesa", name: "Princess", image: getAssetUrl("/images/gem-shapes/princesa.webp"), desc: "Corte cuadrado contemporáneo de líneas puras con destello geométrico.", ratio: "1.00 - 1.03", popularCarat: "1.10 ct", icon: "bi bi-bounding-box" },
+  { id: "asscher", name: "Asscher", image: getAssetUrl("/images/gem-shapes/asscher.webp"), desc: "Corte escalonado octogonal art déco con hipnótico efecto molino de viento.", ratio: "1.00", popularCarat: "1.20 ct", icon: "bi bi-app" },
 ];
 
 const RAW_CATEGORY_INFO = {

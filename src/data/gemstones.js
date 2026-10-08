@@ -1,3 +1,5 @@
+import { getAssetUrl } from "../utils/assetHelper";
+
 // Base de datos de Diamantes y Gemas Certificadas Platino Perú
 
 export const GEM_SHAPES_DATA = [
@@ -5,6 +7,7 @@ export const GEM_SHAPES_DATA = [
     id: "oval",
     name: "Oval",
     label: "Oval",
+    image: getAssetUrl("/images/gem-shapes/oval.webp"),
     ratio: "1.35 - 1.50",
     desc: "Silueta alargada que estiliza la mano con brillo suave y elegante.",
     recommendedSetting: "Solitario de 4 o 6 puntas, Halo delicado",
@@ -14,6 +17,7 @@ export const GEM_SHAPES_DATA = [
     id: "redondo",
     name: "Redondo",
     label: "Redondo",
+    image: getAssetUrl("/images/gem-shapes/redondo.webp"),
     ratio: "1.00",
     desc: "El corte clásico por excelencia, diseñado para maximizar el fuego y refracción.",
     recommendedSetting: "Montura clásica de 6 puntas, Bisel moderno",
@@ -23,6 +27,7 @@ export const GEM_SHAPES_DATA = [
     id: "esmeralda",
     name: "Esmeralda",
     label: "Esmeralda",
+    image: getAssetUrl("/images/gem-shapes/esmeralda.webp"),
     ratio: "1.30 - 1.45",
     desc: "Corte escalonado de gran claridad con reflejos tipo sala de espejos.",
     recommendedSetting: "Montura de 4 garras en platino, Tres piedras",
@@ -32,15 +37,27 @@ export const GEM_SHAPES_DATA = [
     id: "marquesa",
     name: "Marquesa",
     label: "Marquesa",
+    image: getAssetUrl("/images/gem-shapes/marquesa.webp"),
     ratio: "1.75 - 2.15",
     desc: "Silueta regia de puntas afiladas con máxima superficie visual por quilate.",
     recommendedSetting: "Garras en V en los extremos, Halo floral",
     facetCount: 58,
   },
   {
+    id: "radiante",
+    name: "Radiante",
+    label: "Radiante",
+    image: getAssetUrl("/images/gem-shapes/radiante.webp"),
+    ratio: "1.20 - 1.35",
+    desc: "Esquinas truncadas con patrón de facetas brillantes de destello vibrante.",
+    recommendedSetting: "Solitario de cuatro garras, Halo brillante",
+    facetCount: 70,
+  },
+  {
     id: "pera",
     name: "Pera",
     label: "Pera",
+    image: getAssetUrl("/images/gem-shapes/pera.webp"),
     ratio: "1.50 - 1.70",
     desc: "Lágrima luminosa que fusiona la suavidad del redondo con el corte marquesa.",
     recommendedSetting: "Garra en V en la punta, Halo contemporáneo",
@@ -50,6 +67,7 @@ export const GEM_SHAPES_DATA = [
     id: "corazón",
     name: "Corazón",
     label: "Corazón",
+    image: getAssetUrl("/images/gem-shapes/pera.webp"),
     ratio: "0.90 - 1.05",
     desc: "El símbolo definitivo de devoción y romance eterno tallado a mano.",
     recommendedSetting: "Tres puntas con hendidura protegida",
@@ -59,6 +77,7 @@ export const GEM_SHAPES_DATA = [
     id: "cojín",
     name: "Cojín",
     label: "Cojín",
+    image: getAssetUrl("/images/gem-shapes/cojin.webp"),
     ratio: "1.00 - 1.05",
     desc: "Bordes redondeados de inspiración vintage con facetas profundas y luminosas.",
     recommendedSetting: "Montura vintage milgrain, Doble halo",
@@ -68,16 +87,27 @@ export const GEM_SHAPES_DATA = [
     id: "princesa",
     name: "Princesa",
     label: "Princesa",
+    image: getAssetUrl("/images/gem-shapes/princesa.webp"),
     ratio: "1.00 - 1.03",
     desc: "Corte cuadrado contemporáneo de líneas puras con destello geométrico.",
     recommendedSetting: "Garras protectoras angulares en esquina",
     facetCount: 76,
   },
+  {
+    id: "asscher",
+    name: "Asscher",
+    label: "Asscher",
+    image: getAssetUrl("/images/gem-shapes/asscher.webp"),
+    ratio: "1.00",
+    desc: "Corte escalonado octogonal art déco con hipnótico efecto molino de viento.",
+    recommendedSetting: "Montura geométrica clásica, Solitario 4 puntas",
+    facetCount: 68,
+  },
 ];
 
 export const GEM_TYPES = [
   { id: "todos", label: "Todas las Gemas" },
-  { id: "diamante-natural", label: "Diamantes Naturales (GIA)" },
+  { id: "diamante-natural", label: "Diamantes Naturales" },
   { id: "diamante-lab", label: "Diamantes Cultivados (Lab-Grown)" },
   { id: "gema-color", label: "Gemas Preciosas de Color" },
 ];

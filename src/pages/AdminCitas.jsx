@@ -351,9 +351,11 @@ export default function AdminCitas() {
   const [formImageWhite, setFormImageWhite] = useState("/images/cat-compromiso.jpg");
   const [formImageYellow, setFormImageYellow] = useState("");
   const [formImageRose, setFormImageRose] = useState("");
+  const [formBoxImage, setFormBoxImage] = useState("/images/detail-box-green.jpg");
   const [formSubtitle, setFormSubtitle] = useState("");
   const [formAvailableMetals, setFormAvailableMetals] = useState(() => METALS.map((m) => m.id));
   const [formSelectedMetal, setFormSelectedMetal] = useState("Oro 18k Blanco");
+  const [formShowDeliveryEstimate, setFormShowDeliveryEstimate] = useState(true);
   const [feedbackMsg, setFeedbackMsg] = useState("");
 
   // Filtros de Citas
@@ -1274,8 +1276,10 @@ export default function AdminCitas() {
     setFormImageWhite(initImg);
     setFormImageYellow("");
     setFormImageRose("");
+    setFormBoxImage("/images/detail-box-green.jpg");
     setFormAvailableMetals(METALS.map((m) => m.id));
     setFormSelectedMetal("Oro 18k Blanco");
+    setFormShowDeliveryEstimate(initialGroup !== "anillos");
     setProductModalOpen(true);
   };
 
@@ -1312,6 +1316,12 @@ export default function AdminCitas() {
     setFormImageWhite(whiteImg);
     setFormImageYellow(yellowImg);
     setFormImageRose(roseImg);
+    setFormBoxImage(prod.boxImage || prod.presentationImage || "/images/detail-box-green.jpg");
+    setFormShowDeliveryEstimate(
+      prod.showDeliveryEstimate !== undefined
+        ? !!prod.showDeliveryEstimate
+        : (prod.type === "accesorio" || group !== "anillos")
+    );
 
     // Extraer y normalizar los materiales disponibles del producto
     let metalIds = [];
@@ -1440,6 +1450,21 @@ export default function AdminCitas() {
     }
   };
 
+  const handleBoxImageFileUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 5 * 1024 * 1024) {
+        alert("La imagen es mayor a 5MB. Por favor elige una imagen más ligera.");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        setFormBoxImage(event.target.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSaveProduct = (e) => {
     e.preventDefault();
     if (!formName.trim() || !formPrice) {
@@ -1498,6 +1523,17 @@ export default function AdminCitas() {
       rose: roseImg,
     };
 
+    const finalBoxImage = formBoxImage.trim() || "/images/detail-box-green.jpg";
+    const allImagesToInclude = [
+      mainImg,
+      whiteImg,
+      yellowImg,
+      roseImg,
+      finalBoxImage,
+      ...(Array.isArray(editingProduct?.gallery) ? editingProduct.gallery : [])
+    ].filter(Boolean);
+    const baseGallery = Array.from(new Set(allImagesToInclude));
+
     const payload = {
       name: formName.trim(),
       subtitle: formSubtitle.trim() || "Platino Perú Colección Exclusiva",
@@ -1510,9 +1546,36 @@ export default function AdminCitas() {
       badge: formBadge.trim(),
       description: formDesc.trim(),
       image: mainImg,
+      boxImage: finalBoxImage,
+      gallery: baseGallery,
       metalImages: metalImagesMap,
       availableMetals: activeMetalsObjects,
       selectedMetal: finalSelectedMetal,
+      showDeliveryEstimate: isRingGroup ? false : formShowDeliveryEstimate,
+      hasPresentationChoice: true,
+      presentationOptions: [
+        {
+          id: "caja-verde-lujo",
+          name: "Caja de Lujo Esmeralda Platino (Recomendado)",
+          price: 0,
+          image: finalBoxImage,
+          description: "Estuche rígido icónico verde esmeralda Platino con interior de gamuza aterciopelada y detalles dorados."
+        },
+        {
+          id: "estuche-terciopelo",
+          name: "Estuche de Terciopelo Negro Nupcial",
+          price: 25,
+          image: "/images/box-presentation.jpg",
+          description: "Estuche premium de terciopelo negro mate tacto suave, ideal para pedida de mano y bodas."
+        },
+        {
+          id: "caja-madera",
+          name: "Caja de Madera Laqueada con Luz LED Nupcial",
+          price: 60,
+          image: "/images/detail-packaging.jpg",
+          description: "Caja de madera noble con acabado piano brillante e iluminación LED focalizada al abrir para máxima sorpresa."
+        }
+      ],
     };
 
     if (editingProduct) {
@@ -3673,6 +3736,29 @@ export default function AdminCitas() {
                       </div>
 
                       <div className="admin-product-footer">
+                        <Link
+                          to={`/producto/${prod.id}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn-card-view"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "5px",
+                            padding: "6px 10px",
+                            borderRadius: "6px",
+                            border: "1px solid #113B3A",
+                            background: "#ffffff",
+                            color: "#113B3A",
+                            fontSize: "12px",
+                            fontWeight: "600",
+                            textDecoration: "none"
+                          }}
+                          title="Ver producto en la tienda y portafolio de fotos"
+                        >
+                          <i className="bi bi-box-arrow-up-right"></i> Ver en Tienda
+                        </Link>
+
                         <button
                           type="button"
                           onClick={() => {
@@ -6682,6 +6768,153 @@ export default function AdminCitas() {
                     </div>
                   );
                 })()}
+
+                {/* 5. CAJA / ESTUCHE DE PRESENTACIÓN DE LA JOYA */}
+                <div className="product-box-config-card" style={{
+                  background: "#fbf9f6",
+                  border: "1.5px solid #e7dcce",
+                  borderRadius: "12px",
+                  padding: "18px",
+                  marginTop: "16px",
+                  marginBottom: "20px"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <i className="bi bi-box2-heart-fill" style={{ color: "#c5a059", fontSize: "20px" }}></i>
+                      <strong style={{ fontSize: "14px", color: "#113B3A" }}>5. Caja de Presentación / Estuche del Producto</strong>
+                    </div>
+                    <span style={{ fontSize: "11px", background: "#edf5f0", color: "#113B3A", padding: "3px 8px", borderRadius: "4px", fontWeight: "600" }}>
+                      Visible en Portafolio y Paso 2
+                    </span>
+                  </div>
+
+                  <p style={{ fontSize: "12px", color: "#5d6d65", margin: "0 0 14px", lineHeight: "1.45" }}>
+                    Configura la foto de la caja o estuche de regalo que se agregará al portafolio de la joya y se mostrará al cliente en el <strong>Paso 2: Complementos y Estuche</strong>.
+                  </p>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "16px", alignItems: "center" }}>
+                    {/* Vista previa de la caja */}
+                    <div style={{ width: "100px", height: "100px", borderRadius: "8px", overflow: "hidden", border: "1px solid #dcd7ce", background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                      <img
+                        src={formBoxImage || "/images/detail-box-green.jpg"}
+                        alt="Caja de presentación"
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                        onError={(e) => { e.target.onerror = null; e.target.src = "/images/detail-box-green.jpg"; }}
+                      />
+                    </div>
+
+                    <div>
+                      <div style={{ display: "flex", gap: "8px", marginBottom: "10px", flexWrap: "wrap" }}>
+                        <button
+                          type="button"
+                          onClick={() => setFormBoxImage("/images/detail-box-green.jpg")}
+                          className="btn-box-preset"
+                          style={{ fontSize: "11px", padding: "4px 10px", borderRadius: "6px", border: "1px solid #113B3A", background: formBoxImage === "/images/detail-box-green.jpg" ? "#113B3A" : "#ffffff", color: formBoxImage === "/images/detail-box-green.jpg" ? "#ffffff" : "#113B3A", cursor: "pointer", fontWeight: "600" }}
+                        >
+                          Caja Verde Platino
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormBoxImage("/images/box-presentation.jpg")}
+                          className="btn-box-preset"
+                          style={{ fontSize: "11px", padding: "4px 10px", borderRadius: "6px", border: "1px solid #113B3A", background: formBoxImage === "/images/box-presentation.jpg" ? "#113B3A" : "#ffffff", color: formBoxImage === "/images/box-presentation.jpg" ? "#ffffff" : "#113B3A", cursor: "pointer", fontWeight: "600" }}
+                        >
+                          Estuche Terciopelo Negro
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormBoxImage("/images/detail-packaging.jpg")}
+                          className="btn-box-preset"
+                          style={{ fontSize: "11px", padding: "4px 10px", borderRadius: "6px", border: "1px solid #113B3A", background: formBoxImage === "/images/detail-packaging.jpg" ? "#113B3A" : "#ffffff", color: formBoxImage === "/images/detail-packaging.jpg" ? "#ffffff" : "#113B3A", cursor: "pointer", fontWeight: "600" }}
+                        >
+                          Caja Madera LED
+                        </button>
+                      </div>
+
+                      <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                        <input
+                          type="text"
+                          className="catalog-form-input"
+                          style={{ fontSize: "12px", padding: "8px 12px", flex: 1 }}
+                          placeholder="Ruta o URL de la caja (Ej. /images/detail-box-green.jpg)"
+                          value={formBoxImage}
+                          onChange={(e) => setFormBoxImage(e.target.value)}
+                        />
+                        <label style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          padding: "8px 14px",
+                          background: "#edf5f0",
+                          color: "#113B3A",
+                          border: "1px solid #b7d6c5",
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          cursor: "pointer",
+                          whiteSpace: "nowrap"
+                        }}>
+                          <i className="bi bi-cloud-arrow-up-fill"></i> Subir Foto de Caja
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleBoxImageFileUpload}
+                            style={{ display: "none" }}
+                          />
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 6. Tiempo de Entrega Rápida (Opcional para Accesorios) */}
+                <div style={{
+                  background: formCategoryGroup === "anillos" ? "#fbfaf7" : "#fdfbf7",
+                  border: "1.5px solid #e7dfd1",
+                  borderRadius: "10px",
+                  padding: "14px 16px",
+                  marginBottom: "20px"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px" }}>
+                    <div style={{ flex: 1, minWidth: "240px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                        <i className="bi bi-lightning-charge-fill" style={{ color: "#d97706", fontSize: "18px" }}></i>
+                        <strong style={{ fontSize: "13.5px", color: "#113B3A" }}>
+                          6. Mostrar Tarjeta de Tiempo de Entrega Rápida (2 o 7 días)
+                        </strong>
+                      </div>
+                      <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#5d6d65", lineHeight: "1.4" }}>
+                        {formCategoryGroup === "anillos"
+                          ? "Desactivado por regla para sortijas de compromiso, aros de boda y alianzas (fabricación a medida en taller)."
+                          : "Opcional para accesorios (collares, pulseras, aretes). Puedes activar o desactivar esta opción según disponibilidad."}
+                      </p>
+                    </div>
+
+                    <label style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      cursor: formCategoryGroup === "anillos" ? "not-allowed" : "pointer",
+                      fontWeight: "600",
+                      fontSize: "13px",
+                      background: "#ffffff",
+                      padding: "6px 14px",
+                      borderRadius: "8px",
+                      border: "1px solid #dcd7ce"
+                    }}>
+                      <input
+                        type="checkbox"
+                        checked={formCategoryGroup === "anillos" ? false : formShowDeliveryEstimate}
+                        disabled={formCategoryGroup === "anillos"}
+                        onChange={(e) => setFormShowDeliveryEstimate(e.target.checked)}
+                        style={{ width: "17px", height: "17px", accentColor: "#113B3A", cursor: formCategoryGroup === "anillos" ? "not-allowed" : "pointer" }}
+                      />
+                      <span style={{ color: formCategoryGroup === "anillos" ? "#94a3b8" : formShowDeliveryEstimate ? "#137748" : "#991b1b" }}>
+                        {formCategoryGroup === "anillos" ? "Desactivado (Anillos)" : (formShowDeliveryEstimate ? "Opción Activa" : "Desactivada")}
+                      </span>
+                    </label>
+                  </div>
+                </div>
 
                 <div className="catalog-form-group">
                   <label>Descripción de la Joya</label>
