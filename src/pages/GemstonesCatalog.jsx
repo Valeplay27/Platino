@@ -146,18 +146,28 @@ export default function GemstonesCatalog() {
     selectedCaratRange,
   ]);
 
-  // Contadores por forma para los chips
+  // Gemas estrictamente disponibles para clientes (con stock y unidades > 0)
+  // Requerimiento: Si se queda en cero unidades, no mostrar en el catálogo (invisibles para clientes)
+  const availableGemstones = useMemo(() => {
+    return gemstonesList.filter((gem) => {
+      const unitsNum = gem.units !== undefined ? Number(gem.units) : 1;
+      const hasUnits = !isNaN(unitsNum) ? unitsNum > 0 : true;
+      return gem.inStock !== false && hasUnits;
+    });
+  }, [gemstonesList]);
+
+  // Contadores por forma para los chips (solo gemas disponibles con unidades > 0)
   const shapeCounts = useMemo(() => {
     const counts = {};
     GEM_SHAPES_DATA.forEach((s) => {
-      counts[s.id] = gemstonesList.filter((g) => g.shape === s.id).length;
+      counts[s.id] = availableGemstones.filter((g) => g.shape === s.id).length;
     });
     return counts;
-  }, [gemstonesList]);
+  }, [availableGemstones]);
 
-  // Filtrado de gemas
+  // Filtrado de gemas disponibles para el cliente
   const filteredGemstones = useMemo(() => {
-    return gemstonesList.filter((gem) => {
+    return availableGemstones.filter((gem) => {
       // 1. Búsqueda por texto (nombre, cert, corte)
       if (searchQuery.trim()) {
         const q = searchQuery.toLowerCase();
@@ -357,7 +367,7 @@ export default function GemstonesCatalog() {
                   onClick={() => handleShapeSelect("todas")}
                 >
                   <span className="shape-chip-name">Todas</span>
-                  <span className="shape-chip-count">{gemstonesList.length}</span>
+                  <span className="shape-chip-count">{availableGemstones.length}</span>
                 </button>
 
                 {GEM_SHAPES_DATA.map((shape) => {

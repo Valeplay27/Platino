@@ -2496,3 +2496,424 @@
   transform: scale(1.08);
 }
 
+/* ========================================================
+   GESTIÓN DE LABORATORIOS DINÁMICOS Y CONTROL DE UNIDADES
+   ======================================================== */
+.btn-manage-labs {
+  background: #FDF9F2;
+  border: 1.5px solid #C6AC7F;
+  color: #113B3A;
+  padding: 10px 18px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-manage-labs:hover {
+  background: #113B3A;
+  color: #ffffff;
+  border-color: #113B3A;
+  transform: translateY(-1px);
+}
+
+.lab-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.btn-add-lab-inline {
+  background: none;
+  border: none;
+  color: #113B3A;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.btn-add-lab-inline:hover {
+  color: #C6AC7F;
+  background: rgba(198, 172, 127, 0.12);
+}
+
+/* Stepper de unidades en el formulario */
+.units-stepper-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #faf8f5;
+  padding: 4px 6px;
+  border-radius: 8px;
+  border: 1px solid #e2ddd5;
+  width: fit-content;
+}
+
+.btn-unit-stepper-btn {
+  background: #ffffff;
+  border: 1px solid #dcd6cc;
+  color: #113B3A;
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 15px;
+  font-weight: 700;
+  transition: all 0.18s;
+}
+
+.btn-unit-stepper-btn:hover {
+  background: #113B3A;
+  color: #ffffff;
+  border-color: #113B3A;
+}
+
+.units-num-input {
+  width: 70px !important;
+  text-align: center;
+  font-size: 15px !important;
+  font-weight: 800 !important;
+  color: #113B3A !important;
+  background: #ffffff !important;
+  padding: 6px !important;
+}
+
+.units-helper-hint {
+  margin-top: 6px;
+  font-size: 12px;
+}
+
+.hint-stock-ok {
+  color: #059669;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.hint-stock-zero {
+  color: #dc2626;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #fef2f2;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #fecaca;
+}
+
+/* Banner de advertencia en preview si unidades = 0 */
+.preview-warning-hidden-banner {
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #92400e;
+  padding: 10px 14px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  line-height: 1.4;
+}
+
+/* Modal de Laboratorios */
+.admin-lab-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(9, 32, 25, 0.65);
+  backdrop-filter: blur(4px);
+  z-index: 10000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.admin-lab-modal-card {
+  background: #ffffff;
+  border-radius: 16px;
+  max-width: 620px;
+  width: 100%;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(198, 172, 127, 0.4);
+  overflow: hidden;
+  animation: labModalFadeIn 0.25s ease-out;
+}
+
+@keyframes labModalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.admin-lab-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 20px 24px;
+  background: #faf8f5;
+  border-bottom: 1px solid #ede8e1;
+}
+
+.admin-lab-modal-body {
+  padding: 24px;
+}
+
+.admin-lab-create-box {
+  background: #f6fbf8;
+  border: 1.5px dashed #a7d7bc;
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 22px;
+}
+
+.admin-lab-section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  color: #113B3A;
+  margin-bottom: 12px;
+}
+
+.admin-lab-inputs-row {
+  display: flex;
+  gap: 12px;
+  align-items: flex-end;
+}
+
+.btn-save-lab-action {
+  background: #113B3A;
+  color: #ffffff;
+  border: 1px solid #113B3A;
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s;
+  height: 42px;
+}
+
+.btn-save-lab-action:hover:not(:disabled) {
+  background: #092019;
+  border-color: #C6AC7F;
+}
+
+.btn-save-lab-action:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-current-labs-section {
+  margin-top: 8px;
+}
+
+.admin-labs-chips-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.admin-lab-chip {
+  background: #faf8f5;
+  border: 1px solid #e5ded3;
+  border-radius: 8px;
+  padding: 6px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.lab-chip-code {
+  font-weight: 800;
+  color: #113B3A;
+  background: #eedcc0;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.lab-chip-name {
+  color: #44554d;
+}
+
+.btn-del-lab-chip {
+  background: none;
+  border: none;
+  color: #ef4444;
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  transition: transform 0.15s;
+}
+
+.btn-del-lab-chip:hover {
+  transform: scale(1.2);
+}
+
+.admin-lab-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  padding: 14px 24px;
+  background: #faf8f5;
+  border-top: 1px solid #ede8e1;
+}
+
+.btn-close-lab-modal {
+  background: #113B3A;
+  color: #ffffff;
+  border: none;
+  padding: 9px 20px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-close-lab-modal:hover {
+  background: #092019;
+}
+
+/* Control de Stock & Unidades en la Tabla */
+.table-stock-control-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.table-units-stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #d9d4cc;
+  padding: 3px 6px;
+  border-radius: 6px;
+  width: fit-content;
+}
+
+.btn-tbl-step {
+  background: #f4f0e9;
+  border: 1px solid #e1dcce;
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: #113B3A;
+  transition: all 0.15s;
+}
+
+.btn-tbl-step:hover:not(:disabled) {
+  background: #113B3A;
+  color: #ffffff;
+}
+
+.btn-tbl-step:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.tbl-unit-counter-number {
+  font-weight: 800;
+  font-size: 12.5px;
+  color: #113B3A;
+  min-width: 32px;
+  text-align: center;
+}
+
+.table-stock-badge-container {
+  display: block;
+}
+
+.table-visibility-badge {
+  border: none;
+  background: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 20px;
+  transition: all 0.2s;
+}
+
+.table-visibility-badge.online {
+  background: #ecfdf5;
+  color: #065f46;
+  border: 1px solid #a7f3d0;
+}
+
+.table-visibility-badge.online:hover {
+  background: #d1fae5;
+}
+
+.table-visibility-badge.hidden {
+  background: #fef2f2;
+  color: #991b1b;
+  border: 1px solid #fecaca;
+}
+
+.table-visibility-badge.hidden:hover {
+  background: #fee2e2;
+}
+
+.dot-pulse-green {
+  width: 7px;
+  height: 7px;
+  background: #10b981;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+}
+
+.dot-gray {
+  width: 7px;
+  height: 7px;
+  background: #9ca3af;
+  border-radius: 50%;
+}
+
+.gem-kpi-icon.out {
+  background: #fef2f2;
+  color: #dc2626;
+  border: 1px solid rgba(220, 38, 38, 0.2);
+}
+

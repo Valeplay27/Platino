@@ -14,16 +14,26 @@ import {
   deleteGemstone,
   toggleGemstoneStock,
   resetGemstonesToDefault,
+  getStoredLaboratories,
+  addLaboratory,
+  deleteLaboratory,
+  updateGemstoneUnits,
 } from "../services/gemstonesService";
 import { DiamondCutIcon } from "./GemstoneIcons";
 import GemstoneStoneVisual from "./GemstoneStoneVisual";
 
 export default function AdminGemstonesTab({ isMaster = true }) {
   const [gemstones, setGemstones] = useState(() => getStoredGemstones());
+  const [laboratories, setLaboratories] = useState(() => getStoredLaboratories());
   const [editingGem, setEditingGem] = useState(null);
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
   const fileInputRef = useRef(null);
+
+  // Modal para agregar y gestionar laboratorios gemológicos dinámicos
+  const [isLabModalOpen, setIsLabModalOpen] = useState(false);
+  const [newLabName, setNewLabName] = useState("");
+  const [newLabCode, setNewLabCode] = useState("");
 
   // Filtros de búsqueda en la tabla del admin
   const [adminSearch, setAdminSearch] = useState("");
@@ -52,19 +62,29 @@ export default function AdminGemstonesTab({ isMaster = true }) {
     fluorescence: "Ninguna",
     table: "58%",
     depth: "62.1%",
+    units: 1, // Cantidad de piezas en stock
     inStock: true,
     image: "", // Fotografía de la gema subida por el admin
   };
 
   const [formData, setFormData] = useState(initialForm);
 
-  // Escuchar cambios en almacenamiento
+  // Escuchar cambios en gemas y en laboratorios
   useEffect(() => {
-    const handleUpdate = () => {
+    const handleGemUpdate = () => {
       setGemstones(getStoredGemstones());
     };
-    window.addEventListener("platino_gemstones_updated", handleUpdate);
-    return () => window.removeEventListener("platino_gemstones_updated", handleUpdate);
+    const handleLabUpdate = () => {
+      setLaboratories(getStoredLaboratories());
+    };
+
+    window.addEventListener("platino_gemstones_updated", handleGemUpdate);
+    window.addEventListener("platino_gem_laboratories_updated", handleLabUpdate);
+
+    return () => {
+      window.removeEventListener("platino_gemstones_updated", handleGemUpdate);
+      window.removeEventListener("platino_gem_laboratories_updated", handleLabUpdate);
+    };
   }, []);
 
   const showFeedbackMsg = (msg) => {
@@ -116,11 +136,14 @@ export default function AdminGemstonesTab({ isMaster = true }) {
 
   const handleEditClick = (gem) => {
     setEditingGem(gem);
+    const gemUnits = gem.units !== undefined ? Number(gem.units) : (gem.inStock !== false ? 1 : 0);
     setFormData({
       ...gem,
       carat: String(gem.carat || "1.00"),
       mm: String(gem.mm || "7.00"),
       price: gem.price || 5000,
+      units: gemUnits,
+      inStock: gemUnits > 0 && gem.inStock !== false,
       image: gem.image || "",
     });
     setIsFormOpen(true);
@@ -137,20 +160,33 @@ export default function AdminGemstonesTab({ isMaster = true }) {
     e.preventDefault();
 
     const finalName = formData.name.trim() || generateSuggestedName();
+    const unitsNum = Math.max(0, parseInt(formData.units !== undefined ? formData.units : 1, 10) || 0);
+    const isAvailable = unitsNum > 0 && formData.inStock !== false;
+
     const payload = {
       ...formData,
       name: finalName,
       carat: parseFloat(formData.carat) || 1.0,
       mm: parseFloat(formData.mm) || 7.0,
       price: Number(formData.price) || 0,
+      units: unitsNum,
+      inStock: isAvailable,
     };
 
     if (editingGem) {
       updateGemstone(editingGem.id, payload);
-      showFeedbackMsg(`Gema "${finalName}" actualizada correctamente.`);
+      showFeedbackMsg(
+        unitsNum === 0
+          ? `Gema "${finalName}" actualizada con 0 unidades (OCULTA para los clientes).`
+          : `Gema "${finalName}" actualizada correctamente (${unitsNum} un. disponibles).`
+      );
     } else {
       addGemstone(payload);
-      showFeedbackMsg(`Nueva gema "${finalName}" creada y publicada en el catálogo.`);
+      showFeedbackMsg(
+        unitsNum === 0
+          ? `Nueva gema "${finalName}" registrada con 0 unidades (Permanecerá oculta hasta agregar stock).`
+          : `Nueva gema "${finalName}" creada y publicada en el catálogo (${unitsNum} un.).`
+      );
     }
 
     handleCancelForm();
@@ -163,11 +199,52 @@ export default function AdminGemstonesTab({ isMaster = true }) {
     }
   };
 
+  // Ajuste rápido de unidades desde la tabla
+  const handleUnitChange = (gem, newUnits) => {
+    const valid = Math.max(0, parseInt(newUnits, 10) || 0);
+    updateGemstoneUnits(gem.id, valid);
+    if (valid === 0) {
+      showFeedbackMsg(`Gema "${gem.name}" quedó en 0 unidades y ahora está OCULTA para clientes.`);
+    } else {
+      showFeedbackMsg(`Stock de "${gem.name}" actualizado a ${valid} ${valid === 1 ? "unidad" : "unidades"}.`);
+    }
+  };
+
   const handleToggleStock = (gem) => {
     const newState = toggleGemstoneStock(gem.id);
     showFeedbackMsg(
-      `Gema "${gem.name}" marcada como ${newState ? "EN STOCK" : "AGOTADO"}.`
+      newState
+        ? `Gema "${gem.name}" marcada como EN STOCK (Visible en catálogo).`
+        : `Gema "${gem.name}" quedó en 0 unidades y está OCULTA a clientes.`
     );
+  };
+
+  // Guardar nuevo laboratorio dinámico
+  const handleSaveNewLaboratory = (e) => {
+    if (e) e.preventDefault();
+    const rawCode = (newLabCode.trim() || newLabName.trim().split(" ")[0]).toUpperCase();
+    const rawName = newLabName.trim() || rawCode;
+
+    if (!rawName) {
+      alert("Por favor ingresa al menos las siglas o el nombre del laboratorio.");
+      return;
+    }
+
+    const created = addLaboratory({ code: rawCode, name: rawName });
+    if (created) {
+      setFormData((prev) => ({ ...prev, certificate: created.code }));
+      showFeedbackMsg(`Laboratorio "${created.name}" agregado y seleccionado.`);
+      setNewLabCode("");
+      setNewLabName("");
+      setIsLabModalOpen(false);
+    }
+  };
+
+  const handleDeleteLab = (labId) => {
+    if (window.confirm("¿Deseas eliminar este laboratorio personalizado?")) {
+      deleteLaboratory(labId);
+      showFeedbackMsg("Laboratorio eliminado con éxito.");
+    }
   };
 
   const handleResetCatalog = () => {
@@ -183,9 +260,21 @@ export default function AdminGemstonesTab({ isMaster = true }) {
 
   // KPIs
   const kpis = useMemo(() => {
+    const totalGems = gemstones.length;
+    const availableGems = gemstones.filter(
+      (g) => g.inStock !== false && (g.units === undefined || Number(g.units) > 0)
+    ).length;
+    const outOfStockGems = totalGems - availableGems;
+    const totalUnits = gemstones.reduce(
+      (sum, g) => sum + (g.inStock !== false ? Math.max(0, Number(g.units || 0)) : 0),
+      0
+    );
+
     return {
-      total: gemstones.length,
-      inStock: gemstones.filter((g) => g.inStock).length,
+      total: totalGems,
+      inStock: availableGems,
+      outOfStock: outOfStockGems,
+      totalUnits,
       naturales: gemstones.filter((g) => g.type === "diamante-natural").length,
       labGrown: gemstones.filter((g) => g.type === "diamante-lab").length,
       color: gemstones.filter((g) => g.type === "gema-color").length,
@@ -228,7 +317,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
             Gestión y Creación de Diamantes & Gemas
           </h2>
           <p className="admin-gem-main-desc">
-            Registra nuevas gemas certificadas con especificaciones 4Cs completas, trazabilidad ética y fotografías reales para el catálogo público.
+            Registra nuevas gemas certificadas con especificaciones 4Cs completas, trazabilidad ética, stock de unidades y fotografías reales.
           </p>
         </div>
 
@@ -247,6 +336,16 @@ export default function AdminGemstonesTab({ isMaster = true }) {
           >
             <i className={isFormOpen ? "bi bi-x-lg" : "bi bi-plus-lg"}></i>
             <span>{isFormOpen ? "Cerrar Formulario" : "Crear Nueva Gema"}</span>
+          </button>
+
+          <button
+            type="button"
+            className="btn-manage-labs"
+            onClick={() => setIsLabModalOpen(true)}
+            title="Administrar entidades y laboratorios certificadores"
+          >
+            <i className="bi bi-patch-check"></i>
+            <span>Laboratorios ({laboratories.length})</span>
           </button>
 
           <Link
@@ -279,17 +378,27 @@ export default function AdminGemstonesTab({ isMaster = true }) {
           </div>
           <div>
             <div className="gem-kpi-val">{kpis.inStock}</div>
-            <div className="gem-kpi-lbl">Disponibles en Stock</div>
+            <div className="gem-kpi-lbl">Visibles en Catálogo</div>
+          </div>
+        </div>
+
+        <div className="gem-kpi-card">
+          <div className="gem-kpi-icon out">
+            <i className="bi bi-eye-slash-fill"></i>
+          </div>
+          <div>
+            <div className="gem-kpi-val">{kpis.outOfStock}</div>
+            <div className="gem-kpi-lbl">0 Unidades (Ocultas)</div>
           </div>
         </div>
 
         <div className="gem-kpi-card">
           <div className="gem-kpi-icon diamond">
-            <i className="bi bi-shield-check"></i>
+            <i className="bi bi-box-seam-fill"></i>
           </div>
           <div>
-            <div className="gem-kpi-val">{kpis.naturales}</div>
-            <div className="gem-kpi-lbl">Diamantes Naturales</div>
+            <div className="gem-kpi-val">{kpis.totalUnits}</div>
+            <div className="gem-kpi-lbl">Total Unidades en Stock</div>
           </div>
         </div>
 
@@ -299,7 +408,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
           </div>
           <div>
             <div className="gem-kpi-val">{kpis.labGrown}</div>
-            <div className="gem-kpi-lbl">Diamantes Lab-Grown (IGI)</div>
+            <div className="gem-kpi-lbl">Lab-Grown (Ecológicos)</div>
           </div>
         </div>
 
@@ -309,7 +418,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
           </div>
           <div>
             <div className="gem-kpi-val">{kpis.color}</div>
-            <div className="gem-kpi-lbl">Gemas Preciosas de Color</div>
+            <div className="gem-kpi-lbl">Gemas Preciosas Color</div>
           </div>
         </div>
       </div>
@@ -327,7 +436,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                   : "Registrar Nueva Gema Certificada"}
               </h3>
               <p>
-                Configura todos los filtros y características que los clientes verán en el catálogo y sube una fotografía real de la piedra.
+                Configura todos los filtros y características que los clientes verán en el catálogo, controla las unidades disponibles y sube la foto real.
               </p>
             </div>
             <button
@@ -368,7 +477,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                 {/* 2. FORMA / CORTE */}
                 <div className="form-field-group">
                   <label className="form-label-bold">
-                    <i className="bi bi-suit-diamond-fill"></i> Forma / Corte
+                    <i className="bi bi-gem"></i> Forma / Corte de Piedra
                   </label>
                   <select
                     value={formData.shape}
@@ -551,10 +660,21 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                 </div>
               </div>
 
-              {/* 7. CERTIFICADO OFICIAL & NÚMERO DE REPORTE (GRABADO LÁSER) */}
+              {/* 7. LABORATORIO GEMOLÓGICO DINÁMICO & NÚMERO DE CERTIFICADO */}
               <div className="form-row-2">
                 <div className="form-field-group">
-                  <label className="form-label-bold">Laboratorio Gemológico</label>
+                  <div className="lab-header-row">
+                    <label className="form-label-bold" style={{ margin: 0 }}>
+                      Laboratorio Gemológico
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => setIsLabModalOpen(true)}
+                      className="btn-add-lab-inline"
+                    >
+                      <i className="bi bi-plus-circle-fill"></i> + Nuevo Lab
+                    </button>
+                  </div>
                   <select
                     value={formData.certificate}
                     onChange={(e) =>
@@ -562,9 +682,11 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                     }
                     className="admin-form-select"
                   >
-                    <option value="GIA">GIA (Gemological Institute of America)</option>
-                    <option value="IGI">IGI (International Gemological Institute)</option>
-                    <option value="HRD">HRD Antwerp (Bélgica)</option>
+                    {laboratories.map((lab) => (
+                      <option key={lab.id || lab.code} value={lab.code || lab.name}>
+                        {lab.name}
+                      </option>
+                    ))}
                   </select>
                 </div>
 
@@ -585,7 +707,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                 </div>
               </div>
 
-              {/* 8. ORIGEN ÉTICO & DISPONIBILIDAD DE STOCK */}
+              {/* 8. ORIGEN ÉTICO & UNIDADES EN STOCK (REQUERIMIENTO: AL SER 0, OCULTAR DEL CATÁLOGO) */}
               <div className="form-row-2">
                 <div className="form-field-group">
                   <label className="form-label-bold">Origen Ético (Proceso Kimberley)</label>
@@ -601,26 +723,61 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                 </div>
 
                 <div className="form-field-group">
-                  <label className="form-label-bold">Estado de Disponibilidad</label>
-                  <div className="stock-toggle-box">
-                    <label className="stock-toggle-label">
-                      <input
-                        type="checkbox"
-                        checked={formData.inStock}
-                        onChange={(e) =>
-                          setFormData({ ...formData, inStock: e.target.checked })
-                        }
-                      />
-                      <span className="toggle-slider"></span>
-                      <span style={{ fontWeight: "700", marginLeft: "10px" }}>
-                        {formData.inStock ? "Disponible en Stock" : "Agotado / Bajo Pedido"}
+                  <label className="form-label-bold">
+                    Unidades en Stock (Piezas disponibles)
+                  </label>
+                  <div className="units-stepper-box">
+                    <button
+                      type="button"
+                      className="btn-unit-stepper-btn"
+                      onClick={() => {
+                        const next = Math.max(0, (parseInt(formData.units, 10) || 0) - 1);
+                        setFormData({ ...formData, units: next, inStock: next > 0 });
+                      }}
+                      title="Restar 1 unidad"
+                    >
+                      <i className="bi bi-dash"></i>
+                    </button>
+                    <input
+                      type="number"
+                      min="0"
+                      step="1"
+                      value={formData.units}
+                      onChange={(e) => {
+                        const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                        setFormData({ ...formData, units: val, inStock: val > 0 });
+                      }}
+                      className="admin-form-input units-num-input"
+                      placeholder="1"
+                      required
+                    />
+                    <button
+                      type="button"
+                      className="btn-unit-stepper-btn"
+                      onClick={() => {
+                        const next = (parseInt(formData.units, 10) || 0) + 1;
+                        setFormData({ ...formData, units: next, inStock: true });
+                      }}
+                      title="Sumar 1 unidad"
+                    >
+                      <i className="bi bi-plus"></i>
+                    </button>
+                  </div>
+                  <div className="units-helper-hint">
+                    {Number(formData.units) > 0 ? (
+                      <span className="hint-stock-ok">
+                        <i className="bi bi-check-circle-fill"></i> Visible en el catálogo público ({formData.units} {formData.units === 1 ? "pieza" : "piezas"})
                       </span>
-                    </label>
+                    ) : (
+                      <span className="hint-stock-zero">
+                        <i className="bi bi-eye-slash-fill"></i> 0 unidades: Oculto a clientes (no se mostrará en el catálogo)
+                      </span>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* 9. FOTOGRAFÍA DE LA GEMA (REQUERIMIENTO DEL USUARIO) */}
+              {/* 9. FOTOGRAFÍA DE LA GEMA */}
               <div className="form-field-group photo-uploader-box">
                 <label className="form-label-bold">
                   <i className="bi bi-camera-fill"></i> Fotografía Real de la Gema
@@ -723,6 +880,13 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                   <span>Previsualización en Tienda Pública</span>
                 </div>
 
+                {Number(formData.units) <= 0 && (
+                  <div className="preview-warning-hidden-banner">
+                    <i className="bi bi-eye-slash-fill"></i>
+                    <span>Esta gema tiene <strong>0 unidades</strong> y permanecerá oculta para los clientes.</span>
+                  </div>
+                )}
+
                 {/* Tarjeta idéntica al catálogo público */}
                 <div className="gem-card preview-mode">
                   <div className="gem-card-header">
@@ -732,8 +896,8 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                         <span>{formData.certificate}</span>
                       </span>
                       <span className="stock-pill">
-                        <span className={`stock-pulse-dot ${formData.inStock ? "" : "out"}`}></span>
-                        <span>{formData.inStock ? "En Stock" : "Agotado"}</span>
+                        <span className={`stock-pulse-dot ${Number(formData.units) > 0 && formData.inStock ? "" : "out"}`}></span>
+                        <span>{Number(formData.units) > 0 && formData.inStock ? `En Stock (${formData.units} un.)` : "0 un. (Oculto a clientes)"}</span>
                       </span>
                     </div>
 
@@ -748,96 +912,68 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                       <div className="gem-real-photo-preview">
                         <img
                           src={formData.image}
-                          alt="Previsualización de la gema"
+                          alt={formData.name || "Gema Platino"}
                           className="gem-photo-img"
                         />
-                        <span className="photo-verified-tag">
-                          <i className="bi bi-camera"></i> Foto Real
+                        <span className="photo-tag">
+                          <i className="bi bi-camera-fill"></i> Foto Real
                         </span>
                       </div>
                     ) : (
                       <GemstoneStoneVisual
                         shape={formData.shape}
                         color={formData.gemColor}
-                        size={155}
+                        size={170}
                         carat={`${formData.carat} ct`}
                       />
                     )}
                   </div>
 
-                  {/* Info & 4Cs */}
-                  <div className="gem-card-info">
-                    <div className="gem-card-shape-badge">
-                      <span className="gem-shape-icon-mini">
-                        <DiamondCutIcon shape={formData.shape} size={14} />
+                  <div className="gem-card-body">
+                    <div className="gem-card-type-row">
+                      <span className="gem-type-badge">
+                        {formData.type === "diamante-natural"
+                          ? "Diamante Natural"
+                          : formData.type === "diamante-lab"
+                          ? "Lab-Grown Diamond"
+                          : "Gema Natural"}
                       </span>
-                      <span>Corte {formData.shape.toUpperCase()}</span>
-                      <span className="gem-carat-accent">{formData.carat} ct</span>
+                      <span className="gem-carat-badge">{formData.carat} ct</span>
                     </div>
 
-                    <h3 className="gem-card-title">
+                    <h4 className="gem-card-title">
                       {formData.name || generateSuggestedName()}
-                    </h3>
+                    </h4>
 
-                    {/* Matriz 4Cs */}
-                    <div className="gem-specs-structured">
-                      <div className="specs-row-trio">
-                        <div className="spec-cell">
-                          <span className="spec-label">Color</span>
-                          <span className="spec-value">{formData.color}</span>
-                        </div>
-                        <div className="spec-cell">
-                          <span className="spec-label">Pureza</span>
-                          <span className="spec-value">{formData.clarity}</span>
-                        </div>
-                        <div className="spec-cell">
-                          <span className="spec-label">Corte</span>
-                          <span className="spec-value">{formData.cutQuality}</span>
-                        </div>
-                      </div>
-
-                      <div className="specs-row-duo">
-                        <div className="spec-cell">
-                          <span className="spec-label">Peso / Carat</span>
-                          <span className="spec-value">
-                            <strong>{formData.carat} ct</strong>
-                          </span>
-                        </div>
-                        <div className="spec-cell spec-cell-dimensions">
-                          <span className="spec-label">Medidas Reales</span>
-                          <span className="spec-value">{formData.dimensions}</span>
-                        </div>
-                      </div>
+                    <div className="gem-specs-compact">
+                      <span className="spec-item">
+                        <strong>Color:</strong> {formData.color}
+                      </span>
+                      <span className="spec-sep">·</span>
+                      <span className="spec-item">
+                        <strong>Pureza:</strong> {formData.clarity}
+                      </span>
+                      <span className="spec-sep">·</span>
+                      <span className="spec-item">
+                        <strong>Corte:</strong> {formData.cutQuality}
+                      </span>
                     </div>
 
-                    <div className="gem-card-cert-row">
-                      <span>
-                        <i className="bi bi-shield-check" style={{ color: "#C6AC7F", marginRight: "4px" }}></i>
-                        Láser: <strong>{formData.certNumber}</strong>
-                      </span>
-                      <span>
-                        <i className="bi bi-geo-alt" style={{ color: "#71857c", marginRight: "3px" }}></i>
-                        {formData.origin}
-                      </span>
+                    <div className="gem-dimensions-compact">
+                      <i className="bi bi-aspect-ratio"></i>
+                      <span>{formData.dimensions || `${formData.mm} mm`}</span>
                     </div>
 
                     <div className="gem-card-footer">
                       <div className="gem-price-box">
-                        <span className="price-label">Precio Gema:</span>
-                        <span className="gem-price">
+                        <span className="price-lbl">Precio de Piedra</span>
+                        <div className="price-num">
                           S/. {Number(formData.price || 0).toLocaleString("es-PE")}
-                        </span>
+                        </div>
                       </div>
 
-                      <div className="gem-actions-row">
-                        <button type="button" className="btn-inspect-gem" disabled>
-                          <i className="bi bi-eye-fill" style={{ color: "#C6AC7F" }}></i>
-                          <span>Detalles</span>
-                        </button>
-                        <button type="button" className="btn-book-gem" disabled>
-                          <i className="bi bi-calendar-check-fill" style={{ color: "#C6AC7F" }}></i>
-                          <span>Agendar Cita</span>
-                        </button>
+                      <div className="btn-preview-dummy">
+                        <span>Ver Ficha Técnica</span>
                       </div>
                     </div>
                   </div>
@@ -845,6 +981,123 @@ export default function AdminGemstonesTab({ isMaster = true }) {
               </div>
             </div>
           </form>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: REGISTRAR Y GESTIONAR LABORATORIOS GEMOLÓGICOS
+          ======================================================== */}
+      {isLabModalOpen && (
+        <div className="admin-lab-modal-overlay" onClick={() => setIsLabModalOpen(false)}>
+          <div className="admin-lab-modal-card" onClick={(e) => e.stopPropagation()}>
+            <div className="admin-lab-modal-header">
+              <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                <i className="bi bi-patch-check-fill" style={{ fontSize: "22px", color: "#C6AC7F" }}></i>
+                <div>
+                  <h4 style={{ margin: 0, fontSize: "17px", fontWeight: "700", color: "#113B3A" }}>
+                    Laboratorios Gemológicos Certificadores
+                  </h4>
+                  <p style={{ margin: "2px 0 0 0", fontSize: "12px", color: "#6a7971" }}>
+                    Agrega laboratorios que van surgiendo o actualizándose con el tiempo.
+                  </p>
+                </div>
+              </div>
+              <button
+                type="button"
+                className="btn-close-form"
+                onClick={() => setIsLabModalOpen(false)}
+                aria-label="Cerrar modal de laboratorios"
+              >
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveNewLaboratory} className="admin-lab-modal-body">
+              <div className="admin-lab-create-box">
+                <span className="admin-lab-section-title">
+                  <i className="bi bi-plus-circle-fill"></i> Agregar Nuevo Laboratorio
+                </span>
+
+                <div className="admin-lab-inputs-row">
+                  <div style={{ width: "130px" }}>
+                    <label className="form-label-bold" style={{ fontSize: "12px" }}>
+                      Siglas / Código *
+                    </label>
+                    <input
+                      type="text"
+                      value={newLabCode}
+                      onChange={(e) => setNewLabCode(e.target.value.toUpperCase())}
+                      placeholder="Ej: GCAL"
+                      className="admin-form-input"
+                      style={{ textTransform: "uppercase", fontWeight: "700" }}
+                      required
+                    />
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <label className="form-label-bold" style={{ fontSize: "12px" }}>
+                      Nombre Completo / Entidad *
+                    </label>
+                    <input
+                      type="text"
+                      value={newLabName}
+                      onChange={(e) => setNewLabName(e.target.value)}
+                      placeholder="Ej: GCAL (Gem Certification & Assurance Lab)"
+                      className="admin-form-input"
+                      required
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    className="btn-save-lab-action"
+                    disabled={!newLabName.trim() && !newLabCode.trim()}
+                  >
+                    <i className="bi bi-check2"></i>
+                    <span>Agregar</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Lista actual de laboratorios disponibles */}
+              <div className="admin-current-labs-section">
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
+                  <span className="admin-lab-section-title" style={{ margin: 0 }}>
+                    <i className="bi bi-building"></i> Laboratorios Disponibles en el Selector ({laboratories.length})
+                  </span>
+                </div>
+
+                <div className="admin-labs-chips-container">
+                  {laboratories.map((lab) => (
+                    <div key={lab.id || lab.code} className="admin-lab-chip">
+                      <span className="lab-chip-code">{lab.code}</span>
+                      <span className="lab-chip-name">{lab.name}</span>
+                      {lab.isCustom && (
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteLab(lab.id)}
+                          className="btn-del-lab-chip"
+                          title="Eliminar este laboratorio personalizado"
+                        >
+                          <i className="bi bi-trash"></i>
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </form>
+
+            <div className="admin-lab-modal-footer">
+              <button
+                type="button"
+                className="btn-close-lab-modal"
+                onClick={() => setIsLabModalOpen(false)}
+              >
+                Listo / Cerrar
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -924,7 +1177,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                 <th>Color & Pureza</th>
                 <th>Dimensiones</th>
                 <th>Precio (PEN)</th>
-                <th>Stock</th>
+                <th>Stock & Unidades</th>
                 <th style={{ textAlign: "right" }}>Acciones</th>
               </tr>
             </thead>
@@ -939,98 +1192,142 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                   </td>
                 </tr>
               ) : (
-                filteredList.map((gem) => (
-                  <tr key={gem.id} className={!gem.inStock ? "row-out-stock" : ""}>
-                    {/* Vista Previa Miniatura */}
-                    <td style={{ width: "80px" }}>
-                      <div className="table-gem-thumb">
-                        {gem.image ? (
-                          <img src={gem.image} alt={gem.name} />
-                        ) : (
-                          <DiamondCutIcon shape={gem.shape} size={32} />
-                        )}
-                        {gem.image && (
-                          <span className="thumb-photo-dot" title="Tiene fotografía real"></span>
-                        )}
-                      </div>
-                    </td>
+                filteredList.map((gem) => {
+                  const currentUnits = gem.units !== undefined ? Number(gem.units) : (gem.inStock !== false ? 1 : 0);
+                  const isVisible = currentUnits > 0 && gem.inStock !== false;
 
-                    {/* Nombre y Certificado */}
-                    <td>
-                      <div className="table-gem-name">{gem.name}</div>
-                      <div className="table-gem-cert">
-                        <span className="cert-tag">{gem.certificate}</span>
-                        <span>{gem.certNumber}</span>
-                      </div>
-                    </td>
+                  return (
+                    <tr key={gem.id} className={!isVisible ? "row-out-stock" : ""}>
+                      {/* Vista Previa Miniatura */}
+                      <td style={{ width: "80px" }}>
+                        <div className="table-gem-thumb">
+                          {gem.image ? (
+                            <img src={gem.image} alt={gem.name} />
+                          ) : (
+                            <DiamondCutIcon shape={gem.shape} size={32} />
+                          )}
+                          {gem.image && (
+                            <span className="thumb-photo-dot" title="Tiene fotografía real"></span>
+                          )}
+                        </div>
+                      </td>
 
-                    {/* Corte y Carat */}
-                    <td>
-                      <span className="table-shape-badge">
-                        Corte {gem.shape}
-                      </span>
-                      <div style={{ fontWeight: "700", marginTop: "3px" }}>
-                        {gem.carat} ct
-                      </div>
-                    </td>
+                      {/* Nombre y Certificado */}
+                      <td>
+                        <div className="table-gem-name">{gem.name}</div>
+                        <div className="table-gem-cert">
+                          <span className="cert-tag">{gem.certificate}</span>
+                          <span>{gem.certNumber}</span>
+                        </div>
+                      </td>
 
-                    {/* Color y Pureza */}
-                    <td>
-                      <div style={{ fontWeight: "700" }}>Color {gem.color}</div>
-                      <div style={{ fontSize: "12px", color: "#5c7068" }}>
-                        {gem.clarity} · {gem.cutQuality}
-                      </div>
-                    </td>
+                      {/* Corte y Carat */}
+                      <td>
+                        <span className="table-shape-badge">
+                          Corte {gem.shape}
+                        </span>
+                        <div style={{ fontWeight: "700", marginTop: "3px" }}>
+                          {gem.carat} ct
+                        </div>
+                      </td>
 
-                    {/* Dimensiones */}
-                    <td style={{ fontSize: "12px", color: "#44554d" }}>
-                      {gem.dimensions}
-                    </td>
+                      {/* Color y Pureza */}
+                      <td>
+                        <div style={{ fontWeight: "700" }}>Color {gem.color}</div>
+                        <div style={{ fontSize: "12px", color: "#5c7068" }}>
+                          {gem.clarity} · {gem.cutQuality}
+                        </div>
+                      </td>
 
-                    {/* Precio */}
-                    <td>
-                      <div className="table-gem-price">
-                        {gem.priceFormatted || `S/. ${Number(gem.price).toLocaleString("es-PE")}`}
-                      </div>
-                    </td>
+                      {/* Dimensiones */}
+                      <td style={{ fontSize: "12px", color: "#44554d" }}>
+                        {gem.dimensions}
+                      </td>
 
-                    {/* Estado de Stock con Switch */}
-                    <td>
-                      <button
-                        type="button"
-                        onClick={() => handleToggleStock(gem)}
-                        className={`table-stock-btn ${gem.inStock ? "in" : "out"}`}
-                        title="Haz clic para alternar stock"
-                      >
-                        <span className="dot"></span>
-                        <span>{gem.inStock ? "En Stock" : "Agotado"}</span>
-                      </button>
-                    </td>
+                      {/* Precio */}
+                      <td>
+                        <div className="table-gem-price">
+                          {gem.priceFormatted || `S/. ${Number(gem.price).toLocaleString("es-PE")}`}
+                        </div>
+                      </td>
 
-                    {/* Botones de Acción */}
-                    <td style={{ textAlign: "right" }}>
-                      <div className="table-actions-cell">
-                        <button
-                          type="button"
-                          onClick={() => handleEditClick(gem)}
-                          className="btn-table-action edit"
-                          title="Editar gema y fotografía"
-                        >
-                          <i className="bi bi-pencil-fill"></i>
-                        </button>
+                      {/* Control de Unidades de Stock y Visibilidad */}
+                      <td>
+                        <div className="table-stock-control-cell">
+                          <div className="table-units-stepper">
+                            <button
+                              type="button"
+                              className="btn-tbl-step"
+                              onClick={() => handleUnitChange(gem, Math.max(0, currentUnits - 1))}
+                              disabled={currentUnits <= 0}
+                              title="Restar 1 unidad"
+                            >
+                              <i className="bi bi-dash"></i>
+                            </button>
+                            <span className="tbl-unit-counter-number">
+                              {currentUnits} {currentUnits === 1 ? "un." : "un."}
+                            </span>
+                            <button
+                              type="button"
+                              className="btn-tbl-step"
+                              onClick={() => handleUnitChange(gem, currentUnits + 1)}
+                              title="Sumar 1 unidad"
+                            >
+                              <i className="bi bi-plus"></i>
+                            </button>
+                          </div>
 
-                        <button
-                          type="button"
-                          onClick={() => handleDelete(gem)}
-                          className="btn-table-action delete"
-                          title="Eliminar gema"
-                        >
-                          <i className="bi bi-trash-fill"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                          <div className="table-stock-badge-container">
+                            {isVisible ? (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleStock(gem)}
+                                className="table-visibility-badge online"
+                                title="Haz clic para marcar como agotado (0 unidades)"
+                              >
+                                <span className="dot-pulse-green"></span>
+                                <span>Visible en Tienda</span>
+                              </button>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleToggleStock(gem)}
+                                className="table-visibility-badge hidden"
+                                title="Haz clic para reponer stock (+1 unidad)"
+                              >
+                                <span className="dot-gray"></span>
+                                <span>0 un. (Oculto a clientes)</span>
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      </td>
+
+                      {/* Botones de Acción */}
+                      <td style={{ textAlign: "right" }}>
+                        <div className="table-actions-cell">
+                          <button
+                            type="button"
+                            onClick={() => handleEditClick(gem)}
+                            className="btn-table-action edit"
+                            title="Editar gema, unidades y fotografía"
+                          >
+                            <i className="bi bi-pencil-fill"></i>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDelete(gem)}
+                            className="btn-table-action delete"
+                            title="Eliminar gema"
+                          >
+                            <i className="bi bi-trash-fill"></i>
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
               )}
             </tbody>
           </table>
