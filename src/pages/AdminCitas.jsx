@@ -6675,9 +6675,9 @@ export default function AdminCitas() {
                     Configura la foto de la caja o estuche de regalo que se agregará al portafolio de la joya y se mostrará al cliente en el <strong>Paso 2: Complementos y Estuche</strong>.
                   </p>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "100px 1fr", gap: "16px", alignItems: "center" }}>
+                  <div className="product-box-layout">
                     {/* Vista previa de la caja */}
-                    <div style={{ width: "100px", height: "100px", borderRadius: "8px", overflow: "hidden", border: "1px solid #dcd7ce", background: "#ffffff", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <div className="product-box-preview">
                       <img
                         src={formBoxImage || "/images/detail-box-green.jpg"}
                         alt="Caja de presentación"
@@ -6686,8 +6686,8 @@ export default function AdminCitas() {
                       />
                     </div>
 
-                    <div>
-                      <div style={{ display: "flex", gap: "8px", marginBottom: "10px", flexWrap: "wrap" }}>
+                    <div className="product-box-controls">
+                      <div className="product-box-presets">
                         <button
                           type="button"
                           onClick={() => setFormBoxImage("/images/detail-box-green.jpg")}
@@ -6714,7 +6714,7 @@ export default function AdminCitas() {
                         </button>
                       </div>
 
-                      <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                      <div className="product-box-input-row">
                         <input
                           type="text"
                           className="catalog-form-input"
@@ -6723,7 +6723,7 @@ export default function AdminCitas() {
                           value={formBoxImage}
                           onChange={(e) => setFormBoxImage(e.target.value)}
                         />
-                        <label style={{
+                        <label className="btn-upload-box-file" style={{
                           display: "inline-flex",
                           alignItems: "center",
                           gap: "6px",
