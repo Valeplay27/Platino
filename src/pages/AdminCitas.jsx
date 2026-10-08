@@ -3784,57 +3784,39 @@ export default function AdminCitas() {
                       </div>
 
                       <div className="admin-product-footer">
-                        <Link
-                          to={`/producto/${prod.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="btn-card-view"
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "5px",
-                            padding: "6px 10px",
-                            borderRadius: "6px",
-                            border: "1px solid #113B3A",
-                            background: "#ffffff",
-                            color: "#113B3A",
-                            fontSize: "12px",
-                            fontWeight: "600",
-                            textDecoration: "none"
-                          }}
-                          title="Ver producto en la tienda y portafolio de fotos"
-                        >
-                          <i className="bi bi-box-arrow-up-right"></i> Ver en Tienda
-                        </Link>
-
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setSelectedInventoryProductId(prod.id);
-                            setActiveTab("inventario");
-                          }}
-                          className="btn-card-inventory"
-                          title="Gestionar stock de Bodega y Sedes por Tallas"
-                        >
-                          <i className="bi bi-boxes"></i> Stock por Tallas
-                        </button>
-
                         <button
                           type="button"
                           onClick={() => openEditProductModal(prod)}
-                          className="btn-card-edit"
+                          className="btn-card-action-primary"
+                          title="Modificar descripción, precios y fotografías por cada material"
                         >
-                          <i className="bi bi-pencil-square"></i> Modificar Foto / Datos
+                          <i className="bi bi-pencil-square"></i>
+                          <span>Modificar Joya & Fotos</span>
                         </button>
 
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteProduct(prod.id, prod.name)}
-                          className="btn-card-delete"
-                          title="Eliminar del catálogo"
-                        >
-                          <i className="bi bi-trash"></i>
-                        </button>
+                        <div className="admin-card-secondary-actions">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedInventoryProductId(prod.id);
+                              setActiveTab("inventario");
+                            }}
+                            className="btn-card-action-stock"
+                            title="Gestionar stock de Bodega y Sedes por Tallas"
+                          >
+                            <i className="bi bi-boxes"></i>
+                            <span>Stock por Tallas</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteProduct(prod.id, prod.name)}
+                            className="btn-card-action-delete"
+                            title="Eliminar producto del catálogo"
+                          >
+                            <i className="bi bi-trash3"></i>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
