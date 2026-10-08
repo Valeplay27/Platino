@@ -1804,11 +1804,56 @@ export default function AdminCitas() {
   // Filtrado de catálogo
   const filteredCatalog = catalogList.filter((p) => {
     if (catalogFilterCategory !== "todas") {
-      const matchCat =
-        p.category === catalogFilterCategory ||
-        p.categories?.includes(catalogFilterCategory) ||
-        getProductCategoryGroup(p) === catalogFilterCategory;
-      if (!matchCat) return false;
+      const pCat = (p.category || "").toLowerCase();
+      const pCats = Array.isArray(p.categories) ? p.categories.map((c) => String(c).toLowerCase()) : [];
+      const pType = (p.type || "").toLowerCase();
+      const pName = (p.name || "").toLowerCase();
+      const group = getProductCategoryGroup(p);
+
+      if (catalogFilterCategory === "aros-boda") {
+        const isBoda =
+          pCat === "aros-boda" ||
+          pCat === "aros-matrimonio" ||
+          pCat === "aros" ||
+          pCats.includes("aros-boda") ||
+          pCats.includes("aros-matrimonio") ||
+          pCats.includes("aros") ||
+          pType === "aros" ||
+          pName.includes("aros") ||
+          pName.includes("boda") ||
+          pName.includes("matrimonio");
+        if (!isBoda) return false;
+      } else if (catalogFilterCategory === "aros-alianzas") {
+        const isAlianza =
+          pCat === "aros-alianzas" ||
+          pCat === "alianzas" ||
+          pCats.includes("aros-alianzas") ||
+          pCats.includes("alianzas") ||
+          pName.includes("alianza");
+        if (!isAlianza) return false;
+      } else if (catalogFilterCategory === "anillo-compromiso") {
+        const isCompromiso =
+          pCat === "anillo-compromiso" ||
+          pCat === "anillos-compromiso" ||
+          pCats.includes("anillo-compromiso") ||
+          pCats.includes("anillos-compromiso") ||
+          pName.includes("compromiso");
+        if (!isCompromiso) return false;
+      } else if (catalogFilterCategory === "anillo-promesa") {
+        const isPromesa =
+          pCat === "anillo-promesa" ||
+          pCat === "anillos-promesa" ||
+          pCats.includes("anillo-promesa") ||
+          pCats.includes("anillos-promesa") ||
+          pName.includes("promesa");
+        if (!isPromesa) return false;
+      } else {
+        const matchCat =
+          pCat === catalogFilterCategory ||
+          pCats.includes(catalogFilterCategory) ||
+          group === catalogFilterCategory;
+        if (!matchCat) return false;
+      }
     }
     if (catalogSearch.trim()) {
       const q = catalogSearch.toLowerCase();

@@ -27,38 +27,112 @@ function Category({ addToCart }) {
   }, [category]);
 
   const categoryKey = category || "todas";
-  const categoryMeta = CATEGORY_INFO[categoryKey] || {
-    title: category ? category.replace(/-/g, " ").toUpperCase() : "Colección Exclusiva",
-    eyebrow: "Alta Joyería Platino Perú",
-    desc: "Piezas de diseño sereno y acabados de precisión fabricadas en Oro de 18 Quilates y Plata Ley 950.",
-    banner: "/images/hero-compromiso.jpg",
-  };
+  const normKey = categoryKey.toLowerCase().trim();
+
+  const categoryMeta =
+    CATEGORY_INFO[categoryKey] ||
+    (normKey.includes("boda") || normKey.includes("matrimonio") || normKey.includes("aros")
+      ? CATEGORY_INFO["aros-boda"]
+      : null) || {
+      title: category ? category.replace(/-/g, " ").toUpperCase() : "Colección Exclusiva",
+      eyebrow: "Alta Joyería Platino Perú",
+      desc: "Piezas de diseño sereno y acabados de precisión fabricadas en Oro de 18 Quilates y Plata Ley 950.",
+      banner: "/images/hero-matrimonio.jpg",
+    };
 
   // Filtrar productos por categoría y metal
   const filteredProducts = useMemo(() => {
     let list = productsList.filter((p) => {
-      if (categoryKey === "todas" || categoryKey === "catalogo") return true;
-      if (categoryKey === "joyeria") {
+      if (normKey === "todas" || normKey === "catalogo") return true;
+
+      const pCat = (p.category || "").toLowerCase();
+      const pCats = Array.isArray(p.categories) ? p.categories.map((c) => String(c).toLowerCase()) : [];
+      const pType = (p.type || "").toLowerCase();
+      const pName = (p.name || "").toLowerCase();
+
+      // 1. Aros de Boda y Matrimonio (Cualquier variante de URL: aros-boda, aros-de-boda, boda, matrimonio, aros)
+      if (
+        normKey === "aros-boda" ||
+        normKey === "aros-de-boda" ||
+        normKey === "aros-matrimonio" ||
+        normKey === "boda" ||
+        normKey === "matrimonio" ||
+        normKey === "aros"
+      ) {
         return (
-          p.category === "collares" ||
-          p.category === "pulseras" ||
-          p.category === "joyeria" ||
-          p.categories?.includes("joyeria") ||
-          p.categories?.includes("collares") ||
-          p.categories?.includes("pulseras")
+          pCat === "aros-boda" ||
+          pCat === "aros-matrimonio" ||
+          pCat === "aros" ||
+          pCats.includes("aros-boda") ||
+          pCats.includes("aros-matrimonio") ||
+          pCats.includes("aros") ||
+          pType === "aros" ||
+          pName.includes("aros") ||
+          pName.includes("boda") ||
+          pName.includes("matrimonio")
         );
       }
-      if (categoryKey === "regalos") {
+
+      // 2. Anillos de Compromiso (singular o plural)
+      if (normKey === "anillo-compromiso" || normKey === "anillos-compromiso" || normKey === "compromiso") {
         return (
-          p.category === "regalos" ||
-          p.categories?.includes("regalos") ||
+          pCat === "anillo-compromiso" ||
+          pCat === "anillos-compromiso" ||
+          pCats.includes("anillo-compromiso") ||
+          pCats.includes("anillos-compromiso") ||
+          pName.includes("compromiso")
+        );
+      }
+
+      // 3. Anillos de Promesa (singular o plural)
+      if (normKey === "anillo-promesa" || normKey === "anillos-promesa" || normKey === "promesa") {
+        return (
+          pCat === "anillo-promesa" ||
+          pCat === "anillos-promesa" ||
+          pCats.includes("anillo-promesa") ||
+          pCats.includes("anillos-promesa") ||
+          pName.includes("promesa")
+        );
+      }
+
+      // 4. Aros de Alianzas (alianzas)
+      if (normKey === "aros-alianzas" || normKey === "alianzas") {
+        return (
+          pCat === "aros-alianzas" ||
+          pCat === "alianzas" ||
+          pCats.includes("aros-alianzas") ||
+          pCats.includes("alianzas") ||
+          pName.includes("alianza")
+        );
+      }
+
+      // 5. Joyería y Accesorios
+      if (normKey === "joyeria" || normKey === "joyería") {
+        return (
+          pCat === "collares" ||
+          pCat === "pulseras" ||
+          pCat === "aretes" ||
+          pCat === "joyeria" ||
+          pCats.includes("joyeria") ||
+          pCats.includes("collares") ||
+          pCats.includes("pulseras") ||
+          pCats.includes("aretes")
+        );
+      }
+
+      // 6. Regalos
+      if (normKey === "regalos") {
+        return (
+          pCat === "regalos" ||
+          pCats.includes("regalos") ||
           p.hasPresentationChoice ||
-          p.type === "accesorio"
+          pType === "accesorio"
         );
       }
+
       return (
-        p.category === categoryKey ||
-        (p.categories && p.categories.includes(categoryKey))
+        pCat === normKey ||
+        pCats.includes(normKey)
       );
     });
 
