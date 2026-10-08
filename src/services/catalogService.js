@@ -46,6 +46,7 @@ const normalizeProductMetals = (prod) => {
     availableMetals: finalMetals,
     selectedMetal: prod.selectedMetal || "Oro 18k Blanco",
     metalImages,
+    metalPrices: prod.metalPrices || defaultProdMatch?.metalPrices || null,
     boxImage,
     gallery: combinedGallery,
     hasPresentationChoice: prod.hasPresentationChoice ?? true,
@@ -148,6 +149,7 @@ export const createProduct = (productData) => {
     image: productData.image || "/images/cat-compromiso.jpg",
     boxImage: finalBoxImage,
     metalImages: productData.metalImages || null,
+    metalPrices: productData.metalPrices || null,
     gallery: combinedGallery,
     badge: productData.badge?.trim() || "Nuevo",
     selectedMetal: productData.selectedMetal || "Oro 18k Blanco",
@@ -243,6 +245,7 @@ export const updateProduct = (id, updatedFields) => {
     boxImage: finalBoxImage,
     gallery: combinedGallery,
     metalImages: finalMetalImages,
+    metalPrices: updatedFields.metalPrices !== undefined ? updatedFields.metalPrices : (current.metalPrices || null),
     showDeliveryEstimate: updatedFields.showDeliveryEstimate !== undefined
       ? updatedFields.showDeliveryEstimate
       : current.showDeliveryEstimate,

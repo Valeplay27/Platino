@@ -22,27 +22,6 @@ function ProductCard({ product, addToCart }) {
     return () => window.removeEventListener("platino_favorites_updated", handleFavUpdate);
   }, [user, product.id]);
 
-  const handleFavoriteClick = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!user) {
-      openAuthModal("login");
-      return;
-    }
-    const nextState = toggleUserFavorite(user.email, {
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image: customMetalImg || product.image,
-      metal: activeMetal?.name,
-      metalId: activeMetal?.id,
-      category: product.category,
-      type: product.type,
-      subtitle: product.subtitle,
-    });
-    setIsFav(nextState);
-  };
-
   // Metal activo en la tarjeta
   const availableMetals = product.availableMetals && product.availableMetals.length > 0
     ? product.availableMetals
@@ -62,6 +41,35 @@ function ProductCard({ product, addToCart }) {
     }
     return availableMetals[0];
   });
+
+  const currentCardPrice = useMemo(() => {
+    if (activeMetal?.id && product.metalPrices && product.metalPrices[activeMetal.id] !== undefined) {
+      const p = Number(product.metalPrices[activeMetal.id]);
+      if (!isNaN(p) && p > 0) return p;
+    }
+    return Number(product.price) || 0;
+  }, [product.price, product.metalPrices, activeMetal?.id]);
+
+  const handleFavoriteClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!user) {
+      openAuthModal("login");
+      return;
+    }
+    const nextState = toggleUserFavorite(user.email, {
+      id: product.id,
+      name: product.name,
+      price: currentCardPrice,
+      image: customMetalImg || product.image,
+      metal: activeMetal?.name,
+      metalId: activeMetal?.id,
+      category: product.category,
+      type: product.type,
+      subtitle: product.subtitle,
+    });
+    setIsFav(nextState);
+  };
 
   const rawMetalImg =
     (product.metalImages && product.metalImages[activeMetal?.id]) ||
@@ -136,7 +144,7 @@ function ProductCard({ product, addToCart }) {
           <h3 className="card-title">{product.name}</h3>
         </Link>
 
-        <div className="card-price">{formatPrice(product.price)}</div>
+        <div className="card-price">{formatPrice(currentCardPrice)}</div>
 
         <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "12px" }}>
           <Link
@@ -161,7 +169,7 @@ function ProductCard({ product, addToCart }) {
                   selectedMetal: activeMetal?.name,
                   metal: activeMetal?.name,
                   image: customMetalImg || getAssetUrl(product.image),
-                  price: product.price,
+                  price: currentCardPrice,
                 });
               }}
               title="Añadir a la bolsa de compras"

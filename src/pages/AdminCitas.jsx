@@ -356,6 +356,8 @@ export default function AdminCitas() {
   const [formSubtitle, setFormSubtitle] = useState("");
   const [formAvailableMetals, setFormAvailableMetals] = useState(() => METALS.map((m) => m.id));
   const [formSelectedMetal, setFormSelectedMetal] = useState("Oro 18k Blanco");
+  const [formMetalPrices, setFormMetalPrices] = useState({});
+  const [formMetalImages, setFormMetalImages] = useState({});
   const [formShowDeliveryEstimate, setFormShowDeliveryEstimate] = useState(true);
   const [feedbackMsg, setFeedbackMsg] = useState("");
 
@@ -1278,8 +1280,17 @@ export default function AdminCitas() {
     setFormImageYellow("");
     setFormImageRose("");
     setFormBoxImage("/images/detail-box-green.jpg");
-    setFormAvailableMetals(METALS.map((m) => m.id));
+    const initMetals = METALS.map((m) => m.id);
+    setFormAvailableMetals(initMetals);
     setFormSelectedMetal("Oro 18k Blanco");
+    const initPrices = {};
+    const initImages = {};
+    initMetals.forEach((mId) => {
+      initPrices[mId] = "";
+      initImages[mId] = initImg;
+    });
+    setFormMetalPrices(initPrices);
+    setFormMetalImages(initImages);
     setFormShowDeliveryEstimate(initialGroup !== "anillos");
     setProductModalOpen(true);
   };
@@ -1338,10 +1349,41 @@ export default function AdminCitas() {
       return id;
     });
     const finalIds = normalizedIds.filter((id) => METALS.some((m) => m.id === id));
-    setFormAvailableMetals(finalIds.length > 0 ? finalIds : METALS.map((m) => m.id));
+    const finalMetals = finalIds.length > 0 ? finalIds : METALS.map((m) => m.id);
+    setFormAvailableMetals(finalMetals);
 
     const defaultMetal = prod.selectedMetal || "Oro 18k Blanco";
     setFormSelectedMetal(defaultMetal);
+
+    const existingPrices = prod.metalPrices || {};
+    const existingImages = prod.metalImages || {};
+    const editPrices = {};
+    const editImages = {};
+
+    finalMetals.forEach((mId) => {
+      let p = existingPrices[mId];
+      if (p === undefined && mId === "oro-18k-blanco") p = existingPrices["oro-blanco-18k"];
+      if (p === undefined && mId === "oro-18k-amarillo") p = existingPrices["oro-amarillo-18k"];
+      if (p === undefined && mId === "oro-18k-rosa") p = existingPrices["oro-rosa-18k"];
+      editPrices[mId] = p !== undefined && p !== null ? String(p) : (prod.price ? String(prod.price) : "");
+
+      let img = existingImages[mId];
+      if (!img) {
+        if (["plata-925", "plata-950", "oro-18k-blanco", "platino"].includes(mId)) {
+          img = existingImages["white"] || existingImages["oro-18k-blanco"] || baseImg;
+        } else if (["oro-18k-amarillo", "oro-18k-natural", "plata-950-oro-amarillo", "plata-950-oro-natural"].includes(mId)) {
+          img = existingImages["yellow"] || existingImages["oro-18k-amarillo"] || baseImg;
+        } else if (["oro-18k-rosa", "plata-950-oro-rosa"].includes(mId)) {
+          img = existingImages["rose"] || existingImages["oro-18k-rosa"] || baseImg;
+        } else {
+          img = baseImg;
+        }
+      }
+      editImages[mId] = img || baseImg;
+    });
+
+    setFormMetalPrices(editPrices);
+    setFormMetalImages(editImages);
     setProductModalOpen(true);
   };
 
@@ -1380,13 +1422,36 @@ export default function AdminCitas() {
         }
         return updated;
       } else {
+        setFormMetalPrices((prevP) => ({
+          ...prevP,
+          [metalId]: prevP[metalId] !== undefined && prevP[metalId] !== "" ? prevP[metalId] : (formPrice || ""),
+        }));
+        setFormMetalImages((prevI) => ({
+          ...prevI,
+          [metalId]: prevI[metalId] || formImageWhite || formImage || "/images/cat-compromiso.jpg",
+        }));
         return [...prev, metalId];
       }
     });
   };
 
   const handleSelectAllMetals = () => {
-    setFormAvailableMetals(METALS.map((m) => m.id));
+    const allIds = METALS.map((m) => m.id);
+    setFormAvailableMetals(allIds);
+    setFormMetalPrices((prevP) => {
+      const nextP = { ...prevP };
+      allIds.forEach((id) => {
+        if (!nextP[id]) nextP[id] = formPrice || "";
+      });
+      return nextP;
+    });
+    setFormMetalImages((prevI) => {
+      const nextI = { ...prevI };
+      allIds.forEach((id) => {
+        if (!nextI[id]) nextI[id] = formImageWhite || formImage || "/images/cat-compromiso.jpg";
+      });
+      return nextI;
+    });
   };
 
   const handleSelectOnlyGold = () => {
@@ -1403,6 +1468,100 @@ export default function AdminCitas() {
     if (!silverIds.some((id) => METALS.find((m) => m.id === id)?.name === formSelectedMetal)) {
       setFormSelectedMetal("Plata 950");
     }
+  };
+
+  const handleMetalPriceChange = (metalId, val) => {
+    setFormMetalPrices((prev) => ({
+      ...prev,
+      [metalId]: val,
+    }));
+    const metalObj = METALS.find((m) => m.id === metalId);
+    if (metalObj && metalObj.name === formSelectedMetal) {
+      setFormPrice(val);
+    } else if (!formPrice) {
+      setFormPrice(val);
+    }
+  };
+
+  const handleApplyPriceToAll = (sourcePrice) => {
+    if (!sourcePrice || isNaN(Number(sourcePrice)) || Number(sourcePrice) <= 0) {
+      alert("Por favor ingresa un precio numérico válido mayor a 0 antes de aplicar a todos.");
+      return;
+    }
+    const updated = { ...formMetalPrices };
+    formAvailableMetals.forEach((id) => {
+      updated[id] = sourcePrice;
+    });
+    setFormMetalPrices(updated);
+    setFormPrice(sourcePrice);
+  };
+
+  const handleMetalImageChange = (metalId, val) => {
+    setFormMetalImages((prev) => ({
+      ...prev,
+      [metalId]: val,
+    }));
+  };
+
+  const handleMetalFileUpload = async (metalId, e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const compressed = await compressImageFile(file);
+        setFormMetalImages((prev) => ({
+          ...prev,
+          [metalId]: compressed,
+        }));
+      } catch (err) {
+        alert(err.message || "Error al procesar la imagen del material.");
+      }
+    }
+  };
+
+  const handleCopyImageToTone = (sourceMetalId) => {
+    const sourceImg = formMetalImages[sourceMetalId];
+    if (!sourceImg || !sourceImg.trim()) {
+      alert("Primero sube o escribe una imagen válida para este material.");
+      return;
+    }
+
+    const whiteGroup = ["plata-925", "plata-950", "oro-18k-blanco", "platino"];
+    const yellowGroup = ["oro-18k-amarillo", "oro-18k-natural", "plata-950-oro-amarillo", "plata-950-oro-natural"];
+    const roseGroup = ["oro-18k-rosa", "plata-950-oro-rosa"];
+
+    let targetIds = [];
+    if (whiteGroup.includes(sourceMetalId)) {
+      targetIds = formAvailableMetals.filter((id) => whiteGroup.includes(id));
+    } else if (yellowGroup.includes(sourceMetalId)) {
+      targetIds = formAvailableMetals.filter((id) => yellowGroup.includes(id));
+    } else if (roseGroup.includes(sourceMetalId)) {
+      targetIds = formAvailableMetals.filter((id) => roseGroup.includes(id));
+    } else {
+      targetIds = [...formAvailableMetals];
+    }
+
+    setFormMetalImages((prev) => {
+      const updated = { ...prev };
+      targetIds.forEach((id) => {
+        updated[id] = sourceImg;
+      });
+      return updated;
+    });
+  };
+
+  const handleCopyImageToAll = (sourceMetalId) => {
+    const sourceImg = formMetalImages[sourceMetalId];
+    if (!sourceImg || !sourceImg.trim()) {
+      alert("Primero sube o escribe una imagen válida para este material.");
+      return;
+    }
+    setFormMetalImages((prev) => {
+      const updated = { ...prev };
+      formAvailableMetals.forEach((id) => {
+        updated[id] = sourceImg;
+      });
+      return updated;
+    });
   };
 
   const handleWhiteImageFileUpload = async (e) => {
@@ -1456,14 +1615,35 @@ export default function AdminCitas() {
 
   const handleSaveProduct = (e) => {
     e.preventDefault();
-    if (!formName.trim() || !formPrice) {
-      alert("Por favor completa el nombre y el precio de la joya.");
+    if (!formName.trim()) {
+      alert("Por favor completa el nombre de la joya.");
       return;
     }
 
     if (formAvailableMetals.length === 0) {
       alert("Por favor selecciona al menos un material disponible para la joya.");
       return;
+    }
+
+    // 1. Validar OBLIGATORIAMENTE que cada material seleccionado tenga precio en Soles > 0
+    for (const mId of formAvailableMetals) {
+      const metalObj = METALS.find((m) => m.id === mId) || { name: mId };
+      const rawPrice = formMetalPrices[mId];
+      const numPrice = Number(rawPrice);
+      if (rawPrice === undefined || rawPrice === null || String(rawPrice).trim() === "" || isNaN(numPrice) || numPrice <= 0) {
+        alert(`⚠️ Falta el valor (precio) para el material "${metalObj.name}". Cada material seleccionado debe tener un precio en Soles (S/.) mayor a 0.`);
+        return;
+      }
+    }
+
+    // 2. Validar OBLIGATORIAMENTE que cada material seleccionado tenga fotografía asignada
+    for (const mId of formAvailableMetals) {
+      const metalObj = METALS.find((m) => m.id === mId) || { name: mId };
+      const imgVal = formMetalImages[mId];
+      if (!imgVal || !imgVal.trim()) {
+        alert(`⚠️ Falta la fotografía obligatoria para el material "${metalObj.name}". Es obligatorio asignar una foto para cada material seleccionado.`);
+        return;
+      }
     }
 
     const activeMetalsObjects = METALS.filter((m) => formAvailableMetals.includes(m.id));
@@ -1475,49 +1655,31 @@ export default function AdminCitas() {
     const isRingGroup = formCategoryGroup === "anillos";
     const isArosType = formType === "aros" || formCategory === "aros-boda" || formCategory === "aros-alianzas";
 
-    const hasWhite = activeMetalsObjects.some((m) => ["plata-925", "plata-950", "oro-18k-blanco", "platino"].includes(m.id));
-    const hasYellow = activeMetalsObjects.some((m) => ["oro-18k-amarillo", "oro-18k-natural", "plata-950-oro-amarillo", "plata-950-oro-natural"].includes(m.id));
-    const hasRose = activeMetalsObjects.some((m) => ["oro-18k-rosa", "plata-950-oro-rosa"].includes(m.id));
+    const metalPricesMap = {};
+    const metalImagesMap = {};
+    formAvailableMetals.forEach((mId) => {
+      metalPricesMap[mId] = Number(formMetalPrices[mId]);
+      metalImagesMap[mId] = formMetalImages[mId].trim();
+    });
 
-    // Determinar la foto principal basada en el primer tono activo que tenga foto
-    let mainImg = "";
-    if (hasWhite && formImageWhite.trim()) {
-      mainImg = formImageWhite.trim();
-    } else if (hasYellow && formImageYellow.trim()) {
-      mainImg = formImageYellow.trim();
-    } else if (hasRose && formImageRose.trim()) {
-      mainImg = formImageRose.trim();
-    } else {
-      mainImg = formImageWhite.trim() || formImageYellow.trim() || formImageRose.trim() || formImage.trim() || "/images/cat-compromiso.jpg";
-    }
+    const defaultMetalObj = activeMetalsObjects.find((m) => m.name === finalSelectedMetal) || activeMetalsObjects[0];
+    const defaultMetalId = defaultMetalObj?.id || formAvailableMetals[0];
+    const mainPrice = metalPricesMap[defaultMetalId] || Number(formPrice) || 0;
+    const mainImg = metalImagesMap[defaultMetalId] || Object.values(metalImagesMap)[0] || "/images/cat-compromiso.jpg";
 
-    const whiteImg = formImageWhite.trim() || mainImg;
-    const yellowImg = formImageYellow.trim() || mainImg;
-    const roseImg = formImageRose.trim() || mainImg;
+    // Retrocompatibilidad con aliases white, yellow, rose
+    const whiteId = formAvailableMetals.find((id) => ["oro-18k-blanco", "plata-950", "plata-925", "platino"].includes(id));
+    const yellowId = formAvailableMetals.find((id) => ["oro-18k-amarillo", "oro-18k-natural", "plata-950-oro-amarillo", "plata-950-oro-natural"].includes(id));
+    const roseId = formAvailableMetals.find((id) => ["oro-18k-rosa", "plata-950-oro-rosa"].includes(id));
 
-    // Mapa multimetal idéntico a Brilliant Earth
-    const metalImagesMap = {
-      "plata-925": whiteImg,
-      "plata-950": whiteImg,
-      "oro-18k-blanco": whiteImg,
-      "platino": whiteImg,
-      "oro-18k-amarillo": yellowImg,
-      "oro-18k-natural": yellowImg,
-      "plata-950-oro-amarillo": yellowImg,
-      "plata-950-oro-natural": yellowImg,
-      "oro-18k-rosa": roseImg,
-      "plata-950-oro-rosa": roseImg,
-      white: whiteImg,
-      yellow: yellowImg,
-      rose: roseImg,
-    };
+    if (whiteId) metalImagesMap.white = metalImagesMap[whiteId];
+    if (yellowId) metalImagesMap.yellow = metalImagesMap[yellowId];
+    if (roseId) metalImagesMap.rose = metalImagesMap[roseId];
 
     const finalBoxImage = formBoxImage.trim() || "/images/detail-box-green.jpg";
     const allImagesToInclude = [
       mainImg,
-      whiteImg,
-      yellowImg,
-      roseImg,
+      ...Object.values(metalImagesMap).filter((v) => typeof v === "string"),
       finalBoxImage,
       ...(Array.isArray(editingProduct?.gallery) ? editingProduct.gallery : [])
     ].filter(Boolean);
@@ -1528,7 +1690,8 @@ export default function AdminCitas() {
       subtitle: formSubtitle.trim() || "Platino Perú Colección Exclusiva",
       categories: Array.from(new Set([formCategory, formCategoryGroup, ...(editingProduct?.categories || [])])),
       category: formCategory,
-      price: Number(formPrice),
+      price: mainPrice,
+      metalPrices: metalPricesMap,
       type: formType,
       hasDoubleSizes: isArosType,
       hasGemSelection: isRingGroup,
@@ -1568,10 +1731,18 @@ export default function AdminCitas() {
     };
 
     if (editingProduct) {
-      updateProduct(editingProduct.id, payload);
-      setFeedbackMsg(`Joya "${formName}" e imagen actualizadas con éxito.`);
+      const res = updateProduct(editingProduct.id, payload);
+      if (res && res.error) {
+        alert(typeof res.error === "string" ? res.error : "Error al actualizar la joya en el almacenamiento.");
+        return;
+      }
+      setFeedbackMsg(`Joya "${formName}" actualizada con éxito.`);
     } else {
-      createProduct(payload);
+      const res = createProduct(payload);
+      if (res && res.error) {
+        alert(typeof res.error === "string" ? res.error : "Error al guardar la joya en el almacenamiento.");
+        return;
+      }
       setFeedbackMsg(`Nueva joya "${formName}" agregada al catálogo.`);
     }
 
@@ -6432,97 +6603,134 @@ export default function AdminCitas() {
                   </div>
                 </div>
 
-                {/* 4. SEGUNDO: FOTOGRAFÍAS DINÁMICAS SEGÚN LOS MATERIALES SELECCIONADOS */}
-                {(() => {
-                  const selectedWhiteMetals = METALS.filter(
-                    (m) =>
-                      formAvailableMetals.includes(m.id) &&
-                      ["plata-925", "plata-950", "oro-18k-blanco", "platino"].includes(m.id)
-                  );
-                  const selectedYellowMetals = METALS.filter(
-                    (m) =>
-                      formAvailableMetals.includes(m.id) &&
-                      ["oro-18k-amarillo", "oro-18k-natural", "plata-950-oro-amarillo", "plata-950-oro-natural"].includes(m.id)
-                  );
-                  const selectedRoseMetals = METALS.filter(
-                    (m) =>
-                      formAvailableMetals.includes(m.id) &&
-                      ["oro-18k-rosa", "plata-950-oro-rosa"].includes(m.id)
-                  );
+                {/* 4. VALOR (PRECIO EN S/.) Y FOTOGRAFÍA OBLIGATORIA POR CADA MATERIAL SELECCIONADO */}
+                <div className="metal-photos-box">
+                  <div className="metal-photos-header">
+                    <div className="metal-photos-title">
+                      <i className="bi bi-currency-dollar" style={{ color: "#c5a059", fontSize: "17px" }}></i>
+                      <i className="bi bi-camera-fill" style={{ color: "#113B3A", fontSize: "16px" }}></i>
+                      <span style={{ fontWeight: "700", color: "#113B3A" }}>
+                        4. Valor y Fotografía Obligatoria por Cada Material Seleccionado ({formAvailableMetals.length} materiales) *
+                      </span>
+                    </div>
+                    <span className="metal-photos-badge" style={{ background: "#e8f2ec", color: "#113B3A", fontWeight: "600" }}>
+                      <i className="bi bi-check2-circle"></i> Precio y Foto requeridos por material
+                    </span>
+                  </div>
 
-                  const activeTonesCount =
-                    (selectedWhiteMetals.length > 0 ? 1 : 0) +
-                    (selectedYellowMetals.length > 0 ? 1 : 0) +
-                    (selectedRoseMetals.length > 0 ? 1 : 0);
+                  <p style={{ fontSize: "12.5px", color: "#4f6057", margin: 0, lineHeight: 1.45 }}>
+                    Como cada material tiene un costo y tono diferente, asigna el <strong>valor en Soles (S/.)</strong> y la <strong>fotografía</strong> correspondiente para cada uno. Ambos campos son obligatorios para guardar la joya en el portafolio.
+                  </p>
 
-                  return (
-                    <div className="metal-photos-box">
-                      <div className="metal-photos-header">
-                        <div className="metal-photos-title">
-                          <i className="bi bi-palette-fill"></i>
-                          <span>
-                            4. Fotografías Requeridas por Material ({activeTonesCount}{" "}
-                            {activeTonesCount === 1 ? "foto requerida" : "fotos requeridas"})
-                          </span>
-                        </div>
-                        <span className="metal-photos-badge">
-                          <i className="bi bi-stars"></i> Dinámico según selección del paso 3
-                        </span>
-                      </div>
+                  {/* Barra de Atajos Rápidos */}
+                  <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center", background: "#f2eee7", padding: "8px 12px", borderRadius: "8px" }}>
+                    <span style={{ fontSize: "11.5px", fontWeight: "700", color: "#172b22" }}>
+                      ⚡ Atajos rápidos:
+                    </span>
+                    {formPrice && (
+                      <button
+                        type="button"
+                        onClick={() => handleApplyPriceToAll(formPrice)}
+                        className="btn-apply-all-price"
+                        title={`Copiar S/. ${formPrice} a los ${formAvailableMetals.length} materiales`}
+                      >
+                        <i className="bi bi-copy"></i> Aplicar S/. {formPrice} a todos los materiales
+                      </button>
+                    )}
+                    {formAvailableMetals.length > 0 && formMetalImages[formAvailableMetals[0]] && (
+                      <button
+                        type="button"
+                        onClick={() => handleCopyImageToAll(formAvailableMetals[0])}
+                        className="btn-metal-sub-action"
+                        style={{ background: "#ffffff", color: "#113B3A", fontWeight: "600" }}
+                        title="Copiar la primera foto a todos los materiales seleccionados"
+                      >
+                        <i className="bi bi-images"></i> Copiar primera foto a todos los materiales
+                      </button>
+                    )}
+                  </div>
 
-                      <p style={{ fontSize: "12px", color: "#5a6860", margin: 0, lineHeight: 1.45 }}>
-                        {activeTonesCount === 0
-                          ? "👆 Por favor selecciona al menos un material en el paso 3 para configurar las fotografías de esta joya."
-                          : "Solo se muestran las fotografías para los tonos de metal que marcaste arriba. Cada foto cambiará dinámicamente en la tienda en el mismo ángulo exacto."}
-                      </p>
+                  {formAvailableMetals.length === 0 ? (
+                    <div style={{ textAlign: "center", padding: "20px", color: "#8a9690", fontSize: "13px" }}>
+                      👆 Marca al menos un material en el paso 3 para configurar sus precios y fotos.
+                    </div>
+                  ) : (
+                    <div className="metals-pricing-photos-grid">
+                      {formAvailableMetals.map((mId) => {
+                        const metal = METALS.find((m) => m.id === mId) || { id: mId, name: mId, color: "#e4e7e7", border: "#cfd3d3", group: "General" };
+                        const isDefault = formSelectedMetal === metal.name;
+                        const currentPrice = formMetalPrices[mId] ?? "";
+                        const currentImg = formMetalImages[mId] || "";
 
-                      {activeTonesCount > 0 && (
-                        <div className={`metal-photos-grid count-${activeTonesCount}`}>
-                          {/* Tarjeta 1: Metales Blancos / Plata / Platino */}
-                          {selectedWhiteMetals.length > 0 && (
-                            <div className="metal-photo-card primary">
-                              <div className="metal-photo-card-head">
-                                <span className="metal-photo-card-title">
-                                  🤍 Metales Blancos / Plata
-                                </span>
+                        return (
+                          <div
+                            key={metal.id}
+                            className={`metal-config-card ${isDefault ? "is-default" : ""}`}
+                          >
+                            {/* Cabecera del material */}
+                            <div className="metal-config-card-head">
+                              <div className="metal-config-title-wrap">
                                 <div
-                                  className="metal-photo-card-swatches"
-                                  title={selectedWhiteMetals.map((m) => m.name).join(", ")}
-                                >
-                                  {selectedWhiteMetals.map((m) => (
-                                    <span
-                                      key={m.id}
-                                      className="metal-photo-swatch-dot"
-                                      style={{ background: m.color }}
-                                      title={m.name}
-                                    />
-                                  ))}
+                                  className="metal-config-swatch"
+                                  style={{
+                                    background: metal.color,
+                                    border: `1.5px solid ${metal.border}`,
+                                  }}
+                                />
+                                <div>
+                                  <div className="metal-config-name">{metal.name}</div>
+                                  <div className="metal-config-group">{metal.group}</div>
                                 </div>
                               </div>
+                              {isDefault && (
+                                <span style={{ fontSize: "10px", background: "#fdf3d8", color: "#826312", fontWeight: "700", padding: "2px 6px", borderRadius: "4px", border: "1px solid #e7d69e" }}>
+                                  ⭐ Por defecto
+                                </span>
+                              )}
+                            </div>
 
-                              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                                {selectedWhiteMetals.map((m) => (
-                                  <span
-                                    key={m.id}
-                                    style={{
-                                      fontSize: "10.5px",
-                                      background: "#e8eaeb",
-                                      color: "#1c2b23",
-                                      padding: "2px 7px",
-                                      borderRadius: "10px",
-                                      fontWeight: "600",
-                                    }}
+                            {/* Campo de Precio por este material */}
+                            <div className="metal-price-field">
+                              <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#173628", display: "flex", justifyContent: "space-between" }}>
+                                <span>Precio en Soles (S/.) *</span>
+                                {currentPrice && (
+                                  <button
+                                    type="button"
+                                    onClick={() => handleApplyPriceToAll(currentPrice)}
+                                    style={{ background: "none", border: "none", color: "#0d5c36", fontSize: "10.5px", cursor: "pointer", padding: 0, textDecoration: "underline" }}
+                                    title="Copiar este valor a todos los materiales seleccionados"
                                   >
-                                    {m.name}
-                                  </span>
-                                ))}
+                                    Copiar a todos
+                                  </button>
+                                )}
+                              </label>
+                              <div className="metal-price-input-row">
+                                <span style={{ fontSize: "13px", fontWeight: "700", color: "#506258" }}>S/.</span>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  step="1"
+                                  required
+                                  className="metal-price-input"
+                                  placeholder="Ej. 2950"
+                                  value={currentPrice}
+                                  onChange={(e) => handleMetalPriceChange(metal.id, e.target.value)}
+                                />
                               </div>
+                            </div>
 
-                              <div className="metal-photo-preview">
-                                {formImageWhite ? (
+                            {/* Campo de Foto Obligatoria por este material */}
+                            <div className="metal-photo-field" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                              <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#173628" }}>
+                                Fotografía Obligatoria *
+                              </label>
+
+                              {/* Preview de la foto */}
+                              <div className="metal-photo-preview" style={{ height: "135px" }}>
+                                {currentImg ? (
                                   <img
-                                    src={formImageWhite}
-                                    alt="Vista previa metal blanco"
+                                    src={currentImg}
+                                    alt={`Foto ${metal.name}`}
                                     onError={(e) => {
                                       e.target.onerror = null;
                                       e.target.src = "/images/cat-compromiso.jpg";
@@ -6530,230 +6738,54 @@ export default function AdminCitas() {
                                   />
                                 ) : (
                                   <div className="metal-photo-preview-placeholder">
-                                    <i className="bi bi-image" style={{ fontSize: "24px" }}></i>
-                                    <span>Sin imagen cargada</span>
+                                    <i className="bi bi-camera" style={{ fontSize: "24px", color: "#d9534f" }}></i>
+                                    <span style={{ color: "#d9534f", fontWeight: "600" }}>Foto requerida</span>
                                   </div>
                                 )}
                               </div>
 
-                              <div className="metal-photo-inputs">
-                                <label>Ruta o URL:</label>
+                              {/* Input de URL / Ruta */}
+                              <input
+                                type="text"
+                                className="catalog-form-input"
+                                style={{ fontSize: "11.5px", padding: "6px 8px" }}
+                                placeholder="/images/... o https://..."
+                                value={currentImg}
+                                onChange={(e) => handleMetalImageChange(metal.id, e.target.value)}
+                                required
+                              />
+
+                              {/* Botón de subir archivo con compresión */}
+                              <label className="btn-upload-metal-file" style={{ padding: "6px 10px", fontSize: "11.5px" }}>
+                                <i className="bi bi-cloud-arrow-up-fill"></i> Subir foto de {metal.name}
                                 <input
-                                  type="text"
-                                  className="catalog-form-input"
-                                  style={{ fontSize: "12px", padding: "7px 10px" }}
-                                  placeholder="/images/joya-blanco.jpg o https://..."
-                                  value={formImageWhite}
-                                  onChange={(e) => {
-                                    setFormImageWhite(e.target.value);
-                                    setFormImage(e.target.value);
-                                  }}
-                                  required
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => handleMetalFileUpload(metal.id, e)}
+                                  style={{ display: "none" }}
                                 />
+                              </label>
 
-                                <label className="btn-upload-metal-file">
-                                  <i className="bi bi-cloud-arrow-up-fill"></i> Subir foto metal blanco / plata
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleWhiteImageFileUpload}
-                                    style={{ display: "none" }}
-                                  />
-                                </label>
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Tarjeta 2: Oro Amarillo / Natural */}
-                          {selectedYellowMetals.length > 0 && (
-                            <div className="metal-photo-card">
-                              <div className="metal-photo-card-head">
-                                <span className="metal-photo-card-title">
-                                  💛 Oro Amarillo / Natural
-                                </span>
-                                <div
-                                  className="metal-photo-card-swatches"
-                                  title={selectedYellowMetals.map((m) => m.name).join(", ")}
-                                >
-                                  {selectedYellowMetals.map((m) => (
-                                    <span
-                                      key={m.id}
-                                      className="metal-photo-swatch-dot"
-                                      style={{ background: m.color }}
-                                      title={m.name}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-
-                              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                                {selectedYellowMetals.map((m) => (
-                                  <span
-                                    key={m.id}
-                                    style={{
-                                      fontSize: "10.5px",
-                                      background: "#fdf3d8",
-                                      color: "#6b5109",
-                                      padding: "2px 7px",
-                                      borderRadius: "10px",
-                                      fontWeight: "600",
-                                    }}
+                              {/* Atajo: copiar foto al mismo grupo o a todos */}
+                              {currentImg && (
+                                <div className="metal-photo-action-buttons">
+                                  <button
+                                    type="button"
+                                    className="btn-metal-sub-action"
+                                    onClick={() => handleCopyImageToTone(metal.id)}
+                                    title={`Replicar esta foto a los demás metales de tono similar`}
                                   >
-                                    {m.name}
-                                  </span>
-                                ))}
-                              </div>
-
-                              <div className="metal-photo-preview">
-                                {formImageYellow ? (
-                                  <img
-                                    src={formImageYellow}
-                                    alt="Vista previa oro amarillo"
-                                    onError={(e) => {
-                                      e.target.onerror = null;
-                                      e.target.src = formImageWhite || "/images/cat-compromiso.jpg";
-                                    }}
-                                  />
-                                ) : (
-                                  <div className="metal-photo-preview-placeholder">
-                                    <i className="bi bi-circle-half" style={{ fontSize: "22px", color: "#d7b355" }}></i>
-                                    <span style={{ fontSize: "11px" }}>Usa foto blanca por defecto si no se sube</span>
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="metal-photo-inputs">
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                  <label>Ruta o URL:</label>
-                                  {formImageYellow && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setFormImageYellow("")}
-                                      style={{ background: "none", border: "none", color: "#c0392b", fontSize: "11px", cursor: "pointer", padding: 0 }}
-                                    >
-                                      <i className="bi bi-x"></i> Quitar
-                                    </button>
-                                  )}
+                                    <i className="bi bi-copy"></i> Copiar a metales similares
+                                  </button>
                                 </div>
-                                <input
-                                  type="text"
-                                  className="catalog-form-input"
-                                  style={{ fontSize: "12px", padding: "7px 10px" }}
-                                  placeholder="/images/joya-amarillo.jpg (Opcional)"
-                                  value={formImageYellow}
-                                  onChange={(e) => setFormImageYellow(e.target.value)}
-                                />
-
-                                <label className="btn-upload-metal-file" style={{ borderColor: "#d7b355", color: "#876611", background: "#fdfaf2" }}>
-                                  <i className="bi bi-cloud-arrow-up-fill"></i> Subir foto oro amarillo
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleYellowImageFileUpload}
-                                    style={{ display: "none" }}
-                                  />
-                                </label>
-                              </div>
+                              )}
                             </div>
-                          )}
-
-                          {/* Tarjeta 3: Oro Rosa */}
-                          {selectedRoseMetals.length > 0 && (
-                            <div className="metal-photo-card">
-                              <div className="metal-photo-card-head">
-                                <span className="metal-photo-card-title">
-                                  🌸 Oro Rosa
-                                </span>
-                                <div
-                                  className="metal-photo-card-swatches"
-                                  title={selectedRoseMetals.map((m) => m.name).join(", ")}
-                                >
-                                  {selectedRoseMetals.map((m) => (
-                                    <span
-                                      key={m.id}
-                                      className="metal-photo-swatch-dot"
-                                      style={{ background: m.color }}
-                                      title={m.name}
-                                    />
-                                  ))}
-                                </div>
-                              </div>
-
-                              <div style={{ display: "flex", flexWrap: "wrap", gap: "4px" }}>
-                                {selectedRoseMetals.map((m) => (
-                                  <span
-                                    key={m.id}
-                                    style={{
-                                      fontSize: "10.5px",
-                                      background: "#fdeee8",
-                                      color: "#843b22",
-                                      padding: "2px 7px",
-                                      borderRadius: "10px",
-                                      fontWeight: "600",
-                                    }}
-                                  >
-                                    {m.name}
-                                  </span>
-                                ))}
-                              </div>
-
-                              <div className="metal-photo-preview">
-                                {formImageRose ? (
-                                  <img
-                                    src={formImageRose}
-                                    alt="Vista previa oro rosa"
-                                    onError={(e) => {
-                                      e.target.onerror = null;
-                                      e.target.src = formImageWhite || "/images/cat-compromiso.jpg";
-                                    }}
-                                  />
-                                ) : (
-                                  <div className="metal-photo-preview-placeholder">
-                                    <i className="bi bi-circle-half" style={{ fontSize: "22px", color: "#dca188" }}></i>
-                                    <span style={{ fontSize: "11px" }}>Usa foto blanca por defecto si no se sube</span>
-                                  </div>
-                                )}
-                              </div>
-
-                              <div className="metal-photo-inputs">
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                  <label>Ruta o URL:</label>
-                                  {formImageRose && (
-                                    <button
-                                      type="button"
-                                      onClick={() => setFormImageRose("")}
-                                      style={{ background: "none", border: "none", color: "#c0392b", fontSize: "11px", cursor: "pointer", padding: 0 }}
-                                    >
-                                      <i className="bi bi-x"></i> Quitar
-                                    </button>
-                                  )}
-                                </div>
-                                <input
-                                  type="text"
-                                  className="catalog-form-input"
-                                  style={{ fontSize: "12px", padding: "7px 10px" }}
-                                  placeholder="/images/joya-rosa.jpg (Opcional)"
-                                  value={formImageRose}
-                                  onChange={(e) => setFormImageRose(e.target.value)}
-                                />
-
-                                <label className="btn-upload-metal-file" style={{ borderColor: "#dca188", color: "#9e5539", background: "#fdf8f6" }}>
-                                  <i className="bi bi-cloud-arrow-up-fill"></i> Subir foto oro rosa
-                                  <input
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleRoseImageFileUpload}
-                                    style={{ display: "none" }}
-                                  />
-                                </label>
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      )}
+                          </div>
+                        );
+                      })}
                     </div>
-                  );
-                })()}
+                  )}
+                </div>
 
                 {/* 5. CAJA / ESTUCHE DE PRESENTACIÓN DE LA JOYA */}
                 <div className="product-box-config-card" style={{

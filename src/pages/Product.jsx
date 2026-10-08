@@ -116,25 +116,6 @@ export default function Product({ addToCart }) {
     return () => window.removeEventListener("platino_favorites_updated", handleFavUpdate);
   }, [user?.email, product.id]);
 
-  const handleToggleFavorite = () => {
-    if (!user) {
-      openAuthModal("login");
-      return;
-    }
-    const nextState = toggleUserFavorite(user.email, {
-      id: product.id,
-      name: product.name,
-      price: product.price,
-      image: mainImage || product.image,
-      metal: selectedMetal?.name,
-      metalId: selectedMetal?.id,
-      category: product.category,
-      type: product.type,
-      subtitle: product.subtitle,
-    });
-    setIsFavorite(nextState);
-  };
-
   const [selectedMetal, setSelectedMetal] = useState(() => {
     if (product.availableMetals && product.availableMetals.length > 0) {
       const match = product.availableMetals.find(
@@ -153,6 +134,34 @@ export default function Product({ addToCart }) {
       setSelectedMetal(match || product.availableMetals[0]);
     }
   }, [product.id]);
+
+  // Precio dinámico del producto según el material seleccionado (cada material tiene su propio valor)
+  const currentMetalPrice = useMemo(() => {
+    if (selectedMetal?.id && product.metalPrices && product.metalPrices[selectedMetal.id] !== undefined) {
+      const p = Number(product.metalPrices[selectedMetal.id]);
+      if (!isNaN(p) && p > 0) return p;
+    }
+    return Number(product.price) || 0;
+  }, [product.price, product.metalPrices, selectedMetal?.id]);
+
+  const handleToggleFavorite = () => {
+    if (!user) {
+      openAuthModal("login");
+      return;
+    }
+    const nextState = toggleUserFavorite(user.email, {
+      id: product.id,
+      name: product.name,
+      price: currentMetalPrice,
+      image: mainImage || product.image,
+      metal: selectedMetal?.name,
+      metalId: selectedMetal?.id,
+      category: product.category,
+      type: product.type,
+      subtitle: product.subtitle,
+    });
+    setIsFavorite(nextState);
+  };
 
   // Guardar última joya vista para sincronización automática con el panel de administración
   useEffect(() => {
@@ -473,7 +482,7 @@ export default function Product({ addToCart }) {
       stockUnits: currentTotalStock,
       deliveryDays: shouldShowDelivery ? deliveryDays : undefined,
       estimatedDeliveryDate: shouldShowDelivery ? deliveryDateFormatted : undefined,
-      price: product.price + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0),
+      price: currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0),
       image: mainImage || product.image,
     };
     addToCart(customProduct);
@@ -520,7 +529,7 @@ export default function Product({ addToCart }) {
       product.hasGemSelection
         ? `*Forma de la Piedra/Gema:* ${selectedGemShape.name}%0A`
         : ""
-    }${engravingDetails}${stockDetails}*Precio:* ${formatPrice(product.price)}%0A%0A¿Podrían confirmarme la disponibilidad y cómo procedemos con la orden?`;
+    }${engravingDetails}${stockDetails}*Precio:* ${formatPrice(currentMetalPrice)}%0A%0A¿Podrían confirmarme la disponibilidad y cómo procedemos con la orden?`;
 
     return `https://wa.me/51927357217?text=${text}`;
   };
@@ -798,7 +807,7 @@ export default function Product({ addToCart }) {
 
             <div className="config-price-row">
               <span className="config-product-price">
-                {formatPrice(product.price)}
+                {formatPrice(currentMetalPrice)}
               </span>
 
               <button
@@ -1668,7 +1677,7 @@ export default function Product({ addToCart }) {
                 <div><strong>Garantía:</strong> Platino Care {platinoCarePlan === "plus" ? `+ (S/. ${carePlusPrice})` : "Cortesía (S/. 0)"}</div>
               )}
               <div style={{ borderTop: "1px solid #e8e4db", paddingTop: "10px", marginTop: "10px", fontSize: "17px", fontWeight: "700", color: "#17241e" }}>
-                Total: {formatPrice(product.price + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0))}
+                Total: {formatPrice(currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0))}
               </div>
             </div>
 
@@ -1718,7 +1727,7 @@ export default function Product({ addToCart }) {
                       stockUnits: currentTotalStock,
                       deliveryDays,
                       estimatedDeliveryDate: deliveryDateFormatted,
-                      price: product.price + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0),
+                      price: currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0),
                       image: mainImage || product.image,
                     };
                     addToCart(customProduct);

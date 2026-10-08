@@ -2382,6 +2382,150 @@
   border-style: solid;
 }
 
+/* Grilla responsiva de precio y foto por material */
+.metals-pricing-photos-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+  margin-top: 10px;
+}
+
+.metal-config-card {
+  background: #ffffff;
+  border: 1.5px solid #ded9cd;
+  border-radius: 12px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+}
+
+.metal-config-card:hover {
+  border-color: #b8b09d;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+
+.metal-config-card.is-default {
+  border-color: #c5a059;
+  background: #fffdf9;
+  box-shadow: 0 2px 8px rgba(197, 160, 89, 0.12);
+}
+
+.metal-config-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-bottom: 1px solid #f0eee8;
+  padding-bottom: 8px;
+}
+
+.metal-config-title-wrap {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.metal-config-swatch {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
+.metal-config-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: #173628;
+  line-height: 1.2;
+}
+
+.metal-config-group {
+  font-size: 10.5px;
+  color: #728279;
+  font-weight: 500;
+  margin-top: 2px;
+}
+
+.metal-price-field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  background: #fbf9f5;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #eee8dc;
+}
+
+.metal-price-input-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.metal-price-input {
+  width: 100%;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #113B3A;
+  padding: 6px 10px;
+  border: 1.5px solid #d4ccbe;
+  border-radius: 6px;
+  background: #ffffff;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.metal-price-input:focus {
+  border-color: #113B3A;
+}
+
+.btn-apply-all-price {
+  font-size: 11px;
+  padding: 5px 10px;
+  background: #ffffff;
+  border: 1px solid #113B3A;
+  color: #113B3A;
+  border-radius: 6px;
+  cursor: pointer;
+  white-space: nowrap;
+  font-weight: 600;
+  transition: all 0.2s ease;
+}
+
+.btn-apply-all-price:hover {
+  background: #113B3A;
+  color: #ffffff;
+}
+
+.metal-photo-action-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 4px;
+}
+
+.btn-metal-sub-action {
+  font-size: 10.5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #ded8cb;
+  background: #faf8f5;
+  color: #4b5d52;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-metal-sub-action:hover {
+  background: #eee8dc;
+  color: #173628;
+}
+
 /* ========================================================
    BARRA SUPERIOR DE PESTAÑAS ADMINISTRATIVAS
    ======================================================== */
