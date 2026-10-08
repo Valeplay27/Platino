@@ -92,8 +92,13 @@ export const saveCatalogProducts = (list) => {
     window.dispatchEvent(
       new CustomEvent("catalog_updated", { detail: { products: list } })
     );
+    return { success: true };
   } catch (error) {
     console.error("Error saving catalog to localStorage", error);
+    if (error && (error.name === "QuotaExceededError" || error.code === 22)) {
+      alert("⚠️ El almacenamiento del navegador se encuentra lleno. Si subiste fotos muy pesadas, por favor usa fotos más ligeras.");
+    }
+    return { success: false, error };
   }
 };
 
@@ -183,8 +188,11 @@ export const createProduct = (productData) => {
   };
 
   const updatedList = [newProduct, ...list];
-  saveCatalogProducts(updatedList);
-  return newProduct;
+  const saveRes = saveCatalogProducts(updatedList);
+  if (saveRes && saveRes.success === false) {
+    return { success: false, error: saveRes.error };
+  }
+  return { success: true, product: newProduct };
 };
 
 // Modificar un producto existente (incluyendo su imagen y variantes por metal)
@@ -242,7 +250,10 @@ export const updateProduct = (id, updatedFields) => {
   };
 
   list[index] = updatedProduct;
-  saveCatalogProducts(list);
+  const saveRes = saveCatalogProducts(list);
+  if (saveRes && saveRes.success === false) {
+    return { success: false, error: saveRes.error };
+  }
   return { success: true, product: updatedProduct };
 };
 

@@ -77,6 +77,7 @@ import { getReclamaciones } from "../services/reclamacionesService";
 import AdminReclamacionesTab from "../components/AdminReclamacionesTab";
 import AdminPlatinoCareTab from "../components/AdminPlatinoCareTab";
 import AdminGemstonesTab from "../components/AdminGemstonesTab";
+import { compressImageFile } from "../utils/imageCompressor";
 import "../../styles/citas.css";
 import "../../styles/orders.css";
 
@@ -1404,64 +1405,52 @@ export default function AdminCitas() {
     }
   };
 
-  const handleWhiteImageFileUpload = (e) => {
+  const handleWhiteImageFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert("La imagen es mayor a 5MB. Por favor elige una imagen más ligera.");
-        return;
+      try {
+        const compressed = await compressImageFile(file);
+        setFormImageWhite(compressed);
+        setFormImage(compressed);
+      } catch (err) {
+        alert(err.message || "Error al procesar la imagen.");
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setFormImageWhite(event.target.result);
-        setFormImage(event.target.result);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
-  const handleYellowImageFileUpload = (e) => {
+  const handleYellowImageFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert("La imagen es mayor a 5MB. Por favor elige una imagen más ligera.");
-        return;
+      try {
+        const compressed = await compressImageFile(file);
+        setFormImageYellow(compressed);
+      } catch (err) {
+        alert(err.message || "Error al procesar la imagen.");
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setFormImageYellow(event.target.result);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
-  const handleRoseImageFileUpload = (e) => {
+  const handleRoseImageFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert("La imagen es mayor a 5MB. Por favor elige una imagen más ligera.");
-        return;
+      try {
+        const compressed = await compressImageFile(file);
+        setFormImageRose(compressed);
+      } catch (err) {
+        alert(err.message || "Error al procesar la imagen.");
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setFormImageRose(event.target.result);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
-  const handleBoxImageFileUpload = (e) => {
+  const handleBoxImageFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert("La imagen es mayor a 5MB. Por favor elige una imagen más ligera.");
-        return;
+      try {
+        const compressed = await compressImageFile(file);
+        setFormBoxImage(compressed);
+      } catch (err) {
+        alert(err.message || "Error al procesar la imagen.");
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setFormBoxImage(event.target.result);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
@@ -1623,18 +1612,15 @@ export default function AdminCitas() {
     setHomeImageModalOpen(true);
   };
 
-  const handleHomeImageFileUpload = (e) => {
+  const handleHomeImageFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 5 * 1024 * 1024) {
-        alert("La imagen es mayor a 5MB. Por favor elige una imagen más ligera.");
-        return;
+      try {
+        const compressed = await compressImageFile(file, 1600, 1200, 0.82);
+        setFormHomeImageSrc(compressed);
+      } catch (err) {
+        alert(err.message || "Error al procesar la imagen del inicio.");
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        setFormHomeImageSrc(event.target.result);
-      };
-      reader.readAsDataURL(file);
     }
   };
 
