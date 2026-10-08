@@ -779,11 +779,14 @@ export default function AdminGemstonesTab({ isMaster = true }) {
 
               {/* 9. FOTOGRAFÍA DE LA GEMA */}
               <div className="form-field-group photo-uploader-box">
-                <label className="form-label-bold">
-                  <i className="bi bi-camera-fill"></i> Fotografía Real de la Gema
-                </label>
+                <div className="photo-uploader-header">
+                  <label className="form-label-bold" style={{ margin: 0 }}>
+                    <i className="bi bi-camera-fill"></i> Fotografía Real de la Gema
+                  </label>
+                  <span className="photo-badge-optional">Opcional · JPG, PNG, WEBP</span>
+                </div>
                 <p className="photo-help-text">
-                  Puedes subir una fotografía real de la piedra (fondo blanco o vitrina). Si no se sube foto, se mostrará el visualizador 3D facetado.
+                  Sube una foto de la piedra real. Si no se sube foto, se mostrará el visualizador 3D facetado oficial.
                 </p>
 
                 <div className="photo-inputs-row">
@@ -801,7 +804,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                     className="btn-upload-gem-photo"
                   >
                     <i className="bi bi-cloud-arrow-up-fill"></i>
-                    <span>Subir Foto desde Computadora</span>
+                    <span>Subir Foto del Dispositivo</span>
                   </button>
 
                   <span className="or-divider">o ingresar URL:</span>
@@ -827,6 +830,16 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                     </button>
                   )}
                 </div>
+
+                {formData.image && (
+                  <div className="photo-uploaded-preview-bar">
+                    <img src={formData.image} alt="Vista previa cargada" className="photo-thumb-mini" />
+                    <div className="photo-thumb-meta">
+                      <span className="photo-thumb-title">✓ Fotografía vinculada correctamente</span>
+                      <span className="photo-thumb-sub">Los clientes verán esta imagen real en la tarjeta y en la ficha técnica de la gema.</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* 10. TÍTULO / NOMBRE DE LA GEMA */}
@@ -929,51 +942,71 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                     )}
                   </div>
 
-                  <div className="gem-card-body">
-                    <div className="gem-card-type-row">
-                      <span className="gem-type-badge">
-                        {formData.type === "diamante-natural"
-                          ? "Diamante Natural"
-                          : formData.type === "diamante-lab"
-                          ? "Lab-Grown Diamond"
-                          : "Gema Natural"}
+                  <div className="gem-card-info">
+                    <div className="gem-card-shape-badge">
+                      <span className="gem-shape-icon-mini">
+                        <DiamondCutIcon shape={formData.shape} size={14} />
                       </span>
-                      <span className="gem-carat-badge">{formData.carat} ct</span>
+                      <span>Corte {formData.shape.charAt(0).toUpperCase() + formData.shape.slice(1)}</span>
+                      <span className="gem-carat-accent">{formData.carat} ct</span>
                     </div>
 
-                    <h4 className="gem-card-title">
+                    <h3 className="gem-card-title">
                       {formData.name || generateSuggestedName()}
-                    </h4>
+                    </h3>
 
-                    <div className="gem-specs-compact">
-                      <span className="spec-item">
-                        <strong>Color:</strong> {formData.color}
-                      </span>
-                      <span className="spec-sep">·</span>
-                      <span className="spec-item">
-                        <strong>Pureza:</strong> {formData.clarity}
-                      </span>
-                      <span className="spec-sep">·</span>
-                      <span className="spec-item">
-                        <strong>Corte:</strong> {formData.cutQuality}
-                      </span>
+                    {/* Matriz estructurada de 4Cs idéntica a la tienda pública */}
+                    <div className="gem-specs-structured">
+                      <div className="specs-row-trio">
+                        <div className="spec-cell">
+                          <span className="spec-label">Color</span>
+                          <span className="spec-value">{formData.color}</span>
+                        </div>
+                        <div className="spec-cell">
+                          <span className="spec-label">Pureza</span>
+                          <span className="spec-value">{formData.clarity}</span>
+                        </div>
+                        <div className="spec-cell">
+                          <span className="spec-label">Corte</span>
+                          <span className="spec-value">{formData.cutQuality}</span>
+                        </div>
+                      </div>
+
+                      <div className="specs-row-duo">
+                        <div className="spec-cell">
+                          <span className="spec-label">Peso / Carat</span>
+                          <span className="spec-value"><strong>{formData.carat} ct</strong></span>
+                        </div>
+                        <div className="spec-cell spec-cell-dimensions">
+                          <span className="spec-label">Medidas Reales</span>
+                          <span className="spec-value" title={formData.dimensions || `${formData.mm} mm`}>
+                            {formData.dimensions || `${formData.mm} mm`}
+                          </span>
+                        </div>
+                      </div>
                     </div>
 
-                    <div className="gem-dimensions-compact">
-                      <i className="bi bi-aspect-ratio"></i>
-                      <span>{formData.dimensions || `${formData.mm} mm`}</span>
+                    <div className="gem-card-cert-row">
+                      <span>
+                        <i className="bi bi-shield-check" style={{ color: "#C6AC7F", marginRight: "4px" }}></i>
+                        Láser: <strong>{formData.certNumber}</strong>
+                      </span>
+                      <span>
+                        <i className="bi bi-geo-alt" style={{ color: "#71857c", marginRight: "3px" }}></i>
+                        {formData.origin || "Ético"}
+                      </span>
                     </div>
 
                     <div className="gem-card-footer">
                       <div className="gem-price-box">
-                        <span className="price-lbl">Precio de Piedra</span>
-                        <div className="price-num">
+                        <span className="price-label">Precio Gema:</span>
+                        <span className="gem-price">
                           S/. {Number(formData.price || 0).toLocaleString("es-PE")}
-                        </div>
+                        </span>
                       </div>
 
-                      <div className="btn-preview-dummy">
-                        <span>Ver Ficha Técnica</span>
+                      <div className="btn-preview-demo-tag">
+                        <i className="bi bi-eye-fill"></i> Vista Previa en Tienda Pública
                       </div>
                     </div>
                   </div>
