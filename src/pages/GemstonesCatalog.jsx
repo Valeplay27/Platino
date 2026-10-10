@@ -14,6 +14,8 @@ import { getUserFavorites, toggleUserFavorite } from "../services/favoritesServi
 import { getStoredGemstones } from "../services/gemstonesService";
 import "../../styles/gemstones.css";
 
+const normalizeShape = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
 export default function GemstonesCatalog() {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, openAuthModal } = useAuth();
@@ -115,7 +117,7 @@ export default function GemstonesCatalog() {
       list.push({ key: "type", label: t ? t.label : selectedType, clear: () => setSelectedType("todos") });
     }
     if (selectedShape !== "todas") {
-      const s = GEM_SHAPES_DATA.find((x) => x.id === selectedShape);
+      const s = GEM_SHAPES_DATA.find((x) => normalizeShape(x.id) === normalizeShape(selectedShape));
       list.push({ key: "shape", label: `Corte ${s ? s.name : selectedShape}`, clear: () => handleShapeSelect("todas") });
     }
     if (selectedDiamondColor !== "todos") {
@@ -160,7 +162,8 @@ export default function GemstonesCatalog() {
   const shapeCounts = useMemo(() => {
     const counts = {};
     GEM_SHAPES_DATA.forEach((s) => {
-      counts[s.id] = availableGemstones.filter((g) => g.shape === s.id).length;
+      const sNorm = normalizeShape(s.id);
+      counts[s.id] = availableGemstones.filter((g) => normalizeShape(g.shape) === sNorm).length;
     });
     return counts;
   }, [availableGemstones]);
@@ -183,7 +186,7 @@ export default function GemstonesCatalog() {
       }
 
       // 3. Forma / Corte
-      if (selectedShape !== "todas" && gem.shape !== selectedShape) {
+      if (selectedShape !== "todas" && normalizeShape(gem.shape) !== normalizeShape(selectedShape)) {
         return false;
       }
 
@@ -253,7 +256,7 @@ export default function GemstonesCatalog() {
     setSearchParams(nextParams, { replace: true, preventScrollReset: true });
   };
 
-  const currentShapeObj = GEM_SHAPES_DATA.find((s) => s.id === selectedShape);
+  const currentShapeObj = GEM_SHAPES_DATA.find((s) => normalizeShape(s.id) === normalizeShape(selectedShape));
 
   return (
     <div className="gemstones-page">
@@ -372,7 +375,7 @@ export default function GemstonesCatalog() {
 
                 {GEM_SHAPES_DATA.map((shape) => {
                   const count = shapeCounts[shape.id] || 0;
-                  const isActive = selectedShape === shape.id;
+                  const isActive = normalizeShape(selectedShape) === normalizeShape(shape.id);
                   return (
                     <button
                       key={shape.id}

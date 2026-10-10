@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   formatPrice,
   GEM_SHAPES_PRODUCT,
+  MASTER_GEM_SHAPES,
   FAQS,
   DEFAULT_METAL_IMAGES,
 } from "../data/products";
@@ -44,7 +45,7 @@ export default function Product({ addToCart }) {
       window.removeEventListener("storage", refreshProduct);
     };
   }, [productId]);
-  const { user, openAuthModal } = useAuth();
+  const { user, openAuthModal, isAdmin } = useAuth();
 
   const handleGoBack = () => {
     try {
@@ -236,10 +237,52 @@ export default function Product({ addToCart }) {
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [sizeGuideTab, setSizeGuideTab] = useState(isAros ? "ambos" : "dama");
 
-  // Gemas
-  const [selectedGemShape, setSelectedGemShape] = useState(
-    GEM_SHAPES_PRODUCT[0]
-  );
+  // Gemas configuradas por el modelo y administradas dinámicamente
+  const configuredGemShapes = useMemo(() => {
+    const masterList = Array.isArray(MASTER_GEM_SHAPES) && MASTER_GEM_SHAPES.length > 0 
+      ? MASTER_GEM_SHAPES 
+      : GEM_SHAPES_PRODUCT;
+    const shapeIds = Array.isArray(product.availableGemShapes) && product.availableGemShapes.length > 0
+      ? product.availableGemShapes
+      : masterList.map((s) => s.id);
+
+    return shapeIds.map((id) => {
+      const base = masterList.find((s) => s.id === id) || masterList.find((s) => s.name?.toLowerCase() === id?.toLowerCase());
+      if (!base) return null;
+      const custom = (product.gemShapeConfigs && (product.gemShapeConfigs[id] || product.gemShapeConfigs[base.id])) || {};
+      return {
+        ...base,
+        ...custom,
+        carat: custom.carat || custom.popularCarat || base.carat || base.popularCarat,
+        popularCarat: custom.carat || custom.popularCarat || base.popularCarat || base.carat,
+        subtitle: custom.subtitle !== undefined ? custom.subtitle : base.subtitle,
+        desc: custom.desc !== undefined ? custom.desc : base.desc,
+        ratio: custom.ratio !== undefined ? custom.ratio : base.ratio,
+        extraNote: custom.extraNote !== undefined ? custom.extraNote : base.extraNote,
+      };
+    }).filter(Boolean);
+  }, [product.availableGemShapes, product.gemShapeConfigs]);
+
+  const [selectedGemShape, setSelectedGemShape] = useState(() => {
+    return (configuredGemShapes && configuredGemShapes[0]) || (MASTER_GEM_SHAPES && MASTER_GEM_SHAPES[0]) || GEM_SHAPES_PRODUCT[0];
+  });
+
+  useEffect(() => {
+    if (!configuredGemShapes || configuredGemShapes.length === 0) return;
+    if (product.defaultGemShape) {
+      const def = configuredGemShapes.find((s) => s.id === product.defaultGemShape);
+      if (def) {
+        setSelectedGemShape(def);
+        return;
+      }
+    }
+    const exists = configuredGemShapes.find((s) => s.id === selectedGemShape?.id);
+    if (!exists) {
+      setSelectedGemShape(configuredGemShapes[0]);
+    } else {
+      setSelectedGemShape(exists);
+    }
+  }, [product.id, product.defaultGemShape, configuredGemShapes]);
 
   // Presentación / Opciones de Estuches con fotos y detalles
   const presentationOptionsList = useMemo(() => {
@@ -482,6 +525,8 @@ export default function Product({ addToCart }) {
       stockUnits: currentTotalStock,
       deliveryDays: shouldShowDelivery ? deliveryDays : undefined,
       estimatedDeliveryDate: shouldShowDelivery ? deliveryDateFormatted : undefined,
+      platinoCarePlan: platinoCarePlan,
+      platinoCareTitle: platinoCarePlan === "plus" ? "Platino Care + (Premium)" : "Platino Care Cortesía",
       price: currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0),
       image: mainImage || product.image,
     };
@@ -497,21 +542,25 @@ export default function Product({ addToCart }) {
       } else {
         const damaAvail = getSizeAvailability(productStock, "dama", selectedSizeDama);
         const varonAvail = getSizeAvailability(productStock, "varon", selectedSizeVaron);
-        sizeDetails = `*Tallas (Par de Aros):*%0A- Talla Dama: ${selectedSizeDama} (${damaAvail.total} unids en stock)%0A- Talla Varón: ${selectedSizeVaron} (${varonAvail.total} unids en stock)%0A`;
+        const damaStockText = isAdmin ? `${damaAvail.total} unids en stock` : (damaAvail.total > 0 ? "Disponible en stock" : "A pedido");
+        const varonStockText = isAdmin ? `${varonAvail.total} unids en stock` : (varonAvail.total > 0 ? "Disponible en stock" : "A pedido");
+        sizeDetails = `*Tallas (Par de Aros):*%0A- Talla Dama: ${selectedSizeDama} (${damaStockText})%0A- Talla Varón: ${selectedSizeVaron} (${varonStockText})%0A`;
       }
     } else if (targetGender === "varon") {
       if (selectedSizeVaron === "asesor") {
         sizeDetails = `*Talla Varón:* EL CLIENTE SOLICITA ASESORAMIENTO DE MEDIDA%0A`;
       } else {
         const varonAvail = getSizeAvailability(productStock, "varon", selectedSizeVaron);
-        sizeDetails = `*Para:* Varón / Caballero%0A*Talla:* Talla ${selectedSizeVaron} (${varonAvail.total} unids en stock)%0A`;
+        const varonStockText = isAdmin ? `${varonAvail.total} unids en stock` : (varonAvail.total > 0 ? "Disponible en stock" : "A pedido");
+        sizeDetails = `*Para:* Varón / Caballero%0A*Talla:* Talla ${selectedSizeVaron} (${varonStockText})%0A`;
       }
     } else if (!isAccesorio) {
       if (selectedSizeDama === "asesor") {
         sizeDetails = `*Talla Dama:* EL CLIENTE SOLICITA ASESORAMIENTO DE MEDIDA%0A`;
       } else {
         const damaAvail = getSizeAvailability(productStock, "dama", selectedSizeDama);
-        sizeDetails = `*Para:* Mujer / Dama%0A*Talla:* Talla ${selectedSizeDama} (${damaAvail.total} unids en stock)%0A`;
+        const damaStockText = isAdmin ? `${damaAvail.total} unids en stock` : (damaAvail.total > 0 ? "Disponible en stock" : "A pedido");
+        sizeDetails = `*Para:* Mujer / Dama%0A*Talla:* Talla ${selectedSizeDama} (${damaStockText})%0A`;
       }
     }
 
@@ -521,9 +570,13 @@ export default function Product({ addToCart }) {
       : `*Grabado personalizado:* No solicitado%0A`;
 
     // Stock y Tiempo de Entrega (solo en accesorios si está activo)
-    const stockDetails = shouldShowDelivery
-      ? `*Stock disponible:* ${currentTotalStock} unidades disponibles%0A*Tiempo de entrega:* ${deliveryDays} días hábiles (Listo aprox: ${deliveryDateFormatted})%0A`
-      : `*Stock disponible:* ${currentTotalStock} unidades disponibles%0A`;
+    const stockDetails = isAdmin
+      ? (shouldShowDelivery
+          ? `*Stock disponible:* ${currentTotalStock} unidades disponibles%0A*Tiempo de entrega:* ${deliveryDays} días hábiles (Listo aprox: ${deliveryDateFormatted})%0A`
+          : `*Stock disponible:* ${currentTotalStock} unidades disponibles%0A`)
+      : (shouldShowDelivery
+          ? `*Disponibilidad:* ${currentTotalStock > 0 ? "Disponible en stock" : "A pedido"}%0A*Tiempo de entrega:* ${deliveryDays} días hábiles (Listo aprox: ${deliveryDateFormatted})%0A`
+          : `*Disponibilidad:* ${currentTotalStock > 0 ? "Disponible en stock" : "A pedido"}%0A`);
 
     const text = `¡Hola Platino Perú! Estoy interesado en ordenar esta joya personalizada:%0A%0A*Producto:* ${product.name}%0A*Metal seleccionado:* ${selectedMetal.name}%0A${sizeDetails}${
       product.hasGemSelection
@@ -909,7 +962,7 @@ export default function Product({ addToCart }) {
                               const avail = getSizeAvailability(productStock, "dama", sz.number);
                               return (
                                 <option key={sz.number} value={sz.number}>
-                                  {sz.label} ({avail.total > 0 ? `${avail.total} en stock` : "Sin stock"})
+                                  {sz.label} ({isAdmin ? (avail.total > 0 ? `${avail.total} en stock` : "Sin stock") : (avail.total > 0 ? "Disponible" : "A pedido")})
                                 </option>
                               );
                             })}
@@ -933,7 +986,7 @@ export default function Product({ addToCart }) {
                               const avail = getSizeAvailability(productStock, "varon", sz.number);
                               return (
                                 <option key={sz.number} value={sz.number}>
-                                  {sz.label} ({avail.total > 0 ? `${avail.total} en stock` : "Sin stock"})
+                                  {sz.label} ({isAdmin ? (avail.total > 0 ? `${avail.total} en stock` : "Sin stock") : (avail.total > 0 ? "Disponible" : "A pedido")})
                                 </option>
                               );
                             })}
@@ -971,12 +1024,14 @@ export default function Product({ addToCart }) {
                             const av = getSizeAvailability(productStock, "dama", selectedSizeDama);
                             return av.total > 0 ? (
                               <div className="double-stock-info-wrap">
-                                <span className={`double-stock-status-pill ${av.total <= 2 ? "low" : "ok"}`}>
-                                  <i className="bi bi-check2-circle"></i> {av.total} unids disponibles {av.total <= 2 ? "(Últimas)" : ""}
+                                <span className={`double-stock-status-pill ${isAdmin && av.total <= 2 ? "low" : "ok"}`}>
+                                  <i className="bi bi-check2-circle"></i> {isAdmin ? `${av.total} unids disponibles ${av.total <= 2 ? "(Últimas)" : ""}` : "Disponible en stock"}
                                 </span>
-                                <span className="double-stock-breakdown">
-                                  Centro: {(av.bodega || 0) + (av.limaCentro || 0)} • Miraflores: {av.miraflores}
-                                </span>
+                                {isAdmin && (
+                                  <span className="double-stock-breakdown">
+                                    Centro: {(av.bodega || 0) + (av.limaCentro || 0)} • Miraflores: {av.miraflores}
+                                  </span>
+                                )}
                               </div>
                             ) : (
                               <span className="double-stock-badge-text order">
@@ -999,12 +1054,14 @@ export default function Product({ addToCart }) {
                             const av = getSizeAvailability(productStock, "varon", selectedSizeVaron);
                             return av.total > 0 ? (
                               <div className="double-stock-info-wrap">
-                                <span className={`double-stock-status-pill ${av.total <= 2 ? "low" : "ok"}`}>
-                                  <i className="bi bi-check2-circle"></i> {av.total} unids disponibles {av.total <= 2 ? "(Últimas)" : ""}
+                                <span className={`double-stock-status-pill ${isAdmin && av.total <= 2 ? "low" : "ok"}`}>
+                                  <i className="bi bi-check2-circle"></i> {isAdmin ? `${av.total} unids disponibles ${av.total <= 2 ? "(Últimas)" : ""}` : "Disponible en stock"}
                                 </span>
-                                <span className="double-stock-breakdown">
-                                  Centro: {(av.bodega || 0) + (av.limaCentro || 0)} • Miraflores: {av.miraflores}
-                                </span>
+                                {isAdmin && (
+                                  <span className="double-stock-breakdown">
+                                    Centro: {(av.bodega || 0) + (av.limaCentro || 0)} • Miraflores: {av.miraflores}
+                                  </span>
+                                )}
                               </div>
                             ) : (
                               <span className="double-stock-badge-text order">
@@ -1041,7 +1098,7 @@ export default function Product({ addToCart }) {
                           const avail = getSizeAvailability(productStock, "dama", sz.number);
                           return (
                             <option key={sz.number} value={sz.number}>
-                              {sz.label} ({avail.total > 0 ? `${avail.total} en stock` : "Sin stock"})
+                              {sz.label} ({isAdmin ? (avail.total > 0 ? `${avail.total} en stock` : "Sin stock") : (avail.total > 0 ? "Disponible" : "A pedido")})
                             </option>
                           );
                         })}
@@ -1067,17 +1124,23 @@ export default function Product({ addToCart }) {
                           {(() => {
                             const av = getSizeAvailability(productStock, "dama", selectedSizeDama);
                             return av.total > 0 ? (
-                              <div className={`stock-general-badge ${av.total <= 2 ? "low-stock" : "in-stock"}`}>
-                                <i className={av.total <= 2 ? "bi bi-exclamation-circle-fill" : "bi bi-check-circle-fill"}></i>
-                                <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                              <div className={`stock-general-badge ${isAdmin && av.total <= 2 ? "low-stock" : "in-stock"}`}>
+                                <i className={isAdmin && av.total <= 2 ? "bi bi-exclamation-circle-fill" : "bi bi-check-circle-fill"}></i>
+                                {isAdmin ? (
+                                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                                    <span>
+                                      Stock disponible: <strong>{av.total} {av.total === 1 ? "unidad" : "unidades"}</strong>
+                                      {av.total <= 2 ? " (Últimas unidades)" : ""}
+                                    </span>
+                                    <span style={{ fontSize: "11px", opacity: 0.85 }}>
+                                      Centro: <strong>{(av.bodega || 0) + (av.limaCentro || 0)}</strong> • Miraflores: <strong>{av.miraflores}</strong>
+                                    </span>
+                                  </div>
+                                ) : (
                                   <span>
-                                    Stock disponible: <strong>{av.total} {av.total === 1 ? "unidad" : "unidades"}</strong>
-                                    {av.total <= 2 ? " (Últimas unidades)" : ""}
+                                    Disponible en stock (Entrega inmediata)
                                   </span>
-                                  <span style={{ fontSize: "11px", opacity: 0.85 }}>
-                                    Centro: <strong>{(av.bodega || 0) + (av.limaCentro || 0)}</strong> • Miraflores: <strong>{av.miraflores}</strong>
-                                  </span>
-                                </div>
+                                )}
                               </div>
                             ) : (
                               <div className="stock-general-badge out-of-stock">
@@ -1152,8 +1215,12 @@ export default function Product({ addToCart }) {
                     </div>
                     <p style={{ margin: "2px 0 0", fontSize: "12.5px" }}>
                       {deliveryDays === 7
-                        ? `Al registrarse 2 unidades en almacén, tu joya pasa por ajuste y preparación en taller. Lista para entrega el ${deliveryDateFormatted}.`
-                        : `Disponibilidad inmediata en stock (${currentTotalStock} unidades disponibles). Lista para entrega o despacho el ${deliveryDateFormatted}.`}
+                        ? (isAdmin
+                            ? `Al registrarse ${currentTotalStock} unidades en almacén, tu joya pasa por ajuste y preparación en taller. Lista para entrega el ${deliveryDateFormatted}.`
+                            : `Tu joya pasa por ajuste y preparación en taller. Lista para entrega el ${deliveryDateFormatted}.`)
+                        : (isAdmin
+                            ? `Disponibilidad inmediata en stock (${currentTotalStock} unidades disponibles). Lista para entrega o despacho el ${deliveryDateFormatted}.`
+                            : `Disponibilidad inmediata en stock. Lista para entrega o despacho el ${deliveryDateFormatted}.`)}
                     </p>
                   </div>
                 </div>
@@ -1208,8 +1275,8 @@ export default function Product({ addToCart }) {
                 </div>
 
                 <div className="gem-shapes-swatches">
-                  {GEM_SHAPES_PRODUCT.map((shape) => {
-                    const isSel = selectedGemShape.id === shape.id;
+                  {configuredGemShapes.map((shape) => {
+                    const isSel = selectedGemShape?.id === shape.id;
                     return (
                       <button
                         key={shape.id}
@@ -1240,45 +1307,47 @@ export default function Product({ addToCart }) {
                   </Link>
                 </div>
 
-                <div className="gem-selected-detail-card">
-                  <div className="gem-selected-header-row">
-                    <div className="gem-detail-icon-circle">
-                      {selectedGemShape.image ? (
-                        <img src={selectedGemShape.image} alt={selectedGemShape.name} className="gem-detail-header-img" />
-                      ) : (
-                        <DiamondCutIcon shape={selectedGemShape.id} size={40} />
-                      )}
-                    </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                        <span style={{ fontSize: "15px", fontWeight: "700", color: "#0f2a24" }}>
-                          Corte {selectedGemShape.name}
-                        </span>
-                        {selectedGemShape.popularCarat && (
-                          <span className="gem-detail-carat-pill">
-                            {selectedGemShape.popularCarat}
-                          </span>
+                {selectedGemShape && (
+                  <div className="gem-selected-detail-card">
+                    <div className="gem-selected-header-row">
+                      <div className="gem-detail-icon-circle">
+                        {selectedGemShape.image ? (
+                          <img src={selectedGemShape.image} alt={selectedGemShape.name} className="gem-detail-header-img" />
+                        ) : (
+                          <DiamondCutIcon shape={selectedGemShape.id} size={40} />
                         )}
                       </div>
-                      <div style={{ fontSize: "12px", color: "#617169", marginTop: "2px" }}>
-                        {isAros ? "Zirconita Incolora Suiza 2.0mm / Opción Diamante Natural" : "Diamante Fino Platino (Corte Brillante Certificado)"}
+                      <div style={{ flex: 1 }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                          <span style={{ fontSize: "15px", fontWeight: "700", color: "#0f2a24" }}>
+                            Corte {selectedGemShape.name}
+                          </span>
+                          {(selectedGemShape.carat || selectedGemShape.popularCarat) && (
+                            <span className="gem-detail-carat-pill">
+                              {selectedGemShape.carat || selectedGemShape.popularCarat}
+                            </span>
+                          )}
+                        </div>
+                        <div style={{ fontSize: "12px", color: "#617169", marginTop: "2px" }}>
+                          {selectedGemShape.subtitle || (isAros ? "Zirconita Incolora Suiza 2.0mm / Opción Diamante Natural" : "Diamante Fino Platino (Corte Brillante Certificado)")}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                  {selectedGemShape.desc && (
-                    <p style={{ margin: "10px 0 6px", fontSize: "12.5px", color: "#3c4842", lineHeight: "1.5" }}>
-                      {selectedGemShape.desc}
+                    {selectedGemShape.desc && (
+                      <p style={{ margin: "10px 0 6px", fontSize: "12.5px", color: "#3c4842", lineHeight: "1.5" }}>
+                        {selectedGemShape.desc}
+                      </p>
+                    )}
+                    {selectedGemShape.ratio && (
+                      <div className="gem-detail-ratio-tag">
+                        <span>Proporción recomendada: <strong>{selectedGemShape.ratio}</strong></span>
+                      </div>
+                    )}
+                    <p style={{ margin: "8px 0 0", fontSize: "11.5px", color: "#6d7a74", lineHeight: "1.45" }}>
+                      {selectedGemShape.extraNote || "Montado bajo microscopio por nuestros maestros orfebres para garantizar el máximo reflejo de luz y seguridad de engaste de por vida."}
                     </p>
-                  )}
-                  {selectedGemShape.ratio && (
-                    <div className="gem-detail-ratio-tag">
-                      <span>Proporción recomendada: <strong>{selectedGemShape.ratio}</strong></span>
-                    </div>
-                  )}
-                  <p style={{ margin: "8px 0 0", fontSize: "11.5px", color: "#6d7a74", lineHeight: "1.45" }}>
-                    Montado bajo microscopio por nuestros maestros orfebres para garantizar el máximo reflejo de luz y seguridad de engaste de por vida.
-                  </p>
-                </div>
+                  </div>
+                )}
               </div>
 
               {/* Resumen del paso 1 */}
@@ -1660,7 +1729,7 @@ export default function Product({ addToCart }) {
                 </div>
               )}
               <div>
-                <strong>Stock Disponible:</strong> {currentTotalStock} {currentTotalStock === 1 ? "unidad" : "unidades"}
+                <strong>Stock Disponible:</strong> {isAdmin ? `${currentTotalStock} ${currentTotalStock === 1 ? "unidad" : "unidades"}` : (currentTotalStock > 0 ? "Disponible en stock" : "Disponible a pedido")}
               </div>
               {shouldShowDelivery && (
                 <div>
@@ -1727,6 +1796,8 @@ export default function Product({ addToCart }) {
                       stockUnits: currentTotalStock,
                       deliveryDays,
                       estimatedDeliveryDate: deliveryDateFormatted,
+                      platinoCarePlan: platinoCarePlan,
+                      platinoCareTitle: platinoCarePlan === "plus" ? "Platino Care + (Premium)" : "Platino Care Cortesía",
                       price: currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0),
                       image: mainImage || product.image,
                     };
@@ -1876,7 +1947,7 @@ export default function Product({ addToCart }) {
                         <td style={{ padding: "9px 12px" }}>
                           {av.total > 0 ? (
                             <span style={{ color: "#137748", fontWeight: "600", fontSize: "11px" }}>
-                              <i className="bi bi-check-circle-fill"></i> {av.total} {av.total === 1 ? "unidad disponible" : "unidades disponibles"}
+                              <i className="bi bi-check-circle-fill"></i> {isAdmin ? `${av.total} ${av.total === 1 ? "unidad disponible" : "unidades disponibles"}` : "Disponible en stock"}
                             </span>
                           ) : (
                             <span style={{ color: "#8a9690", fontSize: "11px" }}>

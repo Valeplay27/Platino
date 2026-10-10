@@ -55,7 +55,8 @@ import {
   PAYMENT_METHODS,
   getOrderSedeId,
 } from "../services/ordersService";
-import { METALS, formatPrice } from "../data/products";
+import { METALS, formatPrice, MASTER_GEM_SHAPES } from "../data/products";
+import { DiamondCutIcon } from "../components/GemstoneIcons";
 import { useAuth } from "../context/useAuth";
 import {
   ADMIN_ACCOUNTS,
@@ -359,6 +360,11 @@ export default function AdminCitas() {
   const [formMetalPrices, setFormMetalPrices] = useState({});
   const [formMetalImages, setFormMetalImages] = useState({});
   const [formShowDeliveryEstimate, setFormShowDeliveryEstimate] = useState(true);
+  const [formHasGemSelection, setFormHasGemSelection] = useState(true);
+  const [formAvailableGemShapes, setFormAvailableGemShapes] = useState(() => (Array.isArray(MASTER_GEM_SHAPES) ? MASTER_GEM_SHAPES.map((s) => s.id) : []));
+  const [formDefaultGemShape, setFormDefaultGemShape] = useState("redondo");
+  const [formGemShapeConfigs, setFormGemShapeConfigs] = useState({});
+  const [formActiveGemShapeTab, setFormActiveGemShapeTab] = useState("redondo");
   const [feedbackMsg, setFeedbackMsg] = useState("");
 
   // Filtros de Citas
@@ -1292,6 +1298,13 @@ export default function AdminCitas() {
     setFormMetalPrices(initPrices);
     setFormMetalImages(initImages);
     setFormShowDeliveryEstimate(initialGroup !== "anillos");
+    setFormHasGemSelection(initialGroup === "anillos");
+    const masterShapes = Array.isArray(MASTER_GEM_SHAPES) ? MASTER_GEM_SHAPES : [];
+    const allShapeIds = masterShapes.map((s) => s.id);
+    setFormAvailableGemShapes(allShapeIds);
+    setFormDefaultGemShape("redondo");
+    setFormGemShapeConfigs({});
+    setFormActiveGemShapeTab("redondo");
     setProductModalOpen(true);
   };
 
@@ -1358,6 +1371,27 @@ export default function AdminCitas() {
 
     setFormMetalPrices(editPrices);
     setFormMetalImages(editImages);
+
+    // Siluetas y formas de gemas para este modelo
+    const hasGems = prod.hasGemSelection !== undefined 
+      ? !!prod.hasGemSelection 
+      : (prod.type === "anillo" || group === "anillos");
+    setFormHasGemSelection(hasGems);
+    const masterShapes = Array.isArray(MASTER_GEM_SHAPES) ? MASTER_GEM_SHAPES : [];
+    const allShapeIds = masterShapes.map((s) => s.id);
+    const rawAvail = Array.isArray(prod.availableGemShapes) && prod.availableGemShapes.length > 0
+      ? prod.availableGemShapes
+      : (Array.isArray(prod.gemShapes) && prod.gemShapes.length > 0 ? prod.gemShapes : allShapeIds);
+    const validAvail = rawAvail.filter((id) => allShapeIds.includes(id));
+    const finalAvail = validAvail.length > 0 ? validAvail : allShapeIds;
+    setFormAvailableGemShapes(finalAvail);
+    const defShape = prod.defaultGemShape && finalAvail.includes(prod.defaultGemShape)
+      ? prod.defaultGemShape
+      : (finalAvail[0] || "redondo");
+    setFormDefaultGemShape(defShape);
+    setFormGemShapeConfigs(prod.gemShapeConfigs && typeof prod.gemShapeConfigs === "object" ? { ...prod.gemShapeConfigs } : {});
+    setFormActiveGemShapeTab(defShape);
+
     setProductModalOpen(true);
   };
 
@@ -1504,6 +1538,85 @@ export default function AdminCitas() {
     }
   };
 
+  const handleToggleGemShape = (shapeId) => {
+    setFormAvailableGemShapes((prev) => {
+      if (prev.includes(shapeId)) {
+        if (prev.length <= 1) {
+          alert("Debes mantener al menos una silueta de gema disponible para este modelo.");
+          return prev;
+        }
+        const updated = prev.filter((id) => id !== shapeId);
+        if (formDefaultGemShape === shapeId) {
+          setFormDefaultGemShape(updated[0]);
+        }
+        if (formActiveGemShapeTab === shapeId) {
+          setFormActiveGemShapeTab(updated[0]);
+        }
+        return updated;
+      } else {
+        return [...prev, shapeId];
+      }
+    });
+  };
+
+  const handleSelectDefaultGemShape = (shapeId) => {
+    setFormDefaultGemShape(shapeId);
+    if (!formAvailableGemShapes.includes(shapeId)) {
+      setFormAvailableGemShapes((prev) => [...prev, shapeId]);
+    }
+    setFormActiveGemShapeTab(shapeId);
+  };
+
+  const handleGemShapeConfigChange = (shapeId, field, val) => {
+    setFormGemShapeConfigs((prev) => ({
+      ...prev,
+      [shapeId]: {
+        ...(prev[shapeId] || {}),
+        [field]: val,
+      },
+    }));
+  };
+
+  const handleResetGemShapeConfig = (shapeId) => {
+    setFormGemShapeConfigs((prev) => {
+      const copy = { ...prev };
+      delete copy[shapeId];
+      return copy;
+    });
+  };
+
+  const handleSelectAllGemShapes = () => {
+    const allIds = (Array.isArray(MASTER_GEM_SHAPES) ? MASTER_GEM_SHAPES : []).map((s) => s.id);
+    setFormAvailableGemShapes(allIds);
+  };
+
+  const handleSelectClassicGemShapes = () => {
+    const classic = ["redondo", "oval", "esmeralda", "princesa"];
+    const allIds = (Array.isArray(MASTER_GEM_SHAPES) ? MASTER_GEM_SHAPES : []).map((s) => s.id);
+    const validClassic = classic.filter((id) => allIds.includes(id));
+    setFormAvailableGemShapes(validClassic);
+    if (!validClassic.includes(formDefaultGemShape)) {
+      setFormDefaultGemShape(validClassic[0] || "redondo");
+    }
+    if (!validClassic.includes(formActiveGemShapeTab)) {
+      setFormActiveGemShapeTab(validClassic[0] || "redondo");
+    }
+  };
+
+  const getShapeEffectiveConfig = (shapeId) => {
+    const base = (Array.isArray(MASTER_GEM_SHAPES) ? MASTER_GEM_SHAPES : []).find((s) => s.id === shapeId) || {};
+    const custom = formGemShapeConfigs[shapeId] || {};
+    return {
+      ...base,
+      ...custom,
+      carat: custom.carat !== undefined ? custom.carat : (base.carat || base.popularCarat || ""),
+      subtitle: custom.subtitle !== undefined ? custom.subtitle : (base.subtitle || ""),
+      desc: custom.desc !== undefined ? custom.desc : (base.desc || ""),
+      ratio: custom.ratio !== undefined ? custom.ratio : (base.ratio || ""),
+      extraNote: custom.extraNote !== undefined ? custom.extraNote : (base.extraNote || ""),
+    };
+  };
+
   const handleSaveProduct = (e) => {
     e.preventDefault();
     if (!formName.trim()) {
@@ -1585,7 +1698,10 @@ export default function AdminCitas() {
       metalPrices: metalPricesMap,
       type: formType,
       hasDoubleSizes: isArosType,
-      hasGemSelection: isRingGroup,
+      hasGemSelection: formHasGemSelection,
+      availableGemShapes: formAvailableGemShapes,
+      defaultGemShape: formDefaultGemShape,
+      gemShapeConfigs: formGemShapeConfigs,
       badge: formBadge.trim(),
       description: formDesc.trim(),
       image: mainImg,
@@ -2717,7 +2833,7 @@ export default function AdminCitas() {
           </div>
 
           <div className="admin-top-actions">
-            {isMaster && activeTab !== "gemas" && (
+            {isMaster && activeTab !== "gemas" && activeTab !== "platino_care" && (
               <button
                 type="button"
                 onClick={() => setActiveTab("gemas")}
@@ -2787,7 +2903,7 @@ export default function AdminCitas() {
                 )}
               </button>
             )}
-            {isMaster && activeTab === "reclamaciones" && (
+            {isMaster && (activeTab === "reclamaciones" || activeTab === "platino_care") && (
               <button
                 type="button"
                 onClick={() => setActiveTab("citas")}
@@ -2803,9 +2919,11 @@ export default function AdminCitas() {
                 Volver a Citas & Horarios
               </button>
             )}
-            <Link to="/" className="admin-view-store-btn" target="_blank" rel="noopener noreferrer">
-              <i className="bi bi-box-arrow-up-right"></i> Ver Tienda Pública
-            </Link>
+            {activeTab !== "platino_care" && (
+              <Link to="/" className="admin-view-store-btn" target="_blank" rel="noopener noreferrer">
+                <i className="bi bi-box-arrow-up-right"></i> Ver Tienda Pública
+              </Link>
+            )}
           </div>
         </div>
 
@@ -6679,7 +6797,418 @@ export default function AdminCitas() {
                   )}
                 </div>
 
-                {/* 5. CAJA / ESTUCHE DE PRESENTACIÓN DE LA JOYA */}
+                {/* 5. SILUETAS Y FORMAS DE GEMA PARA ESTE MODELO (PASO 2) */}
+                <div className="product-gem-shapes-config-card" style={{
+                  background: "#fbf9f6",
+                  border: "1.5px solid #d4e2db",
+                  borderRadius: "12px",
+                  padding: "18px",
+                  marginTop: "16px",
+                  marginBottom: "20px"
+                }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <i className="bi bi-gem" style={{ color: "#113B3A", fontSize: "20px" }}></i>
+                      <strong style={{ fontSize: "14px", color: "#113B3A" }}>5. Siluetas y Formas de Gema para este Modelo (Paso 2)</strong>
+                    </div>
+                    <span style={{ fontSize: "11px", background: "#edf5f0", color: "#113B3A", padding: "3px 8px", borderRadius: "4px", fontWeight: "600" }}>
+                      Paso 2 de Personalización
+                    </span>
+                  </div>
+
+                  <p style={{ fontSize: "12px", color: "#5d6d65", margin: "0 0 12px", lineHeight: "1.45" }}>
+                    Configura las siluetas de diamantes o gemas disponibles específicamente para este diseño y personaliza los textos técnicos e informativos que se mostrarán en vivo al cliente en el <strong>Paso 2: Elige la Forma de tu Gema</strong>.
+                  </p>
+
+                  {/* Toggle para habilitar/deshabilitar gemas en este producto */}
+                  <label style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "10px",
+                    background: formHasGemSelection ? "#edf5f0" : "#f1f5f3",
+                    border: formHasGemSelection ? "1px solid #b7d6c5" : "1px solid #d4dfd9",
+                    padding: "10px 14px",
+                    borderRadius: "8px",
+                    cursor: "pointer",
+                    marginBottom: "14px"
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={formHasGemSelection}
+                      onChange={(e) => setFormHasGemSelection(e.target.checked)}
+                      style={{ width: "18px", height: "18px", accentColor: "#113B3A", cursor: "pointer" }}
+                    />
+                    <div>
+                      <strong style={{ fontSize: "13px", color: "#113B3A" }}>
+                        Habilitar Selección de Siluetas de Gemas (Paso 2 activo)
+                      </strong>
+                      <div style={{ fontSize: "11.5px", color: "#586960", marginTop: "2px" }}>
+                        {formHasGemSelection
+                          ? "El cliente verá el selector de siluetas de gemas con las opciones y textos personalizados configurados abajo."
+                          : "Desactivado: El cliente pasará directamente del metal/tallas a complementos/estuches (sin paso de gemas)."}
+                      </div>
+                    </div>
+                  </label>
+
+                  {formHasGemSelection && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                      {/* Barra de acciones rápidas */}
+                      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", background: "#ffffff", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2ece6" }}>
+                        <div style={{ fontSize: "12px", color: "#113B3A", fontWeight: "600" }}>
+                          Siluetas habilitadas: <span style={{ color: "#137748", fontWeight: "700" }}>{formAvailableGemShapes.length} de {MASTER_GEM_SHAPES.length}</span>
+                          {" • "}
+                          Silueta inicial por defecto: <span style={{ textTransform: "capitalize", fontWeight: "700" }}>{MASTER_GEM_SHAPES.find((s) => s.id === formDefaultGemShape)?.name || formDefaultGemShape}</span>
+                        </div>
+                        <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                          <button
+                            type="button"
+                            onClick={handleSelectAllGemShapes}
+                            style={{ fontSize: "11px", padding: "4px 10px", borderRadius: "6px", border: "1px solid #113B3A", background: "#ffffff", color: "#113B3A", cursor: "pointer", fontWeight: "600" }}
+                          >
+                            Habilitar Todas (10)
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleSelectClassicGemShapes}
+                            style={{ fontSize: "11px", padding: "4px 10px", borderRadius: "6px", border: "1px solid #113B3A", background: "#ffffff", color: "#113B3A", cursor: "pointer", fontWeight: "600" }}
+                          >
+                            Solo Clásicas (4)
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Cuadrícula de siluetas */}
+                      <div>
+                        <div style={{ fontSize: "12px", fontWeight: "700", color: "#163a2c", marginBottom: "8px" }}>
+                          1. Siluetas Habilitadas y Selección de Silueta Inicial:
+                        </div>
+                        <div style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fill, minmax(135px, 1fr))",
+                          gap: "8px"
+                        }}>
+                          {MASTER_GEM_SHAPES.map((shape) => {
+                            const isAvail = formAvailableGemShapes.includes(shape.id);
+                            const isDefault = formDefaultGemShape === shape.id;
+                            const isTabActive = formActiveGemShapeTab === shape.id;
+                            const hasCustomText = Boolean(formGemShapeConfigs[shape.id] && Object.keys(formGemShapeConfigs[shape.id]).length > 0);
+
+                            return (
+                              <div
+                                key={shape.id}
+                                onClick={() => setFormActiveGemShapeTab(shape.id)}
+                                style={{
+                                  background: isTabActive ? "#edf5f0" : (isAvail ? "#ffffff" : "#f7f7f7"),
+                                  border: isTabActive ? "2px solid #113B3A" : (isAvail ? "1px solid #c7dcd0" : "1px dashed #d1d5db"),
+                                  borderRadius: "8px",
+                                  padding: "8px 10px",
+                                  cursor: "pointer",
+                                  opacity: isAvail ? 1 : 0.65,
+                                  transition: "all 0.15s ease",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  position: "relative"
+                                }}
+                              >
+                                {hasCustomText && (
+                                  <span
+                                    title="Tiene textos informativos personalizados"
+                                    style={{
+                                      position: "absolute",
+                                      top: "4px",
+                                      right: "4px",
+                                      width: "7px",
+                                      height: "7px",
+                                      borderRadius: "50%",
+                                      background: "#c5a059"
+                                    }}
+                                  />
+                                )}
+                                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "4px" }}>
+                                  <label
+                                    onClick={(e) => e.stopPropagation()}
+                                    style={{ display: "flex", alignItems: "center", cursor: "pointer", margin: 0 }}
+                                    title={isAvail ? "Desmarcar para ocultar este corte en la tienda" : "Marcar para ofrecer este corte"}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isAvail}
+                                      onChange={() => handleToggleGemShape(shape.id)}
+                                      style={{ width: "15px", height: "15px", accentColor: "#113B3A", cursor: "pointer" }}
+                                    />
+                                  </label>
+
+                                  <button
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleSelectDefaultGemShape(shape.id);
+                                    }}
+                                    title={isDefault ? "Silueta inicial por defecto" : "Establecer como silueta inicial por defecto"}
+                                    style={{
+                                      background: isDefault ? "#113B3A" : "transparent",
+                                      color: isDefault ? "#ffffff" : "#617169",
+                                      border: isDefault ? "none" : "1px solid #d4dfd9",
+                                      borderRadius: "4px",
+                                      padding: "1px 5px",
+                                      fontSize: "10px",
+                                      fontWeight: "600",
+                                      cursor: "pointer"
+                                    }}
+                                  >
+                                    {isDefault ? "★ Defecto" : "Hacer def."}
+                                  </button>
+                                </div>
+
+                                <div style={{ display: "flex", alignItems: "center", gap: "6px", marginTop: "2px" }}>
+                                  <div style={{ width: "24px", height: "24px", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                                    {shape.image ? (
+                                      <img
+                                        src={shape.image}
+                                        alt={shape.name}
+                                        style={{ width: "22px", height: "22px", objectFit: "contain" }}
+                                        onError={(e) => { e.target.style.display = "none"; }}
+                                      />
+                                    ) : (
+                                      <DiamondCutIcon shape={shape.id} size={20} />
+                                    )}
+                                  </div>
+                                  <span style={{ fontSize: "12px", fontWeight: isTabActive ? "700" : "600", color: "#163a2c", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                    {shape.name}
+                                  </span>
+                                </div>
+
+                                {isTabActive && (
+                                  <span style={{ fontSize: "9.5px", color: "#137748", fontWeight: "700", marginTop: "4px" }}>
+                                    ✏️ Editando textos
+                                  </span>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Editor de textos informativos de la forma activa */}
+                      {formActiveGemShapeTab && (() => {
+                        const activeShape = MASTER_GEM_SHAPES.find((s) => s.id === formActiveGemShapeTab) || MASTER_GEM_SHAPES[0];
+                        const customConf = formGemShapeConfigs[activeShape.id] || {};
+                        const effective = getShapeEffectiveConfig(activeShape.id);
+                        const hasOverrides = Object.keys(customConf).length > 0;
+
+                        return (
+                          <div style={{
+                            background: "#ffffff",
+                            border: "1px solid #cfe0d6",
+                            borderRadius: "10px",
+                            padding: "14px 16px"
+                          }}>
+                            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", marginBottom: "12px", borderBottom: "1px solid #edf2ef", paddingBottom: "8px" }}>
+                              <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                                <div style={{ width: "28px", height: "28px", borderRadius: "50%", background: "#edf5f0", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                                  {activeShape.image ? (
+                                    <img src={activeShape.image} alt={activeShape.name} style={{ width: "20px", height: "20px", objectFit: "contain" }} />
+                                  ) : (
+                                    <DiamondCutIcon shape={activeShape.id} size={20} />
+                                  )}
+                                </div>
+                                <strong style={{ fontSize: "13.5px", color: "#113B3A" }}>
+                                  2. Personalizar Textos para Corte {activeShape.name}
+                                </strong>
+                              </div>
+                              {hasOverrides && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleResetGemShapeConfig(activeShape.id)}
+                                  style={{
+                                    fontSize: "11px",
+                                    color: "#991b1b",
+                                    background: "#fef2f2",
+                                    border: "1px solid #fecaca",
+                                    borderRadius: "6px",
+                                    padding: "3px 8px",
+                                    cursor: "pointer",
+                                    fontWeight: "600"
+                                  }}
+                                >
+                                  ↺ Restaurar textos originales de {activeShape.name}
+                                </button>
+                              )}
+                            </div>
+
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "10px" }}>
+                              <div>
+                                <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#173628", display: "block", marginBottom: "3px" }}>
+                                  Badge de Quilataje / Medida (Ej. 1.00 ct)
+                                </label>
+                                <input
+                                  type="text"
+                                  className="catalog-form-input"
+                                  style={{ fontSize: "12px", padding: "6px 10px" }}
+                                  placeholder={activeShape.popularCarat || activeShape.carat || "1.00 ct"}
+                                  value={customConf.carat !== undefined ? customConf.carat : ""}
+                                  onChange={(e) => handleGemShapeConfigChange(activeShape.id, "carat", e.target.value)}
+                                />
+                                <span style={{ fontSize: "10.5px", color: "#718279" }}>Píldora destacada junto al nombre del corte</span>
+                              </div>
+
+                              <div>
+                                <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#173628", display: "block", marginBottom: "3px" }}>
+                                  Subtítulo de Certificación / Calidad
+                                </label>
+                                <input
+                                  type="text"
+                                  className="catalog-form-input"
+                                  style={{ fontSize: "12px", padding: "6px 10px" }}
+                                  placeholder={activeShape.subtitle || "Diamante Fino Platino (Corte Brillante Certificado)"}
+                                  value={customConf.subtitle !== undefined ? customConf.subtitle : ""}
+                                  onChange={(e) => handleGemShapeConfigChange(activeShape.id, "subtitle", e.target.value)}
+                                />
+                                <span style={{ fontSize: "10.5px", color: "#718279" }}>Línea descriptiva bajo el nombre</span>
+                              </div>
+
+                              <div>
+                                <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#173628", display: "block", marginBottom: "3px" }}>
+                                  Proporción Recomendada (Ratio)
+                                </label>
+                                <input
+                                  type="text"
+                                  className="catalog-form-input"
+                                  style={{ fontSize: "12px", padding: "6px 10px" }}
+                                  placeholder={activeShape.ratio || "1.00 - 1.05"}
+                                  value={customConf.ratio !== undefined ? customConf.ratio : ""}
+                                  onChange={(e) => handleGemShapeConfigChange(activeShape.id, "ratio", e.target.value)}
+                                />
+                                <span style={{ fontSize: "10.5px", color: "#718279" }}>Etiqueta de proporción técnica recomendada</span>
+                              </div>
+
+                              <div style={{ gridColumn: "1 / -1" }}>
+                                <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#173628", display: "block", marginBottom: "3px" }}>
+                                  Descripción Técnica del Corte
+                                </label>
+                                <textarea
+                                  className="catalog-form-input"
+                                  rows={2}
+                                  style={{ fontSize: "12px", padding: "6px 10px", width: "100%", resize: "vertical" }}
+                                  placeholder={activeShape.desc || "Máxima refracción y brillo fuego simétrico icónico."}
+                                  value={customConf.desc !== undefined ? customConf.desc : ""}
+                                  onChange={(e) => handleGemShapeConfigChange(activeShape.id, "desc", e.target.value)}
+                                />
+                                <span style={{ fontSize: "10.5px", color: "#718279" }}>Párrafo central con detalles ópticos o estilísticos</span>
+                              </div>
+
+                              <div style={{ gridColumn: "1 / -1" }}>
+                                <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#173628", display: "block", marginBottom: "3px" }}>
+                                  Nota de Taller y Engaste (Garantía)
+                                </label>
+                                <textarea
+                                  className="catalog-form-input"
+                                  rows={2}
+                                  style={{ fontSize: "12px", padding: "6px 10px", width: "100%", resize: "vertical" }}
+                                  placeholder={activeShape.extraNote || "Montado bajo microscopio por nuestros maestros orfebres para garantizar el máximo reflejo de luz y seguridad de engaste de por vida."}
+                                  value={customConf.extraNote !== undefined ? customConf.extraNote : ""}
+                                  onChange={(e) => handleGemShapeConfigChange(activeShape.id, "extraNote", e.target.value)}
+                                />
+                                <span style={{ fontSize: "10.5px", color: "#718279" }}>Texto al pie sobre la confección artesanal en taller</span>
+                              </div>
+                            </div>
+
+                            {/* VISTA PREVIA EN VIVO DE LA TARJETA EXACTA DE LA FOTO */}
+                            <div style={{ marginTop: "16px", paddingTop: "14px", borderTop: "1px dashed #d4e2db" }}>
+                              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                                <span style={{ fontSize: "11.5px", fontWeight: "700", color: "#113B3A" }}>
+                                  👁️ Vista Previa en Vivo (Tarjeta del Paso 2 como la verá el cliente):
+                                </span>
+                                <span style={{ fontSize: "10.5px", color: "#137748", fontWeight: "600" }}>
+                                  Corte {activeShape.name}
+                                </span>
+                              </div>
+
+                              <div style={{
+                                background: "#f6f9f7",
+                                border: "1px solid #d4e2db",
+                                borderRadius: "10px",
+                                padding: "14px 16px"
+                              }}>
+                                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                                  <div style={{
+                                    width: "44px",
+                                    height: "44px",
+                                    borderRadius: "50%",
+                                    background: "#eaf3ee",
+                                    border: "1px solid #c7ded2",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    flexShrink: 0
+                                  }}>
+                                    {activeShape.image ? (
+                                      <img
+                                        src={activeShape.image}
+                                        alt={activeShape.name}
+                                        style={{ width: "30px", height: "30px", objectFit: "contain" }}
+                                        onError={(e) => { e.target.style.display = "none"; }}
+                                      />
+                                    ) : (
+                                      <DiamondCutIcon shape={activeShape.id} size={30} />
+                                    )}
+                                  </div>
+                                  <div style={{ flex: 1 }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                                      <span style={{ fontSize: "15px", fontWeight: "700", color: "#0f2a24" }}>
+                                        Corte {activeShape.name}
+                                      </span>
+                                      {effective.carat && (
+                                        <span style={{
+                                          fontSize: "11px",
+                                          fontWeight: "700",
+                                          color: "#0f2a24",
+                                          background: "#e2eee7",
+                                          padding: "2px 8px",
+                                          borderRadius: "12px",
+                                          border: "1px solid #b8d9c7"
+                                        }}>
+                                          {effective.carat}
+                                        </span>
+                                      )}
+                                    </div>
+                                    <div style={{ fontSize: "12px", color: "#617169", marginTop: "2px" }}>
+                                      {effective.subtitle || "Diamante Fino Platino (Corte Brillante Certificado)"}
+                                    </div>
+                                  </div>
+                                </div>
+                                {effective.desc && (
+                                  <p style={{ margin: "10px 0 6px", fontSize: "12.5px", color: "#3c4842", lineHeight: "1.5" }}>
+                                    {effective.desc}
+                                  </p>
+                                )}
+                                {effective.ratio && (
+                                  <div style={{
+                                    display: "inline-block",
+                                    margin: "4px 0 6px",
+                                    padding: "3px 10px",
+                                    background: "#eef5f1",
+                                    borderRadius: "6px",
+                                    fontSize: "11.5px",
+                                    color: "#163a2c",
+                                    border: "1px solid #cfe0d6"
+                                  }}>
+                                    <span>Proporción recomendada: <strong>{effective.ratio}</strong></span>
+                                  </div>
+                                )}
+                                <p style={{ margin: "6px 0 0", fontSize: "11.5px", color: "#6d7a74", lineHeight: "1.45" }}>
+                                  {effective.extraNote || "Montado bajo microscopio por nuestros maestros orfebres para garantizar el máximo reflejo de luz y seguridad de engaste de por vida."}
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+                    </div>
+                  )}
+                </div>
+
+                {/* 6. CAJA / ESTUCHE DE PRESENTACIÓN DE LA JOYA */}
                 <div className="product-box-config-card" style={{
                   background: "#fbf9f6",
                   border: "1.5px solid #e7dcce",
@@ -6691,7 +7220,7 @@ export default function AdminCitas() {
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       <i className="bi bi-box2-heart-fill" style={{ color: "#c5a059", fontSize: "20px" }}></i>
-                      <strong style={{ fontSize: "14px", color: "#113B3A" }}>5. Caja de Presentación / Estuche del Producto</strong>
+                      <strong style={{ fontSize: "14px", color: "#113B3A" }}>6. Caja de Presentación / Estuche del Producto</strong>
                     </div>
                     <span style={{ fontSize: "11px", background: "#edf5f0", color: "#113B3A", padding: "3px 8px", borderRadius: "4px", fontWeight: "600" }}>
                       Visible en Portafolio y Paso 2
@@ -6777,7 +7306,7 @@ export default function AdminCitas() {
                   </div>
                 </div>
 
-                {/* 6. Tiempo de Entrega Rápida (Opcional para Accesorios) */}
+                {/* 7. Tiempo de Entrega Rápida (Opcional para Accesorios) */}
                 <div style={{
                   background: formCategoryGroup === "anillos" ? "#fbfaf7" : "#fdfbf7",
                   border: "1.5px solid #e7dfd1",
@@ -6790,7 +7319,7 @@ export default function AdminCitas() {
                       <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                         <i className="bi bi-lightning-charge-fill" style={{ color: "#d97706", fontSize: "18px" }}></i>
                         <strong style={{ fontSize: "13.5px", color: "#113B3A" }}>
-                          6. Mostrar Tarjeta de Tiempo de Entrega Rápida (2 o 7 días)
+                          7. Mostrar Tarjeta de Tiempo de Entrega Rápida (2 o 7 días)
                         </strong>
                       </div>
                       <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#5d6d65", lineHeight: "1.4" }}>

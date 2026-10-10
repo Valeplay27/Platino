@@ -69,6 +69,89 @@ export const ORDER_STAGES = [
   },
 ];
 
+// Etapas unificadas visibles para el CLIENTE (4 pasos):
+// 1. Recibido
+// 2. En Proceso (unifica las fases internas de taller, engaste y calidad)
+// 3. Listo para entrega
+// 4. Entregado
+export const CLIENT_ORDER_STAGES = [
+  {
+    id: "recibido",
+    label: "Pedido Confirmado",
+    shortLabel: "Recibido",
+    description: "Orden recibida y validada. Preparando especificaciones y asignando maestro orfebre.",
+    icon: "bi-check-circle-fill",
+    stepNumber: 1,
+    color: "#2563eb",
+    bgColor: "#eff6ff",
+    badgeClass: "badge-recibido",
+    internalStages: ["recibido"],
+  },
+  {
+    id: "en_proceso",
+    label: "En Proceso de Fabricación",
+    shortLabel: "En Proceso",
+    description: "Tu joya exclusiva está siendo confeccionada en nuestro taller central bajo el cuidado de nuestros maestros orfebres y gemólogos.",
+    icon: "bi-gear-wide-connected",
+    stepNumber: 2,
+    color: "#d97706",
+    bgColor: "#fffbeb",
+    badgeClass: "badge-taller",
+    internalStages: ["diseno_taller", "engaste_pulido", "control_calidad"],
+  },
+  {
+    id: "listo_envio",
+    label: "Listo para Entrega",
+    shortLabel: "Listo para Entrega",
+    description: "Empaque de lujo completado en estuche noble. Listo para entrega en boutique o despacho blindado.",
+    icon: "bi-box-seam",
+    stepNumber: 3,
+    color: "#059669",
+    bgColor: "#ecfdf5",
+    badgeClass: "badge-listo",
+    internalStages: ["listo_envio"],
+  },
+  {
+    id: "entregado",
+    label: "Entregado al Cliente",
+    shortLabel: "Entregado",
+    description: "Joya entregada satisfactoriamente. Cobertura Platino Care y garantía oficial activadas de por vida.",
+    icon: "bi-patch-check-fill",
+    stepNumber: 4,
+    color: "#15803d",
+    bgColor: "#f0fdf4",
+    badgeClass: "badge-entregado",
+    internalStages: ["entregado"],
+  },
+];
+
+export const getClientStageInfo = (internalStageId) => {
+  if (internalStageId === "recibido") return CLIENT_ORDER_STAGES[0];
+  if (["diseno_taller", "engaste_pulido", "control_calidad"].includes(internalStageId)) return CLIENT_ORDER_STAGES[1];
+  if (internalStageId === "listo_envio") return CLIENT_ORDER_STAGES[2];
+  if (internalStageId === "entregado") return CLIENT_ORDER_STAGES[3];
+  return CLIENT_ORDER_STAGES[0];
+};
+
+export const getClientProgressPercentage = (internalStageId) => {
+  switch (internalStageId) {
+    case "recibido":
+      return 25;
+    case "diseno_taller":
+      return 45;
+    case "engaste_pulido":
+      return 60;
+    case "control_calidad":
+      return 75;
+    case "listo_envio":
+      return 90;
+    case "entregado":
+      return 100;
+    default:
+      return 25;
+  }
+};
+
 const ORDERS_STORAGE_KEY = "platino_orders_v1";
 
 // Pedidos preconfigurados para demostración y evaluación

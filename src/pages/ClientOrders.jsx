@@ -10,7 +10,15 @@ import {
   createOrder,
   ORDER_STAGES,
   getOrderStageInfo,
+  CLIENT_ORDER_STAGES,
+  getClientStageInfo,
+  getClientProgressPercentage,
 } from "../services/ordersService";
+import {
+  getPlatinoCareClients,
+  getPlatinoCareClientByDni,
+  validateFreePlatinoCareByDni,
+} from "../services/platinoCareService";
 import { getUserFavorites, removeFromFavorites } from "../services/favoritesService";
 import { formatPrice } from "../data/products";
 import "../../styles/orders.css";
@@ -33,11 +41,17 @@ export default function ClientOrders({ addToCart }) {
   }, [user]);
 
   const [orders, setOrders] = useState(getInitialOrders);
-  const [activeTab, setActiveTab] = useState(() => (tabParam === "favoritos" ? "favoritos" : "activos")); // 'activos' | 'historial' | 'favoritos' | 'todos'
+  const [activeTab, setActiveTab] = useState(() => (tabParam === "favoritos" ? "favoritos" : (tabParam === "care" ? "care" : "activos"))); // 'activos' | 'historial' | 'favoritos' | 'care' | 'todos'
   const [searchCode, setSearchCode] = useState("");
 
   // Estado de Joyas Favoritas del Cliente
   const [favorites, setFavorites] = useState(() => (user ? getUserFavorites(user.email) : []));
+
+  // Estado de Consulta / Validación Platino Care por DNI
+  const [careSearchDni, setCareSearchDni] = useState(user?.dni || "47829103");
+  const [searchedClientRecord, setSearchedClientRecord] = useState(() => getPlatinoCareClientByDni(user?.dni || "47829103"));
+  const [careRegisterName, setCareRegisterName] = useState(user?.name || "");
+  const [careRegisterPhone, setCareRegisterPhone] = useState(user?.phone || "+51 912 345 678");
 
   useEffect(() => {
     if (user?.email) {
@@ -109,29 +123,47 @@ export default function ClientOrders({ addToCart }) {
     setTimeout(() => setToastMessage(""), 5000);
   };
 
-  // Dar el siguiente paso en el proceso
+  // Dar el siguiente paso en el proceso (4 fases cliente: Recibido -> En Proceso -> Listo para Entrega -> Entregado)
   const handleAdvanceStep = (orderId) => {
-    const nextStg = advanceOrderStep(orderId);
-    if (nextStg) {
-      setToastMessage(`✓ ¡Paso avanzado! Ahora el pedido está en: "${nextStg.label}".`);
-      setTimeout(() => setToastMessage(""), 5000);
+    const currentOrder = orders.find((o) => o.id === orderId);
+    if (!currentOrder) return;
+    let nextStageId = "diseno_taller";
+    if (currentOrder.stage === "recibido") {
+      nextStageId = "diseno_taller";
+    } else if (["diseno_taller", "engaste_pulido", "control_calidad"].includes(currentOrder.stage)) {
+      nextStageId = "listo_envio";
+    } else if (currentOrder.stage === "listo_envio") {
+      nextStageId = "entregado";
     }
+    updateOrderStatus(orderId, nextStageId);
+    const clientInfo = getClientStageInfo(nextStageId);
+    setToastMessage(`✓ ¡Paso avanzado! Ahora el pedido está en: "${clientInfo.label}".`);
+    setTimeout(() => setToastMessage(""), 5000);
   };
 
   // Retroceder un paso en el proceso
   const handleStepBack = (orderId) => {
-    const prevStg = stepBackOrderStep(orderId);
-    if (prevStg) {
-      setToastMessage(`✓ Se regresó a la fase de: "${prevStg.label}".`);
-      setTimeout(() => setToastMessage(""), 4000);
+    const currentOrder = orders.find((o) => o.id === orderId);
+    if (!currentOrder) return;
+    let prevStageId = "recibido";
+    if (currentOrder.stage === "entregado") {
+      prevStageId = "listo_envio";
+    } else if (currentOrder.stage === "listo_envio") {
+      prevStageId = "diseno_taller";
+    } else if (["diseno_taller", "engaste_pulido", "control_calidad"].includes(currentOrder.stage)) {
+      prevStageId = "recibido";
     }
+    updateOrderStatus(orderId, prevStageId);
+    const clientInfo = getClientStageInfo(prevStageId);
+    setToastMessage(`✓ Se regresó a la fase de: "${clientInfo.label}".`);
+    setTimeout(() => setToastMessage(""), 4000);
   };
 
   // Saltar directamente a una fase haciendo clic en el stepper
   const handleJumpToStep = (orderId, targetStageId) => {
-    const stageInfo = getOrderStageInfo(targetStageId);
     updateOrderStatus(orderId, targetStageId);
-    setToastMessage(`✓ Fase actualizada a: "${stageInfo.label}".`);
+    const clientInfo = getClientStageInfo(targetStageId);
+    setToastMessage(`✓ Fase actualizada a: "${clientInfo.label}".`);
     setTimeout(() => setToastMessage(""), 4000);
   };
 
@@ -139,20 +171,41 @@ export default function ClientOrders({ addToCart }) {
   const getNextActionLabel = (stageId) => {
     switch (stageId) {
       case "recibido":
-        return "Aprobar & Enviar a Taller (Diseño CAD 3D)";
+        return "Avanzar a En Proceso de Fabricación";
       case "diseno_taller":
-        return "Aprobar Modelado 3D & Pasar a Fundición y Engaste";
       case "engaste_pulido":
-        return "Aprobar Engaste de Gemas & Pasar a Control de Calidad";
       case "control_calidad":
-        return "Aprobar Certificación Gemológica & Empacar para Entrega";
+        return "Completar Fabricación & Pasar a Listo para Entrega";
       case "listo_envio":
         return "Confirmar Recepción / Marcar Pedido Entregado";
       case "entregado":
-        return "Joya Entregada (Garantía Activa)";
+        return "Joya Entregada (Garantía Platino Care Activa)";
       default:
         return "Avanzar al Siguiente Paso";
     }
+  };
+
+  // Funciones de consulta y validación Platino Care por DNI
+  const handleSearchCare = (e) => {
+    e?.preventDefault();
+    if (!careSearchDni.trim()) return;
+    const found = getPlatinoCareClientByDni(careSearchDni.trim());
+    setSearchedClientRecord(found);
+  };
+
+  const handleRegisterFreeCare = (e) => {
+    e?.preventDefault();
+    if (!careSearchDni.trim()) return;
+    const newReg = validateFreePlatinoCareByDni(careSearchDni.trim(), {
+      clientName: careRegisterName.trim() || user?.name || "Cliente Platino",
+      clientPhone: careRegisterPhone.trim() || user?.phone || "+51 912 345 678",
+      clientEmail: user?.email || "",
+      productName: "Joya Fina Platino",
+      productMetal: "Oro 18K / Plata 950",
+    });
+    setSearchedClientRecord(newReg);
+    setToastMessage("✓ ¡Plan Gratuito Platino Care validado exitosamente con tu DNI!");
+    setTimeout(() => setToastMessage(""), 5000);
   };
 
   // Filtrar pedidos
@@ -176,16 +229,9 @@ export default function ClientOrders({ addToCart }) {
     );
   }
 
-  // Calcular porcentaje de llenado de la barra según el paso actual
+  // Calcular porcentaje de llenado de la barra según las 4 fases visibles del cliente
   const getProgressPercentage = (stageId) => {
-    const stageInfo = getOrderStageInfo(stageId);
-    const stepNum = stageInfo.stepNumber || 1;
-    if (stepNum === 1) return 10;
-    if (stepNum === 2) return 28;
-    if (stepNum === 3) return 48;
-    if (stepNum === 4) return 68;
-    if (stepNum === 5) return 88;
-    return 100;
+    return getClientProgressPercentage(stageId);
   };
 
   return (
@@ -344,6 +390,13 @@ export default function ClientOrders({ addToCart }) {
               onClick={() => setActiveTab("todos")}
             >
               <i className="bi bi-collection"></i> Todos ({orders.length})
+            </button>
+
+            <button
+              className={`orders-tab-item ${activeTab === "care" ? "active" : ""}`}
+              onClick={() => setActiveTab("care")}
+            >
+              <i className="bi bi-shield-check" style={{ color: activeTab === "care" ? "white" : "#15803d" }}></i> Garantía Platino Care (DNI)
             </button>
           </div>
 
@@ -547,6 +600,299 @@ export default function ClientOrders({ addToCart }) {
               </div>
             )}
           </div>
+        ) : activeTab === "care" ? (
+          <div className="orders-care-tab-content">
+            {/* Header Platino Care */}
+            <div style={{
+              background: "linear-gradient(135deg, #0f2a24 0%, #174238 100%)",
+              borderRadius: "14px",
+              padding: "32px 28px",
+              color: "#ffffff",
+              marginBottom: "24px",
+              boxShadow: "0 10px 25px rgba(15, 42, 36, 0.15)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "20px"
+            }}>
+              <div style={{ maxWidth: "680px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+                  <span style={{ background: "rgba(197, 160, 89, 0.2)", color: "#c5a059", border: "1px solid rgba(197, 160, 89, 0.4)", padding: "2px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "700", letterSpacing: "0.08em" }}>
+                    RESPALDO OFICIAL PLATINO PERÚ
+                  </span>
+                </div>
+                <h2 style={{ fontFamily: "var(--font-serif)", fontSize: "24px", margin: "0 0 8px", color: "#ffffff" }}>
+                  Consulta y Validación de Cobertura Platino Care
+                </h2>
+                <p style={{ margin: 0, fontSize: "13.5px", color: "#cfded6", lineHeight: "1.5" }}>
+                  Ingresa tu número de DNI para validar tu Plan Gratuito de Cortesía o comprobar la activación y confirmación de pago de tu Plan Premium Platino Care +.
+                </p>
+              </div>
+
+              {/* Buscador de DNI */}
+              <form onSubmit={handleSearchCare} style={{ display: "flex", gap: "8px", background: "rgba(255, 255, 255, 0.1)", padding: "8px", borderRadius: "10px", border: "1px solid rgba(255, 255, 255, 0.2)" }}>
+                <input
+                  type="text"
+                  placeholder="Número de DNI (8 dígitos)..."
+                  value={careSearchDni}
+                  onChange={(e) => setCareSearchDni(e.target.value)}
+                  style={{
+                    padding: "10px 14px",
+                    borderRadius: "6px",
+                    border: "none",
+                    outline: "none",
+                    fontSize: "13px",
+                    minWidth: "210px"
+                  }}
+                />
+                <button
+                  type="submit"
+                  style={{
+                    background: "#c5a059",
+                    color: "#0f2a24",
+                    border: "none",
+                    borderRadius: "6px",
+                    padding: "10px 18px",
+                    fontWeight: "700",
+                    fontSize: "13px",
+                    cursor: "pointer"
+                  }}
+                >
+                  <i className="bi bi-search"></i> Consultar
+                </button>
+              </form>
+            </div>
+
+            {/* Resultado de la búsqueda */}
+            {searchedClientRecord ? (
+              <div style={{
+                background: "#ffffff",
+                border: "1.5px solid #dcd7ce",
+                borderRadius: "14px",
+                padding: "28px",
+                marginBottom: "24px",
+                boxShadow: "0 4px 15px rgba(0,0,0,0.04)"
+              }}>
+                {/* Cabecera del plan */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", borderBottom: "1px solid #eeebe3", paddingBottom: "16px", marginBottom: "20px" }}>
+                  <div>
+                    <span style={{ fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.08em", color: "#7a8781" }}>
+                      Plan Asignado a tu Documento
+                    </span>
+                    <h3 style={{ margin: "4px 0 0", color: "#0f2a24", fontFamily: "var(--font-serif)", fontSize: "22px" }}>
+                      {searchedClientRecord.planType === "plus" ? "Platino Care + (Plan Premium)" : "Platino Care Cortesía (Plan Gratuito)"}
+                    </h3>
+                  </div>
+
+                  <div>
+                    {searchedClientRecord.planType === "plus" ? (
+                      searchedClientRecord.status === "aprobado" ? (
+                        <span style={{ background: "#ecfdf5", color: "#15803d", border: "1.5px solid #86efac", padding: "6px 14px", borderRadius: "20px", fontSize: "12.5px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                          <i className="bi bi-patch-check-fill"></i> Pago Confirmado por Admin — Beneficios Activos
+                        </span>
+                      ) : (
+                        <span style={{ background: "#fffbeb", color: "#b45309", border: "1.5px solid #fde68a", padding: "6px 14px", borderRadius: "20px", fontSize: "12.5px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                          <i className="bi bi-clock-history"></i> Pendiente de Aceptación por el Administrador
+                        </span>
+                      )
+                    ) : (
+                      <span style={{ background: "#ecfdf5", color: "#15803d", border: "1.5px solid #86efac", padding: "6px 14px", borderRadius: "20px", fontSize: "12.5px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                        <i className="bi bi-check-circle-fill"></i> Plan Gratuito Validado & Activo
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Banner de Estado para el Cliente */}
+                {searchedClientRecord.planType === "plus" && searchedClientRecord.status === "pendiente_pago" && (
+                  <div style={{ background: "#fefce8", border: "1.5px solid #fde047", borderRadius: "10px", padding: "16px 20px", marginBottom: "22px" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                      <i className="bi bi-hourglass-split" style={{ fontSize: "22px", color: "#ca8a04", marginTop: "2px" }}></i>
+                      <div>
+                        <strong style={{ fontSize: "14px", color: "#854d0e" }}>
+                          Validación de Pago en Curso por Administración
+                        </strong>
+                        <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#713f12", lineHeight: "1.5" }}>
+                          Para acceder a los beneficios del <strong>Plan Platino Care +</strong>, nuestro equipo administrativo debe confirmar el comprobante de pago de S/. 90 ({searchedClientRecord.paymentMethod || "Medio de pago"}). Una vez aceptado el pago en el sistema, tus beneficios premium se activarán automáticamente.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {searchedClientRecord.planType === "plus" && searchedClientRecord.status === "aprobado" && (
+                  <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: "10px", padding: "16px 20px", marginBottom: "22px" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
+                      <i className="bi bi-shield-fill-check" style={{ fontSize: "22px", color: "#16a34a", marginTop: "2px" }}></i>
+                      <div>
+                        <strong style={{ fontSize: "14px", color: "#166534" }}>
+                          ¡Pago Confirmado! Beneficios Platino Care + Disponibles
+                        </strong>
+                        <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#14532d", lineHeight: "1.5" }}>
+                          Tu pago fue aceptado y verificado por <strong>{searchedClientRecord.approvedBy || "Administración Central"}</strong> el {searchedClientRecord.paymentConfirmedAt || searchedClientRecord.fechaRegistro}. Tu joya cuenta con cobertura vitalicia integral.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Ficha de datos del cliente */}
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", background: "#fbf9f6", padding: "18px 20px", borderRadius: "10px", border: "1px solid #eae5db", marginBottom: "22px" }}>
+                  <div>
+                    <label style={{ fontSize: "11px", textTransform: "uppercase", color: "#7a8781", fontWeight: "700" }}>Titular de la Garantía</label>
+                    <div style={{ fontSize: "14px", fontWeight: "700", color: "#0f2a24", marginTop: "2px" }}>{searchedClientRecord.clientName}</div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "11px", textTransform: "uppercase", color: "#7a8781", fontWeight: "700" }}>DNI Validado</label>
+                    <div style={{ fontSize: "14px", fontWeight: "700", color: "#0f2a24", marginTop: "2px" }}>{searchedClientRecord.dni}</div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "11px", textTransform: "uppercase", color: "#7a8781", fontWeight: "700" }}>
+                      {searchedClientRecord.planType === "plus" ? "Fecha de Solicitud" : "Fecha de Validación de Gratuidad"}
+                    </label>
+                    <div style={{ fontSize: "14px", fontWeight: "700", color: "#0f2a24", marginTop: "2px" }}>
+                      {searchedClientRecord.fechaValidacionGratuidad || searchedClientRecord.fechaRegistro}
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: "11px", textTransform: "uppercase", color: "#7a8781", fontWeight: "700" }}>Joya Amparada</label>
+                    <div style={{ fontSize: "14px", fontWeight: "700", color: "#0f2a24", marginTop: "2px" }}>
+                      {searchedClientRecord.productName} ({searchedClientRecord.productMetal})
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lista de beneficios amparados */}
+                <div>
+                  <h4 style={{ margin: "0 0 12px", color: "#0f2a24", fontSize: "15px", fontWeight: "700" }}>
+                    Beneficios y Coberturas Oficiales:
+                  </h4>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "10px" }}>
+                    {searchedClientRecord.planType === "plus" ? (
+                      <>
+                        <div style={{ display: "flex", gap: "10px", padding: "10px 14px", background: "#fcfbf9", borderRadius: "8px", border: "1px solid #e7e3dc" }}>
+                          <i className="bi bi-gem" style={{ color: "#c5a059", fontSize: "16px" }}></i>
+                          <span style={{ fontSize: "13px", color: "#32433c" }}>Reposición gratuita de micro-gemas caídas por uso normal (hasta 0.10 ct)</span>
+                        </div>
+                        <div style={{ display: "flex", gap: "10px", padding: "10px 14px", background: "#fcfbf9", borderRadius: "8px", border: "1px solid #e7e3dc" }}>
+                          <i className="bi bi-stars" style={{ color: "#c5a059", fontSize: "16px" }}></i>
+                          <span style={{ fontSize: "13px", color: "#32433c" }}>Pulido ultrasónico y abrillantado profesional ilimitado al año</span>
+                        </div>
+                        <div style={{ display: "flex", gap: "10px", padding: "10px 14px", background: "#fcfbf9", borderRadius: "8px", border: "1px solid #e7e3dc" }}>
+                          <i className="bi bi-droplet-half" style={{ color: "#c5a059", fontSize: "16px" }}></i>
+                          <span style={{ fontSize: "13px", color: "#32433c" }}>1 Baño de Rodio o re-acabado de oro blanco al año</span>
+                        </div>
+                        <div style={{ display: "flex", gap: "10px", padding: "10px 14px", background: "#fcfbf9", borderRadius: "8px", border: "1px solid #e7e3dc" }}>
+                          <i className="bi bi-lightning-charge" style={{ color: "#c5a059", fontSize: "16px" }}></i>
+                          <span style={{ fontSize: "13px", color: "#32433c" }}>Ajuste prioritario de garras y engaste express en 24h</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ display: "flex", gap: "10px", padding: "10px 14px", background: "#fcfbf9", borderRadius: "8px", border: "1px solid #e7e3dc" }}>
+                          <i className="bi bi-shield-check" style={{ color: "#15803d", fontSize: "16px" }}></i>
+                          <span style={{ fontSize: "13px", color: "#32433c" }}>Garantía de por vida de pureza y ley del Oro 18K y Plata 950</span>
+                        </div>
+                        <div style={{ display: "flex", gap: "10px", padding: "10px 14px", background: "#fcfbf9", borderRadius: "8px", border: "1px solid #e7e3dc" }}>
+                          <i className="bi bi-arrows-angle-expand" style={{ color: "#15803d", fontSize: "16px" }}></i>
+                          <span style={{ fontSize: "13px", color: "#32433c" }}>1 Entallado gratuito de cortesía (hasta 2 tallas dentro de los primeros 90 días)</span>
+                        </div>
+                        <div style={{ display: "flex", gap: "10px", padding: "10px 14px", background: "#fcfbf9", borderRadius: "8px", border: "1px solid #e7e3dc" }}>
+                          <i className="bi bi-gem" style={{ color: "#15803d", fontSize: "16px" }}></i>
+                          <span style={{ fontSize: "13px", color: "#32433c" }}>Limpieza por ultrasonido y ajuste periódico de garras en taller</span>
+                        </div>
+                        <div style={{ display: "flex", gap: "10px", padding: "10px 14px", background: "#fcfbf9", borderRadius: "8px", border: "1px solid #e7e3dc" }}>
+                          <i className="bi bi-journal-check" style={{ color: "#15803d", fontSize: "16px" }}></i>
+                          <span style={{ fontSize: "13px", color: "#32433c" }}>Certificado físico gemológico y registro serializado de orfebrería</span>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Si no se encuentra registro previo, formulario para validar gratuidad */
+              <div style={{
+                background: "#ffffff",
+                border: "1.5px solid #dcd7ce",
+                borderRadius: "14px",
+                padding: "36px 32px",
+                textAlign: "center",
+                maxWidth: "600px",
+                margin: "0 auto 24px"
+              }}>
+                <i className="bi bi-shield-plus" style={{ fontSize: "48px", color: "#c5a059", display: "block", marginBottom: "12px" }}></i>
+                <h3 style={{ fontFamily: "var(--font-serif)", color: "#0f2a24", margin: "0 0 8px" }}>
+                  Validar Plan Gratuito Platino Care
+                </h3>
+                <p style={{ color: "#5d6d65", fontSize: "13.5px", margin: "0 0 20px" }}>
+                  No se encontró una cobertura registrada para el DNI <strong>{careSearchDni}</strong>. Si adquiriste una joya en Platino Perú, puedes validar y activar tu garantía gratuita de cortesía ahora mismo:
+                </p>
+
+                <form onSubmit={handleRegisterFreeCare} style={{ textAlign: "left", display: "flex", flexDirection: "column", gap: "12px" }}>
+                  <div>
+                    <label style={{ fontSize: "12px", fontWeight: "700", color: "#0f2a24", display: "block", marginBottom: "4px" }}>
+                      Número de DNI *
+                    </label>
+                    <input
+                      required
+                      type="text"
+                      className="catalog-form-input"
+                      value={careSearchDni}
+                      onChange={(e) => setCareSearchDni(e.target.value)}
+                      style={{ width: "100%", padding: "10px 12px", borderRadius: "6px", border: "1px solid #dcd7ce" }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: "12px", fontWeight: "700", color: "#0f2a24", display: "block", marginBottom: "4px" }}>
+                      Nombre Completo *
+                    </label>
+                    <input
+                      required
+                      type="text"
+                      placeholder="Ej. Camila Mendoza"
+                      value={careRegisterName}
+                      onChange={(e) => setCareRegisterName(e.target.value)}
+                      style={{ width: "100%", padding: "10px 12px", borderRadius: "6px", border: "1px solid #dcd7ce" }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ fontSize: "12px", fontWeight: "700", color: "#0f2a24", display: "block", marginBottom: "4px" }}>
+                      Teléfono de Contacto / WhatsApp *
+                    </label>
+                    <input
+                      required
+                      type="tel"
+                      placeholder="+51 987 654 321"
+                      value={careRegisterPhone}
+                      onChange={(e) => setCareRegisterPhone(e.target.value)}
+                      style={{ width: "100%", padding: "10px 12px", borderRadius: "6px", border: "1px solid #dcd7ce" }}
+                    />
+                  </div>
+
+                  <button
+                    type="submit"
+                    style={{
+                      background: "#0f2a24",
+                      color: "#ffffff",
+                      border: "none",
+                      padding: "12px 20px",
+                      borderRadius: "8px",
+                      fontWeight: "700",
+                      fontSize: "14px",
+                      cursor: "pointer",
+                      marginTop: "8px"
+                    }}
+                  >
+                    <i className="bi bi-shield-check"></i> Validar Plan Gratuito Ahora
+                  </button>
+                </form>
+              </div>
+            )}
+          </div>
         ) : displayedOrders.length === 0 ? (
           <div
             style={{
@@ -582,8 +928,8 @@ export default function ClientOrders({ addToCart }) {
           </div>
         ) : (
           displayedOrders.map((order) => {
-            const currentStageInfo = getOrderStageInfo(order.stage);
-            const currentStepNum = currentStageInfo.stepNumber || 1;
+            const clientStageInfo = getClientStageInfo(order.stage);
+            const clientStepNum = clientStageInfo.stepNumber || 1;
             const progressPct = getProgressPercentage(order.stage);
             const isCompleted = order.stage === "entregado";
 
@@ -605,9 +951,9 @@ export default function ClientOrders({ addToCart }) {
                   </div>
 
                   <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                    <span className={`order-status-badge ${currentStageInfo.badgeClass}`}>
-                      <i className={`bi ${currentStageInfo.icon}`}></i>
-                      Paso {currentStepNum}: {currentStageInfo.label}
+                    <span className={`order-status-badge ${clientStageInfo.badgeClass}`}>
+                      <i className={`bi ${clientStageInfo.icon}`}></i>
+                      Paso {clientStepNum} de 4: {clientStageInfo.label}
                     </span>
 
                     <button
@@ -622,7 +968,7 @@ export default function ClientOrders({ addToCart }) {
                   </div>
                 </div>
 
-                {/* Línea de Tiempo / Stepper de Fabricación Artesanal (Interactivo) */}
+                {/* Línea de Tiempo / Stepper de Fabricación Artesanal (4 Fases Unificadas) */}
                 <div className="order-stepper-box">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                     <div className="order-stepper-title" style={{ margin: 0 }}>
@@ -640,9 +986,9 @@ export default function ClientOrders({ addToCart }) {
                       style={{ width: `${progressPct}%` }}
                     ></div>
 
-                    {ORDER_STAGES.map((s) => {
-                      const isStepDone = s.stepNumber < currentStepNum;
-                      const isCurrent = s.stepNumber === currentStepNum;
+                    {CLIENT_ORDER_STAGES.map((s) => {
+                      const isStepDone = s.stepNumber < clientStepNum;
+                      const isCurrent = s.stepNumber === clientStepNum;
 
                       return (
                         <div
@@ -650,8 +996,8 @@ export default function ClientOrders({ addToCart }) {
                           className={`stepper-node clickable ${
                             isStepDone ? "completed" : ""
                           } ${isCurrent ? "current" : ""}`}
-                          onClick={() => handleJumpToStep(order.id, s.id)}
-                          title={`Paso ${s.stepNumber}: ${s.label}\nHaz clic para situar el pedido en esta fase.`}
+                          onClick={() => handleJumpToStep(order.id, s.internalStages[0])}
+                          title={`Paso ${s.stepNumber} de 4: ${s.label}\nHaz clic para situar el pedido en esta fase.`}
                         >
                           <div className="stepper-circle">
                             {isStepDone ? (
@@ -666,7 +1012,7 @@ export default function ClientOrders({ addToCart }) {
                     })}
                   </div>
 
-                  {/* CONTROL DE AVANCE DEL PASO (Lo que pidió el usuario) */}
+                  {/* CONTROL DE AVANCE DEL PASO (4 Fases) */}
                   <div className="order-step-advance-box">
                     <div className="order-step-advance-info">
                       <div
@@ -682,18 +1028,24 @@ export default function ClientOrders({ addToCart }) {
                           fontSize: "16px",
                         }}
                       >
-                        <i className={`bi ${currentStageInfo.icon}`}></i>
+                        <i className={`bi ${clientStageInfo.icon}`}></i>
                       </div>
                       <div>
                         <h5>
-                          Fase Actual: Paso {currentStepNum} de 6 — {currentStageInfo.label}
+                          Fase Actual: Paso {clientStepNum} de 4 — {clientStageInfo.label}
                         </h5>
-                        <p>{currentStageInfo.description}</p>
+                        <p>{clientStageInfo.description}</p>
+                        {["diseno_taller", "engaste_pulido", "control_calidad"].includes(order.stage) && (
+                          <div style={{ marginTop: "4px", fontSize: "12px", color: "#8c6b2d", fontWeight: "600" }}>
+                            <i className="bi bi-tools" style={{ marginRight: "4px" }}></i>
+                            Sub-etapa en taller: {getOrderStageInfo(order.stage).label}
+                          </div>
+                        )}
                       </div>
                     </div>
 
                     <div className="order-step-advance-actions">
-                      {currentStepNum > 1 && (
+                      {clientStepNum > 1 && (
                         <button
                           type="button"
                           className="btn-step-back"
@@ -853,7 +1205,7 @@ export default function ClientOrders({ addToCart }) {
                     </button>
 
                     <a
-                      href={`https://wa.me/51927357217?text=Hola%20Platino%20Perú,%20quisiera%20consultar%20sobre%20mi%20pedido%20${order.id}%20en%20fase%20de%20${encodeURIComponent(currentStageInfo.label)}`}
+                      href={`https://wa.me/51927357217?text=Hola%20Platino%20Perú,%20quisiera%20consultar%20sobre%20mi%20pedido%20${order.id}%20en%20fase%20de%20${encodeURIComponent(clientStageInfo.label)}`}
                       target="_blank"
                       rel="noreferrer"
                       className="btn-order-action whatsapp"
@@ -1030,7 +1382,7 @@ export default function ClientOrders({ addToCart }) {
                         Control de Avance del Pedido
                       </span>
                       <h4 style={{ margin: "2px 0 0", color: "#0f2a24", fontSize: "16px" }}>
-                        Fase: {getOrderStageInfo(detailModalOrder.stage).label}
+                        Fase: {getClientStageInfo(detailModalOrder.stage).label} (Paso {getClientStageInfo(detailModalOrder.stage).stepNumber} de 4)
                       </h4>
                     </div>
 

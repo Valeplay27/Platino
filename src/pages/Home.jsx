@@ -9,18 +9,16 @@ import { getAssetUrl } from "../utils/assetHelper";
 import "../../styles/home.css";
 
 const DIAMOND_SHAPES_BE = [
-  // Fila 1 (5 columnas)
+  // Fila 1 (4 columnas)
   { id: "oval", name: "Oval", image: getAssetUrl("/images/gem-shapes/oval.webp"), link: "/catalogo-gemas?forma=oval" },
-  { id: "redondo", name: "Round", image: getAssetUrl("/images/gem-shapes/redondo.webp"), link: "/catalogo-gemas?forma=redondo" },
-  { id: "esmeralda", name: "Emerald", image: getAssetUrl("/images/gem-shapes/esmeralda.webp"), link: "/catalogo-gemas?forma=esmeralda" },
+  { id: "redondo", name: "Redondo", image: getAssetUrl("/images/gem-shapes/redondo.webp"), link: "/catalogo-gemas?forma=redondo" },
+  { id: "esmeralda", name: "Esmeralda", image: getAssetUrl("/images/gem-shapes/esmeralda.webp"), link: "/catalogo-gemas?forma=esmeralda" },
   { id: "marquesa", name: "Marquise", image: getAssetUrl("/images/gem-shapes/marquesa.webp"), link: "/catalogo-gemas?forma=marquesa" },
+  // Fila 2 (4 columnas)
+  { id: "pera", name: "Pera", image: getAssetUrl("/images/gem-shapes/pera.webp"), link: "/catalogo-gemas?forma=pera" },
+  { id: "cojin", name: "Cojín", image: getAssetUrl("/images/gem-shapes/cojin.webp"), link: "/catalogo-gemas?forma=cojin" },
+  { id: "princesa", name: "Princesa", image: getAssetUrl("/images/gem-shapes/princesa.webp"), link: "/catalogo-gemas?forma=princesa" },
   { id: "ver-mas", name: "Ver más", isVerMas: true, link: "/catalogo-gemas" },
-  // Fila 2 (5 columnas)
-  { id: "pera", name: "Pear", image: getAssetUrl("/images/gem-shapes/pera.webp"), link: "/catalogo-gemas?forma=pera" },
-  { id: "cojin-alargado", name: "Elongated Cushion", image: getAssetUrl("/images/gem-shapes/cojin-alargado.webp"), link: "/catalogo-gemas?forma=cojin-alargado" },
-  { id: "cojin", name: "Cushion", image: getAssetUrl("/images/gem-shapes/cojin.webp"), link: "/catalogo-gemas?forma=cojin" },
-  { id: "princesa", name: "Princess", image: getAssetUrl("/images/gem-shapes/princesa.webp"), link: "/catalogo-gemas?forma=princesa" },
-  { id: "asscher", name: "Asscher", image: getAssetUrl("/images/gem-shapes/asscher.webp"), link: "/catalogo-gemas?forma=asscher" },
 ];
 
 const TRUST_BADGES = [
@@ -300,13 +298,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 3. SHOP DIAMONDS BY SHAPE (ESTILO BRILLIANT EARTH) */}
+      {/* 3. SELECCIONA LA FORMA DE TU GEMA */}
       <section className="be-shapes-section">
         <div className="be-shapes-container">
           {/* Columna Izquierda: Título y Anillo Solitario */}
           <div className="be-shapes-left-col">
             <h2 className="be-shapes-title">
-              Shop Diamonds by Shape
+              Selecciona la forma de tu gema
             </h2>
 
             <Link

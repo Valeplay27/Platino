@@ -1,4 +1,4 @@
-import { products as defaultProducts, formatPrice, METALS, DEFAULT_METAL_IMAGES } from "../data/products";
+import { products as defaultProducts, formatPrice, METALS, DEFAULT_METAL_IMAGES, MASTER_GEM_SHAPES } from "../data/products";
 
 const STORAGE_KEY_CATALOG = "platino_catalog_products_v1";
 
@@ -51,6 +51,12 @@ const normalizeProductMetals = (prod) => {
     gallery: combinedGallery,
     hasPresentationChoice: prod.hasPresentationChoice ?? true,
     showDeliveryEstimate: prod.showDeliveryEstimate,
+    hasGemSelection: prod.hasGemSelection ?? (defaultProdMatch?.hasGemSelection ?? true),
+    availableGemShapes: Array.isArray(prod.availableGemShapes) && prod.availableGemShapes.length > 0
+      ? prod.availableGemShapes
+      : (defaultProdMatch?.availableGemShapes || MASTER_GEM_SHAPES.map((s) => s.id)),
+    defaultGemShape: prod.defaultGemShape || defaultProdMatch?.defaultGemShape || "redondo",
+    gemShapeConfigs: prod.gemShapeConfigs || defaultProdMatch?.gemShapeConfigs || {},
   };
 };
 
@@ -157,7 +163,11 @@ export const createProduct = (productData) => {
       Array.isArray(productData.availableMetals) && productData.availableMetals.length > 0
         ? productData.availableMetals
         : METALS,
-    defaultGemShape: productData.defaultGemShape || "Redondo",
+    defaultGemShape: productData.defaultGemShape || "redondo",
+    availableGemShapes: Array.isArray(productData.availableGemShapes) && productData.availableGemShapes.length > 0
+      ? productData.availableGemShapes
+      : MASTER_GEM_SHAPES.map((s) => s.id),
+    gemShapeConfigs: productData.gemShapeConfigs || {},
     description: productData.description?.trim() || "Joya artesanal con certificación y acabados de alta calidad.",
     hasGemSelection: productData.hasGemSelection ?? true,
     hasDoubleSizes: productData.hasDoubleSizes ?? false,
@@ -249,6 +259,18 @@ export const updateProduct = (id, updatedFields) => {
     showDeliveryEstimate: updatedFields.showDeliveryEstimate !== undefined
       ? updatedFields.showDeliveryEstimate
       : current.showDeliveryEstimate,
+    hasGemSelection: updatedFields.hasGemSelection !== undefined
+      ? updatedFields.hasGemSelection
+      : current.hasGemSelection,
+    availableGemShapes: updatedFields.availableGemShapes !== undefined
+      ? updatedFields.availableGemShapes
+      : (current.availableGemShapes || MASTER_GEM_SHAPES.map((s) => s.id)),
+    defaultGemShape: updatedFields.defaultGemShape !== undefined
+      ? updatedFields.defaultGemShape
+      : (current.defaultGemShape || "redondo"),
+    gemShapeConfigs: updatedFields.gemShapeConfigs !== undefined
+      ? updatedFields.gemShapeConfigs
+      : (current.gemShapeConfigs || {}),
     updatedAt: new Date().toISOString(),
   };
 

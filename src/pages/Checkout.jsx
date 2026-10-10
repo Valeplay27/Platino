@@ -3,12 +3,14 @@ import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { formatPrice } from '../data/products'
 import { createOrder, PAYMENT_METHODS_DATA } from '../services/ordersService'
+import { registerPlatinoCareClient } from '../services/platinoCareService'
 
 function Checkout({ cart, clearCart }) {
   const { user } = useAuth()
   const navigate = useNavigate()
 
   const [name, setName] = useState(user?.name || (user?.email === 'cliente@platino.pe' ? 'Camila Mendoza' : ''))
+  const [dni, setDni] = useState(user?.dni || '47829103')
   const [email, setEmail] = useState(user?.email || '')
   const [phone, setPhone] = useState(user?.phone || '+51 912 345 678')
   const [deliveryType, setDeliveryType] = useState('recojo_sede')
@@ -31,8 +33,11 @@ function Checkout({ cart, clearCart }) {
     const maxDeliveryDays = cart.reduce((max, i) => Math.max(max, i.deliveryDays || 2), 2);
     const targetDeliveryDate = cart.find((i) => i.estimatedDeliveryDate)?.estimatedDeliveryDate || `${maxDeliveryDays} días hábiles`;
 
+    const hasPlusCare = cart.some((i) => i.platinoCarePlan === 'plus');
+
     const orderPayload = {
       clientName: name.trim() || 'Cliente Platino',
+      clientDni: dni.trim() || '47829103',
       clientEmail: email.trim().toLowerCase() || (user?.email || 'cliente@platino.pe'),
       clientPhone: phone.trim() || '+51 912 345 678',
       deliveryType,
@@ -53,6 +58,7 @@ function Checkout({ cart, clearCart }) {
         stockUnits: item.stockUnits,
         deliveryDays: item.deliveryDays || 2,
         estimatedDeliveryDate: item.estimatedDeliveryDate || '',
+        platinoCarePlan: item.platinoCarePlan || 'cortesia',
         price: item.price,
         quantity: item.quantity,
         image: item.image || (item.images && item.images[0]) || '/images/secret-garden-white.jpg',
@@ -60,7 +66,26 @@ function Checkout({ cart, clearCart }) {
     }
 
     setTimeout(() => {
-      createOrder(orderPayload)
+      const created = createOrder(orderPayload);
+      
+      // Registrar automáticamente en Platino Care con su DNI
+      try {
+        registerPlatinoCareClient({
+          dni: dni.trim() || '47829103',
+          clientName: name.trim() || 'Cliente Platino',
+          clientEmail: email.trim().toLowerCase(),
+          clientPhone: phone.trim(),
+          planType: hasPlusCare ? 'plus' : 'cortesia',
+          orderId: created?.id || '',
+          productName: cart[0]?.name || 'Joya Platino',
+          productMetal: cart[0]?.selectedMetal || (typeof cart[0]?.metal === 'string' ? cart[0]?.metal : cart[0]?.metal?.name) || 'Oro 18K',
+          paymentMethod,
+          amountPaid: hasPlusCare ? 90 : 0,
+        });
+      } catch (err) {
+        console.error('Error registrando en Platino Care:', err);
+      }
+
       if (typeof clearCart === 'function') {
         clearCart()
       }
@@ -107,6 +132,17 @@ function Checkout({ cart, clearCart }) {
           <label className="field">
             Nombre completo
             <input required type="text" placeholder="Tu nombre y apellidos" value={name} onChange={(e) => setName(e.target.value)} />
+          </label>
+
+          <label className="field">
+            Documento de Identidad (DNI / Carnet de Extranjería) *
+            <input
+              required
+              type="text"
+              placeholder="Número de DNI (8 dígitos) para validar tu garantía Platino Care"
+              value={dni}
+              onChange={(e) => setDni(e.target.value)}
+            />
           </label>
 
           <label className="field">
