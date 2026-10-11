@@ -16,8 +16,12 @@ export default function UserMenuDropdown() {
       setPermVersion((v) => v + 1);
     };
     window.addEventListener("platino_permissions_updated", handlePermChange);
+    window.addEventListener("platino_permission_requests_updated", handlePermChange);
+    window.addEventListener("storage", handlePermChange);
     return () => {
       window.removeEventListener("platino_permissions_updated", handlePermChange);
+      window.removeEventListener("platino_permission_requests_updated", handlePermChange);
+      window.removeEventListener("storage", handlePermChange);
     };
   }, []);
 
@@ -55,15 +59,16 @@ export default function UserMenuDropdown() {
     navigate("/");
   };
 
-  // Permisos dinámicos según autorización otorgada por Vladimir
+  // Permisos dinámicos según autorización otorgada por Vladimir (Cruce de permisos)
   const isMaster = isMasterAdmin(user);
-  const canSeeCitas = isMaster || hasPermission(user, "citas");
+  const canSeeCitas = isMaster || hasPermission(user, "citas") || hasPermission(user, "citas_global");
   const canSeeCatalogo = isMaster || hasPermission(user, "catalogo");
-  const canSeeInventario = isMaster || hasPermission(user, "inventario");
+  const canSeeInventario = isMaster || hasPermission(user, "inventario") || hasPermission(user, "inventario_global");
   const canSeePedidos = isMaster || hasPermission(user, "pedidos") || hasPermission(user, "pedidos_global");
   const canSeeImagenes = isMaster || hasPermission(user, "home_images");
   const canSeePagos = isMaster || hasPermission(user, "finanzas");
   const canSeeNosotros = isMaster || hasPermission(user, "nosotros");
+  const canSeeReclamaciones = isMaster || hasPermission(user, "reclamaciones");
 
   return (
     <div className="user-menu-container" ref={containerRef}>
@@ -85,7 +90,7 @@ export default function UserMenuDropdown() {
         <div className="user-dropdown-menu">
           <div className="user-dropdown-header">
             <p className="user-dropdown-name">
-              {user.avatarBadge ? `${user.avatarBadge} ` : ""}{user.name}
+              {isAdmin && user.avatarBadge ? `${user.avatarBadge} ` : ""}{user.name}
             </p>
             <p className="user-dropdown-email">{user.email}</p>
             <span
@@ -93,9 +98,9 @@ export default function UserMenuDropdown() {
                 isAdmin ? "admin" : "cliente"
               }`}
             >
-              {user.title || (isAdmin ? "Administrador Platino" : "Cliente Platino")}
+              {isAdmin ? (user.title || "Administrador Platino") : "Cliente Platino"}
             </span>
-            {user.sedeLabel && (
+            {isAdmin && user.sedeLabel && (
               <span style={{ fontSize: "0.75rem", color: "#64748b", marginTop: "4px", display: "block" }}>
                 <i className="bi bi-geo-alt-fill" style={{ color: "#b8860b" }}></i> {user.sedeLabel}
               </span>
@@ -181,18 +186,6 @@ export default function UserMenuDropdown() {
                         </Link>
                       </li>
                     )}
-                    {canSeeCatalogo && (
-                      <li>
-                        <Link
-                          to="/admin/gemas"
-                          className="user-dropdown-item"
-                          onClick={() => setDropdownOpen(false)}
-                        >
-                          <i className="bi bi-gem"></i>
-                          <span>Gemas & Diamantes Certificados</span>
-                        </Link>
-                      </li>
-                    )}
                   </>
                 )}
 
@@ -230,8 +223,8 @@ export default function UserMenuDropdown() {
                   </>
                 )}
 
-                {/* 4. ADMINISTRACIÓN CENTRAL */}
-                {isMaster && (
+                {/* 4. ADMINISTRACIÓN CENTRAL (MASTER) O SOLICITUD DE PERMISOS (SEDES) */}
+                {isMaster ? (
                   <>
                     <li className="user-dropdown-divider"></li>
                     <li className="user-dropdown-section-title master-title">
@@ -246,6 +239,16 @@ export default function UserMenuDropdown() {
                       >
                         <i className="bi bi-shield-shaded"></i>
                         <span>Gestión de Permisos & Sedes</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        to="/admin?tab=claves"
+                        className="user-dropdown-item master-item"
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <i className="bi bi-key-fill"></i>
+                        <span>Validador de Clave Diaria</span>
                       </Link>
                     </li>
                     <li>
@@ -266,6 +269,44 @@ export default function UserMenuDropdown() {
                       >
                         <i className="bi bi-shield-fill-check"></i>
                         <span>Platino Care & Garantías</span>
+                      </Link>
+                    </li>
+                  </>
+                ) : (
+                  <>
+                    <li className="user-dropdown-divider"></li>
+                    <li className="user-dropdown-section-title master-title">
+                      <i className="bi bi-shield-plus" style={{ width: "auto", fontSize: "11px", color: "#0f766e" }}></i>
+                      <span>Permisos & Autorizaciones</span>
+                    </li>
+                    {canSeeReclamaciones && (
+                      <li>
+                        <Link
+                          to="/admin?tab=reclamaciones"
+                          className="user-dropdown-item"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          <i className="bi bi-book-half"></i>
+                          <span>Libro de Reclamaciones</span>
+                        </Link>
+                      </li>
+                    )}
+                    <li>
+                      <Link
+                        to="/admin?tab=permisos"
+                        className="user-dropdown-item"
+                        onClick={() => setDropdownOpen(false)}
+                        style={{ alignItems: "flex-start", gap: "10px", padding: "10px 14px", background: "#f8fafc", borderRadius: "8px", margin: "2px 6px" }}
+                      >
+                        <i className="bi bi-key-fill" style={{ color: "#0f766e", marginTop: "2px" }}></i>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
+                          <span style={{ fontWeight: "700", color: "#0f2a24", fontSize: "13px" }}>
+                            Solicitar Permisos & Accesos
+                          </span>
+                          <span style={{ fontSize: "11px", color: "#64748b", lineHeight: "1.35" }}>
+                            Solicita permisos a Administración Central (Vladimir)
+                          </span>
+                        </div>
                       </Link>
                     </li>
                   </>

@@ -49,6 +49,7 @@ import {
   updateOrderStatus,
   ORDER_STAGES,
   getOrderStageInfo,
+  getClientStageInfo,
   deleteOrder,
   updateOrderPayment,
   PAYMENT_STATUSES,
@@ -73,6 +74,10 @@ import {
   rejectPermissionRequest,
   toggleUserPermission,
   getActivePendingRequest,
+  getDailyAdminRecoveryCodeInfo,
+  validateDailyAdminRecoveryCode,
+  rotateDailyAdminRecoveryCode,
+  getPasswordRecoveryLogs,
 } from "../services/permissionsService";
 import { getReclamaciones } from "../services/reclamacionesService";
 import AdminReclamacionesTab from "../components/AdminReclamacionesTab";
@@ -185,7 +190,7 @@ const getProductCategoryGroup = (prod) => {
 };
 
 export default function AdminCitas() {
-  const { user, isAdmin, openAuthModal } = useAuth();
+  const { user, isAdmin, openAuthModal, usersDb, findUserByDniOrEmail } = useAuth();
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -216,6 +221,11 @@ export default function AdminCitas() {
     )
       return "permisos";
     if (
+      location.pathname === "/admin/claves" ||
+      searchParams.get("tab") === "claves"
+    )
+      return "claves";
+    if (
       location.pathname === "/admin/reclamaciones" ||
       location.pathname === "/admin/libro-reclamaciones" ||
       searchParams.get("tab") === "reclamaciones" ||
@@ -243,8 +253,12 @@ export default function AdminCitas() {
       searchParams.get("tab") === "pagos"
     )
       return "finanzas";
-    return searchParams.get("tab") || "citas";
-  }, [location.pathname, searchParams]);
+    if (searchParams.get("tab")) return searchParams.get("tab");
+    if (user && !isMasterAdmin(user)) {
+      return "permisos";
+    }
+    return "citas";
+  }, [location.pathname, searchParams, user]);
 
   const [activeTab, setActiveTab] = useState(getTabFromLocation);
 
@@ -266,10 +280,18 @@ export default function AdminCitas() {
   const [passwordChangeFeedback, setPasswordChangeFeedback] = useState("");
   const [copiedEmail, setCopiedEmail] = useState(null);
 
+  // Estados para el Validador y Clave Diaria de Recuperación de Clientes (Admin Principal Vladimir)
+  const [dailyCodeInfo, setDailyCodeInfo] = useState(() => getDailyAdminRecoveryCodeInfo());
+  const [recoveryLogs, setRecoveryLogs] = useState(() => getPasswordRecoveryLogs());
+  const [copiedDailyCode, setCopiedDailyCode] = useState(false);
+  const [validatorDniInput, setValidatorDniInput] = useState("");
+  const [validatorCodeInput, setValidatorCodeInput] = useState("");
+  const [validatorResult, setValidatorResult] = useState(null);
+
   // Estado del Libro de Reclamaciones (INDECOPI)
   const [reclamacionesList, setReclamacionesList] = useState(() => getReclamaciones());
 
-  // Escuchar actualizaciones de permisos, solicitudes y contraseñas en tiempo real
+  // Escuchar actualizaciones de permisos, solicitudes y contraseñas en tiempo real (incluyendo cruce entre pestañas)
   useEffect(() => {
     const handlePermUpdate = () => {
       setPermissionsMatrix(getPermissionsMatrix());
@@ -280,6 +302,12 @@ export default function AdminCitas() {
     const handleCredsUpdate = () => {
       setAdminAccountsList(getAdminAccounts());
     };
+    const handleDailyCodeUpdate = () => {
+      setDailyCodeInfo(getDailyAdminRecoveryCodeInfo());
+    };
+    const handleRecoveryLogsUpdate = () => {
+      setRecoveryLogs(getPasswordRecoveryLogs());
+    };
     const handleRecUpdate = (e) => {
       if (e.detail && Array.isArray(e.detail)) {
         setReclamacionesList(e.detail);
@@ -287,15 +315,30 @@ export default function AdminCitas() {
         setReclamacionesList(getReclamaciones());
       }
     };
+    const handleCrossTabStorage = (e) => {
+      if (!e.key || e.key.includes("permission") || e.key.includes("admin") || e.key.includes("recovery")) {
+        setPermissionsMatrix(getPermissionsMatrix());
+        setPermissionRequests(getPermissionRequests());
+        setAdminAccountsList(getAdminAccounts());
+        setDailyCodeInfo(getDailyAdminRecoveryCodeInfo());
+        setRecoveryLogs(getPasswordRecoveryLogs());
+      }
+    };
     window.addEventListener("platino_permissions_updated", handlePermUpdate);
     window.addEventListener("platino_permission_requests_updated", handleReqUpdate);
     window.addEventListener("platino_admin_credentials_updated", handleCredsUpdate);
+    window.addEventListener("platino_daily_recovery_code_updated", handleDailyCodeUpdate);
+    window.addEventListener("platino_password_recovery_logs_updated", handleRecoveryLogsUpdate);
     window.addEventListener("platino_reclamaciones_updated", handleRecUpdate);
+    window.addEventListener("storage", handleCrossTabStorage);
     return () => {
       window.removeEventListener("platino_permissions_updated", handlePermUpdate);
       window.removeEventListener("platino_permission_requests_updated", handleReqUpdate);
       window.removeEventListener("platino_admin_credentials_updated", handleCredsUpdate);
+      window.removeEventListener("platino_daily_recovery_code_updated", handleDailyCodeUpdate);
+      window.removeEventListener("platino_password_recovery_logs_updated", handleRecoveryLogsUpdate);
       window.removeEventListener("platino_reclamaciones_updated", handleRecUpdate);
+      window.removeEventListener("storage", handleCrossTabStorage);
     };
   }, []);
 
@@ -740,7 +783,8 @@ export default function AdminCitas() {
     const res = rejectPermissionRequest(reqId, user?.name || "Vladimir");
     if (res.success) {
       setPermissionRequests(getPermissionRequests());
-      setFeedbackMsg(`✕ Solicitud rechazada.`);
+      setPermissionsMatrix(getPermissionsMatrix());
+      setFeedbackMsg(`✕ Solicitud rechazada y permiso revocado en el cruce de sedes.`);
       setTimeout(() => setFeedbackMsg(""), 4000);
     }
   };
@@ -748,22 +792,31 @@ export default function AdminCitas() {
   const handleTogglePermission = (targetEmail, permKey, granted) => {
     toggleUserPermission(targetEmail, permKey, granted);
     setPermissionsMatrix(getPermissionsMatrix());
-    setFeedbackMsg(`✓ Matriz de permisos actualizada.`);
-    setTimeout(() => setFeedbackMsg(""), 3000);
+    setPermissionRequests(getPermissionRequests());
+    setFeedbackMsg(
+      granted
+        ? `✓ Permiso concedido y sincronizado con la sede.`
+        : `↺ Permiso revocado. La sede deberá solicitar autorización nuevamente.`
+    );
+    setTimeout(() => setFeedbackMsg(""), 3500);
   };
 
   const handleSendPermissionRequest = (permKey) => {
-    const reason = reasonInputState[permKey] || "";
+    const reason = (reasonInputState[permKey] || "").trim();
+    if (!reason) {
+      alert("Por favor, indica brevemente para qué necesitas este permiso en tu sede antes de enviar la solicitud.");
+      return;
+    }
     const res = requestPermission({
       user: effectiveUser,
-      permissionKey,
+      permissionKey: permKey,
       reason,
     });
     if (res.success) {
       setPermissionRequests(getPermissionRequests());
-      setFeedbackMsg(`📨 Solicitud enviada a Vladimir. Se encuentra en espera de aprobación.`);
+      setFeedbackMsg(`📨 Solicitud de permiso enviada a Administración Central con éxito. Estado: Pendiente de aprobación.`);
       setReasonInputState((prev) => ({ ...prev, [permKey]: "" }));
-      setTimeout(() => setFeedbackMsg(""), 4000);
+      setTimeout(() => setFeedbackMsg(""), 4500);
     } else {
       alert(res.error || "No se pudo enviar la solicitud");
     }
@@ -824,6 +877,85 @@ export default function AdminCitas() {
       alert(res.error || "No se pudo actualizar la contraseña.");
     }
   };
+
+  // Manejadores para el Validador y Clave Diaria de Recuperación de Clientes (Admin Principal Vladimir)
+  const handleCopyDailyRecoveryCode = (codeStr) => {
+    const targetCode = codeStr || dailyCodeInfo.code;
+    try {
+      navigator.clipboard.writeText(targetCode);
+      setCopiedDailyCode(true);
+      setTimeout(() => setCopiedDailyCode(false), 2500);
+    } catch {
+      // fallback
+    }
+  };
+
+  const handleRotateDailyRecoveryCode = () => {
+    const updatedInfo = rotateDailyAdminRecoveryCode();
+    setDailyCodeInfo(updatedInfo);
+    setValidatorCodeInput(updatedInfo.code);
+    setValidatorResult(null);
+    setFeedbackMsg(
+      `🔑 Nueva clave diaria generada para hoy (${updatedInfo.displayDate}): ${updatedInfo.code} (${updatedInfo.formattedCode})`
+    );
+    setTimeout(() => setFeedbackMsg(""), 5000);
+  };
+
+  const lookedUpValidatorClient = useMemo(() => {
+    const q = validatorDniInput.trim();
+    if (!q || !findUserByDniOrEmail) return null;
+    const found = findUserByDniOrEmail(q);
+    if (found && found.role !== "admin") return found;
+    return null;
+  }, [validatorDniInput, findUserByDniOrEmail, usersDb]);
+
+  const handleRunAdminCodeValidator = (e) => {
+    if (e && e.preventDefault) e.preventDefault();
+    const currentDaily = getDailyAdminRecoveryCodeInfo();
+    setDailyCodeInfo(currentDaily);
+
+    const codeToTest = (validatorCodeInput || currentDaily.code).trim();
+    const isCodeValid = validateDailyAdminRecoveryCode(codeToTest);
+    const q = validatorDniInput.trim();
+
+    if (!isCodeValid) {
+      setValidatorResult({
+        valid: false,
+        title: "✕ Código Inválido o de Otra Fecha",
+        message: `El código ingresado ("${codeToTest}") no coincide con la clave vigente del día de hoy (${currentDaily.code} / ${currentDaily.formattedCode}).`,
+      });
+      return;
+    }
+
+    if (q) {
+      const client = findUserByDniOrEmail ? findUserByDniOrEmail(q) : null;
+      if (!client || client.role === "admin") {
+        setValidatorResult({
+          valid: false,
+          title: "⚠️ Clave Diaria Válida, pero DNI / Correo No Registrado",
+          message: `La clave diaria (${currentDaily.code}) es correcta, pero no existe ningún cliente registrado con el DNI o correo "${q}".`,
+        });
+        return;
+      }
+
+      setValidatorResult({
+        valid: true,
+        title: "✓ ¡Validación Exitosa! Cliente y Clave Diaria Verificados",
+        message: `El cliente ${client.name} (DNI: ${client.dni || "Registrado"} • ${client.email}) está verificado. Facilítale el código ${currentDaily.code} para que valide su acceso e ingrese su nueva contraseña dos veces.`,
+        client,
+        code: currentDaily.code,
+      });
+      return;
+    }
+
+    setValidatorResult({
+      valid: true,
+      title: "✓ ¡Validación Exitosa de Clave Diaria!",
+      message: `La clave ${currentDaily.code} (${currentDaily.formattedCode}) está activa y validada hoy (${currentDaily.displayDate}). Puedes facilitarla al cliente que olvidó su contraseña.`,
+      code: currentDaily.code,
+    });
+  };
+
 
   // Exportar reporte de inventario y stock por tallas a Excel (.xls) y CSV
   const handleExportStockExcel = (mode = "current", format = "xls") => {
@@ -2198,9 +2330,9 @@ export default function AdminCitas() {
               <button
                 type="button"
                 className="btn-perm-back-citas"
-                onClick={() => setActiveTab("citas")}
+                onClick={() => setActiveTab("permisos")}
               >
-                <i className="bi bi-arrow-left"></i> Volver a Citas & Horarios
+                <i className="bi bi-key-fill"></i> Ir a Solicitud de Permisos
               </button>
             </div>
           </div>
@@ -2209,31 +2341,545 @@ export default function AdminCitas() {
     );
   };
 
-  // Renderizado de la Pestaña de Permisos & Sedes para Vladimir
+  // Renderizado de la Pestaña de Permisos & Sedes para Vladimir y Solicitud de Permisos para Sedes
   const renderPermisosTab = () => {
     if (!isEffectiveMaster) {
+      const currentSedeEmail = effectiveUser?.email?.toLowerCase() || "";
+      const myActivePermissions = permissionsMatrix[currentSedeEmail] || [];
+      const myRequests = permissionRequests.filter(
+        (r) => r.userEmail?.toLowerCase() === currentSedeEmail
+      );
+      const myPendingCount = myRequests.filter((r) => r.status === "pendiente").length;
+
+      const MODULE_PURPOSE_DETAILS = {
+        citas: {
+          purpose: "Permite ver la agenda de clientes de tu sede, confirmar o reprogramar citas presenciales y bloquear horarios de atención.",
+          suggestedReason: `Necesito gestionar y confirmar las citas agendadas por los clientes en ${effectiveUser?.sedeLabel || "mi sede"}.`,
+        },
+        pedidos: {
+          purpose: "Permite supervisar la fabricación de joyas en taller (Recibido, Taller, Engaste, Calidad y Entrega) y añadir notas de orfebrería.",
+          suggestedReason: `Necesito actualizar el estado de fabricación y entrega de los pedidos asignados a ${effectiveUser?.sedeLabel || "mi sede"}.`,
+        },
+        inventario: {
+          purpose: "Permite administrar y actualizar las unidades en stock por tallas de Dama y Varón disponibles físicamente en la vitrina de tu sede.",
+          suggestedReason: `Necesito actualizar el conteo físico de anillos y tallas disponibles en ${effectiveUser?.sedeLabel || "mi sede"}.`,
+        },
+        finanzas: {
+          purpose: "Permite auditar órdenes de compra, verificar comprobantes de pago (BCP, Interbank, IziPay, Efectivo) y confirmar pagos al 100%.",
+          suggestedReason: `Necesito validar en tiempo real los pagos y transferencias de clientes atendidos en ${effectiveUser?.sedeLabel || "mi sede"}.`,
+        },
+        catalogo: {
+          purpose: "Permite publicar nuevas joyas en el catálogo oficial, configurar metales, quilates, siluetas y actualizar precios de venta.",
+          suggestedReason: `Solicito acceso para registrar nuevas piezas de joyería y actualizar fotografías del catálogo desde ${effectiveUser?.sedeLabel || "mi sede"}.`,
+        },
+        home_images: {
+          purpose: "Permite renovar los banners principales de la página de inicio, imágenes promocionales y la barra superior de anuncios.",
+          suggestedReason: `Necesito actualizar los banners promocionales y anuncios de campaña vigentes para los clientes.`,
+        },
+        nosotros: {
+          purpose: "Permite editar la sección institucional 'Nosotros', hitos históricos y fotografías del taller de Platino Perú.",
+          suggestedReason: `Solicito permiso para actualizar la información institucional e imágenes de nuestra sede en la página Nosotros.`,
+        },
+        citas_global: {
+          purpose: "Permite visualizar y coordinar reservas de clientes en todas las sedes de Platino Perú (Lima Centro y Miraflores) simultáneamente.",
+          suggestedReason: `Necesito consultar disponibilidad de horarios en la otra sede para derivar clientes que buscan atención inmediata.`,
+        },
+        inventario_global: {
+          purpose: "Permite consultar y modificar el stock de Bodega Central y de otras sedes para coordinar traslados de tallas entre tiendas.",
+          suggestedReason: `Solicito autorización para gestionar traslados de stock desde Bodega Central hacia la vitrina de ${effectiveUser?.sedeLabel || "mi sede"}.`,
+        },
+        descargar_excel: {
+          purpose: "Permite descargar reportes de inventario por tallas y registros operativos en formato oficial Excel (.xls / .csv).",
+          suggestedReason: `Necesito exportar el reporte mensual de stock y tallas de ${effectiveUser?.sedeLabel || "mi sede"} en Excel.`,
+        },
+        reclamaciones: {
+          purpose: "Permite revisar hojas de reclamación y quejas registradas conforme a INDECOPI y redactar la respuesta legal.",
+          suggestedReason: `Solicito acceso para dar seguimiento a un reclamo presentado por un cliente atendido en ${effectiveUser?.sedeLabel || "mi sede"}.`,
+        },
+      };
+
       return (
-        <div className="admin-content-card" style={{ textAlign: "center", padding: "48px 24px" }}>
-          <div style={{ fontSize: "48px", color: "#d97706", marginBottom: "16px" }}>
-            <i className="bi bi-shield-lock"></i>
-          </div>
-          <h2 style={{ fontSize: "22px", color: "#112820", marginBottom: "10px" }}>
-            Panel Exclusivo de Vladimir (Master)
-          </h2>
-          <p style={{ maxWidth: "600px", margin: "0 auto 20px", color: "#556960", fontSize: "14px" }}>
-            La gestión global de permisos y resolución de solicitudes es una facultad reservada únicamente para Vladimir (Super Administrador Principal).
-          </p>
-          <button
-            type="button"
-            className="btn-perm-back-citas"
-            onClick={() => setActiveTab("citas")}
-            style={{ margin: "0 auto" }}
+        <div>
+          {/* Banner Superior del Portal de Solicitud de Permisos de Sede */}
+          <div
+            style={{
+              background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+              borderRadius: "16px",
+              padding: "26px 28px",
+              color: "#ffffff",
+              marginBottom: "26px",
+              boxShadow: "0 10px 25px rgba(17, 59, 58, 0.15)",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "18px",
+            }}
           >
-            <i className="bi bi-arrow-left"></i> Volver a Citas & Horarios
-          </button>
+            <div style={{ maxWidth: "680px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", flexWrap: "wrap" }}>
+                <span
+                  style={{
+                    background: "rgba(198, 172, 127, 0.22)",
+                    color: "#e6cfa8",
+                    border: "1px solid rgba(198, 172, 127, 0.45)",
+                    padding: "4px 12px",
+                    borderRadius: "999px",
+                    fontSize: "11px",
+                    fontWeight: "700",
+                    letterSpacing: "0.08em",
+                    textTransform: "uppercase",
+                  }}
+                >
+                  <i className="bi bi-shield-plus"></i> SOLICITUD DE PERMISOS & CRUCE CON ADMIN CENTRAL
+                </span>
+                <span
+                  style={{
+                    background: "rgba(255, 255, 255, 0.14)",
+                    color: "#ffffff",
+                    padding: "4px 12px",
+                    borderRadius: "999px",
+                    fontSize: "11.5px",
+                    fontWeight: "700",
+                  }}
+                >
+                  <i className="bi bi-geo-alt-fill" style={{ color: "#C6AC7F" }}></i> {effectiveUser?.sedeLabel || "Sede Asignada"}
+                </span>
+              </div>
+              <h3
+                style={{
+                  fontFamily: "var(--font-serif)",
+                  fontSize: "23px",
+                  margin: "0 0 6px 0",
+                  color: "#ffffff",
+                  fontWeight: "600",
+                }}
+              >
+                Solicitud de Permisos y Cruce de Aprobación con Vladimir
+              </h3>
+              <p style={{ fontSize: "13.5px", color: "rgba(255, 255, 255, 0.86)", margin: 0, lineHeight: "1.55" }}>
+                Desde este apartado <strong>únicamente puedes solicitar permisos</strong> indicando para qué los necesitas. Cada solicitud se envía en tiempo real al panel de <strong>Administración Central (Vladimir)</strong>, quien acepta o deniega la autorización.
+              </p>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: "12px",
+                background: "rgba(255, 255, 255, 0.1)",
+                border: "1px solid rgba(255, 255, 255, 0.18)",
+                padding: "12px 18px",
+                borderRadius: "12px",
+              }}
+            >
+              <div style={{ textAlign: "center", paddingRight: "12px", borderRight: "1px solid rgba(255,255,255,0.18)" }}>
+                <span style={{ display: "block", fontSize: "20px", fontWeight: "800", color: "#86efac" }}>
+                  {myActivePermissions.length}
+                </span>
+                <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.8)", fontWeight: "600" }}>
+                  Aceptados
+                </span>
+              </div>
+              <div style={{ textAlign: "center", paddingLeft: "4px" }}>
+                <span style={{ display: "block", fontSize: "20px", fontWeight: "800", color: "#fde68a" }}>
+                  {myPendingCount}
+                </span>
+                <span style={{ fontSize: "11px", color: "rgba(255,255,255,0.8)", fontWeight: "600" }}>
+                  En Revisión
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Catálogo de Módulos: Explicación de para qué sirve cada uno y formulario exclusivo de solicitud */}
+          <div
+            className="admin-content-card"
+            style={{
+              marginBottom: "26px",
+              padding: "26px",
+              borderRadius: "16px",
+              border: "1.5px solid #e2e8f0",
+            }}
+          >
+            <div style={{ marginBottom: "20px", paddingBottom: "14px", borderBottom: "1px solid #f1f5f9" }}>
+              <h2 style={{ fontSize: "18px", color: "#0f172a", margin: "0 0 4px", fontWeight: "700" }}>
+                <i className="bi bi-grid-1x2-fill" style={{ color: "#113B3A", marginRight: "8px" }}></i>
+                Solicitar Permisos de Módulos (Cruce con Administración Central)
+              </h2>
+              <p style={{ margin: 0, fontSize: "13px", color: "#64748b" }}>
+                Revisa para qué sirve cada permiso, redacta el motivo por el cual tu sede lo requiere y envía la solicitud para que Vladimir la acepte desde su panel.
+              </p>
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(340px, 1fr))",
+                gap: "18px",
+              }}
+            >
+              {PERMISSIONS_CATALOG.map((perm) => {
+                const isGranted = myActivePermissions.includes(perm.key);
+                const pendingReq = getActivePendingRequest(effectiveUser, perm.key);
+                const lastApprovedReq = myRequests.find(
+                  (r) => r.permissionKey === perm.key && r.status === "aprobado"
+                );
+                const lastRejectedReq = myRequests.find(
+                  (r) => r.permissionKey === perm.key && r.status === "rechazado"
+                );
+                const details = MODULE_PURPOSE_DETAILS[perm.key] || {
+                  purpose: perm.description,
+                  suggestedReason: `Solicito acceso al módulo ${perm.name} para las operaciones de ${effectiveUser?.sedeLabel || "mi sede"}.`,
+                };
+                const currentReason = reasonInputState[perm.key] || "";
+
+                return (
+                  <div
+                    key={perm.key}
+                    style={{
+                      background: isGranted ? "#f8fdfb" : pendingReq ? "#fffdf5" : "#ffffff",
+                      border: `1.5px solid ${
+                        isGranted ? "#a7f3d0" : pendingReq ? "#fde68a" : "#e2e8f0"
+                      }`,
+                      borderRadius: "14px",
+                      padding: "20px",
+                      display: "flex",
+                      flexDirection: "column",
+                      justifyContent: "space-between",
+                      gap: "14px",
+                      boxShadow: "0 3px 10px rgba(15, 23, 42, 0.03)",
+                    }}
+                  >
+                    <div>
+                      {/* Encabezado de la tarjeta del permiso */}
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "10px", marginBottom: "12px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                          <div
+                            style={{
+                              width: "42px",
+                              height: "42px",
+                              borderRadius: "10px",
+                              background: isGranted ? "#dcfce7" : pendingReq ? "#fef3c7" : "#f1f5f9",
+                              color: isGranted ? "#166534" : pendingReq ? "#b45309" : "#113B3A",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "19px",
+                              flexShrink: 0,
+                            }}
+                          >
+                            <i className={`bi ${perm.icon}`}></i>
+                          </div>
+                          <div>
+                            <span
+                              style={{
+                                fontSize: "10.5px",
+                                fontWeight: "700",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.06em",
+                                color: "#64748b",
+                                display: "block",
+                              }}
+                            >
+                              {perm.category}
+                            </span>
+                            <h4 style={{ margin: 0, fontSize: "15.5px", color: "#0f172a", fontWeight: "700" }}>
+                              {perm.name}
+                            </h4>
+                          </div>
+                        </div>
+
+                        {isGranted ? (
+                          <span
+                            style={{
+                              background: "#dcfce7",
+                              color: "#166534",
+                              border: "1px solid #86efac",
+                              padding: "4px 10px",
+                              borderRadius: "999px",
+                              fontSize: "11px",
+                              fontWeight: "800",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            <i className="bi bi-check-circle-fill"></i> Aceptado por Admin
+                          </span>
+                        ) : pendingReq ? (
+                          <span
+                            style={{
+                              background: "#fef3c7",
+                              color: "#92400e",
+                              border: "1px solid #fde68a",
+                              padding: "4px 10px",
+                              borderRadius: "999px",
+                              fontSize: "11px",
+                              fontWeight: "800",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            <i className="bi bi-hourglass-split"></i> En Revisión
+                          </span>
+                        ) : (
+                          <span
+                            style={{
+                              background: "#f1f5f9",
+                              color: "#475569",
+                              border: "1px solid #cbd5e1",
+                              padding: "4px 10px",
+                              borderRadius: "999px",
+                              fontSize: "11px",
+                              fontWeight: "700",
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            <i className="bi bi-lock-fill"></i> Requiere Permiso
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Explicación clara de PARA QUÉ ES este permiso */}
+                      <div
+                        style={{
+                          background: isGranted ? "rgba(255,255,255,0.8)" : "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                          borderRadius: "10px",
+                          padding: "11px 13px",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        <div style={{ fontSize: "11px", fontWeight: "800", color: "#113B3A", textTransform: "uppercase", marginBottom: "4px", display: "flex", alignItems: "center", gap: "5px" }}>
+                          <i className="bi bi-info-circle-fill" style={{ color: "#C6AC7F" }}></i>
+                          ¿Para qué sirve este permiso?
+                        </div>
+                        <p style={{ margin: 0, fontSize: "12.5px", color: "#334155", lineHeight: "1.5" }}>
+                          {details.purpose}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Pie de tarjeta según estado del cruce con Vladimir: Aceptado / En Revisión / Solicitar Permiso */}
+                    {isGranted ? (
+                      <div
+                        style={{
+                          background: "#ecfdf5",
+                          border: "1px solid #a7f3d0",
+                          borderRadius: "10px",
+                          padding: "11px 13px",
+                        }}
+                      >
+                        <div style={{ fontSize: "12px", color: "#065f46", fontWeight: "800", display: "flex", alignItems: "center", gap: "6px", marginBottom: "4px" }}>
+                          <i className="bi bi-shield-fill-check" style={{ color: "#059669", fontSize: "14px" }}></i>
+                          Permiso Aceptado por {lastApprovedReq?.resolvedBy || "Vladimir (Admin Central)"}
+                        </div>
+                        {lastApprovedReq?.reason && (
+                          <div style={{ fontSize: "11.5px", color: "#047857", fontStyle: "italic", marginBottom: "4px" }}>
+                            Motivo autorizado: "{lastApprovedReq.reason}"
+                          </div>
+                        )}
+                        <div style={{ fontSize: "11px", color: "#059669", fontWeight: "600" }}>
+                          ✓ Validado en el cruce de permisos con Administración Central
+                          {lastApprovedReq?.resolvedAt
+                            ? ` (${new Date(lastApprovedReq.resolvedAt).toLocaleDateString("es-PE")})`
+                            : ""}
+                        </div>
+                      </div>
+                    ) : pendingReq ? (
+                      <div
+                        style={{
+                          background: "#fffbeb",
+                          border: "1px solid #fde68a",
+                          borderRadius: "10px",
+                          padding: "11px 13px",
+                        }}
+                      >
+                        <div style={{ fontSize: "11.5px", fontWeight: "700", color: "#92400e", marginBottom: "4px" }}>
+                          <i className="bi bi-send-check-fill"></i> Solicitud en Bandeja de Vladimir:
+                        </div>
+                        <div style={{ fontSize: "12px", color: "#78350f", fontStyle: "italic", marginBottom: "6px" }}>
+                          "{pendingReq.reason}"
+                        </div>
+                        <div style={{ fontSize: "11px", color: "#b45309", fontWeight: "600" }}>
+                          ⏳ Esperando que Vladimir acepte el permiso en su panel de control
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ borderTop: "1px solid #f1f5f9", paddingTop: "10px" }}>
+                        {lastRejectedReq && (
+                          <div
+                            style={{
+                              background: "#fef2f2",
+                              border: "1px solid #fecaca",
+                              borderRadius: "8px",
+                              padding: "8px 10px",
+                              marginBottom: "8px",
+                              fontSize: "11.5px",
+                              color: "#991b1b",
+                            }}
+                          >
+                            <strong><i className="bi bi-x-circle-fill"></i> Solicitud previa no aceptada por {lastRejectedReq.resolvedBy || "Vladimir"}:</strong>{" "}
+                            Puedes enviar una nueva solicitud detallando el motivo.
+                          </div>
+                        )}
+
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px", gap: "6px", flexWrap: "wrap" }}>
+                          <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#0f172a" }}>
+                            ¿Para qué necesitas este permiso? *
+                          </label>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setReasonInputState((prev) => ({
+                                ...prev,
+                                [perm.key]: details.suggestedReason,
+                              }))
+                            }
+                            style={{
+                              background: "#f1f5f9",
+                              color: "#113B3A",
+                              border: "1px solid #cbd5e1",
+                              borderRadius: "6px",
+                              padding: "2px 8px",
+                              fontSize: "11px",
+                              fontWeight: "700",
+                              cursor: "pointer",
+                            }}
+                            title="Usar motivo sugerido para este módulo"
+                          >
+                            <i className="bi bi-magic"></i> Autocompletar motivo
+                          </button>
+                        </div>
+
+                        <textarea
+                          rows={2}
+                          placeholder={`Ej: ${details.suggestedReason}`}
+                          value={currentReason}
+                          onChange={(e) =>
+                            setReasonInputState((prev) => ({
+                              ...prev,
+                              [perm.key]: e.target.value,
+                            }))
+                          }
+                          style={{
+                            width: "100%",
+                            padding: "8px 10px",
+                            borderRadius: "8px",
+                            border: "1px solid #cbd5e1",
+                            fontSize: "12px",
+                            marginBottom: "8px",
+                            resize: "vertical",
+                            fontFamily: "inherit",
+                            boxSizing: "border-box",
+                          }}
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() => handleSendPermissionRequest(perm.key)}
+                          style={{
+                            width: "100%",
+                            background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                            color: "#ffffff",
+                            border: "none",
+                            borderRadius: "9px",
+                            padding: "9px 14px",
+                            fontSize: "12.5px",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "7px",
+                            boxShadow: "0 3px 10px rgba(17, 59, 58, 0.16)",
+                          }}
+                        >
+                          <i className="bi bi-shield-plus" style={{ color: "#C6AC7F" }}></i>
+                          Solicitar Permiso a Vladimir
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Historial de Solicitudes de esta Sede */}
+          <div
+            className="admin-content-card"
+            style={{
+              padding: "24px",
+              borderRadius: "16px",
+              border: "1.5px solid #e2e8f0",
+            }}
+          >
+            <h3 style={{ fontSize: "17px", color: "#0f172a", margin: "0 0 6px", fontWeight: "700" }}>
+              <i className="bi bi-clock-history" style={{ color: "#113B3A", marginRight: "8px" }}></i>
+              Historial de Solicitudes y Cruce de Respuestas ({effectiveUser?.sedeLabel || "tu Sede"})
+            </h3>
+            <p style={{ margin: "0 0 16px", fontSize: "13px", color: "#64748b" }}>
+              Registro de todos los permisos solicitados desde tu cuenta, el motivo ("para qué se solicitó") y la respuesta del cruce con Administración Central (Vladimir).
+            </p>
+
+            {myRequests.length === 0 ? (
+              <div style={{ textAlign: "center", padding: "28px 16px", background: "#f8fafc", borderRadius: "12px", color: "#64748b", fontSize: "13.5px" }}>
+                Aún no has enviado solicitudes de permisos desde esta sede.
+              </div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {myRequests.map((req) => (
+                  <div
+                    key={req.id}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: "12px",
+                      padding: "14px 18px",
+                      borderRadius: "12px",
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    <div style={{ flex: 1, minWidth: "240px" }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                        <strong style={{ fontSize: "14px", color: "#0f172a" }}>{req.permissionName}</strong>
+                        <span style={{ fontSize: "11.5px", color: "#64748b" }}>
+                          • {new Date(req.createdAt).toLocaleDateString("es-PE")}
+                        </span>
+                      </div>
+                      <div style={{ fontSize: "12.5px", color: "#334155" }}>
+                        <strong>Para qué se solicitó:</strong> "{req.reason}"
+                      </div>
+                    </div>
+
+                    <div>
+                      {req.status === "aprobado" ? (
+                        <span style={{ background: "#dcfce7", color: "#166534", border: "1px solid #86efac", padding: "5px 12px", borderRadius: "999px", fontSize: "12px", fontWeight: "700" }}>
+                          <i className="bi bi-check-circle-fill"></i> Aceptado por {req.resolvedBy || "Vladimir"}
+                        </span>
+                      ) : req.status === "rechazado" ? (
+                        <span style={{ background: "#fee2e2", color: "#991b1b", border: "1px solid #fecaca", padding: "5px 12px", borderRadius: "999px", fontSize: "12px", fontWeight: "700" }}>
+                          <i className="bi bi-x-circle-fill"></i> Rechazado por {req.resolvedBy || "Vladimir"}
+                        </span>
+                      ) : (
+                        <span style={{ background: "#fef3c7", color: "#92400e", border: "1px solid #fde68a", padding: "5px 12px", borderRadius: "999px", fontSize: "12px", fontWeight: "700" }}>
+                          <i className="bi bi-hourglass-split"></i> Pendiente de Aceptación de Vladimir
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       );
     }
+
+    const countPendientes = permissionRequests.filter((r) => r.status === "pendiente").length;
+    const countAprobadas = permissionRequests.filter((r) => r.status === "aprobado").length;
+    const countRechazadas = permissionRequests.filter((r) => r.status === "rechazado").length;
 
     const filteredRequests = permissionRequests.filter((r) => {
       if (requestsFilterStatus === "pendientes") return r.status === "pendiente";
@@ -2242,173 +2888,701 @@ export default function AdminCitas() {
       return true;
     });
 
+    const handleApproveAllPending = () => {
+      const pendingList = permissionRequests.filter((r) => r.status === "pendiente");
+      if (pendingList.length === 0) return;
+      pendingList.forEach((req) => {
+        approvePermissionRequest(req.id, user?.name || "Vladimir");
+      });
+      setPermissionRequests(getPermissionRequests());
+      setPermissionsMatrix(getPermissionsMatrix());
+      setFeedbackMsg(`✓ Se aprobaron las ${pendingList.length} solicitudes pendientes y se habilitaron sus permisos.`);
+      setTimeout(() => setFeedbackMsg(""), 4500);
+    };
+
+    const handleBulkSetUserPermissions = (targetEmail, targetName, mode) => {
+      const allKeys = PERMISSIONS_CATALOG.map((p) => p.key);
+      if (mode === "all") {
+        allKeys.forEach((key) => {
+          toggleUserPermission(targetEmail, key, true);
+        });
+      } else {
+        allKeys.forEach((key) => {
+          toggleUserPermission(targetEmail, key, false);
+        });
+      }
+      setPermissionsMatrix(getPermissionsMatrix());
+      setPermissionRequests(getPermissionRequests());
+      setFeedbackMsg(
+        mode === "all"
+          ? `✓ Todos los permisos fueron aprobados y habilitados para ${targetName}.`
+          : `↺ Se revocaron todos los permisos de ${targetName}. Ahora deberá solicitarlos nuevamente.`
+      );
+      setTimeout(() => setFeedbackMsg(""), 4000);
+    };
+
     return (
       <div>
+        {/* Banner Ejecutivo del Centro de Seguridad & Gobernanza */}
+        <div
+          style={{
+            background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+            borderRadius: "16px",
+            padding: "24px 28px",
+            color: "#ffffff",
+            marginBottom: "26px",
+            boxShadow: "0 10px 25px rgba(17, 59, 58, 0.15)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "18px",
+          }}
+        >
+          <div style={{ maxWidth: "680px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", flexWrap: "wrap" }}>
+              <span
+                style={{
+                  background: "rgba(198, 172, 127, 0.22)",
+                  color: "#e6cfa8",
+                  border: "1px solid rgba(198, 172, 127, 0.45)",
+                  padding: "4px 12px",
+                  borderRadius: "999px",
+                  fontSize: "11px",
+                  fontWeight: "700",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}
+              >
+                <i className="bi bi-shield-check"></i> CENTRO DE SEGURIDAD & ACCESOS MASTER
+              </span>
+              {countPendientes > 0 && (
+                <span
+                  style={{
+                    background: "rgba(239, 68, 68, 0.25)",
+                    color: "#fecaca",
+                    border: "1px solid rgba(252, 165, 165, 0.4)",
+                    padding: "4px 12px",
+                    borderRadius: "999px",
+                    fontSize: "11px",
+                    fontWeight: "700",
+                  }}
+                >
+                  ● {countPendientes} {countPendientes === 1 ? "solicitud pendiente" : "solicitudes pendientes"}
+                </span>
+              )}
+            </div>
+            <h3
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "23px",
+                margin: "0 0 6px 0",
+                color: "#ffffff",
+                fontWeight: "600",
+              }}
+            >
+              Autorizaciones y Matriz de Permisos por Sede
+            </h3>
+            <p style={{ fontSize: "13.5px", color: "rgba(255, 255, 255, 0.85)", margin: 0, lineHeight: "1.5" }}>
+              Aprueba o deniega solicitudes de acceso en tiempo real y configura los módulos habilitados para Lima Centro y Miraflores.
+            </p>
+          </div>
+
+          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
+            {countPendientes > 0 && (
+              <button
+                type="button"
+                onClick={handleApproveAllPending}
+                style={{
+                  background: "#C6AC7F",
+                  color: "#113B3A",
+                  border: "none",
+                  borderRadius: "10px",
+                  padding: "11px 18px",
+                  fontSize: "12.5px",
+                  fontWeight: "800",
+                  cursor: "pointer",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  boxShadow: "0 4px 14px rgba(0, 0, 0, 0.2)",
+                  transition: "all 0.2s ease",
+                }}
+                title="Aprobar todas las solicitudes pendientes en un solo clic"
+              >
+                <i className="bi bi-check2-all" style={{ fontSize: "16px" }}></i>
+                Aprobar Todas ({countPendientes})
+              </button>
+            )}
+          </div>
+        </div>
+
         {/* Sección 1: Bandeja de Solicitudes de Permisos */}
-        <div className="admin-content-card" style={{ marginBottom: "26px" }}>
-          <div className="section-title-clean" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "10px", marginBottom: "18px" }}>
-            <div>
-              <h2 style={{ fontSize: "18px", color: "#112820", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-                <i className="bi bi-inbox-fill" style={{ color: "#d97706" }}></i> Bandeja de Solicitudes de Acceso ({permissionRequests.length})
-              </h2>
-              <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#61736a" }}>
-                Revisa y aprueba o rechaza en tiempo real las solicitudes enviadas por los administradores de sede.
-              </p>
+        <div
+          className="admin-content-card"
+          style={{
+            marginBottom: "26px",
+            padding: "26px",
+            borderRadius: "16px",
+            border: "1.5px solid #e2e8f0",
+            boxShadow: "0 4px 16px rgba(15, 23, 42, 0.04)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "16px",
+              marginBottom: "22px",
+              paddingBottom: "18px",
+              borderBottom: "1px solid #f1f5f9",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+              <div
+                style={{
+                  width: "46px",
+                  height: "46px",
+                  borderRadius: "12px",
+                  background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                  color: "#C6AC7F",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "20px",
+                  flexShrink: 0,
+                  boxShadow: "0 4px 10px rgba(17, 59, 58, 0.16)",
+                }}
+              >
+                <i className="bi bi-inbox-fill"></i>
+              </div>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                  <h2 style={{ fontSize: "18px", color: "#0f172a", margin: 0, fontWeight: "700" }}>
+                    Bandeja de Solicitudes de Acceso
+                  </h2>
+                  <span
+                    style={{
+                      background: "#f1f5f9",
+                      color: "#334155",
+                      fontSize: "11.5px",
+                      fontWeight: "700",
+                      padding: "3px 10px",
+                      borderRadius: "999px",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    {permissionRequests.length} registradas
+                  </span>
+                </div>
+                <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#64748b" }}>
+                  Revisa y aprueba o rechaza en tiempo real las solicitudes enviadas por los administradores de sede.
+                </p>
+              </div>
             </div>
 
-            {/* Filtros de estado de solicitud */}
-            <div style={{ display: "flex", gap: "6px" }}>
-              <button
-                type="button"
-                className={`simulation-btn ${requestsFilterStatus === "pendientes" ? "active" : ""}`}
-                style={{ color: requestsFilterStatus === "pendientes" ? "#0d281e" : "#4b5563", background: requestsFilterStatus === "pendientes" ? "#fef3c7" : "#f3f4f6", border: "1px solid #e5e7eb" }}
-                onClick={() => setRequestsFilterStatus("pendientes")}
-              >
-                Pendientes ({pendingRequestsCount})
-              </button>
-              <button
-                type="button"
-                className={`simulation-btn ${requestsFilterStatus === "aprobadas" ? "active" : ""}`}
-                style={{ color: requestsFilterStatus === "aprobadas" ? "#0d281e" : "#4b5563", background: requestsFilterStatus === "aprobadas" ? "#dcfce7" : "#f3f4f6", border: "1px solid #e5e7eb" }}
-                onClick={() => setRequestsFilterStatus("aprobadas")}
-              >
-                Aprobadas
-              </button>
-              <button
-                type="button"
-                className={`simulation-btn ${requestsFilterStatus === "rechazadas" ? "active" : ""}`}
-                style={{ color: requestsFilterStatus === "rechazadas" ? "#0d281e" : "#4b5563", background: requestsFilterStatus === "rechazadas" ? "#fee2e2" : "#f3f4f6", border: "1px solid #e5e7eb" }}
-                onClick={() => setRequestsFilterStatus("rechazadas")}
-              >
-                Rechazadas
-              </button>
-              <button
-                type="button"
-                className={`simulation-btn ${requestsFilterStatus === "todas" ? "active" : ""}`}
-                style={{ color: requestsFilterStatus === "todas" ? "#0d281e" : "#4b5563", background: requestsFilterStatus === "todas" ? "#e0e7ff" : "#f3f4f6", border: "1px solid #e5e7eb" }}
-                onClick={() => setRequestsFilterStatus("todas")}
-              >
-                Todas
-              </button>
+            {/* Píldoras Segmentadas de Filtro de Estado */}
+            <div
+              style={{
+                display: "inline-flex",
+                background: "#f1f5f9",
+                padding: "4px",
+                borderRadius: "12px",
+                border: "1px solid #e2e8f0",
+                gap: "4px",
+                flexWrap: "wrap",
+              }}
+            >
+              {[
+                {
+                  id: "pendientes",
+                  label: "Pendientes",
+                  count: countPendientes,
+                  icon: "bi-hourglass-split",
+                  activeBg: "#113B3A",
+                  activeColor: "#ffffff",
+                  badgeBg: "#C6AC7F",
+                  badgeColor: "#113B3A",
+                },
+                {
+                  id: "aprobadas",
+                  label: "Aprobadas",
+                  count: countAprobadas,
+                  icon: "bi-check-circle-fill",
+                  activeBg: "#0f766e",
+                  activeColor: "#ffffff",
+                  badgeBg: "rgba(255,255,255,0.22)",
+                  badgeColor: "#ffffff",
+                },
+                {
+                  id: "rechazadas",
+                  label: "Rechazadas",
+                  count: countRechazadas,
+                  icon: "bi-x-circle-fill",
+                  activeBg: "#991b1b",
+                  activeColor: "#ffffff",
+                  badgeBg: "rgba(255,255,255,0.22)",
+                  badgeColor: "#ffffff",
+                },
+                {
+                  id: "todas",
+                  label: "Todas",
+                  count: permissionRequests.length,
+                  icon: "bi-collection-fill",
+                  activeBg: "#334155",
+                  activeColor: "#ffffff",
+                  badgeBg: "rgba(255,255,255,0.22)",
+                  badgeColor: "#ffffff",
+                },
+              ].map((tab) => {
+                const isAct = requestsFilterStatus === tab.id;
+                return (
+                  <button
+                    key={tab.id}
+                    type="button"
+                    onClick={() => setRequestsFilterStatus(tab.id)}
+                    style={{
+                      border: "none",
+                      borderRadius: "9px",
+                      padding: "8px 14px",
+                      fontSize: "12.5px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "7px",
+                      background: isAct ? tab.activeBg : "transparent",
+                      color: isAct ? tab.activeColor : "#475569",
+                      boxShadow: isAct ? "0 2px 8px rgba(15, 23, 42, 0.16)" : "none",
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    <i
+                      className={`bi ${tab.icon}`}
+                      style={{
+                        color: isAct
+                          ? tab.id === "pendientes"
+                            ? "#C6AC7F"
+                            : "#ffffff"
+                          : "#64748b",
+                        fontSize: "13px",
+                      }}
+                    ></i>
+                    <span>{tab.label}</span>
+                    <span
+                      style={{
+                        background: isAct ? tab.badgeBg : "#e2e8f0",
+                        color: isAct ? tab.badgeColor : "#334155",
+                        padding: "1px 7px",
+                        borderRadius: "999px",
+                        fontSize: "11px",
+                        fontWeight: "800",
+                      }}
+                    >
+                      {tab.count}
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
 
           {filteredRequests.length === 0 ? (
-            <div style={{ padding: "30px", textAlign: "center", color: "#6b7280", background: "#f9fafb", borderRadius: "8px" }}>
-              <i className="bi bi-check-all" style={{ fontSize: "28px", color: "#16a34a", display: "block", marginBottom: "8px" }}></i>
-              No hay solicitudes {requestsFilterStatus === "pendientes" ? "pendientes de revisión" : "en esta categoría"}.
+            <div
+              style={{
+                padding: "42px 24px",
+                textAlign: "center",
+                color: "#64748b",
+                background: "#f8fafc",
+                borderRadius: "14px",
+                border: "1.5px dashed #cbd5e1",
+              }}
+            >
+              <div
+                style={{
+                  width: "52px",
+                  height: "52px",
+                  borderRadius: "50%",
+                  background: "#ecfdf5",
+                  color: "#059669",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "24px",
+                  margin: "0 auto 12px",
+                }}
+              >
+                <i className="bi bi-check2-all"></i>
+              </div>
+              <strong style={{ display: "block", fontSize: "15px", color: "#0f172a", marginBottom: "4px" }}>
+                Bandeja al día
+              </strong>
+              <span style={{ fontSize: "13px" }}>
+                No hay solicitudes {requestsFilterStatus === "pendientes" ? "pendientes de revisión en este momento" : "en esta categoría"}.
+              </span>
             </div>
           ) : (
-            <div>
-              {filteredRequests.map((req) => (
-                <div
-                  key={req.id}
-                  className={`perm-request-card ${
-                    req.status === "pendiente"
-                      ? "pending"
-                      : req.status === "aprobado"
-                      ? "approved"
-                      : "rejected"
-                  }`}
-                >
-                  <div className="perm-request-body">
-                    <div className="perm-request-header-line">
-                      <span className="perm-req-user-name">
-                        {req.userName}
-                      </span>
-                      <span className="perm-req-target-pill">
-                        <i className="bi bi-geo-alt-fill"></i> {req.userSedeLabel}
-                      </span>
-                      <span style={{ fontSize: "12px", background: "#f3f4f6", padding: "2px 8px", borderRadius: "6px", color: "#374151", fontWeight: "600" }}>
-                        Permiso: {req.permissionName}
-                      </span>
-                      {req.status === "aprobado" && (
-                        <span style={{ fontSize: "11.5px", background: "#dcfce7", color: "#166534", padding: "2px 8px", borderRadius: "10px", fontWeight: "700" }}>
-                          ✓ Aprobado
-                        </span>
-                      )}
-                      {req.status === "rechazado" && (
-                        <span style={{ fontSize: "11.5px", background: "#fee2e2", color: "#991b1b", padding: "2px 8px", borderRadius: "10px", fontWeight: "700" }}>
-                          ✕ Rechazado
-                        </span>
-                      )}
-                    </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {filteredRequests.map((req) => {
+                const isPending = req.status === "pendiente";
+                const isApproved = req.status === "aprobado";
+                const permInfo = PERMISSIONS_CATALOG.find((p) => p.key === req.permissionKey);
 
-                    <div className="perm-req-reason">
-                      <strong>Motivo indicado:</strong> "{req.reason}"
-                    </div>
+                return (
+                  <div
+                    key={req.id}
+                    style={{
+                      background: isPending ? "#fffdf9" : "#ffffff",
+                      border: isPending
+                        ? "1.5px solid #e6cfa8"
+                        : isApproved
+                        ? "1.5px solid #bbf7d0"
+                        : "1.5px solid #fecaca",
+                      borderLeft: isPending
+                        ? "5px solid #C6AC7F"
+                        : isApproved
+                        ? "5px solid #16a34a"
+                        : "5px solid #dc2626",
+                      borderRadius: "14px",
+                      padding: "20px 22px",
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: "18px",
+                      boxShadow: "0 3px 10px rgba(15, 23, 42, 0.03)",
+                      transition: "all 0.2s ease",
+                    }}
+                  >
+                    <div style={{ flex: "1 1 480px" }}>
+                      {/* Primera línea: Usuario, Sede, Permiso Solicitado y Estado */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "12px" }}>
+                        <div
+                          style={{
+                            width: "36px",
+                            height: "36px",
+                            borderRadius: "10px",
+                            background: "#113B3A",
+                            color: "#C6AC7F",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontWeight: "800",
+                            fontSize: "14px",
+                            flexShrink: 0,
+                          }}
+                        >
+                          {(req.userName || "A").charAt(0).toUpperCase()}
+                        </div>
 
-                    <div className="perm-req-meta">
-                      <span>
-                        <i className="bi bi-envelope"></i> {req.userEmail}
-                      </span>
-                      <span>
-                        <i className="bi bi-clock"></i> Enviada:{" "}
-                        {new Date(req.createdAt).toLocaleString("es-PE", {
-                          dateStyle: "short",
-                          timeStyle: "short",
-                        })}
-                      </span>
-                      {req.resolvedAt && (
-                        <span>
-                          <i className="bi bi-check2-circle"></i> Resuelta por: {req.resolvedBy} (
-                          {new Date(req.resolvedAt).toLocaleString("es-PE", {
+                        <strong style={{ fontSize: "16px", color: "#0f172a", fontWeight: "800" }}>
+                          {req.userName}
+                        </strong>
+
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "5px",
+                            fontSize: "12px",
+                            fontWeight: "700",
+                            background: "#ecfdf5",
+                            color: "#047857",
+                            border: "1px solid #a7f3d0",
+                            padding: "4px 11px",
+                            borderRadius: "999px",
+                          }}
+                        >
+                          <i className="bi bi-geo-alt-fill"></i> {req.userSedeLabel}
+                        </span>
+
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            fontSize: "12px",
+                            fontWeight: "700",
+                            background: "#f1f5f9",
+                            color: "#1e293b",
+                            border: "1px solid #cbd5e1",
+                            padding: "4px 12px",
+                            borderRadius: "999px",
+                          }}
+                        >
+                          <i className={`bi ${permInfo?.icon || "bi-key-fill"}`} style={{ color: "#113B3A" }}></i>
+                          Permiso: {req.permissionName}
+                        </span>
+
+                        {isApproved && (
+                          <span
+                            style={{
+                              fontSize: "11.5px",
+                              background: "#dcfce7",
+                              color: "#166534",
+                              border: "1px solid #86efac",
+                              padding: "3px 10px",
+                              borderRadius: "999px",
+                              fontWeight: "800",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                          >
+                            <i className="bi bi-check-circle-fill"></i> Aprobada
+                          </span>
+                        )}
+
+                        {!isPending && !isApproved && (
+                          <span
+                            style={{
+                              fontSize: "11.5px",
+                              background: "#fee2e2",
+                              color: "#991b1b",
+                              border: "1px solid #fca5a5",
+                              padding: "3px 10px",
+                              borderRadius: "999px",
+                              fontWeight: "800",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                            }}
+                          >
+                            <i className="bi bi-x-circle-fill"></i> Rechazada
+                          </span>
+                        )}
+                      </div>
+
+                      {/* Motivo justificado */}
+                      <div
+                        style={{
+                          background: "#f8fafc",
+                          border: "1px solid #e2e8f0",
+                          borderLeft: "3px solid #113B3A",
+                          borderRadius: "8px",
+                          padding: "10px 14px",
+                          fontSize: "13px",
+                          color: "#334155",
+                          marginBottom: "10px",
+                          lineHeight: "1.5",
+                        }}
+                      >
+                        <strong style={{ color: "#0f172a" }}>Motivo indicado:</strong> "{req.reason}"
+                      </div>
+
+                      {/* Metadatos de correo y fecha */}
+                      <div style={{ display: "flex", alignItems: "center", gap: "16px", flexWrap: "wrap", fontSize: "12px", color: "#64748b" }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                          <i className="bi bi-envelope" style={{ color: "#113B3A" }}></i> {req.userEmail}
+                        </span>
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                          <i className="bi bi-clock" style={{ color: "#113B3A" }}></i> Enviada:{" "}
+                          {new Date(req.createdAt).toLocaleString("es-PE", {
                             dateStyle: "short",
                             timeStyle: "short",
-                          })})
+                          })}
                         </span>
+                        {req.resolvedAt && (
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", color: "#0f766e", fontWeight: "600" }}>
+                            <i className="bi bi-shield-check"></i> Resuelta por {req.resolvedBy} (
+                            {new Date(req.resolvedAt).toLocaleString("es-PE", {
+                              dateStyle: "short",
+                              timeStyle: "short",
+                            })})
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Botones Ejecutivos de Acción */}
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                      {isPending ? (
+                        <>
+                          <button
+                            type="button"
+                            onClick={() => handleApproveRequest(req.id)}
+                            title="Conceder y activar este permiso inmediatamente"
+                            style={{
+                              background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                              color: "#ffffff",
+                              border: "1px solid #C6AC7F",
+                              borderRadius: "10px",
+                              padding: "11px 20px",
+                              fontSize: "13px",
+                              fontWeight: "700",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "8px",
+                              boxShadow: "0 4px 12px rgba(17, 59, 58, 0.22)",
+                              transition: "all 0.2s ease",
+                            }}
+                          >
+                            <i className="bi bi-shield-fill-check" style={{ color: "#C6AC7F", fontSize: "15px" }}></i>
+                            Aprobar Permiso
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => handleRejectRequest(req.id)}
+                            title="Denegar esta solicitud de permiso"
+                            style={{
+                              background: "#fff1f2",
+                              color: "#be123c",
+                              border: "1.5px solid #fecdd3",
+                              borderRadius: "10px",
+                              padding: "11px 18px",
+                              fontSize: "13px",
+                              fontWeight: "700",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              transition: "all 0.2s ease",
+                            }}
+                          >
+                            <i className="bi bi-x-circle"></i>
+                            Rechazar
+                          </button>
+                        </>
+                      ) : isApproved ? (
+                        <button
+                          type="button"
+                          onClick={() => handleRejectRequest(req.id)}
+                          style={{
+                            background: "#f8fafc",
+                            color: "#64748b",
+                            border: "1px solid #cbd5e1",
+                            borderRadius: "9px",
+                            padding: "8px 14px",
+                            fontSize: "12px",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                          }}
+                          title="Cambiar estado a Rechazada"
+                        >
+                          <i className="bi bi-arrow-counterclockwise"></i> Marcar Rechazada
+                        </button>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => handleApproveRequest(req.id)}
+                          style={{
+                            background: "#ecfdf5",
+                            color: "#047857",
+                            border: "1px solid #a7f3d0",
+                            borderRadius: "9px",
+                            padding: "8px 14px",
+                            fontSize: "12px",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                          }}
+                          title="Aprobar y conceder este permiso ahora"
+                        >
+                          <i className="bi bi-check2-circle"></i> Aprobar Ahora
+                        </button>
                       )}
                     </div>
                   </div>
-
-                  {req.status === "pendiente" && (
-                    <div className="perm-request-actions">
-                      <button
-                        type="button"
-                        className="btn-perm-approve"
-                        onClick={() => handleApproveRequest(req.id)}
-                        title="Otorgar este permiso inmediatamente"
-                      >
-                        <i className="bi bi-check-lg"></i> Aprobar Permiso
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-perm-reject"
-                        onClick={() => handleRejectRequest(req.id)}
-                        title="Rechazar solicitud"
-                      >
-                        <i className="bi bi-x-lg"></i> Rechazar
-                      </button>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
 
         {/* Sección 2: Matriz Interactiva de Permisos */}
-        <div className="admin-content-card" style={{ marginBottom: "26px" }}>
-          <div className="section-title-clean" style={{ marginBottom: "16px" }}>
-            <h2 style={{ fontSize: "18px", color: "#112820", margin: 0, display: "flex", alignItems: "center", gap: "8px" }}>
-              <i className="bi bi-grid-3x3-gap-fill" style={{ color: "#137748" }}></i> Matriz de Permisos por Administrador
-            </h2>
-            <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#61736a" }}>
-              Activa o desactiva directamente cualquier permiso con los interruptores. Los cambios surten efecto de inmediato.
-            </p>
+        <div
+          className="admin-content-card"
+          style={{
+            marginBottom: "26px",
+            padding: "26px",
+            borderRadius: "16px",
+            border: "1.5px solid #e2e8f0",
+            boxShadow: "0 4px 16px rgba(15, 23, 42, 0.04)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "14px",
+              marginBottom: "20px",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+              <div
+                style={{
+                  width: "46px",
+                  height: "46px",
+                  borderRadius: "12px",
+                  background: "#e6f0ee",
+                  color: "#113B3A",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "20px",
+                  flexShrink: 0,
+                }}
+              >
+                <i className="bi bi-grid-3x3-gap-fill"></i>
+              </div>
+              <div>
+                <h2 style={{ fontSize: "18px", color: "#0f172a", margin: 0, fontWeight: "700" }}>
+                  Matriz de Permisos por Administrador
+                </h2>
+                <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#64748b" }}>
+                  Activa o desactiva directamente cualquier módulo o utiliza los botones de acción rápida por sede.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", fontSize: "12px" }}>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", background: "#fef3c7", color: "#92400e", padding: "4px 10px", borderRadius: "999px", fontWeight: "700" }}>
+                <i className="bi bi-shield-check"></i> Master = Control Permanente
+              </span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: "5px", background: "#ecfdf5", color: "#047857", padding: "4px 10px", borderRadius: "999px", fontWeight: "700" }}>
+                <i className="bi bi-toggle-on"></i> Sincronización Instantánea
+              </span>
+            </div>
           </div>
 
-          <div className="perm-matrix-wrapper">
-            <table className="admin-perm-matrix-table">
+          <div className="perm-matrix-wrapper" style={{ borderRadius: "12px", overflowX: "auto", border: "1px solid #e2e8f0" }}>
+            <table className="admin-perm-matrix-table" style={{ width: "100%", borderCollapse: "collapse" }}>
               <thead>
-                <tr>
-                  <th style={{ minWidth: "220px" }}>Administrador</th>
-                  <th style={{ minWidth: "140px" }}>Sede</th>
+                <tr style={{ background: "#f8fafc", borderBottom: "1.5px solid #e2e8f0" }}>
+                  <th style={{ minWidth: "240px", padding: "14px 16px", textAlign: "left" }}>Administrador & Acciones Rápidas</th>
+                  <th style={{ minWidth: "135px", padding: "14px 12px", textAlign: "left" }}>Sede Asignada</th>
                   {PERMISSIONS_CATALOG.map((p) => (
-                    <th key={p.key} title={p.description} style={{ textAlign: "center" }}>
-                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "2px" }}>
-                        <i className={`bi ${p.icon}`} style={{ fontSize: "16px", color: "#137748" }}></i>
-                        <span style={{ fontSize: "11px" }}>{p.shortLabel}</span>
+                    <th key={p.key} title={p.description} style={{ textAlign: "center", padding: "12px 10px", minWidth: "105px" }}>
+                      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
+                        <div
+                          style={{
+                            width: "30px",
+                            height: "30px",
+                            borderRadius: "8px",
+                            background: "#e6f0ee",
+                            color: "#113B3A",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "14px",
+                          }}
+                        >
+                          <i className={`bi ${p.icon}`}></i>
+                        </div>
+                        <span style={{ fontSize: "11px", fontWeight: "700", color: "#1e293b", lineHeight: "1.2" }}>
+                          {p.shortLabel}
+                        </span>
                       </div>
                     </th>
                   ))}
@@ -2420,19 +3594,81 @@ export default function AdminCitas() {
                   const userPerms = permissionsMatrix[acc.email] || [];
 
                   return (
-                    <tr key={acc.email} style={{ background: isMaster ? "#fffdf5" : "inherit" }}>
-                      <td>
-                        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                          <span style={{ fontSize: "20px" }}>{acc.avatarBadge}</span>
+                    <tr
+                      key={acc.email}
+                      style={{
+                        background: isMaster ? "#fffdf7" : "#ffffff",
+                        borderBottom: "1px solid #f1f5f9",
+                      }}
+                    >
+                      <td style={{ padding: "16px" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: isMaster ? 0 : "10px" }}>
+                          <span style={{ fontSize: "22px" }}>{acc.avatarBadge}</span>
                           <div>
-                            <strong style={{ fontSize: "13.5px", color: "#112820" }}>{acc.name}</strong>
-                            <div style={{ fontSize: "11.5px", color: "#6b7280" }}>{acc.email}</div>
+                            <strong style={{ fontSize: "14px", color: "#0f172a", display: "block" }}>{acc.name}</strong>
+                            <div style={{ fontSize: "11.5px", color: "#64748b" }}>{acc.email}</div>
                           </div>
                         </div>
+
+                        {!isMaster && (
+                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                            <button
+                              type="button"
+                              onClick={() => handleBulkSetUserPermissions(acc.email, acc.name, "all")}
+                              style={{
+                                background: "#ecfdf5",
+                                color: "#047857",
+                                border: "1px solid #a7f3d0",
+                                borderRadius: "6px",
+                                padding: "4px 9px",
+                                fontSize: "10.5px",
+                                fontWeight: "700",
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                              }}
+                              title="Conceder todos los permisos a esta sede"
+                            >
+                              <i className="bi bi-check2-all"></i> Habilitar Todo
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleBulkSetUserPermissions(acc.email, acc.name, "revoke")}
+                              style={{
+                                background: "#fff1f2",
+                                color: "#be123c",
+                                border: "1px solid #fecdd3",
+                                borderRadius: "6px",
+                                padding: "4px 9px",
+                                fontSize: "10.5px",
+                                fontWeight: "700",
+                                cursor: "pointer",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                              }}
+                              title="Revocar todos los permisos de esta sede para que deba solicitarlos nuevamente"
+                            >
+                              <i className="bi bi-x-circle"></i> Revocar Todo
+                            </button>
+                          </div>
+                        )}
                       </td>
 
-                      <td>
-                        <span style={{ fontSize: "11.5px", background: isMaster ? "#fef3c7" : "#e8f5ed", color: isMaster ? "#92400e" : "#137748", padding: "3px 8px", borderRadius: "12px", fontWeight: "600" }}>
+                      <td style={{ padding: "14px 12px" }}>
+                        <span
+                          style={{
+                            fontSize: "11.5px",
+                            background: isMaster ? "#fef3c7" : "#e6f0ee",
+                            color: isMaster ? "#92400e" : "#113B3A",
+                            border: `1px solid ${isMaster ? "#fde68a" : "#b8d4ce"}`,
+                            padding: "4px 10px",
+                            borderRadius: "999px",
+                            fontWeight: "700",
+                            display: "inline-block",
+                          }}
+                        >
                           {acc.sedeLabel}
                         </span>
                       </td>
@@ -2441,35 +3677,48 @@ export default function AdminCitas() {
                         const hasThis = isMaster || userPerms.includes(p.key);
 
                         return (
-                          <td key={p.key} style={{ textAlign: "center" }}>
+                          <td key={p.key} style={{ textAlign: "center", padding: "12px 8px" }}>
                             {isMaster ? (
                               <span
                                 title="Vladimir tiene control maestro permanente"
                                 style={{
                                   fontSize: "11px",
-                                  fontWeight: "700",
+                                  fontWeight: "800",
                                   background: "#fef3c7",
                                   color: "#b45309",
-                                  padding: "3px 8px",
-                                  borderRadius: "10px",
+                                  border: "1px solid #fde68a",
+                                  padding: "4px 10px",
+                                  borderRadius: "999px",
                                   display: "inline-flex",
                                   alignItems: "center",
-                                  gap: "3px",
+                                  gap: "4px",
                                 }}
                               >
                                 <i className="bi bi-shield-check"></i> Total
                               </span>
                             ) : (
-                              <label className="perm-switch-toggle">
-                                <input
-                                  type="checkbox"
-                                  checked={hasThis}
-                                  onChange={(e) =>
-                                    handleTogglePermission(acc.email, p.key, e.target.checked)
-                                  }
-                                  title={`${hasThis ? "Revocar" : "Conceder"} ${p.name} a ${acc.name}`}
-                                />
-                              </label>
+                              <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "4px" }}>
+                                <label className="perm-switch-toggle" style={{ cursor: "pointer" }}>
+                                  <input
+                                    type="checkbox"
+                                    checked={hasThis}
+                                    onChange={(e) =>
+                                      handleTogglePermission(acc.email, p.key, e.target.checked)
+                                    }
+                                    title={`${hasThis ? "Revocar" : "Conceder"} ${p.name} a ${acc.name}`}
+                                    style={{ width: "17px", height: "17px", accentColor: "#113B3A", cursor: "pointer" }}
+                                  />
+                                </label>
+                                <span
+                                  style={{
+                                    fontSize: "10px",
+                                    fontWeight: "700",
+                                    color: hasThis ? "#047857" : "#94a3b8",
+                                  }}
+                                >
+                                  {hasThis ? "Activo" : "Inactivo"}
+                                </span>
+                              </div>
                             )}
                           </td>
                         );
@@ -2481,268 +3730,538 @@ export default function AdminCitas() {
             </table>
           </div>
         </div>
+      </div>
+    );
+  };
 
-        {/* Sección 3: Gestión de Contraseñas y Accesos de Sedes */}
-        <div className="admin-content-card" style={{ background: "#faf8f5", border: "1.5px solid #ebd9c2" }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: "10px", marginBottom: "14px" }}>
-            <div>
-              <h3 style={{ fontSize: "17px", color: "#112820", margin: "0 0 6px", display: "flex", alignItems: "center", gap: "8px" }}>
-                <i className="bi bi-key-fill" style={{ color: "#b8860b" }}></i> Gestión de Contraseñas & Cuentas de Sedes
-              </h3>
-              <p style={{ fontSize: "13px", color: "#556960", margin: 0 }}>
-                Como Administrador Principal, puedes visualizar, copiar y cambiar las contraseñas de las administraciones de <strong>Lima Centro</strong> y <strong>Miraflores</strong> en cualquier momento.
-              </p>
+  // Renderizado exclusivo de la Pestaña "Validador de Clave Diaria" en Administración Central
+  const renderClavesTab = () => {
+    if (!isEffectiveMaster) {
+      return renderAccessGuard(
+        "permisos",
+        "Validador de Clave Diaria",
+        "Apartado exclusivo de Administración Central (Vladimir) para consultar y validar la clave diaria de recuperación de clientes."
+      );
+    }
+
+    return (
+      <div>
+        {/* Banner Ejecutivo del Validador de Clave Diaria */}
+        <div
+          style={{
+            background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+            borderRadius: "16px",
+            padding: "24px 28px",
+            color: "#ffffff",
+            marginBottom: "26px",
+            boxShadow: "0 10px 25px rgba(17, 59, 58, 0.15)",
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: "18px",
+          }}
+        >
+          <div style={{ maxWidth: "680px" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", flexWrap: "wrap" }}>
+              <span
+                style={{
+                  background: "rgba(198, 172, 127, 0.22)",
+                  color: "#e6cfa8",
+                  border: "1px solid rgba(198, 172, 127, 0.45)",
+                  padding: "4px 12px",
+                  borderRadius: "999px",
+                  fontSize: "11px",
+                  fontWeight: "700",
+                  letterSpacing: "0.08em",
+                  textTransform: "uppercase",
+                }}
+              >
+                <i className="bi bi-key-fill"></i> ADMINISTRACIÓN CENTRAL • VALIDADOR DE CLAVE DIARIA
+              </span>
+              <span
+                style={{
+                  background: "rgba(34, 197, 94, 0.22)",
+                  color: "#bbf7d0",
+                  border: "1px solid rgba(134, 239, 172, 0.4)",
+                  padding: "4px 12px",
+                  borderRadius: "999px",
+                  fontSize: "11px",
+                  fontWeight: "700",
+                }}
+              >
+                ● Clave Hoy ({dailyCodeInfo.displayDate}): {dailyCodeInfo.code}
+              </span>
+            </div>
+            <h3
+              style={{
+                fontFamily: "var(--font-serif)",
+                fontSize: "23px",
+                margin: "0 0 6px 0",
+                color: "#ffffff",
+                fontWeight: "600",
+              }}
+            >
+              Validador de Clave Diaria de Recuperación de Clientes
+            </h3>
+            <p style={{ fontSize: "13.5px", color: "rgba(255, 255, 255, 0.85)", margin: 0, lineHeight: "1.5" }}>
+              Consulta, copia y valida la <strong>Clave Diaria de Recuperación</strong> para los clientes registrados que olvidaron su clave (el código se renueva automáticamente cada día a las 00:00 hrs).
+            </p>
+          </div>
+        </div>
+
+        {/* Sección 1: Validador de Clave Diaria para Recuperación de Contraseñas de Clientes */}
+        <div
+          id="admin-daily-code-validator"
+          className="admin-content-card"
+          style={{
+            marginBottom: "26px",
+            padding: "26px",
+            borderRadius: "16px",
+            background: "linear-gradient(180deg, #fffdf9 0%, #ffffff 100%)",
+            border: "2px solid #e6cfa8",
+            boxShadow: "0 8px 24px rgba(17, 59, 58, 0.06)",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: "14px",
+              marginBottom: "20px",
+              paddingBottom: "16px",
+              borderBottom: "1px solid #f3ead8",
+            }}
+          >
+            <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+              <div
+                style={{
+                  width: "48px",
+                  height: "48px",
+                  borderRadius: "13px",
+                  background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                  color: "#C6AC7F",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "22px",
+                  flexShrink: 0,
+                  boxShadow: "0 4px 12px rgba(17, 59, 58, 0.2)",
+                }}
+              >
+                <i className="bi bi-shield-lock-fill"></i>
+              </div>
+              <div>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                  <h2 style={{ fontSize: "18.5px", color: "#0f172a", margin: 0, fontWeight: "800" }}>
+                    Validador de Clave Diaria — Recuperación de Contraseña de Clientes
+                  </h2>
+                  <span
+                    style={{
+                      background: "#fef3c7",
+                      color: "#92400e",
+                      border: "1px solid #fde68a",
+                      fontSize: "11px",
+                      fontWeight: "800",
+                      padding: "3px 10px",
+                      borderRadius: "999px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "5px",
+                    }}
+                  >
+                    <i className="bi bi-arrow-repeat"></i> Cambia a Diario Automáticamente
+                  </span>
+                </div>
+                <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#64748b" }}>
+                  Cuando un cliente con DNI registrado olvida su contraseña, facilítale la <strong>Clave Diaria de Hoy</strong>. Al validarla en la página, podrá ingresar su nueva contraseña y repetirla para confirmar.
+                </p>
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: "#ecfdf5",
+                border: "1px solid #a7f3d0",
+                color: "#065f46",
+                padding: "7px 14px",
+                borderRadius: "999px",
+                fontSize: "12px",
+                fontWeight: "800",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: "6px",
+              }}
+            >
+              <i className="bi bi-calendar-check-fill"></i> Vigente Hoy: {dailyCodeInfo.displayDate}
             </div>
           </div>
 
-          {passwordChangeFeedback && (
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
+              gap: "22px",
+              alignItems: "stretch",
+            }}
+          >
+            {/* Columna 1: Clave Diaria Activa del Admin Principal */}
             <div
               style={{
-                background: "#dcfce7",
-                border: "1.5px solid #86efac",
-                color: "#166534",
-                padding: "10px 16px",
-                borderRadius: "8px",
-                marginBottom: "16px",
-                fontSize: "13.5px",
-                fontWeight: "600",
+                background: "linear-gradient(135deg, #113B3A 0%, #164947 100%)",
+                borderRadius: "14px",
+                padding: "22px",
+                color: "#ffffff",
                 display: "flex",
-                alignItems: "center",
-                gap: "8px",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                boxShadow: "0 8px 20px rgba(17, 59, 58, 0.16)",
               }}
             >
-              <i className="bi bi-check-circle-fill" style={{ fontSize: "18px" }}></i>
-              {passwordChangeFeedback}
-            </div>
-          )}
+              <div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: "800",
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                      color: "#e6cfa8",
+                    }}
+                  >
+                    🔑 CLAVE DIARIA DEL ADMIN PRINCIPAL
+                  </span>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      background: "rgba(255,255,255,0.14)",
+                      padding: "3px 9px",
+                      borderRadius: "999px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    Rotación 24h (00:00 hrs)
+                  </span>
+                </div>
 
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(310px, 1fr))", gap: "16px" }}>
-            {adminAccountsList.map((acc) => {
-              const isMaster = acc.adminType === "master";
-              const isEditing = editingPasswordEmail === acc.email;
-              const isVisible = showPasswordMap[acc.email];
-              const isCopied = copiedEmail === acc.email;
-
-              return (
                 <div
-                  key={acc.email}
                   style={{
-                    background: "#ffffff",
-                    padding: "18px 20px",
+                    background: "rgba(255, 255, 255, 0.1)",
+                    border: "1.5px solid rgba(198, 172, 127, 0.55)",
+                    borderRadius: "12px",
+                    padding: "16px",
+                    textAlign: "center",
+                    marginBottom: "14px",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: "32px",
+                      fontWeight: "900",
+                      letterSpacing: "6px",
+                      color: "#C6AC7F",
+                      lineHeight: "1.1",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    {dailyCodeInfo.code}
+                  </div>
+                  <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.82)", fontWeight: "600" }}>
+                    Formato alternativo aceptado: <strong>{dailyCodeInfo.formattedCode}</strong>
+                  </div>
+                </div>
+
+                <p style={{ fontSize: "12.5px", color: "rgba(255,255,255,0.86)", margin: "0 0 16px", lineHeight: "1.5" }}>
+                  Esta clave se genera automáticamente para la fecha <strong>{dailyCodeInfo.displayDate}</strong> y caduca al finalizar el día. Si deseas cambiarla ahora mismo, usa el botón de rotación.
+                </p>
+              </div>
+
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={() => handleCopyDailyRecoveryCode(dailyCodeInfo.code)}
+                  style={{
+                    flex: "1 1 160px",
+                    background: copiedDailyCode ? "#22c55e" : "#C6AC7F",
+                    color: copiedDailyCode ? "#ffffff" : "#113B3A",
+                    border: "none",
                     borderRadius: "10px",
-                    border: isEditing ? "2px solid #b8860b" : "1px solid #e5e0d6",
-                    boxShadow: isEditing ? "0 4px 14px rgba(184, 134, 11, 0.12)" : "0 2px 5px rgba(0,0,0,0.03)",
+                    padding: "11px 14px",
+                    fontSize: "13px",
+                    fontWeight: "800",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "7px",
                     transition: "all 0.2s ease",
                   }}
                 >
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <span style={{ fontSize: "22px" }}>{acc.avatarBadge}</span>
-                      <div>
-                        <strong style={{ fontSize: "14.5px", color: "#112820", display: "block" }}>
-                          {acc.name}
-                        </strong>
-                        <span style={{ fontSize: "11px", color: "#6b7280" }}>{acc.sedeLabel}</span>
-                      </div>
-                    </div>
-                    <span
-                      style={{
-                        fontSize: "11px",
-                        background: isMaster ? "#fef3c7" : "#e8f5ed",
-                        color: isMaster ? "#92400e" : "#137748",
-                        padding: "3px 8px",
-                        borderRadius: "12px",
-                        fontWeight: "700",
-                        letterSpacing: "0.03em",
+                  <i className={`bi ${copiedDailyCode ? "bi-check2-circle" : "bi-clipboard-check-fill"}`}></i>
+                  {copiedDailyCode ? "¡Código Copiado!" : "Copiar Código Diario"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleRotateDailyRecoveryCode}
+                  style={{
+                    flex: "1 1 150px",
+                    background: "rgba(255, 255, 255, 0.12)",
+                    color: "#ffffff",
+                    border: "1px solid rgba(255, 255, 255, 0.28)",
+                    borderRadius: "10px",
+                    padding: "11px 14px",
+                    fontSize: "12.5px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "7px",
+                    transition: "all 0.2s ease",
+                  }}
+                  title="Generar una nueva clave diaria inmediatamente"
+                >
+                  <i className="bi bi-arrow-clockwise"></i> Rotar Clave Hoy
+                </button>
+              </div>
+            </div>
+
+            {/* Columna 2: Validador Interactivo de Clave y DNI de Cliente */}
+            <div
+              style={{
+                background: "#ffffff",
+                border: "1.5px solid #e2e8f0",
+                borderRadius: "14px",
+                padding: "22px",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              <form onSubmit={handleRunAdminCodeValidator}>
+                <h3 style={{ fontSize: "15.5px", color: "#0f172a", margin: "0 0 6px", fontWeight: "800", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <i className="bi bi-person-check-fill" style={{ color: "#113B3A" }}></i>
+                  Validador de Clave y Verificación de DNI del Cliente
+                </h3>
+                <p style={{ fontSize: "12.5px", color: "#64748b", margin: "0 0 14px", lineHeight: "1.45" }}>
+                  Verifica que el DNI del cliente esté registrado en la página y comprueba la validez del código diario antes de facilitárselo.
+                </p>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "12px", marginBottom: "12px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: "700", color: "#334155", marginBottom: "5px" }}>
+                      DNI (8 dígitos) o Correo del Cliente
+                    </label>
+                    <input
+                      type="text"
+                      value={validatorDniInput}
+                      onChange={(e) => {
+                        setValidatorDniInput(e.target.value);
+                        setValidatorResult(null);
                       }}
-                    >
-                      {isMaster ? "👑 Master" : "🏛️ Sede"}
-                    </span>
-                  </div>
-
-                  <div style={{ fontSize: "12.5px", color: "#4b5563", marginBottom: "8px" }}>
-                    <strong>Correo de acceso:</strong> <code style={{ fontSize: "12px", background: "#f3f4f6", padding: "2px 6px", borderRadius: "4px" }}>{acc.email}</code>
-                  </div>
-
-                  <div style={{ fontSize: "12.5px", color: "#4b5563", marginBottom: "14px" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
-                      <strong>Contraseña activa:</strong>
-                      <div style={{ display: "flex", gap: "6px" }}>
-                        <button
-                          type="button"
-                          onClick={() => handleToggleShowPassword(acc.email)}
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            color: "#137748",
-                            fontSize: "12px",
-                            cursor: "pointer",
-                            padding: "2px 4px",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            fontWeight: "600",
-                          }}
-                          title={isVisible ? "Ocultar contraseña" : "Ver contraseña"}
-                        >
-                          <i className={`bi ${isVisible ? "bi-eye-slash" : "bi-eye"}`}></i>
-                          {isVisible ? "Ocultar" : "Mostrar"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleCopyPassword(acc.email, acc.password)}
-                          style={{
-                            background: "transparent",
-                            border: "none",
-                            color: isCopied ? "#16a34a" : "#6b7280",
-                            fontSize: "12px",
-                            cursor: "pointer",
-                            padding: "2px 4px",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: "4px",
-                            fontWeight: "600",
-                          }}
-                          title="Copiar contraseña al portapapeles"
-                        >
-                          <i className={`bi ${isCopied ? "bi-check2" : "bi-clipboard"}`}></i>
-                          {isCopied ? "¡Copiada!" : "Copiar"}
-                        </button>
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        padding: "8px 12px",
-                        background: "#f9fafb",
-                        border: "1px solid #e5e7eb",
-                        borderRadius: "6px",
-                        fontFamily: "monospace",
-                        fontSize: "13px",
-                        color: "#111827",
-                        fontWeight: "700",
-                        letterSpacing: isVisible ? "normal" : "2px",
-                      }}
-                    >
-                      {isVisible ? acc.password : "••••••••••••"}
-                    </div>
-                  </div>
-
-                  {isEditing ? (
-                    <div style={{ background: "#fffbeb", border: "1.5px solid #fde68a", padding: "12px", borderRadius: "8px", marginTop: "10px" }}>
-                      <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#92400e", marginBottom: "6px" }}>
-                        Nueva contraseña para {acc.name}:
-                      </label>
-                      <input
-                        type="text"
-                        value={newPasswordInput}
-                        onChange={(e) => setNewPasswordInput(e.target.value)}
-                        placeholder="Escribe la nueva contraseña..."
-                        style={{
-                          width: "100%",
-                          padding: "8px 10px",
-                          border: "1.5px solid #d97706",
-                          borderRadius: "6px",
-                          fontSize: "13px",
-                          marginBottom: "8px",
-                          fontFamily: "monospace",
-                          outline: "none",
-                        }}
-                        autoFocus
-                      />
-
-                      <div style={{ display: "flex", gap: "6px", marginBottom: "10px" }}>
-                        <button
-                          type="button"
-                          onClick={() => handleGeneratePassword(acc.sede)}
-                          style={{
-                            flex: 1,
-                            padding: "6px 10px",
-                            background: "#ffffff",
-                            border: "1px solid #d97706",
-                            color: "#92400e",
-                            borderRadius: "6px",
-                            fontSize: "11.5px",
-                            fontWeight: "600",
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: "5px",
-                          }}
-                        >
-                          <i className="bi bi-magic"></i> Generar clave segura
-                        </button>
-                      </div>
-
-                      <div style={{ display: "flex", gap: "8px" }}>
-                        <button
-                          type="button"
-                          onClick={() => handleSavePassword(acc.email, acc.name)}
-                          style={{
-                            flex: 2,
-                            padding: "8px 12px",
-                            background: "#137748",
-                            border: "none",
-                            color: "#ffffff",
-                            borderRadius: "6px",
-                            fontSize: "12.5px",
-                            fontWeight: "700",
-                            cursor: "pointer",
-                            display: "inline-flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            gap: "6px",
-                          }}
-                        >
-                          <i className="bi bi-check2"></i> Guardar Nueva Clave
-                        </button>
-                        <button
-                          type="button"
-                          onClick={handleCancelEditPassword}
-                          style={{
-                            flex: 1,
-                            padding: "8px 12px",
-                            background: "#e5e7eb",
-                            border: "none",
-                            color: "#374151",
-                            borderRadius: "6px",
-                            fontSize: "12px",
-                            fontWeight: "600",
-                            cursor: "pointer",
-                          }}
-                        >
-                          Cancelar
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <button
-                      type="button"
-                      onClick={() => handleStartEditPassword(acc.email)}
+                      placeholder="Ej. 74829103 o correo..."
                       style={{
                         width: "100%",
-                        padding: "8px 12px",
-                        background: isMaster ? "#f8fafc" : "#eef6f1",
-                        border: isMaster ? "1px solid #cbd5e1" : "1.5px solid #a4d4b8",
-                        color: isMaster ? "#475569" : "#137748",
-                        borderRadius: "6px",
-                        fontSize: "12.5px",
-                        fontWeight: "700",
-                        cursor: "pointer",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        gap: "6px",
-                        transition: "all 0.15s ease",
+                        padding: "10px 12px",
+                        borderRadius: "9px",
+                        border: "1.5px solid #cbd5e1",
+                        fontSize: "13px",
+                        fontWeight: "600",
+                        outline: "none",
                       }}
-                    >
-                      <i className="bi bi-pencil-square"></i> Cambiar Contraseña de {acc.sedeLabel || acc.name}
-                    </button>
-                  )}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: "11.5px", fontWeight: "700", color: "#334155", marginBottom: "5px" }}>
+                      Clave Diaria a Validar
+                    </label>
+                    <input
+                      type="text"
+                      value={validatorCodeInput}
+                      onChange={(e) => {
+                        setValidatorCodeInput(e.target.value.toUpperCase());
+                        setValidatorResult(null);
+                      }}
+                      placeholder={`Hoy: ${dailyCodeInfo.code}`}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: "9px",
+                        border: "1.5px solid #cbd5e1",
+                        fontSize: "13.5px",
+                        fontFamily: "monospace",
+                        fontWeight: "800",
+                        letterSpacing: "1.5px",
+                        outline: "none",
+                      }}
+                    />
+                  </div>
                 </div>
-              );
-            })}
+
+                {/* Previsualización instantánea si el DNI coincide con un cliente */}
+                {validatorDniInput.trim().length >= 3 && (
+                  <div
+                    style={{
+                      marginBottom: "12px",
+                      padding: "9px 12px",
+                      borderRadius: "9px",
+                      fontSize: "12px",
+                      background: lookedUpValidatorClient ? "#f0fdf4" : "#fffbeb",
+                      border: `1px solid ${lookedUpValidatorClient ? "#86efac" : "#fde68a"}`,
+                      color: lookedUpValidatorClient ? "#166534" : "#92400e",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      flexWrap: "wrap",
+                      gap: "8px",
+                    }}
+                  >
+                    {lookedUpValidatorClient ? (
+                      <>
+                        <span>
+                          <strong>✓ Cliente encontrado:</strong> {lookedUpValidatorClient.name} (DNI:{" "}
+                          <strong>{lookedUpValidatorClient.dni || "S/N"}</strong> • {lookedUpValidatorClient.email})
+                        </span>
+                        <span style={{ fontWeight: "800", fontSize: "11px", background: "#dcfce7", padding: "2px 8px", borderRadius: "999px" }}>
+                          Apto para recuperar clave
+                        </span>
+                      </>
+                    ) : (
+                      <span>
+                        <i className="bi bi-exclamation-circle"></i> No se encontró cliente con "{validatorDniInput.trim()}". (Prueba ej. DNI <strong>74829103</strong>)
+                      </span>
+                    )}
+                  </div>
+                )}
+
+                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+                  <button
+                    type="submit"
+                    style={{
+                      flex: 1,
+                      padding: "11px 16px",
+                      background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "10px",
+                      fontSize: "13px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                    }}
+                  >
+                    <i className="bi bi-patch-check-fill" style={{ color: "#C6AC7F" }}></i>
+                    Validar Clave y Cliente
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setValidatorCodeInput(dailyCodeInfo.code);
+                      if (!validatorDniInput) setValidatorDniInput("74829103");
+                    }}
+                    style={{
+                      padding: "11px 14px",
+                      background: "#f8fafc",
+                      color: "#334155",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "10px",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                    }}
+                    title="Autocompletar con la clave de hoy"
+                  >
+                    Usar Clave de Hoy
+                  </button>
+                </div>
+              </form>
+
+              {validatorResult && (
+                <div
+                  style={{
+                    marginTop: "12px",
+                    padding: "12px 14px",
+                    borderRadius: "10px",
+                    background: validatorResult.valid ? "#ecfdf5" : "#fef2f2",
+                    border: `1.5px solid ${validatorResult.valid ? "#6ee7b7" : "#fecaca"}`,
+                    color: validatorResult.valid ? "#065f46" : "#991b1b",
+                    fontSize: "12.5px",
+                    lineHeight: "1.45",
+                  }}
+                >
+                  <strong style={{ display: "block", fontSize: "13px", marginBottom: "3px" }}>
+                    {validatorResult.title}
+                  </strong>
+                  <span>{validatorResult.message}</span>
+                </div>
+              )}
+            </div>
           </div>
+
+          {/* Historial de Recuperaciones de Contraseña realizadas con el Código del Admin */}
+          {recoveryLogs.length > 0 && (
+            <div style={{ marginTop: "18px", paddingTop: "16px", borderTop: "1px solid #f1f5f9" }}>
+              <div style={{ fontSize: "12.5px", fontWeight: "800", color: "#334155", marginBottom: "10px", display: "flex", alignItems: "center", gap: "6px" }}>
+                <i className="bi bi-clock-history" style={{ color: "#113B3A" }}></i>
+                Últimas Recuperaciones de Contraseña Validadas ({recoveryLogs.length})
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                {recoveryLogs.slice(0, 5).map((log) => (
+                  <div
+                    key={log.id}
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      flexWrap: "wrap",
+                      gap: "10px",
+                      padding: "10px 14px",
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "10px",
+                      fontSize: "12px",
+                    }}
+                  >
+                    <div>
+                      <strong style={{ color: "#0f172a" }}>{log.userName}</strong>{" "}
+                      <span style={{ color: "#475569", fontWeight: "700" }}>(DNI: {log.dni})</span> •{" "}
+                      <span style={{ color: "#64748b" }}>{log.email}</span>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <span
+                        style={{
+                          background: "#dcfce7",
+                          color: "#166534",
+                          border: "1px solid #86efac",
+                          padding: "2px 9px",
+                          borderRadius: "999px",
+                          fontWeight: "800",
+                          fontSize: "11px",
+                        }}
+                      >
+                        ✓ Validación Exitosa (Código: {log.codeUsed})
+                      </span>
+                      <span style={{ color: "#64748b" }}>
+                        {new Date(log.recoveredAt).toLocaleString("es-PE", {
+                          dateStyle: "short",
+                          timeStyle: "short",
+                        })}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
     );
@@ -2786,7 +4305,11 @@ export default function AdminCitas() {
                   : activeTab === "finanzas"
                   ? "Control de Pagos & Validación de Pedidos"
                   : activeTab === "permisos"
-                  ? "Gestión de Permisos & Sedes (Panel de Vladimir)"
+                  ? isEffectiveMaster
+                    ? "Gestión de Permisos & Sedes (Panel de Vladimir)"
+                    : `Solicitud de Permisos & Accesos (${effectiveUser?.sedeLabel || "Sede"})`
+                  : activeTab === "claves"
+                  ? "Validador de Clave Diaria (Administración Central)"
                   : activeTab === "reclamaciones"
                   ? "Libro de Reclamaciones Virtual - Supervisión Legal (INDECOPI)"
                   : activeTab === "platino_care"
@@ -2821,7 +4344,11 @@ export default function AdminCitas() {
                 : activeTab === "finanzas"
                 ? "Supervisa los pedidos de los clientes, valida si el pago fue realizado y confirma por qué medio de pago se efectuó la transacción (BanBif, Banco de la Nación, BCP, Interbank, IziPay, Pichincha, Fondo Platino, Efectivo)."
                 : activeTab === "permisos"
-                ? "Supervisa autorizaciones, aprueba solicitudes de administradores de sede y administra la matriz de accesos."
+                ? isEffectiveMaster
+                  ? "Supervisa autorizaciones, aprueba solicitudes de administradores de sede y administra la matriz de accesos."
+                  : "Revisa para qué sirve cada módulo administrativo del sistema y envía solicitudes justificadas a Administración Central."
+                : activeTab === "claves"
+                ? "Consulta y valida la clave diaria de recuperación de clientes (cambia automáticamente todos los días a las 00:00 hrs)."
                 : activeTab === "reclamaciones"
                 ? "Auditoría oficial del Libro de Reclamaciones conforme a la Ley N° 29571. Revisa quejas y reclamos y registra la respuesta legal del proveedor (plazo máximo: 15 días hábiles)."
                 : activeTab === "platino_care"
@@ -2830,100 +4357,6 @@ export default function AdminCitas() {
                 ? "Crea y administra gemas con atributos GIA/IGI, pureza, quilates, dimensiones, corte y fotografías de alta resolución."
                 : "Gestiona reservas, revisa observaciones de clientes y bloquea u habilita horarios de atención."}
             </p>
-          </div>
-
-          <div className="admin-top-actions">
-            {isMaster && activeTab !== "gemas" && activeTab !== "platino_care" && (
-              <button
-                type="button"
-                onClick={() => setActiveTab("gemas")}
-                className="admin-view-store-btn"
-                style={{
-                  background: "#113B3A",
-                  borderColor: "#113B3A",
-                  color: "#ffffff",
-                  fontWeight: 600,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  cursor: "pointer",
-                }}
-              >
-                <i className="bi bi-gem" style={{ color: "#C6AC7F" }}></i>
-                Gemas & Diamantes
-              </button>
-            )}
-            {isMaster && activeTab === "gemas" && (
-              <button
-                type="button"
-                onClick={() => setActiveTab("citas")}
-                className="admin-view-store-btn"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  cursor: "pointer",
-                }}
-              >
-                <i className="bi bi-arrow-left"></i>
-                Volver a Citas & Horarios
-              </button>
-            )}
-            {isMaster && activeTab !== "reclamaciones" && activeTab !== "platino_care" && activeTab !== "gemas" && (
-              <button
-                type="button"
-                onClick={() => setActiveTab("reclamaciones")}
-                className="admin-view-store-btn"
-                style={{
-                  background: "#113B3A",
-                  borderColor: "#113B3A",
-                  color: "#ffffff",
-                  fontWeight: 600,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  cursor: "pointer",
-                }}
-              >
-                <i className="bi bi-book-half" style={{ color: "#C6AC7F" }}></i>
-                Libro de Reclamaciones
-                {reclamacionesList.filter((r) => r.estado === "pendiente").length > 0 && (
-                  <span
-                    style={{
-                      background: "#ef4444",
-                      color: "#fff",
-                      fontSize: "11px",
-                      padding: "1px 6px",
-                      borderRadius: "10px",
-                      fontWeight: 700,
-                    }}
-                  >
-                    {reclamacionesList.filter((r) => r.estado === "pendiente").length}
-                  </span>
-                )}
-              </button>
-            )}
-            {isMaster && (activeTab === "reclamaciones" || activeTab === "platino_care") && (
-              <button
-                type="button"
-                onClick={() => setActiveTab("citas")}
-                className="admin-view-store-btn"
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  cursor: "pointer",
-                }}
-              >
-                <i className="bi bi-arrow-left"></i>
-                Volver a Citas & Horarios
-              </button>
-            )}
-            {activeTab !== "platino_care" && (
-              <Link to="/" className="admin-view-store-btn" target="_blank" rel="noopener noreferrer">
-                <i className="bi bi-box-arrow-up-right"></i> Ver Tienda Pública
-              </Link>
-            )}
           </div>
         </div>
 
@@ -2999,47 +4432,125 @@ export default function AdminCitas() {
             </div>
           </div>
         ) : activeTab === "permisos" ? (
-          <div className="admin-metrics-row">
-            <div className="metric-card">
-              <div className="metric-icon-box" style={{ color: "#d97706", background: "#fef3c7" }}>
-                <i className="bi bi-shield-shaded"></i>
+          isEffectiveMaster ? (
+            <div className="admin-metrics-row">
+              <div
+                className="metric-card"
+                onClick={() => setRequestsFilterStatus("todas")}
+                style={{
+                  cursor: "pointer",
+                  border: requestsFilterStatus === "todas" ? "2px solid #113B3A" : undefined,
+                  transition: "all 0.2s ease",
+                }}
+                title="Ver todas las solicitudes"
+              >
+                <div className="metric-icon-box" style={{ color: "#113B3A", background: "#e6f0ee" }}>
+                  <i className="bi bi-shield-shaded"></i>
+                </div>
+                <div>
+                  <h3 className="metric-val">3</h3>
+                  <p className="metric-lbl">Cuentas Oficiales (Vladimir + 2 Sedes)</p>
+                </div>
               </div>
-              <div>
-                <h3 className="metric-val">3</h3>
-                <p className="metric-lbl">Cuentas Oficiales (Vladimir + 2 Sedes)</p>
-              </div>
-            </div>
 
-            <div className="metric-card">
-              <div className="metric-icon-box" style={{ color: "#b91c1c", background: "#fee2e2" }}>
-                <i className="bi bi-bell-fill"></i>
+              <div
+                className="metric-card"
+                onClick={() => setRequestsFilterStatus("pendientes")}
+                style={{
+                  cursor: "pointer",
+                  border: requestsFilterStatus === "pendientes" ? "2px solid #C6AC7F" : undefined,
+                  background: requestsFilterStatus === "pendientes" ? "#fffdf9" : undefined,
+                  transition: "all 0.2s ease",
+                }}
+                title="Filtrar solicitudes pendientes"
+              >
+                <div className="metric-icon-box" style={{ color: "#b91c1c", background: "#fee2e2" }}>
+                  <i className="bi bi-bell-fill"></i>
+                </div>
+                <div>
+                  <h3 className="metric-val" style={{ color: "#b91c1c" }}>{pendingRequestsCount}</h3>
+                  <p className="metric-lbl">Solicitudes Pendientes</p>
+                </div>
               </div>
-              <div>
-                <h3 className="metric-val" style={{ color: "#b91c1c" }}>{pendingRequestsCount}</h3>
-                <p className="metric-lbl">Solicitudes Pendientes</p>
-              </div>
-            </div>
 
-            <div className="metric-card">
-              <div className="metric-icon-box" style={{ color: "#166e37", background: "#e8f6ed" }}>
-                <i className="bi bi-check-circle-fill"></i>
+              <div
+                className="metric-card"
+                onClick={() => setRequestsFilterStatus("aprobadas")}
+                style={{
+                  cursor: "pointer",
+                  border: requestsFilterStatus === "aprobadas" ? "2px solid #059669" : undefined,
+                  transition: "all 0.2s ease",
+                }}
+                title="Filtrar solicitudes aprobadas"
+              >
+                <div className="metric-icon-box" style={{ color: "#166e37", background: "#e8f6ed" }}>
+                  <i className="bi bi-check-circle-fill"></i>
+                </div>
+                <div>
+                  <h3 className="metric-val">{permissionRequests.filter((r) => r.status === "aprobado").length}</h3>
+                  <p className="metric-lbl">Solicitudes Aprobadas</p>
+                </div>
               </div>
-              <div>
-                <h3 className="metric-val">{permissionRequests.filter((r) => r.status === "aprobado").length}</h3>
-                <p className="metric-lbl">Solicitudes Aprobadas</p>
-              </div>
-            </div>
 
-            <div className="metric-card">
-              <div className="metric-icon-box" style={{ color: "#32638e", background: "#edf4fb" }}>
-                <i className="bi bi-geo-alt-fill"></i>
-              </div>
-              <div>
-                <h3 className="metric-val">2 Sedes</h3>
-                <p className="metric-lbl">Lima Centro y Miraflores</p>
+              <div className="metric-card">
+                <div className="metric-icon-box" style={{ color: "#8a6d3b", background: "#f4efe6" }}>
+                  <i className="bi bi-geo-alt-fill"></i>
+                </div>
+                <div>
+                  <h3 className="metric-val">2 Sedes</h3>
+                  <p className="metric-lbl">Lima Centro y Miraflores</p>
+                </div>
               </div>
             </div>
-          </div>
+          ) : (
+            <div className="admin-metrics-row">
+              <div className="metric-card">
+                <div className="metric-icon-box" style={{ color: "#113B3A", background: "#e6f0ee" }}>
+                  <i className="bi bi-grid-1x2-fill"></i>
+                </div>
+                <div>
+                  <h3 className="metric-val">{PERMISSIONS_CATALOG.length}</h3>
+                  <p className="metric-lbl">Módulos Sujetos a Permiso</p>
+                </div>
+              </div>
+
+              <div className="metric-card">
+                <div className="metric-icon-box" style={{ color: "#d97706", background: "#fef3c7" }}>
+                  <i className="bi bi-hourglass-split"></i>
+                </div>
+                <div>
+                  <h3 className="metric-val" style={{ color: "#d97706" }}>
+                    {permissionRequests.filter((r) => r.userEmail?.toLowerCase() === effectiveUser?.email?.toLowerCase() && r.status === "pendiente").length}
+                  </h3>
+                  <p className="metric-lbl">En Revisión por Vladimir</p>
+                </div>
+              </div>
+
+              <div className="metric-card">
+                <div className="metric-icon-box" style={{ color: "#166e37", background: "#e8f6ed" }}>
+                  <i className="bi bi-check-circle-fill"></i>
+                </div>
+                <div>
+                  <h3 className="metric-val" style={{ color: "#166e37" }}>
+                    {(permissionsMatrix[effectiveUser?.email?.toLowerCase() || ""] || []).length}
+                  </h3>
+                  <p className="metric-lbl">Aceptados por Vladimir</p>
+                </div>
+              </div>
+
+              <div className="metric-card">
+                <div className="metric-icon-box" style={{ color: "#b91c1c", background: "#fee2e2" }}>
+                  <i className="bi bi-lock-fill"></i>
+                </div>
+                <div>
+                  <h3 className="metric-val" style={{ color: "#b91c1c" }}>
+                    {Math.max(0, PERMISSIONS_CATALOG.length - (permissionsMatrix[effectiveUser?.email?.toLowerCase() || ""] || []).length)}
+                  </h3>
+                  <p className="metric-lbl">Sin Permiso (Por Solicitar)</p>
+                </div>
+              </div>
+            </div>
+          )
         ) : activeTab === "finanzas" ? (
           <div className="admin-metrics-row">
             <div className="metric-card">
@@ -3256,7 +4767,7 @@ export default function AdminCitas() {
               </div>
             </div>
           </div>
-        ) : (
+        ) : activeTab === "platino_care" || activeTab === "gemas" || activeTab === "home_images" || activeTab === "claves" ? null : (
           <div className="admin-metrics-row">
             <div className="metric-card">
               <div className="metric-icon-box">
@@ -4658,64 +6169,103 @@ export default function AdminCitas() {
               "Permite editar imágenes de inicio, colecciones, anillos de compromiso y anuncios."
             )
           ) : (
-          <div className="admin-content-card">
-            {/* Cabecera del panel de imágenes */}
-            <div className="admin-catalog-header">
-              <div>
+          <div className="admin-content-card" style={{ padding: "28px" }}>
+            {/* Banner Ejecutivo de Gestión Editorial & Portada */}
+            <div
+              style={{
+                background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                borderRadius: "16px",
+                padding: "24px 28px",
+                color: "#ffffff",
+                marginBottom: "24px",
+                boxShadow: "0 10px 25px rgba(17, 59, 58, 0.14)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "18px",
+              }}
+            >
+              <div style={{ maxWidth: "680px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", flexWrap: "wrap" }}>
+                  <span
+                    style={{
+                      background: "rgba(198, 172, 127, 0.22)",
+                      color: "#e6cfa8",
+                      border: "1px solid rgba(198, 172, 127, 0.45)",
+                      padding: "4px 12px",
+                      borderRadius: "999px",
+                      fontSize: "11px",
+                      fontWeight: "700",
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    <i className="bi bi-images"></i> GESTIÓN EDITORIAL & PORTADA WEB
+                  </span>
+                  <span
+                    style={{
+                      background: "rgba(255, 255, 255, 0.12)",
+                      color: "#d1fae5",
+                      padding: "4px 12px",
+                      borderRadius: "999px",
+                      fontSize: "11px",
+                      fontWeight: "600",
+                    }}
+                  >
+                    {filteredHomeItems.length} bloques visuales en vista
+                  </span>
+                </div>
                 <h3
                   style={{
                     fontFamily: "var(--font-serif)",
-                    fontSize: "22px",
+                    fontSize: "24px",
                     margin: "0 0 6px 0",
-                    color: "#15241e",
+                    color: "#ffffff",
+                    fontWeight: "600",
                   }}
                 >
-                  Imágenes de la Portada / Inicio ({filteredHomeItems.length})
+                  Imágenes y Textos de la Portada Principal
                 </h3>
-                <p style={{ fontSize: "14px", color: "#5d6d65", margin: 0 }}>
-                  Personaliza cualquier fotografía de la página de inicio (banners hero, categorías, estilos de anillos, showroom y mosaicos). Sube fotos desde tu dispositivo o ingresa URLs directas.
+                <p style={{ fontSize: "13.5px", color: "rgba(255, 255, 255, 0.85)", margin: 0, lineHeight: "1.5" }}>
+                  Personaliza la franja promocional superior, banners hero, colecciones destacadas, estilos de anillos y fotografías de showroom en tiempo real.
                 </p>
               </div>
 
-              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                <Link
-                  to="/"
-                  target="_blank"
-                  className="btn-cita-outline"
-                  style={{ background: "#f8f7f4", padding: "10px 16px", fontSize: "13px" }}
-                  title="Ver cómo queda la página de inicio en tiempo real"
-                >
-                  <i className="bi bi-eye"></i> Previsualizar Portada
-                </Link>
-
+              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", alignItems: "center" }}>
                 <button
                   type="button"
                   onClick={handleResetHomeImages}
-                  className="btn-card-delete"
                   style={{
-                    background: "#fff5f5",
-                    color: "#b9423c",
-                    border: "1px solid #f2c7c5",
-                    padding: "10px 16px",
-                    fontSize: "13px",
+                    background: "rgba(255, 255, 255, 0.1)",
+                    color: "#fecaca",
+                    border: "1px solid rgba(254, 202, 202, 0.35)",
+                    borderRadius: "10px",
+                    padding: "11px 18px",
+                    fontSize: "12.5px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    transition: "all 0.2s ease",
                   }}
-                  title="Restablecer todas las fotos del inicio a las originales"
+                  title="Restablecer todas las fotos del inicio a las originales de fábrica"
                 >
-                  <i className="bi bi-arrow-counterclockwise"></i> Restaurar Originales
+                  <i className="bi bi-arrow-counterclockwise"></i> Restaurar Imágenes Originales
                 </button>
               </div>
             </div>
 
-            {/* Tarjeta de Gestión de la Línea Verde Superior */}
+            {/* Tarjeta Ejecutiva de la Línea Verde Superior (Barra de Promociones) */}
             <div
               style={{
-                background: "linear-gradient(135deg, #f7faf8 0%, #edf6f0 100%)",
-                border: "1.5px solid #b7dec5",
-                borderRadius: "12px",
-                padding: "22px 24px",
-                marginTop: "20px",
-                marginBottom: "24px",
-                boxShadow: "0 2px 8px rgba(19, 119, 72, 0.05)",
+                background: "#ffffff",
+                border: "1.5px solid #e2e8f0",
+                borderRadius: "16px",
+                padding: "24px",
+                marginBottom: "28px",
+                boxShadow: "0 4px 16px rgba(15, 23, 42, 0.04)",
               }}
             >
               <div
@@ -4725,129 +6275,160 @@ export default function AdminCitas() {
                   alignItems: "flex-start",
                   gap: "16px",
                   flexWrap: "wrap",
-                  marginBottom: "16px",
+                  marginBottom: "18px",
+                  paddingBottom: "16px",
+                  borderBottom: "1px solid #f1f5f9",
                 }}
               >
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-                    <span
-                      style={{
-                        display: "inline-block",
-                        width: "12px",
-                        height: "12px",
-                        borderRadius: "50%",
-                        background: "#0b2820",
-                        boxShadow: "0 0 0 3px rgba(11, 40, 32, 0.2)",
-                      }}
-                    ></span>
-                    <h4
-                      style={{
-                        margin: 0,
-                        fontSize: "16.5px",
-                        fontWeight: "700",
-                        color: "#0b2820",
-                        letterSpacing: "0.2px",
-                      }}
-                    >
-                      Línea Verde Superior (Barra de Promociones)
-                    </h4>
-                  </div>
-                  <p style={{ margin: 0, fontSize: "13.5px", color: "#41584b", maxWidth: "700px" }}>
-                    Personaliza el texto de la franja verde superior visible en todas las páginas de la tienda (promociones, avisos especiales o anuncios).
-                  </p>
-                </div>
-
-                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                <div style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
                   <div
                     style={{
-                      display: "inline-flex",
-                      background: "#e4ece7",
-                      borderRadius: "24px",
-                      padding: "3px",
-                      border: "1px solid #c5d8ce",
+                      width: "44px",
+                      height: "44px",
+                      borderRadius: "12px",
+                      background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                      color: "#C6AC7F",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: "20px",
+                      flexShrink: 0,
+                      boxShadow: "0 4px 10px rgba(17, 59, 58, 0.18)",
                     }}
                   >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (!announcementActive) handleToggleAnnouncementActive();
-                      }}
-                      style={{
-                        border: "none",
-                        borderRadius: "20px",
-                        padding: "6px 14px",
-                        fontSize: "12px",
-                        fontWeight: "700",
-                        cursor: "pointer",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        background: announcementActive ? "#0b2820" : "transparent",
-                        color: announcementActive ? "#ffffff" : "#45584e",
-                        boxShadow: announcementActive ? "0 2px 6px rgba(0,0,0,0.15)" : "none",
-                        transition: "all 0.2s ease",
-                      }}
-                      title="Activar franja superior en toda la tienda"
-                    >
-                      <i className="bi bi-check-circle-fill" style={{ color: announcementActive ? "#7ce3a7" : "#8ca095" }}></i>
-                      Activo
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        if (announcementActive) handleToggleAnnouncementActive();
-                      }}
-                      style={{
-                        border: "none",
-                        borderRadius: "20px",
-                        padding: "6px 14px",
-                        fontSize: "12px",
-                        fontWeight: "700",
-                        cursor: "pointer",
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: "6px",
-                        background: !announcementActive ? "#b9423c" : "transparent",
-                        color: !announcementActive ? "#ffffff" : "#45584e",
-                        boxShadow: !announcementActive ? "0 2px 6px rgba(185, 66, 60, 0.25)" : "none",
-                        transition: "all 0.2s ease",
-                      }}
-                      title="Desactivar y ocultar franja superior de la tienda"
-                    >
-                      <i className="bi bi-x-circle-fill" style={{ color: !announcementActive ? "#ffffff" : "#8ca095" }}></i>
-                      Inactivo
-                    </button>
+                    <i className="bi bi-megaphone-fill"></i>
                   </div>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "4px" }}>
+                      <h4
+                        style={{
+                          margin: 0,
+                          fontSize: "16.5px",
+                          fontWeight: "700",
+                          color: "#0f172a",
+                        }}
+                      >
+                        Franja Promocional Superior (Top Bar)
+                      </h4>
+                      <span
+                        style={{
+                          fontSize: "11px",
+                          fontWeight: "700",
+                          padding: "3px 10px",
+                          borderRadius: "999px",
+                          background: announcementActive ? "#ecfdf5" : "#fef2f2",
+                          color: announcementActive ? "#047857" : "#b91c1c",
+                          border: `1px solid ${announcementActive ? "#a7f3d0" : "#fecaca"}`,
+                        }}
+                      >
+                        {announcementActive ? "● Visible en toda la web" : "○ Oculto en la tienda"}
+                      </span>
+                    </div>
+                    <p style={{ margin: 0, fontSize: "13px", color: "#64748b", maxWidth: "680px" }}>
+                      Configura el mensaje destacado que aparece en la parte más alta de todas las páginas (promociones de temporada, envíos o beneficios Platino).
+                    </p>
+                  </div>
+                </div>
+
+                {/* Selector segmentado Activo / Inactivo */}
+                <div
+                  style={{
+                    display: "inline-flex",
+                    background: "#f1f5f9",
+                    borderRadius: "12px",
+                    padding: "4px",
+                    border: "1px solid #e2e8f0",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!announcementActive) handleToggleAnnouncementActive();
+                    }}
+                    style={{
+                      border: "none",
+                      borderRadius: "9px",
+                      padding: "7px 16px",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      background: announcementActive ? "#113B3A" : "transparent",
+                      color: announcementActive ? "#ffffff" : "#64748b",
+                      boxShadow: announcementActive ? "0 2px 6px rgba(17, 59, 58, 0.22)" : "none",
+                      transition: "all 0.2s ease",
+                    }}
+                    title="Mostrar barra promocional en la tienda"
+                  >
+                    <i className="bi bi-eye-fill" style={{ color: announcementActive ? "#6ee7b7" : "#94a3b8" }}></i>
+                    Visible
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (announcementActive) handleToggleAnnouncementActive();
+                    }}
+                    style={{
+                      border: "none",
+                      borderRadius: "9px",
+                      padding: "7px 16px",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      background: !announcementActive ? "#991b1b" : "transparent",
+                      color: !announcementActive ? "#ffffff" : "#64748b",
+                      boxShadow: !announcementActive ? "0 2px 6px rgba(153, 27, 27, 0.25)" : "none",
+                      transition: "all 0.2s ease",
+                    }}
+                    title="Ocultar barra promocional en toda la tienda"
+                  >
+                    <i className="bi bi-eye-slash-fill" style={{ color: !announcementActive ? "#ffffff" : "#94a3b8" }}></i>
+                    Oculto
+                  </button>
                 </div>
               </div>
 
-              {/* Vista Previa de la Franja Verde */}
-              <div style={{ marginBottom: "16px" }}>
-                <span
-                  style={{
-                    display: "block",
-                    fontSize: "11.5px",
-                    fontWeight: "700",
-                    color: "#375043",
-                    textTransform: "uppercase",
-                    letterSpacing: "0.6px",
-                    marginBottom: "8px",
-                  }}
-                >
-                  Vista previa en tiempo real:
-                </span>
+              {/* Simulador de Vista Previa Real */}
+              <div style={{ marginBottom: "18px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
+                  <span
+                    style={{
+                      fontSize: "11px",
+                      fontWeight: "800",
+                      color: "#475569",
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                    }}
+                  >
+                    <i className="bi bi-display" style={{ color: "#113B3A" }}></i> Simulación en Tiempo Real:
+                  </span>
+                  <span style={{ fontSize: "11.5px", color: "#64748b" }}>
+                    {(announcementInput || "").length}/160 caracteres
+                  </span>
+                </div>
+
                 <div
                   style={{
-                    background: announcementActive ? "#0b2820" : "#f5f4f0",
-                    color: announcementActive ? "#ffffff" : "#7c8580",
-                    padding: "10px 18px",
-                    borderRadius: "6px",
+                    background: announcementActive
+                      ? "linear-gradient(90deg, #0b2820 0%, #113B3A 50%, #0b2820 100%)"
+                      : "#f8fafc",
+                    color: announcementActive ? "#ffffff" : "#94a3b8",
+                    padding: "12px 20px",
+                    borderRadius: "10px",
                     textAlign: "center",
-                    fontSize: "12px",
+                    fontSize: "12.5px",
                     fontWeight: "500",
-                    letterSpacing: "0.4px",
-                    boxShadow: announcementActive ? "0 2px 6px rgba(0,0,0,0.12)" : "none",
-                    border: announcementActive ? "1px solid #144033" : "1.5px dashed #c0b8aa",
+                    letterSpacing: "0.5px",
+                    boxShadow: announcementActive ? "0 4px 12px rgba(11, 40, 32, 0.16)" : "none",
+                    border: announcementActive ? "1px solid #1a5654" : "1.5px dashed #cbd5e1",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -4858,16 +6439,16 @@ export default function AdminCitas() {
                   {!announcementActive && (
                     <span
                       style={{
-                        fontSize: "11px",
-                        fontWeight: "700",
-                        color: "#b9423c",
-                        background: "#fde8e8",
-                        padding: "2px 8px",
-                        borderRadius: "10px",
-                        border: "1px solid #f8b4b4",
+                        fontSize: "10.5px",
+                        fontWeight: "800",
+                        color: "#b91c1c",
+                        background: "#fee2e2",
+                        padding: "3px 9px",
+                        borderRadius: "999px",
+                        border: "1px solid #fecaca",
                       }}
                     >
-                      <i className="bi bi-eye-slash-fill"></i> INACTIVO / OCULTO EN TIENDA
+                      OCULTO
                     </span>
                   )}
                   <span style={{ textDecoration: announcementActive ? "none" : "line-through", opacity: announcementActive ? 1 : 0.7 }}>
@@ -4876,32 +6457,63 @@ export default function AdminCitas() {
                 </div>
               </div>
 
-              {/* Formulario de guardado */}
+              {/* Plantillas Rápidas de Anuncio */}
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "14px" }}>
+                <span style={{ fontSize: "11.5px", fontWeight: "700", color: "#64748b" }}>
+                  <i className="bi bi-lightning-charge-fill" style={{ color: "#C6AC7F" }}></i> Textos sugeridos:
+                </span>
+                {[
+                  "Termina pronto: Recibe unos pendientes de diamantes cultivados en laboratorio con compras superiores a $1,000.",
+                  "Envío asegurado de cortesía a todo el Perú y Garantía Platino Care incluida en cada joya.",
+                  "Agenda tu cita privada en nuestros Showrooms de Miraflores o San Isidro · Atención personalizada.",
+                ].map((presetText, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => setAnnouncementInput(presetText)}
+                    style={{
+                      background: "#f8fafc",
+                      border: "1px solid #e2e8f0",
+                      borderRadius: "999px",
+                      padding: "4px 12px",
+                      fontSize: "11px",
+                      fontWeight: "600",
+                      color: "#334155",
+                      cursor: "pointer",
+                      transition: "all 0.15s ease",
+                    }}
+                  >
+                    Opción {idx + 1}
+                  </button>
+                ))}
+              </div>
+
+              {/* Formulario de guardado del anuncio */}
               <form
                 onSubmit={handleSaveAnnouncement}
                 style={{
                   display: "flex",
-                  gap: "12px",
+                  gap: "10px",
                   alignItems: "center",
                   flexWrap: "wrap",
                 }}
               >
-                <div style={{ flex: "1 1 380px" }}>
+                <div style={{ flex: "1 1 360px", position: "relative" }}>
                   <input
                     type="text"
                     value={announcementInput}
                     onChange={(e) => setAnnouncementInput(e.target.value)}
-                    placeholder="Escribe el texto para la barra de promociones..."
+                    placeholder="Escribe el mensaje para la barra superior de la tienda..."
                     style={{
                       width: "100%",
-                      padding: "11px 15px",
-                      border: "1.5px solid #a4d4b8",
-                      borderRadius: "6px",
+                      padding: "12px 16px",
+                      border: "1.5px solid #cbd5e1",
+                      borderRadius: "10px",
                       fontSize: "13.5px",
-                      color: "#15241e",
+                      color: "#0f172a",
                       background: "#ffffff",
                       outline: "none",
-                      boxShadow: "inset 0 1px 2px rgba(0,0,0,0.04)",
+                      transition: "border-color 0.2s",
                     }}
                     maxLength={160}
                   />
@@ -4910,54 +6522,75 @@ export default function AdminCitas() {
                 <button
                   type="submit"
                   style={{
-                    padding: "11px 22px",
-                    background: "#137748",
+                    padding: "12px 22px",
+                    background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
                     color: "#ffffff",
                     border: "none",
-                    borderRadius: "6px",
-                    fontWeight: "600",
-                    fontSize: "13.5px",
+                    borderRadius: "10px",
+                    fontWeight: "700",
+                    fontSize: "13px",
                     cursor: "pointer",
                     display: "inline-flex",
                     alignItems: "center",
                     gap: "8px",
-                    boxShadow: "0 2px 6px rgba(19, 119, 72, 0.25)",
-                    transition: "background 0.2s",
+                    boxShadow: "0 4px 12px rgba(17, 59, 58, 0.2)",
                   }}
-                  onMouseEnter={(e) => (e.currentTarget.style.background = "#0f5f3a")}
-                  onMouseLeave={(e) => (e.currentTarget.style.background = "#137748")}
                 >
-                  <i className="bi bi-check2-circle" style={{ fontSize: "15px" }}></i>
-                  Guardar Texto
+                  <i className="bi bi-check2-circle" style={{ color: "#C6AC7F", fontSize: "15px" }}></i>
+                  Publicar Texto
                 </button>
 
                 <button
                   type="button"
                   onClick={handleResetAnnouncement}
-                  className="btn-cita-outline"
                   style={{
-                    background: "#ffffff",
-                    borderColor: "#cad5ce",
-                    color: "#4e6056",
-                    padding: "10px 16px",
-                    fontSize: "13px",
-                    fontWeight: "500",
+                    background: "#f8fafc",
+                    border: "1.5px solid #e2e8f0",
+                    color: "#475569",
+                    borderRadius: "10px",
+                    padding: "12px 16px",
+                    fontSize: "12.5px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
                   }}
-                  title="Restablecer al texto predeterminado"
+                  title="Restablecer al mensaje predeterminado"
                 >
-                  <i className="bi bi-arrow-counterclockwise"></i> Restaurar Original
+                  <i className="bi bi-arrow-counterclockwise"></i> Restaurar
                 </button>
               </form>
             </div>
 
             {/* Navegador Visual por Secciones del Inicio */}
-            <div style={{ margin: "26px 0 20px 0" }}>
-              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", marginBottom: "12px" }}>
-                <span style={{ fontSize: "14px", fontWeight: "700", color: "#162720" }}>
-                  <i className="bi bi-layers-fill" style={{ color: "var(--platino-green-dark)" }}></i> Modificar por Secciones del Inicio:
-                </span>
-                <span style={{ fontSize: "13px", color: "#6b7a72" }}>
-                  Mostrando <strong>{filteredHomeItems.length}</strong> fotos configurables
+            <div
+              style={{
+                background: "#f8fafc",
+                border: "1px solid #e2e8f0",
+                borderRadius: "14px",
+                padding: "18px 20px",
+                marginBottom: "24px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", marginBottom: "14px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <i className="bi bi-grid-1x2-fill" style={{ color: "#113B3A", fontSize: "16px" }}></i>
+                  <span style={{ fontSize: "14px", fontWeight: "700", color: "#0f172a" }}>
+                    Filtrar por Sección de la Portada
+                  </span>
+                </div>
+                <span
+                  style={{
+                    fontSize: "12px",
+                    fontWeight: "700",
+                    color: "#113B3A",
+                    background: "#e6f0ee",
+                    padding: "4px 12px",
+                    borderRadius: "999px",
+                  }}
+                >
+                  Mostrando <strong>{filteredHomeItems.length}</strong> elementos configurables
                 </span>
               </div>
 
@@ -4970,22 +6603,24 @@ export default function AdminCitas() {
                       type="button"
                       onClick={() => setHomeSectionFilter(sec.section)}
                       style={{
-                        padding: "9px 16px",
-                        borderRadius: "20px",
+                        padding: "10px 16px",
+                        borderRadius: "10px",
                         fontSize: "12.5px",
-                        fontWeight: "600",
-                        border: isActive ? "1.5px solid var(--platino-green-dark)" : "1px solid #d4ded8",
-                        background: isActive ? "#0b2820" : "#ffffff",
-                        color: isActive ? "#ffffff" : "#45584e",
+                        fontWeight: "700",
+                        border: isActive ? "1.5px solid #113B3A" : "1px solid #dbe2ea",
+                        background: isActive
+                          ? "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)"
+                          : "#ffffff",
+                        color: isActive ? "#ffffff" : "#334155",
                         cursor: "pointer",
                         display: "inline-flex",
                         alignItems: "center",
-                        gap: "7px",
+                        gap: "8px",
                         transition: "all 0.2s ease",
-                        boxShadow: isActive ? "0 2px 8px rgba(11, 40, 32, 0.22)" : "none",
+                        boxShadow: isActive ? "0 4px 12px rgba(17, 59, 58, 0.2)" : "0 1px 2px rgba(0,0,0,0.03)",
                       }}
                     >
-                      <i className={`bi ${sec.icon}`} style={{ color: isActive ? "#7ce3a7" : "#6a7b72" }}></i>
+                      <i className={`bi ${sec.icon}`} style={{ color: isActive ? "#C6AC7F" : "#64748b", fontSize: "14px" }}></i>
                       {sec.name}
                     </button>
                   );
@@ -4995,28 +6630,80 @@ export default function AdminCitas() {
 
             {/* EDITOR ESPECÍFICO: Anillos dignos de obsesión (Título principal + Subtítulo) */}
             {homeSectionFilter === "Anillos dignos de obsesión" && (
-              <div style={{ background: "#fbfaf7", border: "1.5px solid #e7dfd1", borderRadius: "8px", padding: "20px 24px", marginBottom: "24px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
-                  <span style={{ fontSize: "22px" }}>💍</span>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: "16px", color: "#15241e", fontWeight: "700" }}>
-                      Textos del Encabezado de Anillos
-                    </h4>
-                    <p style={{ margin: 0, fontSize: "13px", color: "#5d6d65" }}>
-                      Personaliza el título principal y subtítulo que se muestran encima de los 6 estilos de anillos.
-                    </p>
+              <div
+                style={{
+                  background: "#ffffff",
+                  border: "1.5px solid #e2e8f0",
+                  borderRadius: "14px",
+                  padding: "22px 24px",
+                  marginBottom: "24px",
+                  boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", marginBottom: "16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div
+                      style={{
+                        width: "42px",
+                        height: "42px",
+                        borderRadius: "10px",
+                        background: "#f4efe6",
+                        color: "#8a6d3b",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "20px",
+                      }}
+                    >
+                      💍
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: "16px", color: "#0f172a", fontWeight: "700" }}>
+                        Encabezado de la Sección: Estilos de Anillos
+                      </h4>
+                      <p style={{ margin: 0, fontSize: "12.5px", color: "#64748b" }}>
+                        Personaliza el título principal y subtítulo que aparecen encima de las 6 siluetas de anillos.
+                      </p>
+                    </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleSaveSectionHeader(
+                        "sectionRingStyles",
+                        homeImagesData.sectionRingStyles?.title || "Anillos de compromiso dignos de obsesión",
+                        homeImagesData.sectionRingStyles?.subtitle || "Arte y artesanía en cada detalle."
+                      )
+                    }
+                    style={{
+                      background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "10px",
+                      padding: "10px 18px",
+                      fontSize: "12.5px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "7px",
+                      boxShadow: "0 4px 10px rgba(17, 59, 58, 0.18)",
+                    }}
+                  >
+                    <i className="bi bi-check2-circle" style={{ color: "#C6AC7F" }}></i> Guardar Encabezado
+                  </button>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "14px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "12.5px", fontWeight: "600", color: "#1e2e26", marginBottom: "5px" }}>
-                      Título Principal de la Sección:
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "6px" }}>
+                      Título Principal de la Sección
                     </label>
                     <input
                       type="text"
                       className="filter-select"
-                      style={{ width: "100%", height: "42px" }}
+                      style={{ width: "100%", height: "42px", borderRadius: "8px" }}
                       value={homeImagesData.sectionRingStyles?.title || "Anillos de compromiso dignos de obsesión"}
                       onChange={(e) => {
                         const updated = {
@@ -5032,13 +6719,13 @@ export default function AdminCitas() {
                   </div>
 
                   <div>
-                    <label style={{ display: "block", fontSize: "12.5px", fontWeight: "600", color: "#1e2e26", marginBottom: "5px" }}>
-                      Subtítulo de la Sección:
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "6px" }}>
+                      Subtítulo Descriptivo
                     </label>
                     <input
                       type="text"
                       className="filter-select"
-                      style={{ width: "100%", height: "42px" }}
+                      style={{ width: "100%", height: "42px", borderRadius: "8px" }}
                       value={homeImagesData.sectionRingStyles?.subtitle || "Arte y artesanía en cada detalle."}
                       onChange={(e) => {
                         const updated = {
@@ -5053,32 +6740,6 @@ export default function AdminCitas() {
                     />
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleSaveSectionHeader(
-                      "sectionRingStyles",
-                      homeImagesData.sectionRingStyles?.title || "Anillos de compromiso dignos de obsesión",
-                      homeImagesData.sectionRingStyles?.subtitle || "Arte y artesanía en cada detalle."
-                    )
-                  }
-                  style={{
-                    background: "#137748",
-                    color: "#ffffff",
-                    border: "none",
-                    borderRadius: "5px",
-                    padding: "9px 18px",
-                    fontSize: "13px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                  }}
-                >
-                  <i className="bi bi-check-lg"></i> Guardar Título y Subtítulo de Sección
-                </button>
               </div>
             )}
 
@@ -5089,40 +6750,78 @@ export default function AdminCitas() {
                 <div
                   style={{
                     background: "#ffffff",
-                    border: "1.5px solid #d8e5df",
-                    borderRadius: "10px",
+                    border: "1.5px solid #e2e8f0",
+                    borderRadius: "14px",
                     padding: "24px",
                     marginBottom: "24px",
-                    boxShadow: "0 2px 8px rgba(11, 40, 32, 0.04)",
+                    boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
                   }}
                 >
-                  <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "18px" }}>
-                    <span style={{ fontSize: "24px" }}>📝</span>
-                    <div>
-                      <h4 style={{ margin: 0, fontSize: "17px", color: "#11261e", fontWeight: "700" }}>
-                        Cuadro de Textos de la Sección
-                      </h4>
-                      <p style={{ margin: 0, fontSize: "13px", color: "#5d6d65" }}>
-                        Aquí solo modificas los textos y títulos de esta sección (lado izquierdo y lado derecho).
-                      </p>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", marginBottom: "18px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <div
+                        style={{
+                          width: "42px",
+                          height: "42px",
+                          borderRadius: "10px",
+                          background: "#e6f0ee",
+                          color: "#113B3A",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "20px",
+                        }}
+                      >
+                        <i className="bi bi-journal-richtext"></i>
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: "16.5px", color: "#0f172a", fontWeight: "700" }}>
+                          Textos Editoriales de la Sección
+                        </h4>
+                        <p style={{ margin: 0, fontSize: "12.5px", color: "#64748b" }}>
+                          Configura los títulos y llamados a la acción del bloque izquierdo (The Fall Edit) y derecho (The New Classics).
+                        </p>
+                      </div>
                     </div>
+
+                    <button
+                      type="button"
+                      onClick={handleSaveFallEditTexts}
+                      style={{
+                        background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                        color: "#ffffff",
+                        border: "none",
+                        borderRadius: "10px",
+                        padding: "11px 22px",
+                        fontSize: "13px",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        boxShadow: "0 4px 12px rgba(17, 59, 58, 0.2)",
+                      }}
+                    >
+                      <i className="bi bi-check2-circle" style={{ color: "#C6AC7F", fontSize: "15px" }}></i>
+                      Guardar Textos Editoriales
+                    </button>
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "22px", marginBottom: "18px" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px" }}>
                     {/* Columna Izquierda: The Fall Edit */}
-                    <div style={{ background: "#f8fbf9", border: "1px solid #dbeae2", borderRadius: "8px", padding: "18px" }}>
-                      <h5 style={{ margin: "0 0 14px 0", fontSize: "14px", color: "#0c3b28", fontWeight: "700", display: "flex", alignItems: "center", gap: "6px" }}>
-                        <i className="bi bi-fonts"></i> Lado Izquierdo (The Fall Edit)
+                    <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "18px" }}>
+                      <h5 style={{ margin: "0 0 14px 0", fontSize: "13.5px", color: "#113B3A", fontWeight: "700", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <i className="bi bi-layout-sidebar"></i> Bloque Izquierdo (The Fall Edit)
                       </h5>
 
                       <div style={{ marginBottom: "12px" }}>
-                        <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#253c30", marginBottom: "4px" }}>
+                        <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "4px" }}>
                           Título Principal:
                         </label>
                         <input
                           type="text"
                           className="filter-select"
-                          style={{ width: "100%", height: "40px" }}
+                          style={{ width: "100%", height: "40px", borderRadius: "8px" }}
                           value={homeImagesData.editorialFall?.title || "The Fall Edit"}
                           onChange={(e) => {
                             setHomeImagesData({
@@ -5135,12 +6834,12 @@ export default function AdminCitas() {
                       </div>
 
                       <div style={{ marginBottom: "12px" }}>
-                        <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#253c30", marginBottom: "4px" }}>
+                        <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "4px" }}>
                           Subtítulo / Párrafo:
                         </label>
                         <textarea
                           className="filter-select"
-                          style={{ width: "100%", height: "70px", padding: "8px 12px", resize: "vertical" }}
+                          style={{ width: "100%", height: "72px", padding: "8px 12px", resize: "vertical", borderRadius: "8px" }}
                           value={homeImagesData.editorialFall?.subtitle || ""}
                           onChange={(e) => {
                             setHomeImagesData({
@@ -5153,13 +6852,13 @@ export default function AdminCitas() {
                       </div>
 
                       <div>
-                        <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#253c30", marginBottom: "4px" }}>
+                        <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "4px" }}>
                           Texto del Botón:
                         </label>
                         <input
                           type="text"
                           className="filter-select"
-                          style={{ width: "100%", height: "40px" }}
+                          style={{ width: "100%", height: "40px", borderRadius: "8px" }}
                           value={homeImagesData.editorialFall?.buttonText || "SHOP NOW"}
                           onChange={(e) => {
                             setHomeImagesData({
@@ -5173,20 +6872,20 @@ export default function AdminCitas() {
                     </div>
 
                     {/* Columna Derecha: The New Classics */}
-                    <div style={{ background: "#fbfaf7", border: "1px solid #e7ded0", borderRadius: "8px", padding: "18px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                    <div style={{ background: "#fdfbf7", border: "1px solid #e7dfd1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
                       <div>
-                        <h5 style={{ margin: "0 0 14px 0", fontSize: "14px", color: "#1e2e26", fontWeight: "700", display: "flex", alignItems: "center", gap: "6px" }}>
-                          <i className="bi bi-type-italic"></i> Lado Derecho (The New Classics)
+                        <h5 style={{ margin: "0 0 14px 0", fontSize: "13.5px", color: "#113B3A", fontWeight: "700", display: "flex", alignItems: "center", gap: "6px" }}>
+                          <i className="bi bi-grid-3x2-gap-fill" style={{ color: "#C6AC7F" }}></i> Bloque Derecho (Collage The New Classics)
                         </h5>
 
                         <div>
-                          <label style={{ display: "block", fontSize: "12px", fontWeight: "600", color: "#253c30", marginBottom: "4px" }}>
+                          <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "4px" }}>
                             Título Central en Cursiva sobre el Collage:
                           </label>
                           <input
                             type="text"
                             className="filter-select"
-                            style={{ width: "100%", height: "40px" }}
+                            style={{ width: "100%", height: "40px", borderRadius: "8px" }}
                             value={homeImagesData.editorialClassics?.title || "The New Classics"}
                             onChange={(e) => {
                               setHomeImagesData({
@@ -5196,73 +6895,66 @@ export default function AdminCitas() {
                             }}
                             placeholder="Ej. The New Classics"
                           />
-                          <small style={{ fontSize: "11.5px", color: "#748178", marginTop: "6px", display: "block" }}>
-                            Este texto se dibuja en caligrafía script blanca sobre las 6 fotos pegadas del collage.
+                          <small style={{ fontSize: "11.5px", color: "#64748b", marginTop: "6px", display: "block" }}>
+                            Este texto se superpone en tipografía script blanca sobre el mosaico de 6 fotografías.
                           </small>
                         </div>
                       </div>
 
-                      <div style={{ marginTop: "20px", padding: "12px 14px", background: "#f0efe9", borderRadius: "6px", fontSize: "12px", color: "#546259" }}>
-                        <i className="bi bi-info-circle"></i> Los cambios de texto se reflejan en tiempo real en la tienda al hacer clic en Guardar.
+                      <div style={{ marginTop: "20px", padding: "12px 14px", background: "#f4efe6", borderRadius: "8px", fontSize: "12px", color: "#5c4b2b", border: "1px solid #e6dac6" }}>
+                        <i className="bi bi-stars"></i> Los cambios se actualizan instantáneamente en la portada al guardar.
                       </div>
                     </div>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={handleSaveFallEditTexts}
-                    style={{
-                      background: "#137748",
-                      color: "#ffffff",
-                      border: "none",
-                      borderRadius: "6px",
-                      padding: "11px 24px",
-                      fontSize: "13.5px",
-                      fontWeight: "700",
-                      cursor: "pointer",
-                      display: "inline-flex",
-                      alignItems: "center",
-                      gap: "8px",
-                      boxShadow: "0 2px 6px rgba(19, 119, 72, 0.2)",
-                    }}
-                  >
-                    <i className="bi bi-check2-circle" style={{ fontSize: "16px" }}></i> Guardar Todos los Textos de la Sección
-                  </button>
                 </div>
 
                 {/* CUADRO 2: CUADRO DE LAS 7 FOTOGRAFÍAS */}
                 <div
                   style={{
                     background: "#ffffff",
-                    border: "1.5px solid #d8e5df",
-                    borderRadius: "10px",
+                    border: "1.5px solid #e2e8f0",
+                    borderRadius: "14px",
                     padding: "24px",
-                    boxShadow: "0 2px 8px rgba(11, 40, 32, 0.04)",
+                    boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
                   }}
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", marginBottom: "18px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <span style={{ fontSize: "24px" }}>🖼️</span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <div
+                        style={{
+                          width: "42px",
+                          height: "42px",
+                          borderRadius: "10px",
+                          background: "#113B3A",
+                          color: "#C6AC7F",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "20px",
+                        }}
+                      >
+                        <i className="bi bi-camera-fill"></i>
+                      </div>
                       <div>
-                        <h4 style={{ margin: 0, fontSize: "17px", color: "#11261e", fontWeight: "700" }}>
-                          Cuadro de Fotografías (7 Fotos en total)
+                        <h4 style={{ margin: 0, fontSize: "16.5px", color: "#0f172a", fontWeight: "700" }}>
+                          Mosaico Fotográfico Editorial (7 Fotografías)
                         </h4>
-                        <p style={{ margin: 0, fontSize: "13px", color: "#5d6d65" }}>
-                          Aquí solo cambias las fotos que se muestran en esta sección: 1 foto editorial izquierda y las 6 fotos del collage pegado derecho.
+                        <p style={{ margin: 0, fontSize: "12.5px", color: "#64748b" }}>
+                          Actualiza la fotografía principal izquierda o cualquiera de las 6 piezas del collage derecho.
                         </p>
                       </div>
                     </div>
-                    <span style={{ fontSize: "12px", background: "#e8f4ed", color: "#137748", padding: "4px 12px", borderRadius: "12px", fontWeight: "700" }}>
+                    <span style={{ fontSize: "11.5px", background: "#e6f0ee", color: "#113B3A", padding: "5px 12px", borderRadius: "999px", fontWeight: "700" }}>
                       1 Foto Editorial + 6 Fotos de Collage
                     </span>
                   </div>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "1.1fr 1fr", gap: "20px", alignItems: "stretch" }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px", alignItems: "stretch" }}>
                     {/* Foto 1: Editorial Izquierda */}
-                    <div style={{ border: "1.5px solid #c9dcd1", borderRadius: "8px", overflow: "hidden", background: "#fbfcfb", display: "flex", flexDirection: "column" }}>
-                      <div style={{ padding: "12px 16px", background: "#f2f8f4", borderBottom: "1px solid #dbe9df", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <strong style={{ fontSize: "13px", color: "#0c3b28" }}>Foto 1: Editorial Izquierda (The Fall Edit)</strong>
-                        <span style={{ fontSize: "11px", background: "#0b2820", color: "#ffffff", padding: "2px 8px", borderRadius: "4px", fontWeight: "600" }}>Principal</span>
+                    <div style={{ border: "1.5px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", background: "#ffffff", display: "flex", flexDirection: "column" }}>
+                      <div style={{ padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <strong style={{ fontSize: "13px", color: "#0f172a" }}>Foto 1: Editorial Izquierda (The Fall Edit)</strong>
+                        <span style={{ fontSize: "10.5px", background: "#113B3A", color: "#C6AC7F", padding: "3px 9px", borderRadius: "999px", fontWeight: "700" }}>Principal</span>
                       </div>
                       <div style={{ position: "relative", height: "320px", overflow: "hidden", background: "#0c231b" }}>
                         <img
@@ -5273,31 +6965,45 @@ export default function AdminCitas() {
                             e.target.src = "/images/editorial-fall.jpg";
                           }}
                         />
-                        <div style={{ position: "absolute", bottom: "16px", left: "16px", right: "16px", background: "rgba(11, 40, 32, 0.82)", backdropFilter: "blur(4px)", padding: "10px 14px", borderRadius: "6px", color: "#ffffff" }}>
-                          <div style={{ fontSize: "15px", fontFamily: "var(--font-serif)", fontWeight: "600" }}>{homeImagesData.editorialFall?.title || "The Fall Edit"}</div>
-                          <div style={{ fontSize: "11.5px", opacity: 0.85, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{homeImagesData.editorialFall?.subtitle}</div>
+                        <div style={{ position: "absolute", bottom: "16px", left: "16px", right: "16px", background: "rgba(17, 59, 58, 0.88)", backdropFilter: "blur(6px)", padding: "12px 16px", borderRadius: "10px", color: "#ffffff", border: "1px solid rgba(198, 172, 127, 0.35)" }}>
+                          <div style={{ fontSize: "15px", fontFamily: "var(--font-serif)", fontWeight: "600", color: "#e6cfa8" }}>{homeImagesData.editorialFall?.title || "The Fall Edit"}</div>
+                          <div style={{ fontSize: "11.5px", opacity: 0.9, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{homeImagesData.editorialFall?.subtitle}</div>
                         </div>
                       </div>
-                      <div style={{ padding: "14px 16px", background: "#ffffff", borderTop: "1px solid #e7efe9" }}>
+                      <div style={{ padding: "14px 16px", background: "#ffffff", borderTop: "1px solid #f1f5f9" }}>
                         <button
                           type="button"
                           onClick={() => handleOpenEditHomeImage("editorialFall", homeImagesData.editorialFall || {})}
-                          className="btn-catalog-create"
-                          style={{ width: "100%", justifyContent: "center", padding: "9px" }}
+                          style={{
+                            width: "100%",
+                            padding: "11px 16px",
+                            background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                            color: "#ffffff",
+                            border: "none",
+                            borderRadius: "10px",
+                            fontSize: "12.5px",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "8px",
+                            boxShadow: "0 4px 10px rgba(17, 59, 58, 0.16)",
+                          }}
                         >
-                          <i className="bi bi-camera"></i> Cambiar Foto 1 (Editorial)
+                          <i className="bi bi-camera-fill" style={{ color: "#C6AC7F" }}></i> Cambiar Fotografía Principal
                         </button>
                       </div>
                     </div>
 
                     {/* Fotos 2 a 7: Mosaico 6 Fotos */}
-                    <div style={{ border: "1.5px solid #c9dcd1", borderRadius: "8px", overflow: "hidden", background: "#fbfcfb", display: "flex", flexDirection: "column" }}>
-                      <div style={{ padding: "12px 16px", background: "#f2f8f4", borderBottom: "1px solid #dbe9df", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                        <strong style={{ fontSize: "13px", color: "#0c3b28" }}>Fotos 2 a 7: Collage Continuo (The New Classics)</strong>
-                        <span style={{ fontSize: "11px", background: "#137748", color: "#ffffff", padding: "2px 8px", borderRadius: "4px", fontWeight: "600" }}>6 Fotos</span>
+                    <div style={{ border: "1.5px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", background: "#ffffff", display: "flex", flexDirection: "column" }}>
+                      <div style={{ padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <strong style={{ fontSize: "13px", color: "#0f172a" }}>Fotos 2 a 7: Collage Continuo (The New Classics)</strong>
+                        <span style={{ fontSize: "10.5px", background: "#e6f0ee", color: "#113B3A", padding: "3px 9px", borderRadius: "999px", fontWeight: "700" }}>6 Piezas</span>
                       </div>
 
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gridTemplateRows: "repeat(2, 1fr)", gap: "4px", padding: "8px", background: "#0c231b", flex: 1, minHeight: "320px" }}>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gridTemplateRows: "repeat(2, 1fr)", gap: "6px", padding: "10px", background: "#0f241d", flex: 1, minHeight: "320px" }}>
                         {[
                           { key: "mosaic1", num: 2, label: "Pieza 1" },
                           { key: "mosaic2", num: 3, label: "Pieza 2" },
@@ -5314,7 +7020,7 @@ export default function AdminCitas() {
                                 position: "relative",
                                 aspectRatio: "1",
                                 overflow: "hidden",
-                                borderRadius: "3px",
+                                borderRadius: "6px",
                                 background: "#17372b",
                               }}
                             >
@@ -5330,32 +7036,32 @@ export default function AdminCitas() {
                                 style={{
                                   position: "absolute",
                                   inset: 0,
-                                  background: "rgba(0, 0, 0, 0.45)",
+                                  background: "linear-gradient(to top, rgba(11, 40, 32, 0.85) 0%, rgba(11, 40, 32, 0.25) 100%)",
                                   display: "flex",
                                   flexDirection: "column",
                                   alignItems: "center",
-                                  justifyContent: "center",
+                                  justifyContent: "flex-end",
                                   gap: "6px",
-                                  padding: "6px",
+                                  padding: "10px 6px",
                                   textAlign: "center",
                                 }}
                               >
-                                <span style={{ fontSize: "10.5px", fontWeight: "700", color: "#ffffff", textShadow: "0 1px 3px rgba(0,0,0,0.8)" }}>
-                                  Foto {num} ({label})
+                                <span style={{ fontSize: "10.5px", fontWeight: "700", color: "#e6cfa8" }}>
+                                  Foto {num} · {label}
                                 </span>
                                 <button
                                   type="button"
                                   onClick={() => handleOpenEditHomeImage(key, item)}
                                   style={{
-                                    border: "none",
+                                    border: "1px solid rgba(198, 172, 127, 0.5)",
                                     background: "#ffffff",
-                                    color: "#0b2820",
-                                    padding: "4px 8px",
-                                    borderRadius: "4px",
+                                    color: "#113B3A",
+                                    padding: "5px 10px",
+                                    borderRadius: "6px",
                                     fontSize: "11px",
                                     fontWeight: "700",
                                     cursor: "pointer",
-                                    boxShadow: "0 2px 5px rgba(0,0,0,0.3)",
+                                    boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
                                     display: "inline-flex",
                                     alignItems: "center",
                                     gap: "4px",
@@ -5368,8 +7074,8 @@ export default function AdminCitas() {
                           );
                         })}
                       </div>
-                      <div style={{ padding: "10px 14px", background: "#f8fbf9", borderTop: "1px solid #e7efe9", fontSize: "12px", color: "#506357", textAlign: "center" }}>
-                        <i className="bi bi-magic"></i> Cada una de estas 6 fotos tiene efecto <strong>Zoom interactivo</strong> en la tienda al pasar el mouse.
+                      <div style={{ padding: "11px 14px", background: "#f8fafc", borderTop: "1px solid #e2e8f0", fontSize: "12px", color: "#475569", textAlign: "center" }}>
+                        <i className="bi bi-magic" style={{ color: "#113B3A" }}></i> Las 6 fotografías forman un collage interactivo con zoom en la portada.
                       </div>
                     </div>
                   </div>
@@ -5379,28 +7085,80 @@ export default function AdminCitas() {
 
             {/* EDITOR ESPECÍFICO: Showroom & Sedes (1 o 2 Fotos Opcionales + Textos) */}
             {homeSectionFilter === "Nuestras Sedes & Showroom" && (
-              <div style={{ background: "#fbfaf7", border: "1.5px solid #e7dfd1", borderRadius: "8px", padding: "20px 24px", marginBottom: "24px" }}>
-                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "12px" }}>
-                  <span style={{ fontSize: "22px" }}>🏛️</span>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: "16px", color: "#15241e", fontWeight: "700" }}>
-                      Textos de la Sección de Sedes y Showroom
-                    </h4>
-                    <p style={{ margin: 0, fontSize: "13px", color: "#5d6d65" }}>
-                      Configura el título principal, subtítulo y si deseas mostrar 1 o 2 fotografías del Showroom / Sedes en la tienda.
-                    </p>
+              <div
+                style={{
+                  background: "#ffffff",
+                  border: "1.5px solid #e2e8f0",
+                  borderRadius: "14px",
+                  padding: "22px 24px",
+                  marginBottom: "24px",
+                  boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", marginBottom: "16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div
+                      style={{
+                        width: "42px",
+                        height: "42px",
+                        borderRadius: "10px",
+                        background: "#f4efe6",
+                        color: "#8a6d3b",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "20px",
+                      }}
+                    >
+                      🏛️
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: "16px", color: "#0f172a", fontWeight: "700" }}>
+                        Textos de Nuestras Sedes y Showroom
+                      </h4>
+                      <p style={{ margin: 0, fontSize: "12.5px", color: "#64748b" }}>
+                        Configura el título principal, subtítulo y administra 1 o 2 fotografías del Showroom en la portada.
+                      </p>
+                    </div>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleSaveSectionHeader(
+                        "showroom",
+                        homeImagesData.showroom?.title || "Estamos aquí para ti, en persona y en línea",
+                        homeImagesData.showroom?.subtitle || "Ya sea en una tienda cercana a usted o en línea, seleccionamos su cita solo para usted."
+                      )
+                    }
+                    style={{
+                      background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "10px",
+                      padding: "10px 18px",
+                      fontSize: "12.5px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "7px",
+                      boxShadow: "0 4px 10px rgba(17, 59, 58, 0.18)",
+                    }}
+                  >
+                    <i className="bi bi-check2-circle" style={{ color: "#C6AC7F" }}></i> Guardar Textos de Showroom
+                  </button>
                 </div>
 
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "16px", marginBottom: "14px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
                   <div>
-                    <label style={{ display: "block", fontSize: "12.5px", fontWeight: "600", color: "#1e2e26", marginBottom: "5px" }}>
-                      Título Principal:
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "6px" }}>
+                      Título Principal
                     </label>
                     <input
                       type="text"
                       className="filter-select"
-                      style={{ width: "100%", height: "42px" }}
+                      style={{ width: "100%", height: "42px", borderRadius: "8px" }}
                       value={homeImagesData.showroom?.title || "Estamos aquí para ti, en persona y en línea"}
                       onChange={(e) => {
                         const updated = {
@@ -5416,13 +7174,13 @@ export default function AdminCitas() {
                   </div>
 
                   <div>
-                    <label style={{ display: "block", fontSize: "12.5px", fontWeight: "600", color: "#1e2e26", marginBottom: "5px" }}>
-                      Subtítulo / Descripción:
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "6px" }}>
+                      Subtítulo / Descripción
                     </label>
                     <input
                       type="text"
                       className="filter-select"
-                      style={{ width: "100%", height: "42px" }}
+                      style={{ width: "100%", height: "42px", borderRadius: "8px" }}
                       value={homeImagesData.showroom?.subtitle || "Ya sea en una tienda cercana a usted o en línea, seleccionamos su cita solo para usted."}
                       onChange={(e) => {
                         const updated = {
@@ -5437,112 +7195,244 @@ export default function AdminCitas() {
                     />
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    handleSaveSectionHeader(
-                      "showroom",
-                      homeImagesData.showroom?.title || "Estamos aquí para ti, en persona y en línea",
-                      homeImagesData.showroom?.subtitle || "Ya sea en una tienda cercana a usted o en línea, seleccionamos su cita solo para usted."
-                    )
-                  }
-                  style={{
-                    background: "#137748",
-                    color: "#ffffff",
-                    border: "none",
-                    borderRadius: "5px",
-                    padding: "9px 18px",
-                    fontSize: "13px",
-                    fontWeight: "600",
-                    cursor: "pointer",
-                    display: "inline-flex",
-                    alignItems: "center",
-                    gap: "6px",
-                  }}
-                >
-                  <i className="bi bi-check-lg"></i> Guardar Textos de Showroom
-                </button>
               </div>
             )}
 
             {/* Grid de Tarjetas de Imágenes (para todas las demás secciones) */}
             {homeSectionFilter !== "The Fall Edit & The New Classics" && (
-              <div className="home-images-grid">
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))",
+                  gap: "22px",
+                }}
+              >
                 {filteredHomeItems.map(([key, item]) => {
                   // Caso especial: segunda foto opcional de showroom sin asignar
                   if (key === "showroomSecondary" && !item.image) {
                     return (
                       <div
                         key={key}
-                        className="home-image-card"
-                        style={{ border: "2px dashed #b5c7bd", background: "#fbfcfb", alignItems: "center", justifyContent: "center", padding: "30px 20px", textAlign: "center" }}
+                        style={{
+                          border: "2px dashed #cbd5e1",
+                          borderRadius: "16px",
+                          background: "#f8fafc",
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          padding: "32px 24px",
+                          textAlign: "center",
+                          minHeight: "340px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: "56px",
+                            height: "56px",
+                            borderRadius: "16px",
+                            background: "#e6f0ee",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: "24px",
+                            color: "#113B3A",
+                            marginBottom: "14px",
+                          }}
                         >
-                        <div style={{ width: "54px", height: "54px", borderRadius: "50%", background: "#edf4f0", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "24px", color: "var(--platino-green-dark)", marginBottom: "14px" }}>
                           <i className="bi bi-image"></i>
                         </div>
-                        <span className="home-section-badge">Nuestras Sedes & Showroom</span>
-                        <h4 className="home-image-card-title" style={{ fontSize: "15px", marginTop: "4px" }}>
-                          Foto 2 del Showroom (Opcional)
+                        <span
+                          style={{
+                            fontSize: "10.5px",
+                            fontWeight: "800",
+                            textTransform: "uppercase",
+                            letterSpacing: "0.06em",
+                            color: "#113B3A",
+                            background: "#e6f0ee",
+                            padding: "4px 10px",
+                            borderRadius: "999px",
+                            marginBottom: "8px",
+                          }}
+                        >
+                          Nuestras Sedes & Showroom
+                        </span>
+                        <h4 style={{ fontSize: "16px", fontWeight: "700", color: "#0f172a", margin: "4px 0 8px 0" }}>
+                          2da Fotografía de Showroom (Opcional)
                         </h4>
-                        <p className="home-image-card-desc" style={{ fontSize: "12.5px" }}>
-                          Actualmente solo se muestra 1 fotografía en la tienda. Si deseas mostrar dos sedes o una vista complementaria en paralelo, sube una 2da foto aquí.
+                        <p style={{ fontSize: "12.5px", color: "#64748b", margin: "0 0 18px 0", lineHeight: "1.5" }}>
+                          Actualmente se muestra 1 fotografía principal. Sube una segunda imagen si deseas exhibir dos sedes en paralelo.
                         </p>
                         <button
                           type="button"
                           onClick={() => handleOpenEditHomeImage(key, item)}
-                          className="btn-change-home-image"
-                          style={{ marginTop: "10px" }}
+                          style={{
+                            background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                            color: "#ffffff",
+                            border: "none",
+                            borderRadius: "10px",
+                            padding: "11px 20px",
+                            fontSize: "12.5px",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "8px",
+                            boxShadow: "0 4px 12px rgba(17, 59, 58, 0.18)",
+                          }}
                         >
-                          <i className="bi bi-plus-circle"></i> Agregar 2da Foto
+                          <i className="bi bi-plus-circle-fill" style={{ color: "#C6AC7F" }}></i> Agregar 2da Fotografía
                         </button>
                       </div>
                     );
                   }
 
                   return (
-                    <div key={key} className="home-image-card">
-                      <div className="home-image-card-thumb-wrapper">
+                    <div
+                      key={key}
+                      style={{
+                        background: "#ffffff",
+                        border: "1.5px solid #e2e8f0",
+                        borderRadius: "16px",
+                        overflow: "hidden",
+                        display: "flex",
+                        flexDirection: "column",
+                        boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+                        transition: "transform 0.2s ease, box-shadow 0.2s ease",
+                      }}
+                    >
+                      <div
+                        style={{
+                          position: "relative",
+                          height: "220px",
+                          background: "#0f172a",
+                          overflow: "hidden",
+                        }}
+                      >
                         <img
                           src={item.image}
                           alt={item.label || item.name || key}
-                          className="home-image-card-thumb"
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            objectFit: "cover",
+                            display: "block",
+                          }}
                           onError={(e) => {
                             e.target.src = "/images/cat-compromiso.jpg";
                           }}
                         />
+                        <div
+                          style={{
+                            position: "absolute",
+                            top: "12px",
+                            left: "12px",
+                            background: "rgba(17, 59, 58, 0.9)",
+                            backdropFilter: "blur(6px)",
+                            color: "#e6cfa8",
+                            border: "1px solid rgba(198, 172, 127, 0.4)",
+                            padding: "4px 11px",
+                            borderRadius: "999px",
+                            fontSize: "10.5px",
+                            fontWeight: "700",
+                            letterSpacing: "0.04em",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          {item.section}
+                        </div>
                       </div>
 
-                      <div className="home-image-card-body">
-                        <span className="home-section-badge">{item.section}</span>
-                        <h4 className="home-image-card-title">{item.label || item.name}</h4>
-                        <p className="home-image-card-desc">
-                          {item.name ? (
-                            <>
-                              <strong>Título visible abajo:</strong> "{item.name}"
-                            </>
-                          ) : item.description || item.subtitle || (item.path ? `Enlace: ${item.path}` : "Fotografía destacada del inicio")}
-                        </p>
+                      <div
+                        style={{
+                          padding: "18px 20px",
+                          display: "flex",
+                          flexDirection: "column",
+                          flex: 1,
+                          justifyContent: "space-between",
+                        }}
+                      >
+                        <div>
+                          <h4
+                            style={{
+                              margin: "0 0 8px 0",
+                              fontSize: "16px",
+                              fontWeight: "700",
+                              color: "#0f172a",
+                              fontFamily: "var(--font-serif)",
+                            }}
+                          >
+                            {item.label || item.name}
+                          </h4>
 
-                        <div className="home-image-card-footer">
+                          <div
+                            style={{
+                              background: "#f8fafc",
+                              border: "1px solid #e2e8f0",
+                              borderRadius: "8px",
+                              padding: "8px 12px",
+                              fontSize: "12px",
+                              color: "#475569",
+                              marginBottom: "16px",
+                              lineHeight: "1.45",
+                            }}
+                          >
+                            {item.name ? (
+                              <>
+                                <span style={{ color: "#64748b", fontWeight: "600" }}>Título en tienda:</span>{" "}
+                                <strong style={{ color: "#0f172a" }}>"{item.name}"</strong>
+                              </>
+                            ) : (
+                              item.description ||
+                              item.subtitle ||
+                              (item.path ? `Ruta destino: ${item.path}` : "Fotografía destacada de portada")
+                            )}
+                          </div>
+                        </div>
+
+                        <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
                           <button
                             type="button"
                             onClick={() => handleOpenEditHomeImage(key, item)}
-                            className="btn-change-home-image"
-                            title="Cambiar fotografía y título"
+                            style={{
+                              flex: 1,
+                              padding: "11px 16px",
+                              background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                              color: "#ffffff",
+                              border: "none",
+                              borderRadius: "10px",
+                              fontSize: "12.5px",
+                              fontWeight: "700",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              gap: "8px",
+                              boxShadow: "0 4px 10px rgba(17, 59, 58, 0.16)",
+                              transition: "all 0.2s ease",
+                            }}
+                            title="Cambiar fotografía y textos asociados"
                           >
-                            <i className="bi bi-camera"></i> Cambiar Foto y Título
+                            <i className="bi bi-camera-fill" style={{ color: "#C6AC7F" }}></i>
+                            Cambiar Foto y Título
                           </button>
 
                           {key === "showroomSecondary" && item.image && (
                             <button
                               type="button"
                               onClick={handleRemoveSecondaryShowroom}
-                              className="btn-card-delete"
+                              style={{
+                                background: "#fef2f2",
+                                color: "#b91c1c",
+                                border: "1px solid #fecaca",
+                                borderRadius: "10px",
+                                padding: "11px 14px",
+                                fontSize: "13px",
+                                cursor: "pointer",
+                              }}
                               title="Quitar esta segunda foto (volver a 1 sola foto)"
-                              style={{ padding: "8px 12px", fontSize: "12px" }}
                             >
-                              <i className="bi bi-trash"></i>
+                              <i className="bi bi-trash3-fill"></i>
                             </button>
                           )}
                         </div>
@@ -5567,88 +7457,185 @@ export default function AdminCitas() {
               "Permite supervisar los pedidos de clientes, notas de orfebrería y avance de fabricación en taller."
             )
           ) : (
-          <div className="admin-content-card">
-            {/* Cabecera del panel de pedidos */}
-            <div className="admin-catalog-header">
-              <div>
+          <div className="admin-content-card" style={{ padding: "28px" }}>
+            {/* Banner Ejecutivo de Control de Taller */}
+            <div
+              style={{
+                background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                color: "#ffffff",
+                padding: "24px 28px",
+                borderRadius: "12px",
+                marginBottom: "22px",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                flexWrap: "wrap",
+                gap: "18px",
+                boxShadow: "0 10px 25px -5px rgba(17, 59, 58, 0.22)",
+              }}
+            >
+              <div style={{ maxWidth: "780px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px", flexWrap: "wrap" }}>
+                  <span
+                    style={{
+                      background: "rgba(198, 172, 127, 0.22)",
+                      color: "#C6AC7F",
+                      border: "1px solid rgba(198, 172, 127, 0.45)",
+                      padding: "3px 10px",
+                      borderRadius: "20px",
+                      fontSize: "11px",
+                      fontWeight: "700",
+                      letterSpacing: "0.08em",
+                      textTransform: "uppercase",
+                    }}
+                  >
+                    <i className="bi bi-hammer"></i> ORFEBRERÍA & TRAZABILIDAD DE TALLER
+                  </span>
+                  <span
+                    style={{
+                      background: "#22c55e",
+                      color: "#ffffff",
+                      padding: "2px 9px",
+                      borderRadius: "10px",
+                      fontSize: "10.5px",
+                      fontWeight: "700",
+                    }}
+                  >
+                    {filteredOrders.length} PEDIDO(S) EN VISTA
+                  </span>
+                </div>
                 <h3
                   style={{
                     fontFamily: "var(--font-serif)",
-                    fontSize: "22px",
+                    fontSize: "24px",
                     margin: "0 0 6px 0",
-                    color: "#15241e",
+                    color: "#ffffff",
+                    fontWeight: "600",
                   }}
                 >
-                  Control de Pedidos y Fabricación en Taller ({filteredOrders.length})
+                  Control de Pedidos y Fabricación en Taller
                 </h3>
-                <p style={{ fontSize: "14px", color: "#5d6d65", margin: 0 }}>
-                  Actualiza en qué fase se encuentra cada joya (Taller, Engaste, Calidad, Envío). Los clientes ven estos cambios inmediatamente en su portal de seguimiento.
+                <p style={{ fontSize: "13.5px", color: "rgba(255, 255, 255, 0.86)", margin: 0, lineHeight: "1.5" }}>
+                  Gestiona las <strong>6 etapas internas de orfebrería</strong> (Recibido, Taller, Engaste, Calidad, Listo y Entregado). El portal del cliente unifica automáticamente Taller, Engaste y Calidad bajo la etapa <strong>"En Proceso" (4 pasos)</strong>.
                 </p>
-              </div>
-
-              <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                <Link
-                  to="/mis-pedidos"
-                  target="_blank"
-                  className="btn-cita-outline"
-                  style={{ background: "#f8f7f4", padding: "10px 16px", fontSize: "13px" }}
-                  title="Abrir el portal del cliente para verificar la vista del usuario"
-                >
-                  <i className="bi bi-box-arrow-up-right"></i> Ver Portal Cliente (Camila)
-                </Link>
               </div>
             </div>
 
-
-            {/* Barra de Filtros y Búsqueda de Pedidos */}
-            <div className="admin-orders-controls">
-              <div className="admin-orders-toolbar">
-                <div className="admin-orders-search">
-                  <i className="bi bi-search" style={{ color: "#8c9791" }}></i>
+            {/* Barra de Búsqueda y Pipeline Interactivo de Fases */}
+            <div
+              style={{
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: "12px",
+                padding: "18px 20px",
+                marginBottom: "24px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.03)",
+              }}
+            >
+              <div style={{ display: "flex", gap: "14px", alignItems: "center", flexWrap: "wrap", justifyContent: "space-between" }}>
+                {/* Buscador */}
+                <div style={{ flex: "1 1 320px", position: "relative" }}>
+                  <i
+                    className="bi bi-search"
+                    style={{ position: "absolute", left: "14px", top: "11px", color: "#94a3b8", fontSize: "14px" }}
+                  ></i>
                   <input
                     type="text"
                     placeholder="Buscar por código (PLT-2026), cliente, correo o joya..."
                     value={orderSearchQuery}
                     onChange={(e) => setOrderSearchQuery(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "9px 36px 9px 38px",
+                      border: "1px solid #cbd5e1",
+                      borderRadius: "8px",
+                      fontSize: "13.5px",
+                      color: "#1e293b",
+                      outline: "none",
+                      background: "#f8fafc",
+                    }}
                   />
                   {orderSearchQuery && (
                     <button
                       type="button"
                       onClick={() => setOrderSearchQuery("")}
-                      style={{ border: "none", background: "transparent", color: "#888", cursor: "pointer" }}
+                      style={{
+                        position: "absolute",
+                        right: "10px",
+                        top: "9px",
+                        border: "none",
+                        background: "transparent",
+                        color: "#64748b",
+                        cursor: "pointer",
+                        fontSize: "14px",
+                      }}
                     >
                       <i className="bi bi-x-circle-fill"></i>
                     </button>
                   )}
                 </div>
 
-                <div className="admin-client-quickfilter">
+                {/* Botón Todos */}
+                <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
+                  {(orderStageFilter !== "todos" || orderSearchQuery) && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setOrderStageFilter("todos");
+                        setOrderClientFilter("todos");
+                        setOrderSearchQuery("");
+                      }}
+                      style={{
+                        background: "none",
+                        border: "none",
+                        color: "#ef4444",
+                        fontSize: "12.5px",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                        textDecoration: "underline",
+                        padding: "4px 8px",
+                      }}
+                    >
+                      Limpiar filtros
+                    </button>
+                  )}
                   <button
                     type="button"
-                    className={`btn-filter-tag camila-highlight ${orderClientFilter === "camila" ? "active" : ""}`}
-                    onClick={() => setOrderClientFilter(orderClientFilter === "camila" ? "todos" : "camila")}
-                  >
-                    <i className="bi bi-star-fill"></i> Solo Cliente Prueba (Camila Mendoza)
-                  </button>
-
-                  <button
-                    type="button"
-                    className={`btn-filter-tag ${orderStageFilter === "todos" && orderClientFilter === "todos" ? "active" : ""}`}
                     onClick={() => {
                       setOrderStageFilter("todos");
                       setOrderClientFilter("todos");
                     }}
+                    style={{
+                      background: orderStageFilter === "todos" ? "#113B3A" : "#f1f5f9",
+                      color: orderStageFilter === "todos" ? "#C6AC7F" : "#334155",
+                      border: orderStageFilter === "todos" ? "1.5px solid #113B3A" : "1px solid #cbd5e1",
+                      padding: "8px 16px",
+                      borderRadius: "8px",
+                      fontSize: "13px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      transition: "all 0.2s",
+                    }}
                   >
-                    Todos ({effectiveSedeOrders.length})
+                    <i className="bi bi-layers-fill"></i> Todos los Pedidos ({effectiveSedeOrders.length})
                   </button>
                 </div>
               </div>
 
-              {/* Filtro por Etapas de Fabricación */}
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginTop: "14px", paddingTop: "12px", borderTop: "1px solid #eee8df" }}>
-                <span style={{ fontSize: "12.5px", fontWeight: "700", color: "#596660", alignSelf: "center", marginRight: "4px" }}>
-                  Fase:
-                </span>
+              {/* Pipeline de Fases de Fabricación */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(155px, 1fr))",
+                  gap: "8px",
+                  marginTop: "14px",
+                  paddingTop: "14px",
+                  borderTop: "1px solid #f1f5f9",
+                }}
+              >
                 {ORDER_STAGES.map((stg) => {
                   const count = effectiveSedeOrders.filter((o) => o.stage === stg.id).length;
                   const isActive = orderStageFilter === stg.id;
@@ -5656,11 +7643,40 @@ export default function AdminCitas() {
                     <button
                       key={stg.id}
                       type="button"
-                      className={`btn-filter-tag ${isActive ? "active" : ""}`}
                       onClick={() => setOrderStageFilter(isActive ? "todos" : stg.id)}
-                      style={{ fontSize: "12px" }}
+                      style={{
+                        background: isActive ? "#113B3A" : "#ffffff",
+                        color: isActive ? "#ffffff" : "#334155",
+                        border: isActive ? "1.5px solid #C6AC7F" : "1px solid #e2e8f0",
+                        padding: "9px 12px",
+                        borderRadius: "8px",
+                        fontSize: "12.5px",
+                        fontWeight: isActive ? "700" : "600",
+                        cursor: "pointer",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        gap: "6px",
+                        transition: "all 0.15s",
+                        boxShadow: isActive ? "0 4px 10px rgba(17, 59, 58, 0.18)" : "none",
+                      }}
                     >
-                      <i className={`bi ${stg.icon}`}></i> {stg.shortLabel} ({count})
+                      <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                        <i className={`bi ${stg.icon}`} style={{ color: isActive ? "#C6AC7F" : stg.color }}></i>
+                        <span>{stg.stepNumber}. {stg.shortLabel}</span>
+                      </span>
+                      <span
+                        style={{
+                          background: isActive ? "#C6AC7F" : "#f1f5f9",
+                          color: isActive ? "#113B3A" : "#475569",
+                          padding: "1px 7px",
+                          borderRadius: "10px",
+                          fontSize: "11px",
+                          fontWeight: "800",
+                        }}
+                      >
+                        {count}
+                      </span>
                     </button>
                   );
                 })}
@@ -5683,346 +7699,694 @@ export default function AdminCitas() {
                   No se encontraron pedidos con estos filtros
                 </h4>
                 <p style={{ color: "#68776f", fontSize: "13.5px", margin: "0 0 16px" }}>
-                  Prueba cambiando la búsqueda o restableciendo los filtros de etapa y cliente.
+                  Prueba cambiando la búsqueda o restableciendo los filtros de etapa.
                 </p>
                 <button
                   type="button"
-                  className="btn-cita-outline"
                   onClick={() => {
                     setOrderStageFilter("todos");
                     setOrderClientFilter("todos");
                     setOrderSearchQuery("");
+                  }}
+                  style={{
+                    background: "#113B3A",
+                    color: "#C6AC7F",
+                    border: "none",
+                    padding: "9px 20px",
+                    borderRadius: "8px",
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    cursor: "pointer",
                   }}
                 >
                   Restablecer Filtros
                 </button>
               </div>
             ) : (
-              filteredOrders.map((order) => {
-                const currentStageInfo = getOrderStageInfo(order.stage);
-                const isCamila = order.clientEmail.toLowerCase() === "cliente@platino.pe";
-                const isEditingThisNote = activeEditingNoteId === order.id;
+              <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+                {filteredOrders.map((order) => {
+                  const currentStageInfo = getOrderStageInfo(order.stage);
+                  const clientStageInfo = getClientStageInfo(order.stage);
+                  const isEditingThisNote = activeEditingNoteId === order.id;
 
-                return (
-                  <article key={order.id} className={`admin-order-card ${isCamila ? "is-camila" : ""}`}>
-                    {/* Top Bar del Pedido */}
-                    <div className="admin-order-top">
-                      <div className="admin-order-client-info">
-                        <div className="admin-order-client-avatar">
-                          {order.clientName ? order.clientName.charAt(0) : "C"}
+                  const currentIdx = ORDER_STAGES.findIndex((s) => s.id === order.stage);
+                  const prevStage = currentIdx > 0 ? ORDER_STAGES[currentIdx - 1] : null;
+                  const nextStage = currentIdx >= 0 && currentIdx < ORDER_STAGES.length - 1 ? ORDER_STAGES[currentIdx + 1] : null;
+
+                  return (
+                    <article
+                      key={order.id}
+                      style={{
+                        background: "#ffffff",
+                        border: "1px solid #e2e8f0",
+                        borderRadius: "14px",
+                        overflow: "hidden",
+                        boxShadow: "0 4px 16px rgba(15, 42, 36, 0.05)",
+                        transition: "box-shadow 0.2s",
+                      }}
+                    >
+                      {/* Cabecera de la Orden */}
+                      <div
+                        style={{
+                          padding: "18px 22px",
+                          background: "#fcfbf9",
+                          borderBottom: "1px solid #ede8df",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          flexWrap: "wrap",
+                          gap: "14px",
+                        }}
+                      >
+                        {/* Cliente */}
+                        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                          <div
+                            style={{
+                              width: "46px",
+                              height: "46px",
+                              borderRadius: "50%",
+                              background: "#113B3A",
+                              color: "#C6AC7F",
+                              border: "2px solid #C6AC7F",
+                              display: "flex",
+                              alignItems: "center",
+                              justifyContent: "center",
+                              fontSize: "17px",
+                              fontWeight: "800",
+                              flexShrink: 0,
+                            }}
+                          >
+                            {order.clientName ? order.clientName.charAt(0).toUpperCase() : "P"}
+                          </div>
+                          <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                              <strong style={{ fontSize: "16px", color: "#113B3A", fontWeight: "700" }}>
+                                {order.clientName}
+                              </strong>
+                              {order.clientDni && (
+                                <span
+                                  style={{
+                                    background: "#f1f5f9",
+                                    color: "#334155",
+                                    border: "1px solid #cbd5e1",
+                                    padding: "1px 7px",
+                                    borderRadius: "4px",
+                                    fontSize: "11px",
+                                    fontWeight: "700",
+                                    fontFamily: "monospace",
+                                  }}
+                                >
+                                  DNI: {order.clientDni}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ fontSize: "12.5px", color: "#64748b", marginTop: "2px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                              {order.clientEmail && (
+                                <span>
+                                  <i className="bi bi-envelope" style={{ marginRight: "4px" }}></i>
+                                  {order.clientEmail}
+                                </span>
+                              )}
+                              {order.clientPhone && (
+                                <span>
+                                  • <i className="bi bi-telephone" style={{ marginRight: "4px" }}></i>
+                                  {order.clientPhone}
+                                </span>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div>
-                          <div className="admin-order-client-name">
-                            <span>{order.clientName}</span>
-                            {isCamila && (
-                              <span
+
+                        {/* Metadata del Pedido y Estados */}
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                          <div style={{ textAlign: "right" }}>
+                            <span
+                              style={{
+                                background: "#113B3A",
+                                color: "#C6AC7F",
+                                padding: "3px 9px",
+                                borderRadius: "5px",
+                                fontSize: "13px",
+                                fontWeight: "800",
+                                fontFamily: "monospace",
+                                display: "inline-block",
+                              }}
+                            >
+                              {order.id}
+                            </span>
+                            <div style={{ fontSize: "11.5px", color: "#64748b", marginTop: "3px" }}>
+                              <i className="bi bi-calendar3"></i> {order.date}
+                            </div>
+                          </div>
+
+                          {/* Estado Taller Interno + Vista Cliente */}
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "4px" }}>
+                            <span
+                              style={{
+                                background: currentStageInfo.bgColor || "#f0fdf4",
+                                color: currentStageInfo.color || "#166534",
+                                border: `1px solid ${currentStageInfo.color || "#166534"}40`,
+                                padding: "5px 12px",
+                                borderRadius: "20px",
+                                fontSize: "12px",
+                                fontWeight: "700",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "6px",
+                              }}
+                            >
+                              <i className={`bi ${currentStageInfo.icon}`}></i>
+                              Taller: {currentStageInfo.label}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: "11px",
+                                color: "#475569",
+                                background: "#f1f5f9",
+                                padding: "2px 8px",
+                                borderRadius: "10px",
+                                fontWeight: "600",
+                              }}
+                            >
+                              <i className="bi bi-eye" style={{ color: "#113B3A", marginRight: "3px" }}></i>
+                              Cliente ve: <strong>Paso {clientStageInfo.stepNumber}/4 ({clientStageInfo.shortLabel})</strong>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* STEPPER INTERACTIVO DE 6 ETAPAS DE TALLER & BOTONES DE ACCIÓN */}
+                      <div style={{ padding: "18px 22px", background: "#ffffff", borderBottom: "1px solid #f1f5f9" }}>
+                        {/* Barra Superior de Control de Etapa */}
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                            gap: "12px",
+                            marginBottom: "14px",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <i className="bi bi-sliders2" style={{ color: "#113B3A", fontSize: "16px" }}></i>
+                            <span style={{ fontSize: "13px", fontWeight: "800", color: "#113B3A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
+                              Progreso de Fabricación en Taller (Paso {currentStageInfo.stepNumber} de 6)
+                            </span>
+                          </div>
+
+                          {/* Botones de Acción de Avance / Retroceso + Selector */}
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                            {prevStage && (
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateOrderStage(order.id, prevStage.id)}
+                                title={`Volver a: ${prevStage.label}`}
                                 style={{
-                                  background: "#fef3c7",
-                                  color: "#b45309",
-                                  fontSize: "11px",
-                                  padding: "2px 8px",
-                                  borderRadius: "12px",
-                                  fontWeight: "700",
+                                  background: "#f8fafc",
+                                  color: "#475569",
+                                  border: "1px solid #cbd5e1",
+                                  padding: "7px 12px",
+                                  borderRadius: "7px",
+                                  fontSize: "12px",
+                                  fontWeight: "600",
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "5px",
+                                  transition: "all 0.15s",
                                 }}
                               >
-                                ★ Cuenta de Prueba
+                                <i className="bi bi-arrow-left-short" style={{ fontSize: "15px" }}></i>
+                                {prevStage.shortLabel}
+                              </button>
+                            )}
+
+                            <select
+                              id={`stage-select-${order.id}`}
+                              value={order.stage}
+                              onChange={(e) => handleUpdateOrderStage(order.id, e.target.value)}
+                              style={{
+                                padding: "7px 12px",
+                                border: "1.5px solid #113B3A",
+                                borderRadius: "7px",
+                                fontSize: "12.5px",
+                                fontWeight: "700",
+                                color: "#113B3A",
+                                background: "#F2F9F2",
+                                cursor: "pointer",
+                                outline: "none",
+                              }}
+                            >
+                              {ORDER_STAGES.map((stg) => (
+                                <option key={stg.id} value={stg.id}>
+                                  Paso {stg.stepNumber}: {stg.label}
+                                </option>
+                              ))}
+                            </select>
+
+                            {nextStage ? (
+                              <button
+                                type="button"
+                                onClick={() => handleUpdateOrderStage(order.id, nextStage.id)}
+                                style={{
+                                  background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                                  color: "#C6AC7F",
+                                  border: "1px solid #C6AC7F",
+                                  padding: "7px 15px",
+                                  borderRadius: "7px",
+                                  fontSize: "12.5px",
+                                  fontWeight: "700",
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  boxShadow: "0 3px 10px rgba(17, 59, 58, 0.2)",
+                                  transition: "all 0.2s",
+                                }}
+                              >
+                                <span>Avanzar a: {nextStage.shortLabel}</span>
+                                <i className="bi bi-arrow-right-circle-fill"></i>
+                              </button>
+                            ) : (
+                              <span
+                                style={{
+                                  background: "#dcfce7",
+                                  color: "#166534",
+                                  border: "1px solid #86efac",
+                                  padding: "6px 12px",
+                                  borderRadius: "7px",
+                                  fontSize: "12px",
+                                  fontWeight: "800",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "5px",
+                                }}
+                              >
+                                <i className="bi bi-patch-check-fill"></i> Joya Entregada
                               </span>
                             )}
                           </div>
-                          <div className="admin-order-client-contact">
-                            <span>{order.clientEmail}</span> • <span>{order.clientPhone}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-                        <div style={{ textAlign: "right" }}>
-                          <span style={{ fontSize: "15px", fontWeight: "700", color: "#0f2a24", fontFamily: "monospace" }}>
-                            {order.id}
-                          </span>
-                          <div style={{ fontSize: "12px", color: "#788780" }}>
-                            Fecha: {order.date}
-                          </div>
                         </div>
 
-                        <span className={`order-status-badge ${currentStageInfo.badgeClass}`}>
-                          <i className={`bi ${currentStageInfo.icon}`}></i>
-                          {currentStageInfo.label}
-                        </span>
-
-                        <a
-                          href={`https://wa.me/${(order.clientPhone || "").replace(/[^0-9]/g, "")}?text=Hola%20${encodeURIComponent(order.clientName)},%20te%20escribimos%20de%20Platino%20Perú%20respecto%20a%20tu%20pedido%20${order.id}`}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="btn-order-action whatsapp"
-                          title="Contactar al cliente por WhatsApp"
+                        {/* Nodos Interactivos de las 6 Fases */}
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(135px, 1fr))",
+                            gap: "8px",
+                          }}
                         >
-                          <i className="bi bi-whatsapp"></i> WhatsApp
-                        </a>
-                      </div>
-                    </div>
-
-                    {/* CONTROL CLAVE: SELECTOR DE PROCESO DE FABRICACIÓN (Lo que pidió el usuario) */}
-                    <div className="admin-stage-selector-box">
-                      <div className="admin-stage-label-group">
-                        <i className="bi bi-gear-wide-connected" style={{ fontSize: "18px", color: "#0f2a24" }}></i>
-                        <div>
-                          <label htmlFor={`stage-select-${order.id}`}>
-                            Etapa / Proceso Actual de Fabricación:
-                          </label>
-                          <div style={{ fontSize: "12px", color: "#64746d" }}>
-                            Al cambiar esta opción, se actualiza automáticamente el portal del cliente.
-                          </div>
+                          {ORDER_STAGES.map((stg, idx) => {
+                            const isCurrent = order.stage === stg.id;
+                            const isCompleted = currentIdx > idx;
+                            return (
+                              <button
+                                key={stg.id}
+                                type="button"
+                                onClick={() => handleUpdateOrderStage(order.id, stg.id)}
+                                style={{
+                                  border: isCurrent
+                                    ? "2px solid #C6AC7F"
+                                    : isCompleted
+                                    ? "1px solid #86efac"
+                                    : "1px solid #e2e8f0",
+                                  background: isCurrent
+                                    ? "#113B3A"
+                                    : isCompleted
+                                    ? "#f0fdf4"
+                                    : "#f8fafc",
+                                  color: isCurrent
+                                    ? "#ffffff"
+                                    : isCompleted
+                                    ? "#166534"
+                                    : "#64748b",
+                                  padding: "10px 10px",
+                                  borderRadius: "8px",
+                                  cursor: "pointer",
+                                  textAlign: "left",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: "4px",
+                                  transition: "all 0.15s",
+                                  position: "relative",
+                                }}
+                              >
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                  <span
+                                    style={{
+                                      fontSize: "10.5px",
+                                      fontWeight: "800",
+                                      color: isCurrent ? "#C6AC7F" : isCompleted ? "#16a34a" : "#94a3b8",
+                                      textTransform: "uppercase",
+                                    }}
+                                  >
+                                    Fase {stg.stepNumber}
+                                  </span>
+                                  {isCompleted && <i className="bi bi-check-circle-fill" style={{ color: "#16a34a", fontSize: "13px" }}></i>}
+                                  {isCurrent && (
+                                    <span
+                                      style={{
+                                        background: "#C6AC7F",
+                                        color: "#113B3A",
+                                        fontSize: "9px",
+                                        fontWeight: "800",
+                                        padding: "1px 5px",
+                                        borderRadius: "4px",
+                                      }}
+                                    >
+                                      ACTUAL
+                                    </span>
+                                  )}
+                                </div>
+                                <div style={{ fontSize: "12px", fontWeight: isCurrent ? "700" : "600", display: "flex", alignItems: "center", gap: "5px" }}>
+                                  <i className={`bi ${stg.icon}`} style={{ color: isCurrent ? "#C6AC7F" : "inherit" }}></i>
+                                  <span>{stg.shortLabel}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
                         </div>
                       </div>
 
-                      <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
-                        <select
-                          id={`stage-select-${order.id}`}
-                          value={order.stage}
-                          onChange={(e) => handleUpdateOrderStage(order.id, e.target.value)}
-                          className="admin-stage-select"
-                        >
-                          {ORDER_STAGES.map((stg) => (
-                            <option key={stg.id} value={stg.id}>
-                              Paso {stg.stepNumber}: {stg.label} ({stg.shortLabel})
-                            </option>
-                          ))}
-                        </select>
+                      {/* Bitácora / Nota Oficial del Taller para el Cliente */}
+                      <div style={{ padding: "16px 22px", background: "#fbfcfb", borderBottom: "1px solid #f1f5f9" }}>
+                        <div style={{ background: "#ffffff", border: "1px solid #e2e8f0", borderRadius: "10px", padding: "14px 16px" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
+                            <span style={{ fontSize: "12.5px", fontWeight: "700", color: "#113B3A", display: "inline-flex", alignItems: "center", gap: "7px" }}>
+                              <i className="bi bi-journal-text" style={{ color: "#C6AC7F", fontSize: "15px" }}></i>
+                              Bitácora Oficial del Taller (Visible para el Cliente):
+                            </span>
+                            {!isEditingThisNote && (
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOrderNotesState({
+                                    ...orderNotesState,
+                                    [order.id]: order.adminNotes || "",
+                                  });
+                                  setActiveEditingNoteId(order.id);
+                                }}
+                                style={{
+                                  border: "1px solid #113B3A",
+                                  background: "#F2F9F2",
+                                  color: "#113B3A",
+                                  fontSize: "12px",
+                                  fontWeight: "700",
+                                  padding: "5px 12px",
+                                  borderRadius: "6px",
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "5px",
+                                }}
+                              >
+                                <i className="bi bi-pencil-square"></i> Redactar / Editar Nota
+                              </button>
+                            )}
+                          </div>
+
+                          {isEditingThisNote ? (
+                            <div>
+                              {/* Plantillas Rápidas de 1 Clic */}
+                              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "10px" }}>
+                                <span style={{ fontSize: "11px", color: "#64748b", fontWeight: "600", alignSelf: "center" }}>
+                                  Plantillas rápidas:
+                                </span>
+                                {[
+                                  "Montura en metal precioso fundida y en proceso de pulido artesanal.",
+                                  "Gema central seleccionada y en proceso de engaste microscópico en taller.",
+                                  "Pieza en control de calidad gemológico y calibración de acabados.",
+                                  "Joya lista en su estuche de lujo con certificado oficial Platino Care.",
+                                ].map((tpl, tIdx) => (
+                                  <button
+                                    key={tIdx}
+                                    type="button"
+                                    onClick={() =>
+                                      setOrderNotesState({
+                                        ...orderNotesState,
+                                        [order.id]: tpl,
+                                      })
+                                    }
+                                    style={{
+                                      background: "#f8fafc",
+                                      border: "1px solid #cbd5e1",
+                                      color: "#334155",
+                                      padding: "3px 9px",
+                                      borderRadius: "12px",
+                                      fontSize: "11px",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    + {tpl.slice(0, 34)}...
+                                  </button>
+                                ))}
+                              </div>
+
+                              <textarea
+                                className="admin-notes-textarea"
+                                value={orderNotesState[order.id] !== undefined ? orderNotesState[order.id] : order.adminNotes || ""}
+                                onChange={(e) =>
+                                  setOrderNotesState({
+                                    ...orderNotesState,
+                                    [order.id]: e.target.value,
+                                  })
+                                }
+                                placeholder="Escribe el reporte de taller que verá el cliente..."
+                                style={{
+                                  width: "100%",
+                                  padding: "10px 12px",
+                                  border: "1px solid #cbd5e1",
+                                  borderRadius: "8px",
+                                  fontSize: "13px",
+                                  minHeight: "70px",
+                                  marginBottom: "10px",
+                                }}
+                              />
+                              <div style={{ display: "flex", justifyContent: "flex-end", gap: "8px" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveEditingNoteId(null)}
+                                  style={{
+                                    border: "1px solid #cbd5e1",
+                                    background: "#f1f5f9",
+                                    color: "#475569",
+                                    padding: "7px 14px",
+                                    borderRadius: "6px",
+                                    fontSize: "12px",
+                                    fontWeight: "600",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleSaveOrderNote(order.id)}
+                                  style={{
+                                    background: "#113B3A",
+                                    color: "#C6AC7F",
+                                    border: "none",
+                                    padding: "7px 16px",
+                                    borderRadius: "6px",
+                                    fontSize: "12.5px",
+                                    fontWeight: "700",
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "6px",
+                                  }}
+                                >
+                                  <i className="bi bi-check2-circle"></i> Publicar Nota al Cliente
+                                </button>
+                              </div>
+                            </div>
+                          ) : (
+                            <p style={{ margin: 0, fontSize: "13px", color: "#334155", lineHeight: "1.5", fontStyle: order.adminNotes ? "normal" : "italic" }}>
+                              {order.adminNotes || "Sin notas adicionales registradas para esta orden."}
+                            </p>
+                          )}
+                        </div>
                       </div>
-                    </div>
 
-                    {/* Botones Rápidos de Avance de Etapa */}
-                    <div style={{ padding: "0 20px 14px", display: "flex", gap: "6px", flexWrap: "wrap", alignItems: "center" }}>
-                      <span style={{ fontSize: "12px", fontWeight: "600", color: "#6c7873", marginRight: "4px" }}>
-                        Cambio rápido:
-                      </span>
-                      {ORDER_STAGES.map((stg) => {
-                        const isCurrent = order.stage === stg.id;
-                        return (
-                          <button
-                            key={stg.id}
-                            type="button"
-                            onClick={() => handleUpdateOrderStage(order.id, stg.id)}
-                            style={{
-                              border: isCurrent ? "2px solid #0f2a24" : "1px solid #dcd7ce",
-                              background: isCurrent ? "#0f2a24" : "#ffffff",
-                              color: isCurrent ? "#ffffff" : "#3e4a45",
-                              padding: "4px 10px",
-                              borderRadius: "6px",
-                              fontSize: "11.5px",
-                              fontWeight: isCurrent ? "700" : "500",
-                              cursor: "pointer",
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: "4px",
-                            }}
-                          >
-                            <i className={`bi ${stg.icon}`}></i> {stg.stepNumber}. {stg.shortLabel}
-                          </button>
-                        );
-                      })}
-                    </div>
-
-                    {/* Editor de Notas del Taller (Admin -> Cliente) */}
-                    <div className="admin-notes-editor">
-                      <div style={{ background: "#f8faf9", border: "1px solid #e1ebe5", borderRadius: "8px", padding: "12px 14px" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px" }}>
-                          <span style={{ fontSize: "12.5px", fontWeight: "700", color: "#0f2a24", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                            <i className="bi bi-chat-left-text" style={{ color: "#137748" }}></i>
-                            Nota Oficial del Taller visible para el Cliente:
-                          </span>
-                          {!isEditingThisNote && (
-                            <button
-                              type="button"
-                              onClick={() => {
-                                setOrderNotesState({
-                                  ...orderNotesState,
-                                  [order.id]: order.adminNotes || "",
-                                });
-                                setActiveEditingNoteId(order.id);
-                              }}
+                      {/* Detalle de Piezas de Joyería en el Pedido */}
+                      <div style={{ padding: "16px 22px" }}>
+                        <div style={{ fontSize: "11.5px", fontWeight: "700", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "10px" }}>
+                          Piezas de Joyería en este Pedido ({order.items.length}):
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                          {order.items.map((it, iIdx) => (
+                            <div
+                              key={iIdx}
                               style={{
-                                border: "none",
-                                background: "transparent",
-                                color: "#137748",
-                                fontSize: "12px",
-                                fontWeight: "600",
-                                cursor: "pointer",
-                                textDecoration: "underline",
+                                display: "flex",
+                                alignItems: "center",
+                                gap: "14px",
+                                padding: "10px 14px",
+                                background: "#f8fafc",
+                                borderRadius: "8px",
+                                border: "1px solid #e2e8f0",
                               }}
                             >
-                              <i className="bi bi-pencil"></i> Editar Nota
-                            </button>
+                              <img
+                                src={it.image || "/images/secret-garden-white.jpg"}
+                                alt={it.name}
+                                style={{
+                                  width: "52px",
+                                  height: "52px",
+                                  objectFit: "cover",
+                                  borderRadius: "8px",
+                                  border: "1px solid #cbd5e1",
+                                  background: "#ffffff",
+                                }}
+                                onError={(e) => {
+                                  e.currentTarget.src = "/images/secret-garden-white.jpg";
+                                }}
+                              />
+                              <div style={{ flex: 1 }}>
+                                <strong style={{ fontSize: "14px", color: "#113B3A", display: "block" }}>
+                                  {it.name}
+                                </strong>
+                                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", fontSize: "12px", color: "#475569", marginTop: "4px" }}>
+                                  {it.metal && (
+                                    <span style={{ background: "#FDF9F2", border: "1px solid #C6AC7F", color: "#113B3A", padding: "1px 7px", borderRadius: "4px", fontWeight: "700" }}>
+                                      {it.metal}
+                                    </span>
+                                  )}
+                                  {it.size && (
+                                    <span style={{ background: "#e2e8f0", padding: "1px 7px", borderRadius: "4px", fontWeight: "600" }}>
+                                      Talla: {it.size}
+                                    </span>
+                                  )}
+                                  {it.engraving && (
+                                    <span style={{ background: "#fef3c7", color: "#92400e", padding: "1px 7px", borderRadius: "4px", fontWeight: "700" }}>
+                                      <i className="bi bi-pen-fill" style={{ marginRight: "3px" }}></i>
+                                      Grabado: «{it.engraving}»
+                                    </span>
+                                  )}
+                                  {it.platinoCareTitle && (
+                                    <span style={{ background: "#f0fdf4", color: "#166534", border: "1px solid #bbf7d0", padding: "1px 7px", borderRadius: "4px", fontWeight: "600" }}>
+                                      <i className="bi bi-shield-check" style={{ marginRight: "3px" }}></i>
+                                      {it.platinoCareTitle}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <div style={{ textAlign: "right" }}>
+                                <span style={{ fontSize: "14.5px", fontWeight: "800", color: "#113B3A" }}>
+                                  {formatPrice(it.price * (it.quantity || 1))}
+                                </span>
+                                <div style={{ fontSize: "11px", color: "#64748b" }}>
+                                  Cant: {it.quantity || 1}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Footer con Botones de Acción Mejorados */}
+                      <div
+                        style={{
+                          background: "#f8fafc",
+                          padding: "14px 22px",
+                          borderTop: "1px solid #e2e8f0",
+                          display: "flex",
+                          justifyContent: "space-between",
+                          alignItems: "center",
+                          flexWrap: "wrap",
+                          gap: "12px",
+                        }}
+                      >
+                        <div style={{ display: "flex", gap: "16px", flexWrap: "wrap", alignItems: "center", fontSize: "12.5px", color: "#475569" }}>
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "5px" }}>
+                            <i className="bi bi-geo-alt-fill" style={{ color: "#113B3A" }}></i>
+                            <strong>
+                              {order.deliveryType === "recojo_sede"
+                                ? `Retiro: ${order.sedeRecojo}`
+                                : `Envío: ${order.shippingAddress || "Domicilio registrado"}`}
+                            </strong>
+                          </span>
+
+                          {order.deliveryDays && (
+                            <span
+                              style={{
+                                background: order.deliveryDays === 7 ? "#fffbeb" : "#f0fdf4",
+                                color: order.deliveryDays === 7 ? "#b45309" : "#15803d",
+                                border: `1px solid ${order.deliveryDays === 7 ? "#fde68a" : "#bbf7d0"}`,
+                                padding: "2px 8px",
+                                borderRadius: "6px",
+                                fontWeight: "700",
+                                fontSize: "11.5px",
+                              }}
+                            >
+                              <i className="bi bi-clock-history" style={{ marginRight: "4px" }}></i>
+                              {order.deliveryDays === 7 ? "Plazo: 7 días hábiles (Ajuste Taller)" : "Plazo: 2 días hábiles (Exprés)"}
+                            </span>
+                          )}
+
+                          <span>
+                            <i className="bi bi-credit-card" style={{ color: "#113B3A", marginRight: "4px" }}></i>
+                            {order.paymentMethod || "Pasarela Web"}
+                          </span>
+
+                          {order.total && (
+                            <span style={{ fontWeight: "800", color: "#113B3A", fontSize: "13.5px" }}>
+                              Total: {formatPrice(order.total)}
+                            </span>
                           )}
                         </div>
 
-                        {isEditingThisNote ? (
-                          <div>
-                            <textarea
-                              className="admin-notes-textarea"
-                              value={orderNotesState[order.id] !== undefined ? orderNotesState[order.id] : order.adminNotes || ""}
-                              onChange={(e) =>
-                                setOrderNotesState({
-                                  ...orderNotesState,
-                                  [order.id]: e.target.value,
-                                })
-                              }
-                              placeholder="Escribe la actualización que leerá el cliente en su pantalla (ej: Montura en oro rosa fundida, diamante engastado en 4 uñas)..."
-                            />
-                            <div className="admin-notes-actions">
-                              <button
-                                type="button"
-                                onClick={() => setActiveEditingNoteId(null)}
-                                style={{
-                                  border: "none",
-                                  background: "transparent",
-                                  color: "#788780",
-                                  padding: "6px 12px",
-                                  fontSize: "12px",
-                                  cursor: "pointer",
-                                  marginRight: "6px",
-                                }}
-                              >
-                                Cancelar
-                              </button>
-                              <button
-                                type="button"
-                                className="btn-save-note"
-                                onClick={() => handleSaveOrderNote(order.id)}
-                              >
-                                <i className="bi bi-check2"></i> Guardar Nota para el Cliente
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <p style={{ margin: 0, fontSize: "13px", color: "#3a4741", fontStyle: order.adminNotes ? "normal" : "italic" }}>
-                            {order.adminNotes || "Sin notas adicionales registradas."}
-                          </p>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Detalle de Productos en la Orden */}
-                    <div style={{ padding: "0 20px 16px" }}>
-                      <div style={{ background: "#ffffff", border: "1px solid #eeebe5", borderRadius: "8px", padding: "14px 16px" }}>
-                        <div style={{ fontSize: "12px", fontWeight: "700", color: "#788780", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: "10px" }}>
-                          Piezas de Joyería en este Pedido ({order.items.length}):
-                        </div>
-                        {order.items.map((it, iIdx) => (
-                          <div
-                            key={iIdx}
+                        {/* Botones de Acción Ejecutivos */}
+                        <div style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                          <a
+                            href={`https://wa.me/${(order.clientPhone || "").replace(/[^0-9]/g, "")}?text=Hola%20${encodeURIComponent(order.clientName)},%20te%20saludamos%20de%20Platino%20Perú.%20Te%20informamos%20que%20tu%20pedido%20${order.id}%20se%20encuentra%20en%20la%20fase:%20${encodeURIComponent(clientStageInfo.label)}.`}
+                            target="_blank"
+                            rel="noreferrer"
                             style={{
-                              display: "flex",
+                              background: "#16a34a",
+                              color: "#ffffff",
+                              textDecoration: "none",
+                              padding: "7px 14px",
+                              borderRadius: "7px",
+                              fontSize: "12.5px",
+                              fontWeight: "700",
+                              display: "inline-flex",
                               alignItems: "center",
-                              gap: "14px",
-                              paddingBottom: iIdx === order.items.length - 1 ? 0 : "10px",
-                              marginBottom: iIdx === order.items.length - 1 ? 0 : "10px",
-                              borderBottom: iIdx === order.items.length - 1 ? "none" : "1px solid #f2eee8",
+                              gap: "6px",
+                              boxShadow: "0 2px 6px rgba(22, 163, 74, 0.25)",
                             }}
+                            title="Notificar avance al cliente por WhatsApp"
                           >
-                            <img
-                              src={it.image || "/images/secret-garden-white.jpg"}
-                              alt={it.name}
-                              style={{
-                                width: "52px",
-                                height: "52px",
-                                objectFit: "cover",
-                                borderRadius: "8px",
-                                border: "1px solid #e2ddd3",
-                                background: "#faf8f5",
-                              }}
-                              onError={(e) => {
-                                e.currentTarget.src = "/images/secret-garden-white.jpg";
-                              }}
-                            />
-                            <div style={{ flex: 1 }}>
-                              <strong style={{ fontSize: "14px", color: "#0f2a24", display: "block" }}>
-                                {it.name}
-                              </strong>
-                              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", fontSize: "12px", color: "#5d6d65", marginTop: "2px" }}>
-                                {it.metal && (
-                                  <span style={{ background: "#f1ede6", padding: "2px 6px", borderRadius: "4px", fontWeight: "600" }}>
-                                    {it.metal}
-                                  </span>
-                                )}
-                                {it.size && (
-                                  <span style={{ background: "#f1ede6", padding: "2px 6px", borderRadius: "4px" }}>
-                                    Talla: {it.size}
-                                  </span>
-                                )}
-                                {it.engraving && (
-                                  <span style={{ background: "#fef3c7", color: "#92400e", padding: "2px 6px", borderRadius: "4px", fontWeight: "700" }}>
-                                    <i className="bi bi-pen-fill" style={{ marginRight: "3px" }}></i>
-                                    Grabado: «{it.engraving}»
-                                  </span>
-                                )}
-                                {(it.needsSizeAdvice || (typeof it.size === "string" && it.size.toLowerCase().includes("asesor"))) && (
-                                  <span style={{ background: "#eff6ff", color: "#1d4ed8", padding: "2px 6px", borderRadius: "4px", fontWeight: "700" }}>
-                                    <i className="bi bi-info-circle-fill" style={{ marginRight: "3px" }}></i>
-                                    Asesoría Medida
-                                  </span>
-                                )}
-                                {it.gemstone && (
-                                  <span>{it.gemstone}</span>
-                                )}
-                              </div>
-                            </div>
-                            <div style={{ textAlign: "right" }}>
-                              <span style={{ fontSize: "14px", fontWeight: "700", color: "#0f2a24" }}>
-                                {formatPrice(it.price * (it.quantity || 1))}
-                              </span>
-                              <div style={{ fontSize: "11px", color: "#8a9690" }}>
-                                Cant: {it.quantity || 1}
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
+                            <i className="bi bi-whatsapp"></i> Notificar por WhatsApp
+                          </a>
 
-                    {/* Footer de la Tarjeta del Pedido */}
-                    <div className="order-card-footer" style={{ background: "#faf8f5", padding: "12px 20px" }}>
-                      <div className="order-footer-details">
-                        <div className="order-footer-item">
-                          <i className="bi bi-geo-alt" style={{ color: "#0f2a24" }}></i>
-                          <span>
-                            {order.deliveryType === "recojo_sede"
-                              ? `Retiro: ${order.sedeRecojo}`
-                              : `Envío: ${order.shippingAddress || "Domicilio registrado"}`}
-                          </span>
-                        </div>
-
-                        {order.deliveryDays && (
-                          <div className="order-footer-item">
-                            <i className="bi bi-clock-history" style={{ color: order.deliveryDays === 7 ? "#b45309" : "#15803d" }}></i>
-                            <span style={{ fontWeight: "600", color: order.deliveryDays === 7 ? "#b45309" : "#15803d" }}>
-                              {order.deliveryDays === 7 ? "Plazo: 7 días hábiles (Ajuste Taller)" : "Plazo: 2 días hábiles (Exprés)"}
-                            </span>
-                          </div>
-                        )}
-
-                        <div className="order-footer-item">
-                          <i className="bi bi-credit-card" style={{ color: "#0f2a24" }}></i>
-                          <span>{order.paymentMethod || "Pasarela Web"}</span>
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteOrder(order.id)}
+                            style={{
+                              background: "#fee2e2",
+                              color: "#dc2626",
+                              border: "1px solid #fca5a5",
+                              padding: "7px 13px",
+                              borderRadius: "7px",
+                              fontSize: "12.5px",
+                              fontWeight: "700",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "5px",
+                            }}
+                            title="Eliminar este pedido del sistema"
+                          >
+                            <i className="bi bi-trash3"></i> Eliminar Pedido
+                          </button>
                         </div>
                       </div>
-
-                      <div style={{ display: "flex", gap: "8px" }}>
-                        <button
-                          type="button"
-                          onClick={() => handleDeleteOrder(order.id)}
-                          className="btn-card-delete"
-                          style={{ padding: "6px 12px", fontSize: "12px" }}
-                          title="Eliminar este pedido del sistema"
-                        >
-                          <i className="bi bi-trash"></i> Eliminar
-                        </button>
-                      </div>
-                    </div>
-                  </article>
-                );
-              })
+                    </article>
+                  );
+                })}
+              </div>
             )}
           </div>
           )
@@ -6347,10 +8711,23 @@ export default function AdminCitas() {
         {activeTab === "permisos" && renderPermisosTab()}
 
         {/* ========================================================
-            TAB 7: LIBRO DE RECLAMACIONES (EXCLUSIVO VLADIMIR MASTER)
+            TAB 6B: CLAVES & VALIDADOR DIARIO (VLADIMIR MASTER)
+            ======================================================== */}
+        {activeTab === "claves" && renderClavesTab()}
+
+        {/* ========================================================
+            TAB 7: LIBRO DE RECLAMACIONES (VLADIMIR MASTER O CON PERMISO)
             ======================================================== */}
         {activeTab === "reclamaciones" && (
-          <AdminReclamacionesTab isMaster={isEffectiveMaster} />
+          !userHasPermission("reclamaciones") && !isEffectiveMaster ? (
+            renderAccessGuard(
+              "reclamaciones",
+              "Libro de Reclamaciones (INDECOPI)",
+              "Permite revisar hojas de reclamación y quejas registradas conforme a INDECOPI y redactar la respuesta legal."
+            )
+          ) : (
+            <AdminReclamacionesTab isMaster={isEffectiveMaster || userHasPermission("reclamaciones")} />
+          )
         )}
 
         {/* ========================================================
@@ -7395,53 +9772,109 @@ export default function AdminCitas() {
         {homeImageModalOpen && editingHomeKey && (
           <div
             className="catalog-modal-overlay"
+            style={{ zIndex: 1000005, paddingTop: "32px", paddingBottom: "32px" }}
             onClick={(e) => {
               if (e.target === e.currentTarget) setHomeImageModalOpen(false);
             }}
           >
             <div
               className="catalog-modal-card"
-              style={{ maxWidth: "600px" }}
+              style={{
+                maxWidth: "620px",
+                borderRadius: "18px",
+                overflow: "hidden",
+                padding: 0,
+                border: "1px solid rgba(198, 172, 127, 0.35)",
+                boxShadow: "0 24px 48px rgba(15, 23, 42, 0.28)",
+              }}
               role="dialog"
               aria-modal="true"
             >
-              <button
-                className="auth-modal-close"
-                onClick={() => setHomeImageModalOpen(false)}
-                aria-label="Cerrar modal"
+              {/* Cabecera Ejecutiva del Modal */}
+              <div
+                style={{
+                  background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                  padding: "22px 26px",
+                  color: "#ffffff",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "flex-start",
+                  gap: "14px",
+                }}
               >
-                <i className="bi bi-x-lg"></i>
-              </button>
-
-              <div className="catalog-modal-header">
-                <h2>Cambiar Imagen de Portada</h2>
-                <p>
-                  <strong>{homeImagesData[editingHomeKey]?.label || editingHomeKey}</strong> &nbsp;·&nbsp;
-                  <span style={{ color: "#137748", fontWeight: "600" }}>
-                    {homeImagesData[editingHomeKey]?.section}
+                <div>
+                  <span
+                    style={{
+                      display: "inline-block",
+                      background: "rgba(198, 172, 127, 0.22)",
+                      color: "#e6cfa8",
+                      border: "1px solid rgba(198, 172, 127, 0.45)",
+                      padding: "3px 10px",
+                      borderRadius: "999px",
+                      fontSize: "10.5px",
+                      fontWeight: "700",
+                      letterSpacing: "0.06em",
+                      textTransform: "uppercase",
+                      marginBottom: "6px",
+                    }}
+                  >
+                    {homeImagesData[editingHomeKey]?.section || "Portada de Inicio"}
                   </span>
-                </p>
+                  <h2 style={{ margin: 0, fontSize: "20px", fontFamily: "var(--font-serif)", color: "#ffffff" }}>
+                    Actualizar Fotografía y Textos
+                  </h2>
+                  <p style={{ margin: "4px 0 0 0", fontSize: "12.5px", color: "rgba(255, 255, 255, 0.85)" }}>
+                    Bloque seleccionado: <strong>{homeImagesData[editingHomeKey]?.label || editingHomeKey}</strong>
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setHomeImageModalOpen(false)}
+                  aria-label="Cerrar modal"
+                  style={{
+                    background: "rgba(255, 255, 255, 0.12)",
+                    border: "1px solid rgba(255, 255, 255, 0.2)",
+                    color: "#ffffff",
+                    width: "34px",
+                    height: "34px",
+                    borderRadius: "50%",
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "14px",
+                    flexShrink: 0,
+                  }}
+                >
+                  <i className="bi bi-x-lg"></i>
+                </button>
               </div>
 
-              <form onSubmit={handleSaveHomeImage} className="catalog-modal-form">
+              <form onSubmit={handleSaveHomeImage} className="catalog-modal-form" style={{ padding: "24px 26px" }}>
                 <div
                   style={{
                     display: "flex",
                     gap: "20px",
-                    alignItems: "flex-start",
+                    alignItems: "stretch",
                     flexWrap: "wrap",
-                    marginBottom: "18px",
+                    marginBottom: "20px",
+                    background: "#f8fafc",
+                    border: "1.5px solid #e2e8f0",
+                    borderRadius: "14px",
+                    padding: "16px",
                   }}
                 >
                   <div
                     style={{
-                      width: "160px",
-                      height: "160px",
-                      borderRadius: "6px",
+                      width: "165px",
+                      height: "165px",
+                      borderRadius: "12px",
                       overflow: "hidden",
-                      border: "2px solid #ddd",
-                      background: "#f9f8f5",
+                      border: "2px solid #cbd5e1",
+                      background: "#0f172a",
                       flexShrink: 0,
+                      boxShadow: "0 4px 12px rgba(0,0,0,0.08)",
                     }}
                   >
                     <img
@@ -7457,47 +9890,69 @@ export default function AdminCitas() {
                   <div
                     style={{
                       flex: 1,
-                      minWidth: "220px",
+                      minWidth: "230px",
                       display: "flex",
                       flexDirection: "column",
+                      justifyContent: "space-between",
                       gap: "12px",
                     }}
                   >
                     <div>
-                      <label
+                      <span
                         style={{
-                          fontSize: "12.5px",
+                          fontSize: "12px",
                           fontWeight: "700",
-                          color: "#137748",
+                          color: "#0f172a",
                           display: "block",
-                          marginBottom: "4px",
+                          marginBottom: "6px",
                         }}
                       >
-                        <i className="bi bi-cloud-arrow-up"></i> Subir foto desde tu dispositivo:
+                        1. Subir nueva imagen desde tu equipo:
+                      </span>
+                      <label
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          gap: "8px",
+                          width: "100%",
+                          padding: "10px 14px",
+                          background: "#e6f0ee",
+                          color: "#113B3A",
+                          border: "1.5px dashed #113B3A",
+                          borderRadius: "10px",
+                          fontSize: "12.5px",
+                          fontWeight: "700",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <i className="bi bi-cloud-arrow-up-fill" style={{ fontSize: "16px" }}></i>
+                        Seleccionar Archivo de Imagen
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handleHomeImageFileUpload}
+                          style={{ display: "none" }}
+                        />
                       </label>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleHomeImageFileUpload}
-                        style={{ fontSize: "12.5px" }}
-                      />
                     </div>
 
                     <div>
                       <label
                         style={{
-                          fontSize: "12.5px",
-                          fontWeight: "600",
-                          color: "#304037",
+                          fontSize: "12px",
+                          fontWeight: "700",
+                          color: "#334155",
                           display: "block",
                           marginBottom: "4px",
                         }}
                       >
-                        O ingresar URL de imagen:
+                        2. O pegar enlace / ruta directa:
                       </label>
                       <input
                         type="text"
                         className="catalog-form-input"
+                        style={{ borderRadius: "8px", fontSize: "12.5px" }}
                         placeholder="https://... o /images/..."
                         value={formHomeImageSrc}
                         onChange={(e) => setFormHomeImageSrc(e.target.value)}
@@ -7508,27 +9963,33 @@ export default function AdminCitas() {
 
                 {/* Campo de Título / Nombre visible (se oculta para piezas individuales del mosaico) */}
                 {!editingHomeKey?.startsWith("mosaic") && (
-                  <div className="catalog-form-group">
-                    <label>Título / Nombre inferior visible en la tienda</label>
+                  <div className="catalog-form-group" style={{ marginBottom: "16px" }}>
+                    <label style={{ fontWeight: "700", color: "#0f172a", fontSize: "12.5px" }}>
+                      Título / Nombre visible en la tienda
+                    </label>
                     <input
                       type="text"
                       className="catalog-form-input"
+                      style={{ borderRadius: "10px" }}
                       value={formHomeImageTitle}
                       onChange={(e) => setFormHomeImageTitle(e.target.value)}
                       placeholder="Ej. Anillos solitarios, etc."
                     />
-                    <small style={{ fontSize: "11.5px", color: "#65766c", marginTop: "4px", display: "block" }}>
-                      Este texto se muestra como título o descripción debajo de la fotografía en la página de inicio.
+                    <small style={{ fontSize: "11.5px", color: "#64748b", marginTop: "4px", display: "block" }}>
+                      Este texto se muestra como encabezado o etiqueta debajo de la fotografía en la portada.
                     </small>
                   </div>
                 )}
 
                 {homeImagesData[editingHomeKey]?.subtitle !== undefined && (
-                  <div className="catalog-form-group">
-                    <label>Subtítulo o Frase</label>
+                  <div className="catalog-form-group" style={{ marginBottom: "16px" }}>
+                    <label style={{ fontWeight: "700", color: "#0f172a", fontSize: "12.5px" }}>
+                      Subtítulo o Frase Descriptiva
+                    </label>
                     <input
                       type="text"
                       className="catalog-form-input"
+                      style={{ borderRadius: "10px" }}
                       value={formHomeImageSubtitle}
                       onChange={(e) => setFormHomeImageSubtitle(e.target.value)}
                     />
@@ -7536,33 +9997,66 @@ export default function AdminCitas() {
                 )}
 
                 {homeImagesData[editingHomeKey]?.buttonText !== undefined && (
-                  <div className="catalog-form-group">
-                    <label>Texto del Botón</label>
+                  <div className="catalog-form-group" style={{ marginBottom: "16px" }}>
+                    <label style={{ fontWeight: "700", color: "#0f172a", fontSize: "12.5px" }}>
+                      Texto del Botón de Acción
+                    </label>
                     <input
                       type="text"
                       className="catalog-form-input"
+                      style={{ borderRadius: "10px" }}
                       value={formHomeImageButtonText}
                       onChange={(e) => setFormHomeImageButtonText(e.target.value)}
                     />
                   </div>
                 )}
 
-                <div className="catalog-modal-actions">
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    gap: "10px",
+                    marginTop: "22px",
+                    paddingTop: "16px",
+                    borderTop: "1px solid #e2e8f0",
+                  }}
+                >
                   <button
                     type="button"
                     onClick={() => setHomeImageModalOpen(false)}
-                    className="btn-card-delete"
-                    style={{ background: "#f5f7f6", color: "#4f5f57", border: "1px solid #d4ded8" }}
+                    style={{
+                      background: "#f8fafc",
+                      color: "#475569",
+                      border: "1.5px solid #cbd5e1",
+                      borderRadius: "10px",
+                      padding: "11px 20px",
+                      fontSize: "13px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                    }}
                   >
                     Cancelar
                   </button>
 
                   <button
                     type="submit"
-                    className="btn-catalog-create"
-                    style={{ padding: "11px 24px" }}
+                    style={{
+                      background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "10px",
+                      padding: "11px 24px",
+                      fontSize: "13px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      boxShadow: "0 4px 12px rgba(17, 59, 58, 0.22)",
+                    }}
                   >
-                    <i className="bi bi-check-lg"></i> Guardar Cambios
+                    <i className="bi bi-check2-circle" style={{ color: "#C6AC7F", fontSize: "15px" }}></i>
+                    Guardar Cambios
                   </button>
                 </div>
               </form>

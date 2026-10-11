@@ -1,7 +1,7 @@
 // Servicio de Gestión de Roles, Sedes y Permisos Administrativos para Platino Perú
 
-const STORAGE_KEY_PERMISSIONS = "platino_admin_permissions_v3";
-const STORAGE_KEY_REQUESTS = "platino_permission_requests_v3";
+const STORAGE_KEY_PERMISSIONS = "platino_admin_permissions_v4";
+const STORAGE_KEY_REQUESTS = "platino_permission_requests_v4";
 
 const STORAGE_KEY_ADMIN_PASSWORDS = "platino_admin_passwords_v2";
 
@@ -234,14 +234,14 @@ export const PERMISSIONS_CATALOG = [
   },
 ];
 
-// Matriz de permisos inicial por defecto
+// Matriz de permisos inicial por defecto (los otros administradores deben solicitar permisos y ser aprobados por Vladimir)
 const DEFAULT_USER_PERMISSIONS = {
   // Vladimir tiene todos los permisos por ser Master
   "vladimiryt18@gmail.com": PERMISSIONS_CATALOG.map((p) => p.key),
-  // Admin Lima Centro: Solo tiene lo que le corresponde por defecto (Citas, Inventario y Pedidos de su sede, y Excel)
-  "admin.lima@platino.pe": ["citas", "inventario", "pedidos", "descargar_excel"],
-  // Admin Miraflores: Solo tiene lo que le corresponde por defecto (Citas, Inventario y Pedidos de su sede, y Excel)
-  "admin.miraflores@platino.pe": ["citas", "inventario", "pedidos", "descargar_excel"],
+  // Admin Lima Centro: Inicia sin módulos activos hasta que solicite permisos y Vladimir los acepte
+  "admin.lima@platino.pe": [],
+  // Admin Miraflores: Inicia sin módulos activos hasta que solicite permisos y Vladimir los acepte
+  "admin.miraflores@platino.pe": [],
 };
 
 // Solicitudes de ejemplo iniciales para que Vladimir tenga interacción inmediata
@@ -394,7 +394,7 @@ export const requestPermission = ({ user, permissionKey, reason = "" }) => {
   return { success: true, request: newRequest };
 };
 
-// Aprobar una solicitud (Acción de Vladimir)
+// Aprobar una solicitud (Acción de Vladimir: cruza con la matriz de permisos del admin solicitante)
 export const approvePermissionRequest = (requestId, resolverName = "Vladimir") => {
   const requests = getPermissionRequests();
   const reqIndex = requests.findIndex((r) => r.id === requestId);
@@ -405,11 +405,12 @@ export const approvePermissionRequest = (requestId, resolverName = "Vladimir") =
   targetReq.resolvedAt = new Date().toISOString();
   targetReq.resolvedBy = resolverName;
 
-  // Añadir permiso a la matriz del usuario
+  // Añadir permiso a la matriz del usuario solicitante
   const matrix = getPermissionsMatrix();
-  const userPerms = matrix[targetReq.userEmail] || [];
+  const userEmailKey = (targetReq.userEmail || "").toLowerCase().trim();
+  const userPerms = matrix[userEmailKey] || [];
   if (!userPerms.includes(targetReq.permissionKey)) {
-    matrix[targetReq.userEmail] = [...userPerms, targetReq.permissionKey];
+    matrix[userEmailKey] = [...userPerms, targetReq.permissionKey];
     savePermissionsMatrix(matrix);
   }
 
@@ -417,7 +418,7 @@ export const approvePermissionRequest = (requestId, resolverName = "Vladimir") =
   return { success: true, request: targetReq };
 };
 
-// Rechazar una solicitud (Acción de Vladimir)
+// Rechazar una solicitud (Acción de Vladimir: revoca también de la matriz si estaba activo)
 export const rejectPermissionRequest = (requestId, resolverName = "Vladimir") => {
   const requests = getPermissionRequests();
   const reqIndex = requests.findIndex((r) => r.id === requestId);
@@ -428,11 +429,19 @@ export const rejectPermissionRequest = (requestId, resolverName = "Vladimir") =>
   targetReq.resolvedAt = new Date().toISOString();
   targetReq.resolvedBy = resolverName;
 
+  // Retirar el permiso de la matriz del usuario si lo tenía concedido
+  const matrix = getPermissionsMatrix();
+  const userEmailKey = (targetReq.userEmail || "").toLowerCase().trim();
+  if (Array.isArray(matrix[userEmailKey])) {
+    matrix[userEmailKey] = matrix[userEmailKey].filter((k) => k !== targetReq.permissionKey);
+    savePermissionsMatrix(matrix);
+  }
+
   savePermissionRequests(requests);
   return { success: true, request: targetReq };
 };
 
-// Conceder o revocar permiso manualmente desde la Matriz de Vladimir
+// Conceder o revocar permiso manualmente desde la Matriz de Vladimir (sincroniza con sus solicitudes)
 export const toggleUserPermission = (email, permissionKey, granted) => {
   const cleanEmail = (email || "").toLowerCase().trim();
   if (cleanEmail === "vladimiryt18@gmail.com") return true; // Vladimir intocable
@@ -449,7 +458,31 @@ export const toggleUserPermission = (email, permissionKey, granted) => {
   }
 
   matrix[cleanEmail] = userPerms;
-  return savePermissionsMatrix(matrix);
+  savePermissionsMatrix(matrix);
+
+  // Sincronizar con la lista de solicitudes para mantener el cruce exacto
+  const requests = getPermissionRequests();
+  let updatedReqs = false;
+  requests.forEach((r) => {
+    if ((r.userEmail || "").toLowerCase().trim() === cleanEmail && r.permissionKey === permissionKey) {
+      if (granted && r.status === "pendiente") {
+        r.status = "aprobado";
+        r.resolvedAt = new Date().toISOString();
+        r.resolvedBy = "Vladimir";
+        updatedReqs = true;
+      } else if (!granted && r.status === "aprobado") {
+        r.status = "rechazado";
+        r.resolvedAt = new Date().toISOString();
+        r.resolvedBy = "Vladimir";
+        updatedReqs = true;
+      }
+    }
+  });
+  if (updatedReqs) {
+    savePermissionRequests(requests);
+  }
+
+  return true;
 };
 
 // Comprobar estado de solicitud pendiente de un usuario para un permiso
@@ -461,3 +494,127 @@ export const getActivePendingRequest = (user, permissionKey) => {
     (r) => r.userEmail.toLowerCase() === email && r.permissionKey === permissionKey && r.status === "pendiente"
   );
 };
+
+// ============================================================================
+// CLAVE DIARIA DEL ADMINISTRADOR PRINCIPAL (VLADIMIR) PARA RECUPERACIÓN DE CONTRASEÑA
+// Cambia automáticamente todos los días a las 00:00 (según la fecha local YYYY-MM-DD)
+// ============================================================================
+const STORAGE_KEY_DAILY_CODE_SEED = "platino_daily_recovery_seed_v1";
+const STORAGE_KEY_RECOVERY_LOGS = "platino_password_recovery_logs_v1";
+
+// Obtener fecha local en formato YYYY-MM-DD
+export const getTodayDateKey = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
+
+// Generar código determinístico de 6 dígitos basado en la fecha del día + semilla opcional del día
+export const getDailyAdminRecoveryCodeInfo = () => {
+  const todayKey = getTodayDateKey();
+  let customSalt = 0;
+
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_DAILY_CODE_SEED);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      // Solo aplica si corresponde exactamente a la fecha de HOY; al cambiar de día se reinicia solo
+      if (parsed && parsed.dateKey === todayKey && typeof parsed.salt === "number") {
+        customSalt = parsed.salt;
+      }
+    }
+  } catch {
+    // ignore
+  }
+
+  const seedStr = `PLATINO-VLADIMIR-${todayKey}-SALT-${customSalt}`;
+  let hash = 2166136261;
+  for (let i = 0; i < seedStr.length; i++) {
+    hash ^= seedStr.charCodeAt(i);
+    hash = Math.imul(hash, 16777619);
+  }
+  const positiveNum = Math.abs(hash);
+  const sixDigits = String(100000 + (positiveNum % 900000));
+
+  const [y, m, d] = todayKey.split("-");
+  const formattedDate = `${d}/${m}/${y}`;
+
+  return {
+    code: sixDigits, // Ej: "482916"
+    formattedCode: `PLT-${sixDigits}`, // Ej: "PLT-482916"
+    dateKey: todayKey,
+    formattedDate,
+    rotationCountToday: customSalt,
+  };
+};
+
+// Validar si un código ingresado por el cliente coincide con la clave diaria vigente de Vladimir
+export const validateDailyAdminRecoveryCode = (inputCode) => {
+  if (!inputCode) return false;
+  const cleanInput = String(inputCode)
+    .trim()
+    .toUpperCase()
+    .replace(/^PLT[-\s]?/, "")
+    .replace(/\s+/g, "");
+  const { code } = getDailyAdminRecoveryCodeInfo();
+  return cleanInput === code;
+};
+
+// Permitir a Vladimir regenerar/rotar manualmente la clave del día si lo desea (además del cambio diario automático)
+export const rotateDailyAdminRecoveryCode = () => {
+  const todayKey = getTodayDateKey();
+  let nextSalt = 1;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_DAILY_CODE_SEED);
+    if (stored) {
+      const parsed = JSON.parse(stored);
+      if (parsed && parsed.dateKey === todayKey && typeof parsed.salt === "number") {
+        nextSalt = parsed.salt + 1;
+      }
+    }
+    localStorage.setItem(
+      STORAGE_KEY_DAILY_CODE_SEED,
+      JSON.stringify({ dateKey: todayKey, salt: nextSalt })
+    );
+  } catch {
+    // ignore
+  }
+  const info = getDailyAdminRecoveryCodeInfo();
+  window.dispatchEvent(new CustomEvent("platino_daily_code_updated", { detail: info }));
+  return info;
+};
+
+// Obtener historial de validaciones y cambios de contraseña realizados con el código diario
+export const getPasswordRecoveryLogs = () => {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY_RECOVERY_LOGS);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+};
+
+// Registrar un evento de recuperación de contraseña exitosa
+export const addPasswordRecoveryLog = ({ userDni, userName, userEmail, usedCode }) => {
+  try {
+    const current = getPasswordRecoveryLogs();
+    const entry = {
+      id: `rec-${Date.now()}`,
+      userDni: userDni || "No registrado",
+      userName: userName || "Cliente",
+      userEmail: userEmail || "",
+      usedCode: usedCode || getDailyAdminRecoveryCodeInfo().code,
+      dateKey: getTodayDateKey(),
+      timestamp: new Date().toISOString(),
+    };
+    const updated = [entry, ...current].slice(0, 50);
+    localStorage.setItem(STORAGE_KEY_RECOVERY_LOGS, JSON.stringify(updated));
+    window.dispatchEvent(new CustomEvent("platino_daily_code_updated", { detail: updated }));
+    return entry;
+  } catch {
+    return null;
+  }
+};
+

@@ -670,6 +670,7 @@ export const createOrder = (orderData) => {
     id: newId,
     date: todayStr,
     clientName: orderData.clientName || "Cliente Platino",
+    clientDni: orderData.clientDni || "",
     clientEmail: orderData.clientEmail || "cliente@platino.pe",
     clientPhone: orderData.clientPhone || "+51 912 345 678",
     deliveryType: orderData.deliveryType || "recojo_sede",

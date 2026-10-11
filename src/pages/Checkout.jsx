@@ -10,7 +10,7 @@ function Checkout({ cart, clearCart }) {
   const navigate = useNavigate()
 
   const [name, setName] = useState(user?.name || (user?.email === 'cliente@platino.pe' ? 'Camila Mendoza' : ''))
-  const [dni, setDni] = useState(user?.dni || '47829103')
+  const [dni, setDni] = useState(user?.dni || '')
   const [email, setEmail] = useState(user?.email || '')
   const [phone, setPhone] = useState(user?.phone || '+51 912 345 678')
   const [deliveryType, setDeliveryType] = useState('recojo_sede')
@@ -37,7 +37,7 @@ function Checkout({ cart, clearCart }) {
 
     const orderPayload = {
       clientName: name.trim() || 'Cliente Platino',
-      clientDni: dni.trim() || '47829103',
+      clientDni: dni.trim(),
       clientEmail: email.trim().toLowerCase() || (user?.email || 'cliente@platino.pe'),
       clientPhone: phone.trim() || '+51 912 345 678',
       deliveryType,
@@ -70,18 +70,20 @@ function Checkout({ cart, clearCart }) {
       
       // Registrar automáticamente en Platino Care con su DNI
       try {
-        registerPlatinoCareClient({
-          dni: dni.trim() || '47829103',
-          clientName: name.trim() || 'Cliente Platino',
-          clientEmail: email.trim().toLowerCase(),
-          clientPhone: phone.trim(),
-          planType: hasPlusCare ? 'plus' : 'cortesia',
-          orderId: created?.id || '',
-          productName: cart[0]?.name || 'Joya Platino',
-          productMetal: cart[0]?.selectedMetal || (typeof cart[0]?.metal === 'string' ? cart[0]?.metal : cart[0]?.metal?.name) || 'Oro 18K',
-          paymentMethod,
-          amountPaid: hasPlusCare ? 90 : 0,
-        });
+        if (dni.trim()) {
+          registerPlatinoCareClient({
+            dni: dni.trim(),
+            clientName: name.trim() || 'Cliente Platino',
+            clientEmail: email.trim().toLowerCase(),
+            clientPhone: phone.trim(),
+            planType: hasPlusCare ? 'plus' : 'cortesia',
+            orderId: created?.id || '',
+            productName: cart[0]?.name || 'Joya Platino',
+            productMetal: cart[0]?.selectedMetal || (typeof cart[0]?.metal === 'string' ? cart[0]?.metal : cart[0]?.metal?.name) || 'Oro 18K',
+            paymentMethod,
+            amountPaid: hasPlusCare ? 90 : 0,
+          });
+        }
       } catch (err) {
         console.error('Error registrando en Platino Care:', err);
       }
@@ -139,7 +141,7 @@ function Checkout({ cart, clearCart }) {
             <input
               required
               type="text"
-              placeholder="Número de DNI (8 dígitos) para validar tu garantía Platino Care"
+              placeholder="Ej. 71234567 (para validar tu cobertura Platino Care)"
               value={dni}
               onChange={(e) => setDni(e.target.value)}
             />

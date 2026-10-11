@@ -116,6 +116,7 @@ function App() {
             <Route path="/admin/ganancias" element={<AdminCitas />} />
             <Route path="/admin/pagos" element={<AdminCitas />} />
             <Route path="/admin/permisos" element={<AdminCitas />} />
+            <Route path="/admin/claves" element={<AdminCitas />} />
             <Route path="/admin/reclamaciones" element={<AdminCitas />} />
             <Route path="/admin/libro-reclamaciones" element={<AdminCitas />} />
             <Route path="/admin/platino-care" element={<AdminCitas />} />

@@ -132,17 +132,17 @@
 /* Pestañas de Filtro (Cliente) */
 .orders-tabs-nav {
   display: flex;
-  gap: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
   border-bottom: 2px solid #e7e3dc;
   margin-bottom: 26px;
-  overflow-x: auto;
 }
 
 .orders-tab-item {
   background: transparent;
   border: none;
-  padding: 12px 20px;
-  font-size: 14.5px;
+  padding: 12px 18px;
+  font-size: 14px;
   font-weight: 600;
   color: #647069;
   cursor: pointer;

@@ -47,11 +47,11 @@ export default function ClientOrders({ addToCart }) {
   // Estado de Joyas Favoritas del Cliente
   const [favorites, setFavorites] = useState(() => (user ? getUserFavorites(user.email) : []));
 
-  // Estado de Consulta / Validación Platino Care por DNI
-  const [careSearchDni, setCareSearchDni] = useState(user?.dni || "47829103");
-  const [searchedClientRecord, setSearchedClientRecord] = useState(() => getPlatinoCareClientByDni(user?.dni || "47829103"));
-  const [careRegisterName, setCareRegisterName] = useState(user?.name || "");
-  const [careRegisterPhone, setCareRegisterPhone] = useState(user?.phone || "+51 912 345 678");
+  // Estado de Consulta / Validación Platino Care por DNI (sin DNI precargado)
+  const [careSearchDni, setCareSearchDni] = useState("");
+  const [searchedClientRecord, setSearchedClientRecord] = useState(null);
+  const [hasSearchedCare, setHasSearchedCare] = useState(false);
+  const [searchedDniValue, setSearchedDniValue] = useState("");
 
   useEffect(() => {
     if (user?.email) {
@@ -185,28 +185,33 @@ export default function ClientOrders({ addToCart }) {
     }
   };
 
-  // Funciones de consulta y validación Platino Care por DNI
+  // Funciones de consulta y validación Platino Care por DNI (vinculado al pago de compra)
   const handleSearchCare = (e) => {
     e?.preventDefault();
-    if (!careSearchDni.trim()) return;
-    const found = getPlatinoCareClientByDni(careSearchDni.trim());
+    const cleanDni = careSearchDni.trim();
+    if (!cleanDni) return;
+    setSearchedDniValue(cleanDni);
+    setHasSearchedCare(true);
+    const found = getPlatinoCareClientByDni(cleanDni);
     setSearchedClientRecord(found);
   };
 
-  const handleRegisterFreeCare = (e) => {
-    e?.preventDefault();
-    if (!careSearchDni.trim()) return;
-    const newReg = validateFreePlatinoCareByDni(careSearchDni.trim(), {
-      clientName: careRegisterName.trim() || user?.name || "Cliente Platino",
-      clientPhone: careRegisterPhone.trim() || user?.phone || "+51 912 345 678",
-      clientEmail: user?.email || "",
-      productName: "Joya Fina Platino",
-      productMetal: "Oro 18K / Plata 950",
-    });
-    setSearchedClientRecord(newReg);
-    setToastMessage("✓ ¡Plan Gratuito Platino Care validado exitosamente con tu DNI!");
-    setTimeout(() => setToastMessage(""), 5000);
+  const handleClearCareSearch = () => {
+    setCareSearchDni("");
+    setSearchedDniValue("");
+    setSearchedClientRecord(null);
+    setHasSearchedCare(false);
   };
+
+  useEffect(() => {
+    const syncCareRecord = () => {
+      if (searchedDniValue) {
+        setSearchedClientRecord(getPlatinoCareClientByDni(searchedDniValue));
+      }
+    };
+    window.addEventListener("platino_care_clients_updated", syncCareRecord);
+    return () => window.removeEventListener("platino_care_clients_updated", syncCareRecord);
+  }, [searchedDniValue]);
 
   // Filtrar pedidos
   const activeOrders = orders.filter((o) => o.stage !== "entregado");
@@ -372,12 +377,12 @@ export default function ClientOrders({ addToCart }) {
               className={`orders-tab-item ${activeTab === "favoritos" ? "active" : ""}`}
               onClick={() => setActiveTab("favoritos")}
             >
-              <i className="bi bi-heart-fill" style={{ color: activeTab === "favoritos" ? "white" : "#e11d48" }}></i> Mis Favoritos
+              <i className="bi bi-heart-fill" style={{ color: "#e11d48" }}></i> Mis Favoritos
               <span
                 className="orders-tab-count"
                 style={{
-                  background: activeTab === "favoritos" ? "#ffffff" : "#fee2e2",
-                  color: activeTab === "favoritos" ? "#0f2a24" : "#e11d48",
+                  background: activeTab === "favoritos" ? "#0f2a24" : "#fee2e2",
+                  color: activeTab === "favoritos" ? "#ffffff" : "#e11d48",
                   fontWeight: "700",
                 }}
               >
@@ -396,7 +401,7 @@ export default function ClientOrders({ addToCart }) {
               className={`orders-tab-item ${activeTab === "care" ? "active" : ""}`}
               onClick={() => setActiveTab("care")}
             >
-              <i className="bi bi-shield-check" style={{ color: activeTab === "care" ? "white" : "#15803d" }}></i> Garantía Platino Care (DNI)
+              <i className="bi bi-shield-check" style={{ color: "#15803d" }}></i> Garantía Platino Care (DNI)
             </button>
           </div>
 
@@ -616,9 +621,9 @@ export default function ClientOrders({ addToCart }) {
               flexWrap: "wrap",
               gap: "20px"
             }}>
-              <div style={{ maxWidth: "680px" }}>
+              <div style={{ maxWidth: "660px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
-                  <span style={{ background: "rgba(197, 160, 89, 0.2)", color: "#c5a059", border: "1px solid rgba(197, 160, 89, 0.4)", padding: "2px 10px", borderRadius: "12px", fontSize: "11px", fontWeight: "700", letterSpacing: "0.08em" }}>
+                  <span style={{ background: "rgba(197, 160, 89, 0.2)", color: "#c5a059", border: "1px solid rgba(197, 160, 89, 0.4)", padding: "3px 12px", borderRadius: "12px", fontSize: "11px", fontWeight: "700", letterSpacing: "0.08em" }}>
                     RESPALDO OFICIAL PLATINO PERÚ
                   </span>
                 </div>
@@ -626,15 +631,16 @@ export default function ClientOrders({ addToCart }) {
                   Consulta y Validación de Cobertura Platino Care
                 </h2>
                 <p style={{ margin: 0, fontSize: "13.5px", color: "#cfded6", lineHeight: "1.5" }}>
-                  Ingresa tu número de DNI para validar tu Plan Gratuito de Cortesía o comprobar la activación y confirmación de pago de tu Plan Premium Platino Care +.
+                  Ingresa tu número de DNI para verificar si cuentas con una compra validada y comprobar el estado activo de tu garantía <strong>Platino Care Cortesía</strong> o <strong>Platino Care +</strong>.
                 </p>
               </div>
 
-              {/* Buscador de DNI */}
+              {/* Buscador de DNI sin valor precargado */}
               <form onSubmit={handleSearchCare} style={{ display: "flex", gap: "8px", background: "rgba(255, 255, 255, 0.1)", padding: "8px", borderRadius: "10px", border: "1px solid rgba(255, 255, 255, 0.2)" }}>
                 <input
                   type="text"
-                  placeholder="Número de DNI (8 dígitos)..."
+                  maxLength={12}
+                  placeholder="Ej. 71234567"
                   value={careSearchDni}
                   onChange={(e) => setCareSearchDni(e.target.value)}
                   style={{
@@ -642,8 +648,11 @@ export default function ClientOrders({ addToCart }) {
                     borderRadius: "6px",
                     border: "none",
                     outline: "none",
-                    fontSize: "13px",
-                    minWidth: "210px"
+                    fontSize: "13.5px",
+                    minWidth: "210px",
+                    background: "#ffffff",
+                    color: "#0f2a24",
+                    fontWeight: "600"
                   }}
                 />
                 <button
@@ -656,7 +665,10 @@ export default function ClientOrders({ addToCart }) {
                     padding: "10px 18px",
                     fontWeight: "700",
                     fontSize: "13px",
-                    cursor: "pointer"
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px"
                   }}
                 >
                   <i className="bi bi-search"></i> Consultar
@@ -664,8 +676,74 @@ export default function ClientOrders({ addToCart }) {
               </form>
             </div>
 
-            {/* Resultado de la búsqueda */}
-            {searchedClientRecord ? (
+            {/* Estado 1: Aún no se ha realizado una consulta de DNI */}
+            {!hasSearchedCare ? (
+              <div style={{
+                background: "#ffffff",
+                border: "1.5px solid #dcd7ce",
+                borderRadius: "14px",
+                padding: "36px 32px",
+                marginBottom: "24px",
+                boxShadow: "0 4px 15px rgba(0,0,0,0.03)",
+                textAlign: "center"
+              }}>
+                <div style={{
+                  width: "64px",
+                  height: "64px",
+                  borderRadius: "50%",
+                  background: "rgba(197, 160, 89, 0.14)",
+                  color: "#0f2a24",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "28px",
+                  margin: "0 auto 16px"
+                }}>
+                  <i className="bi bi-shield-lock"></i>
+                </div>
+                <h3 style={{ fontFamily: "var(--font-serif)", fontSize: "22px", color: "#0f2a24", margin: "0 0 8px" }}>
+                  Verificación Oficial de Afiliación Platino Care
+                </h3>
+                <p style={{ color: "#5d6d65", fontSize: "14px", maxWidth: "600px", margin: "0 auto 24px", lineHeight: "1.6" }}>
+                  Escribe tu número de documento en el buscador superior (<strong>Ej. 71234567</strong>) y presiona <strong>Consultar</strong>. El sistema validará tu compra y confirmará si tu pago ya fue verificado para activar tus beneficios de taller.
+                </p>
+
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+                  gap: "16px",
+                  maxWidth: "820px",
+                  margin: "0 auto",
+                  textAlign: "left"
+                }}>
+                  <div style={{ background: "#fbf9f6", border: "1px solid #eae5db", borderRadius: "10px", padding: "16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px", color: "#0f2a24", fontWeight: "700", fontSize: "13.5px" }}>
+                      <i className="bi bi-1-circle-fill" style={{ color: "#c5a059" }}></i> Compra Vinculada a tu DNI
+                    </div>
+                    <p style={{ margin: 0, fontSize: "12.5px", color: "#647069", lineHeight: "1.5" }}>
+                      Al adquirir tu joya en Platino Perú, tu DNI queda asociado al plan elegido (Cortesía S/. 0 o Platino Care + S/. 90).
+                    </p>
+                  </div>
+                  <div style={{ background: "#fbf9f6", border: "1px solid #eae5db", borderRadius: "10px", padding: "16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px", color: "#0f2a24", fontWeight: "700", fontSize: "13.5px" }}>
+                      <i className="bi bi-2-circle-fill" style={{ color: "#c5a059" }}></i> Validación de Pago
+                    </div>
+                    <p style={{ margin: 0, fontSize: "12.5px", color: "#647069", lineHeight: "1.5" }}>
+                      Una vez que Administración valida el pago de tu pedido, tu membresía pasa a estado <strong>Activo</strong>.
+                    </p>
+                  </div>
+                  <div style={{ background: "#fbf9f6", border: "1px solid #eae5db", borderRadius: "10px", padding: "16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px", color: "#0f2a24", fontWeight: "700", fontSize: "13.5px" }}>
+                      <i className="bi bi-3-circle-fill" style={{ color: "#c5a059" }}></i> Cronograma y Beneficios
+                    </div>
+                    <p style={{ margin: 0, fontSize: "12.5px", color: "#647069", lineHeight: "1.5" }}>
+                      Consulta aquí tus fechas de entallado gratuito, limpiezas por ultrasonido y mantenimientos programados.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ) : searchedClientRecord ? (
+              /* Estado 2 y 3: DNI encontrado en el padrón Platino Care */
               <div style={{
                 background: "#ffffff",
                 border: "1.5px solid #dcd7ce",
@@ -678,59 +756,74 @@ export default function ClientOrders({ addToCart }) {
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "12px", borderBottom: "1px solid #eeebe3", paddingBottom: "16px", marginBottom: "20px" }}>
                   <div>
                     <span style={{ fontSize: "11px", fontWeight: "700", textTransform: "uppercase", letterSpacing: "0.08em", color: "#7a8781" }}>
-                      Plan Asignado a tu Documento
+                      Verificación de Cobertura por DNI #{searchedClientRecord.dni}
                     </span>
                     <h3 style={{ margin: "4px 0 0", color: "#0f2a24", fontFamily: "var(--font-serif)", fontSize: "22px" }}>
                       {searchedClientRecord.planType === "plus" ? "Platino Care + (Plan Premium)" : "Platino Care Cortesía (Plan Gratuito)"}
                     </h3>
                   </div>
 
-                  <div>
-                    {searchedClientRecord.planType === "plus" ? (
-                      searchedClientRecord.status === "aprobado" ? (
-                        <span style={{ background: "#ecfdf5", color: "#15803d", border: "1.5px solid #86efac", padding: "6px 14px", borderRadius: "20px", fontSize: "12.5px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                          <i className="bi bi-patch-check-fill"></i> Pago Confirmado por Admin — Beneficios Activos
-                        </span>
-                      ) : (
-                        <span style={{ background: "#fffbeb", color: "#b45309", border: "1.5px solid #fde68a", padding: "6px 14px", borderRadius: "20px", fontSize: "12.5px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                          <i className="bi bi-clock-history"></i> Pendiente de Aceptación por el Administrador
-                        </span>
-                      )
-                    ) : (
+                  <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                    {searchedClientRecord.paymentConfirmed && searchedClientRecord.canEnjoyBenefits && searchedClientRecord.status !== "pendiente_pago" && searchedClientRecord.status !== "rechazado" ? (
                       <span style={{ background: "#ecfdf5", color: "#15803d", border: "1.5px solid #86efac", padding: "6px 14px", borderRadius: "20px", fontSize: "12.5px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                        <i className="bi bi-check-circle-fill"></i> Plan Gratuito Validado & Activo
+                        <i className="bi bi-patch-check-fill"></i> Pago Validado — Cliente Platino Care Activo
+                      </span>
+                    ) : searchedClientRecord.status === "rechazado" ? (
+                      <span style={{ background: "#fef2f2", color: "#b91c1c", border: "1.5px solid #fecaca", padding: "6px 14px", borderRadius: "20px", fontSize: "12.5px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                        <i className="bi bi-x-octagon-fill"></i> Validación de Pago Observada
+                      </span>
+                    ) : (
+                      <span style={{ background: "#fffbeb", color: "#b45309", border: "1.5px solid #fde68a", padding: "6px 14px", borderRadius: "20px", fontSize: "12.5px", fontWeight: "700", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                        <i className="bi bi-clock-history"></i> Pago en Validación — Pendiente de Activación
                       </span>
                     )}
+
+                    <button
+                      type="button"
+                      onClick={handleClearCareSearch}
+                      style={{
+                        background: "#f4f1ea",
+                        color: "#33423b",
+                        border: "1px solid #dcd7ce",
+                        padding: "6px 12px",
+                        borderRadius: "8px",
+                        fontSize: "12px",
+                        fontWeight: "600",
+                        cursor: "pointer"
+                      }}
+                    >
+                      Limpiar consulta
+                    </button>
                   </div>
                 </div>
 
-                {/* Banner de Estado para el Cliente */}
-                {searchedClientRecord.planType === "plus" && searchedClientRecord.status === "pendiente_pago" && (
+                {/* Banner de Estado según validación del pago */}
+                {(!searchedClientRecord.paymentConfirmed || !searchedClientRecord.canEnjoyBenefits || searchedClientRecord.status === "pendiente_pago") && searchedClientRecord.status !== "rechazado" && (
                   <div style={{ background: "#fefce8", border: "1.5px solid #fde047", borderRadius: "10px", padding: "16px 20px", marginBottom: "22px" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
                       <i className="bi bi-hourglass-split" style={{ fontSize: "22px", color: "#ca8a04", marginTop: "2px" }}></i>
                       <div>
                         <strong style={{ fontSize: "14px", color: "#854d0e" }}>
-                          Validación de Pago en Curso por Administración
+                          Validación de Pago en Curso para Activar Platino Care
                         </strong>
                         <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#713f12", lineHeight: "1.5" }}>
-                          Para acceder a los beneficios del <strong>Plan Platino Care +</strong>, nuestro equipo administrativo debe confirmar el comprobante de pago de S/. 90 ({searchedClientRecord.paymentMethod || "Medio de pago"}). Una vez aceptado el pago en el sistema, tus beneficios premium se activarán automáticamente.
+                          Tu DNI registra una solicitud vinculada al pedido <strong>#{searchedClientRecord.orderId || "En proceso"}</strong> ({searchedClientRecord.paymentMethod || "Medio de pago"}). En cuanto Administración verifique y confirme el pago correspondiente, tu afiliación a <strong>{searchedClientRecord.planType === "plus" ? "Platino Care +" : "Platino Care"}</strong> quedará activa para disfrutar de todos los beneficios.
                         </p>
                       </div>
                     </div>
                   </div>
                 )}
 
-                {searchedClientRecord.planType === "plus" && searchedClientRecord.status === "aprobado" && (
+                {searchedClientRecord.paymentConfirmed && searchedClientRecord.canEnjoyBenefits && searchedClientRecord.status !== "pendiente_pago" && searchedClientRecord.status !== "rechazado" && (
                   <div style={{ background: "#f0fdf4", border: "1.5px solid #86efac", borderRadius: "10px", padding: "16px 20px", marginBottom: "22px" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", gap: "12px" }}>
                       <i className="bi bi-shield-fill-check" style={{ fontSize: "22px", color: "#16a34a", marginTop: "2px" }}></i>
                       <div>
                         <strong style={{ fontSize: "14px", color: "#166534" }}>
-                          ¡Pago Confirmado! Beneficios Platino Care + Disponibles
+                          ¡Afiliación Confirmada! Eres Cliente Oficial Platino Care
                         </strong>
                         <p style={{ margin: "4px 0 0", fontSize: "13px", color: "#14532d", lineHeight: "1.5" }}>
-                          Tu pago fue aceptado y verificado por <strong>{searchedClientRecord.approvedBy || "Administración Central"}</strong> el {searchedClientRecord.paymentConfirmedAt || searchedClientRecord.fechaRegistro}. Tu joya cuenta con cobertura vitalicia integral.
+                          Compra y pago verificados en el sistema ({searchedClientRecord.approvedBy || "Administración Platino Perú"}). Tu joya <strong>{searchedClientRecord.productName}</strong> cuenta con respaldo oficial y beneficios activos en taller.
                         </p>
                       </div>
                     </div>
@@ -738,22 +831,18 @@ export default function ClientOrders({ addToCart }) {
                 )}
 
                 {/* Ficha de datos del cliente */}
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: "16px", background: "#fbf9f6", padding: "18px 20px", borderRadius: "10px", border: "1px solid #eae5db", marginBottom: "22px" }}>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "16px", background: "#fbf9f6", padding: "18px 20px", borderRadius: "10px", border: "1px solid #eae5db", marginBottom: "22px" }}>
                   <div>
                     <label style={{ fontSize: "11px", textTransform: "uppercase", color: "#7a8781", fontWeight: "700" }}>Titular de la Garantía</label>
                     <div style={{ fontSize: "14px", fontWeight: "700", color: "#0f2a24", marginTop: "2px" }}>{searchedClientRecord.clientName}</div>
                   </div>
                   <div>
-                    <label style={{ fontSize: "11px", textTransform: "uppercase", color: "#7a8781", fontWeight: "700" }}>DNI Validado</label>
+                    <label style={{ fontSize: "11px", textTransform: "uppercase", color: "#7a8781", fontWeight: "700" }}>DNI Verificado</label>
                     <div style={{ fontSize: "14px", fontWeight: "700", color: "#0f2a24", marginTop: "2px" }}>{searchedClientRecord.dni}</div>
                   </div>
                   <div>
-                    <label style={{ fontSize: "11px", textTransform: "uppercase", color: "#7a8781", fontWeight: "700" }}>
-                      {searchedClientRecord.planType === "plus" ? "Fecha de Solicitud" : "Fecha de Validación de Gratuidad"}
-                    </label>
-                    <div style={{ fontSize: "14px", fontWeight: "700", color: "#0f2a24", marginTop: "2px" }}>
-                      {searchedClientRecord.fechaValidacionGratuidad || searchedClientRecord.fechaRegistro}
-                    </div>
+                    <label style={{ fontSize: "11px", textTransform: "uppercase", color: "#7a8781", fontWeight: "700" }}>Orden de Compra</label>
+                    <div style={{ fontSize: "14px", fontWeight: "700", color: "#0f2a24", marginTop: "2px" }}>#{searchedClientRecord.orderId || "PLT-2026"}</div>
                   </div>
                   <div>
                     <label style={{ fontSize: "11px", textTransform: "uppercase", color: "#7a8781", fontWeight: "700" }}>Joya Amparada</label>
@@ -763,10 +852,65 @@ export default function ClientOrders({ addToCart }) {
                   </div>
                 </div>
 
+                {/* Cronograma de Fechas y Beneficios de Taller */}
+                <div style={{ marginBottom: "22px" }}>
+                  <h4 style={{ margin: "0 0 12px", color: "#0f2a24", fontSize: "14.5px", fontWeight: "700", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <i className="bi bi-calendar-check" style={{ color: "#c5a059" }}></i> Registro de Fechas y Atenciones en Taller
+                  </h4>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "12px" }}>
+                    <div style={{ padding: "12px 14px", borderRadius: "10px", border: "1px solid #e7e3dc", background: "#fcfbf9" }}>
+                      <div style={{ fontSize: "11px", fontWeight: "700", color: "#7a8781", textTransform: "uppercase" }}>
+                        Fecha de Activación / Registro
+                      </div>
+                      <div style={{ fontSize: "13.5px", fontWeight: "700", color: "#0f2a24", marginTop: "4px" }}>
+                        <i className="bi bi-calendar-event" style={{ color: "#15803d", marginRight: "6px" }}></i>
+                        {searchedClientRecord.fechaValidacionGratuidad || searchedClientRecord.fechaRegistro || "Registrado"}
+                      </div>
+                    </div>
+
+                    <div style={{ padding: "12px 14px", borderRadius: "10px", border: "1px solid #e7e3dc", background: "#fcfbf9" }}>
+                      <div style={{ fontSize: "11px", fontWeight: "700", color: "#7a8781", textTransform: "uppercase" }}>
+                        1 Entallado Gratuito
+                      </div>
+                      <div style={{ fontSize: "13.5px", fontWeight: "700", color: searchedClientRecord.entalladoStatus === "realizado" ? "#15803d" : "#b45309", marginTop: "4px" }}>
+                        <i className={`bi ${searchedClientRecord.entalladoStatus === "realizado" ? "bi-check2-circle" : "bi-clock"}`} style={{ marginRight: "6px" }}></i>
+                        {searchedClientRecord.entalladoStatus === "realizado"
+                          ? `Realizado (${searchedClientRecord.fechaEntallado || "En taller"})`
+                          : "Disponible (Dentro de 90 días)"}
+                      </div>
+                      {searchedClientRecord.entalladoDetalle && (
+                        <div style={{ fontSize: "11.5px", color: "#647069", marginTop: "2px" }}>
+                          {searchedClientRecord.entalladoDetalle}
+                        </div>
+                      )}
+                    </div>
+
+                    <div style={{ padding: "12px 14px", borderRadius: "10px", border: "1px solid #e7e3dc", background: "#fcfbf9" }}>
+                      <div style={{ fontSize: "11px", fontWeight: "700", color: "#7a8781", textTransform: "uppercase" }}>
+                        Última Limpieza Ultrasónica
+                      </div>
+                      <div style={{ fontSize: "13.5px", fontWeight: "700", color: "#0f2a24", marginTop: "4px" }}>
+                        <i className="bi bi-stars" style={{ color: "#c5a059", marginRight: "6px" }}></i>
+                        {searchedClientRecord.fechaLimpieza || "Aún sin programar"}
+                      </div>
+                    </div>
+
+                    <div style={{ padding: "12px 14px", borderRadius: "10px", border: "1px solid #e7e3dc", background: "#fcfbf9" }}>
+                      <div style={{ fontSize: "11px", fontWeight: "700", color: "#7a8781", textTransform: "uppercase" }}>
+                        Próximo Mantenimiento
+                      </div>
+                      <div style={{ fontSize: "13.5px", fontWeight: "700", color: "#0f2a24", marginTop: "4px" }}>
+                        <i className="bi bi-calendar2-heart" style={{ color: "#0f2a24", marginRight: "6px" }}></i>
+                        {searchedClientRecord.fechaProximoMantenimiento || "Cada 6 meses en boutique"}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
                 {/* Lista de beneficios amparados */}
                 <div>
                   <h4 style={{ margin: "0 0 12px", color: "#0f2a24", fontSize: "15px", fontWeight: "700" }}>
-                    Beneficios y Coberturas Oficiales:
+                    Beneficios y Coberturas de tu Plan:
                   </h4>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "10px" }}>
                     {searchedClientRecord.planType === "plus" ? (
@@ -812,84 +956,91 @@ export default function ClientOrders({ addToCart }) {
                 </div>
               </div>
             ) : (
-              /* Si no se encuentra registro previo, formulario para validar gratuidad */
+              /* Estado 4: DNI consultado pero no registra una compra / pago validado en Platino Care */
               <div style={{
                 background: "#ffffff",
                 border: "1.5px solid #dcd7ce",
                 borderRadius: "14px",
-                padding: "36px 32px",
+                padding: "38px 32px",
                 textAlign: "center",
-                maxWidth: "600px",
-                margin: "0 auto 24px"
+                maxWidth: "640px",
+                margin: "0 auto 24px",
+                boxShadow: "0 4px 15px rgba(0,0,0,0.03)"
               }}>
-                <i className="bi bi-shield-plus" style={{ fontSize: "48px", color: "#c5a059", display: "block", marginBottom: "12px" }}></i>
-                <h3 style={{ fontFamily: "var(--font-serif)", color: "#0f2a24", margin: "0 0 8px" }}>
-                  Validar Plan Gratuito Platino Care
+                <div style={{
+                  width: "60px",
+                  height: "60px",
+                  borderRadius: "50%",
+                  background: "#fef3c7",
+                  color: "#b45309",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontSize: "26px",
+                  margin: "0 auto 14px"
+                }}>
+                  <i className="bi bi-shield-exclamation"></i>
+                </div>
+                <h3 style={{ fontFamily: "var(--font-serif)", color: "#0f2a24", margin: "0 0 8px", fontSize: "21px" }}>
+                  DNI Sin Cobertura Activa en Platino Care
                 </h3>
-                <p style={{ color: "#5d6d65", fontSize: "13.5px", margin: "0 0 20px" }}>
-                  No se encontró una cobertura registrada para el DNI <strong>{careSearchDni}</strong>. Si adquiriste una joya en Platino Perú, puedes validar y activar tu garantía gratuita de cortesía ahora mismo:
+                <p style={{ color: "#5d6d65", fontSize: "13.5px", margin: "0 auto 18px", lineHeight: "1.6", maxWidth: "520px" }}>
+                  No se encontró una compra validada ni una afiliación activa a <strong>Platino Care</strong> para el DNI <strong>{searchedDniValue}</strong>.
                 </p>
 
-                <form onSubmit={handleRegisterFreeCare} style={{ textAlign: "left", display: "flex", flexDirection: "column", gap: "12px" }}>
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: "700", color: "#0f2a24", display: "block", marginBottom: "4px" }}>
-                      Número de DNI *
-                    </label>
-                    <input
-                      required
-                      type="text"
-                      className="catalog-form-input"
-                      value={careSearchDni}
-                      onChange={(e) => setCareSearchDni(e.target.value)}
-                      style={{ width: "100%", padding: "10px 12px", borderRadius: "6px", border: "1px solid #dcd7ce" }}
-                    />
-                  </div>
+                <div style={{
+                  background: "#fbf9f6",
+                  border: "1px solid #eae5db",
+                  borderRadius: "10px",
+                  padding: "16px 20px",
+                  textAlign: "left",
+                  marginBottom: "22px",
+                  fontSize: "13px",
+                  color: "#4a5450",
+                  lineHeight: "1.5"
+                }}>
+                  <strong style={{ color: "#0f2a24", display: "block", marginBottom: "4px" }}>
+                    <i className="bi bi-info-circle-fill" style={{ color: "#c5a059", marginRight: "6px" }}></i>
+                    ¿Cómo se activa la cobertura Platino Care?
+                  </strong>
+                  La garantía <strong>Platino Care</strong> (tanto el Plan de Cortesía como el Plan Premium Platino Care +) se habilita automáticamente a tu número de DNI una vez que realizas la compra de tu joya y nuestro equipo confirma el pago correspondiente.
+                </div>
 
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: "700", color: "#0f2a24", display: "block", marginBottom: "4px" }}>
-                      Nombre Completo *
-                    </label>
-                    <input
-                      required
-                      type="text"
-                      placeholder="Ej. Camila Mendoza"
-                      value={careRegisterName}
-                      onChange={(e) => setCareRegisterName(e.target.value)}
-                      style={{ width: "100%", padding: "10px 12px", borderRadius: "6px", border: "1px solid #dcd7ce" }}
-                    />
-                  </div>
-
-                  <div>
-                    <label style={{ fontSize: "12px", fontWeight: "700", color: "#0f2a24", display: "block", marginBottom: "4px" }}>
-                      Teléfono de Contacto / WhatsApp *
-                    </label>
-                    <input
-                      required
-                      type="tel"
-                      placeholder="+51 987 654 321"
-                      value={careRegisterPhone}
-                      onChange={(e) => setCareRegisterPhone(e.target.value)}
-                      style={{ width: "100%", padding: "10px 12px", borderRadius: "6px", border: "1px solid #dcd7ce" }}
-                    />
-                  </div>
-
+                <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
                   <button
-                    type="submit"
+                    type="button"
+                    onClick={handleClearCareSearch}
+                    style={{
+                      background: "#f4f1ea",
+                      color: "#0f2a24",
+                      border: "1px solid #dcd7ce",
+                      padding: "10px 20px",
+                      borderRadius: "8px",
+                      fontWeight: "700",
+                      fontSize: "13px",
+                      cursor: "pointer"
+                    }}
+                  >
+                    <i className="bi bi-arrow-counterclockwise"></i> Consultar otro DNI
+                  </button>
+                  <Link
+                    to="/catalogo"
                     style={{
                       background: "#0f2a24",
                       color: "#ffffff",
-                      border: "none",
-                      padding: "12px 20px",
+                      textDecoration: "none",
+                      padding: "10px 22px",
                       borderRadius: "8px",
                       fontWeight: "700",
-                      fontSize: "14px",
-                      cursor: "pointer",
-                      marginTop: "8px"
+                      fontSize: "13px",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "6px"
                     }}
                   >
-                    <i className="bi bi-shield-check"></i> Validar Plan Gratuito Ahora
-                  </button>
-                </form>
+                    <i className="bi bi-gem"></i> Ver Catálogo de Joyas
+                  </Link>
+                </div>
               </div>
             )}
           </div>
