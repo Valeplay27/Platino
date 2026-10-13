@@ -678,43 +678,42 @@ export default function AdminCitas() {
     return ordersList.filter((o) => getOrderSedeId(o) === userAssignedSede);
   }, [ordersList, isGlobalOrdersView, userAssignedSede]);
 
-  // Pedidos filtrados según controles de búsqueda y pestañas
+  // Obtener la lista dinámica de materiales únicos presentes en los pedidos
+  const availableOrderMaterials = useMemo(() => {
+    const set = new Set();
+    effectiveSedeOrders.forEach((order) => {
+      (order.items || []).forEach((it) => {
+        const matName = it.metal || it.metalId;
+        if (matName && typeof matName === "string" && matName.trim()) {
+          set.add(matName.trim());
+        }
+      });
+    });
+    return Array.from(set).sort();
+  }, [effectiveSedeOrders]);
+
+  // Pedidos filtrados según controles de búsqueda, sede, material y ordenamiento por fecha
   const filteredOrders = useMemo(() => {
-    return effectiveSedeOrders.filter((order) => {
+    // 1. Filtrar
+    const result = effectiveSedeOrders.filter((order) => {
       if (orderStageFilter !== "todos" && order.stage !== orderStageFilter) {
         return false;
       }
       if (orderClientFilter === "camila") {
         if (order.clientEmail.toLowerCase() !== "cliente@platino.pe") return false;
       }
-      if (orderDeliveryDateFilter !== "todos") {
-        if (orderDeliveryDateFilter === "con_fecha") {
-          if (!order.estimatedCompletion) return false;
-        } else if (orderDeliveryDateFilter === "abril_2026") {
-          if (!String(order.estimatedCompletion || "").toLowerCase().includes("abril")) return false;
-        } else if (orderDeliveryDateFilter === "proximos_dias") {
-          if (!order.estimatedCompletion) return false;
-        }
-      }
       if (orderSedeDeliveryFilter !== "todos") {
         if (orderSedeDeliveryFilter === "miraflores") {
           if (getOrderSedeId(order) !== "miraflores") return false;
         } else if (orderSedeDeliveryFilter === "lima-centro") {
           if (getOrderSedeId(order) !== "lima-centro") return false;
-        } else if (orderSedeDeliveryFilter === "domicilio") {
-          if (order.deliveryType !== "envio_domicilio") return false;
         }
       }
       if (orderMaterialFilter !== "todos") {
-        const mat = orderMaterialFilter.toLowerCase();
+        const selectedMat = orderMaterialFilter.toLowerCase();
         const hasMaterial = (order.items || []).some((it) => {
-          const str = `${it.metal || ""} ${it.metalId || ""} ${it.name || ""}`.toLowerCase();
-          if (mat === "oro-blanco") return str.includes("blanco") || str.includes("white");
-          if (mat === "oro-amarillo") return str.includes("amarillo") || str.includes("yellow");
-          if (mat === "oro-rosa") return str.includes("rosa") || str.includes("rose");
-          if (mat === "platino") return str.includes("platino");
-          if (mat === "plata") return str.includes("plata") || str.includes("950");
-          return false;
+          const itemMat = `${it.metal || ""} ${it.metalId || ""}`.toLowerCase();
+          return itemMat.includes(selectedMat);
         });
         if (!hasMaterial) return false;
       }
@@ -731,6 +730,46 @@ export default function AdminCitas() {
       }
       return true;
     });
+
+    // 2. Ordenar por fecha según orderDeliveryDateFilter
+    if (orderDeliveryDateFilter === "fecha_asc" || orderDeliveryDateFilter === "fecha_desc") {
+      const parseOrderDate = (order) => {
+        const dateStr = order.estimatedCompletion || order.date || "";
+        if (!dateStr) return 0;
+        // Si tiene formato YYYY-MM-DD
+        const directTime = Date.parse(dateStr);
+        if (!isNaN(directTime)) return directTime;
+
+        // Si tiene formato español "10 de Abril, 2026"
+        const months = {
+          enero: "01", febrero: "02", marzo: "03", abril: "04",
+          mayo: "05", junio: "06", julio: "07", agosto: "08",
+          setiembre: "09", septiembre: "09", octubre: "10",
+          noviembre: "11", diciembre: "12",
+        };
+        const match = dateStr.toLowerCase().match(/(\d{1,2})\s+de\s+([a-z]+)[,\s]+(\d{4})/);
+        if (match) {
+          const day = match[1].padStart(2, "0");
+          const month = months[match[2]] || "01";
+          const year = match[3];
+          const parsed = Date.parse(`${year}-${month}-${day}`);
+          if (!isNaN(parsed)) return parsed;
+        }
+        return 0;
+      };
+
+      result.sort((a, b) => {
+        const timeA = parseOrderDate(a);
+        const timeB = parseOrderDate(b);
+        if (orderDeliveryDateFilter === "fecha_asc") {
+          return timeA - timeB;
+        } else {
+          return timeB - timeA;
+        }
+      });
+    }
+
+    return result;
   }, [
     effectiveSedeOrders,
     orderStageFilter,
@@ -7702,13 +7741,16 @@ export default function AdminCitas() {
 
                 {/* Botón Todos */}
                 <div style={{ display: "flex", gap: "8px", alignItems: "center" }}>
-                  {(orderStageFilter !== "todos" || orderSearchQuery) && (
+                  {(orderStageFilter !== "todos" || orderSearchQuery || orderDeliveryDateFilter !== "todos" || orderSedeDeliveryFilter !== "todos" || orderMaterialFilter !== "todos") && (
                     <button
                       type="button"
                       onClick={() => {
                         setOrderStageFilter("todos");
                         setOrderClientFilter("todos");
                         setOrderSearchQuery("");
+                        setOrderDeliveryDateFilter("todos");
+                        setOrderSedeDeliveryFilter("todos");
+                        setOrderMaterialFilter("todos");
                       }}
                       style={{
                         background: "none",
@@ -7729,6 +7771,9 @@ export default function AdminCitas() {
                     onClick={() => {
                       setOrderStageFilter("todos");
                       setOrderClientFilter("todos");
+                      setOrderDeliveryDateFilter("todos");
+                      setOrderSedeDeliveryFilter("todos");
+                      setOrderMaterialFilter("todos");
                     }}
                     style={{
                       background: orderStageFilter === "todos" ? "#113B3A" : "#f1f5f9",
@@ -7818,9 +7863,9 @@ export default function AdminCitas() {
                   borderTop: "1px solid #f1f5f9",
                 }}
               >
-                {/* 1. Filtrar por Fecha de Entrega */}
+                {/* 1. Ordenar por Fecha */}
                 <div style={{ position: "relative" }}>
-                  <i className="bi bi-calendar-event" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", fontSize: "13px", pointerEvents: "none" }}></i>
+                  <i className="bi bi-arrow-down-up" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", fontSize: "13px", pointerEvents: "none" }}></i>
                   <select
                     value={orderDeliveryDateFilter}
                     onChange={(e) => setOrderDeliveryDateFilter(e.target.value)}
@@ -7837,14 +7882,13 @@ export default function AdminCitas() {
                       outline: "none",
                     }}
                   >
-                    <option value="todos">Filtrar por Fecha de Entrega</option>
-                    <option value="con_fecha">Con Fecha de Entrega Asignada</option>
-                    <option value="abril_2026">Entregas en Abril 2026</option>
-                    <option value="proximos_dias">Próximas Entregas</option>
+                    <option value="todos">Ordenar por Fecha</option>
+                    <option value="fecha_asc">Fecha: Ascendente (Más antiguas primero)</option>
+                    <option value="fecha_desc">Fecha: Descendente (Más recientes primero)</option>
                   </select>
                 </div>
 
-                {/* 2. Filtrar por Sede de Entrega */}
+                {/* 2. Filtrar por Sede de Entrega (Sin envío a domicilio) */}
                 <div style={{ position: "relative" }}>
                   <i className="bi bi-geo-alt" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", fontSize: "13px", pointerEvents: "none" }}></i>
                   <select
@@ -7866,11 +7910,10 @@ export default function AdminCitas() {
                     <option value="todos">Filtrar por Sede de Entrega</option>
                     <option value="miraflores">Sede Miraflores (Av. José Larco 880)</option>
                     <option value="lima-centro">Sede Lima Centro (Jr. de la Unión 540)</option>
-                    <option value="domicilio">Envío a Domicilio</option>
                   </select>
                 </div>
 
-                {/* 3. Filtrar por Material */}
+                {/* 3. Filtrar por Material (Únicamente los materiales presentes en los pedidos) */}
                 <div style={{ position: "relative" }}>
                   <i className="bi bi-gem" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", fontSize: "13px", pointerEvents: "none" }}></i>
                   <select
@@ -7889,12 +7932,12 @@ export default function AdminCitas() {
                       outline: "none",
                     }}
                   >
-                    <option value="todos">Filtrar por Material</option>
-                    <option value="oro-blanco">Oro 18k Blanco</option>
-                    <option value="oro-amarillo">Oro 18k Amarillo</option>
-                    <option value="oro-rosa">Oro 18k Rosa</option>
-                    <option value="platino">Platino 950</option>
-                    <option value="plata">Plata Ley 950</option>
+                    <option value="todos">Filtrar por Material ({availableOrderMaterials.length})</option>
+                    {availableOrderMaterials.map((mat) => (
+                      <option key={mat} value={mat}>
+                        {mat}
+                      </option>
+                    ))}
                   </select>
                 </div>
               </div>
