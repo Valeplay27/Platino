@@ -26,7 +26,7 @@ export const ORDER_STAGES = [
   {
     id: "engaste_pulido",
     label: "Engaste & Acabado",
-    shortLabel: "En Engaste",
+    shortLabel: "En Engaste / Grabación",
     description: "Fijación microscópica de diamantes o gemas preciosas y pulido fino artesanal.",
     icon: "bi-gem",
     stepNumber: 3,
@@ -37,7 +37,7 @@ export const ORDER_STAGES = [
   {
     id: "control_calidad",
     label: "Control de Calidad & Certificación",
-    shortLabel: "En Calidad",
+    shortLabel: "Calidad / Empaque",
     description: "Inspección gemológica estricta con lupa 10x y emisión del certificado oficial Platino.",
     icon: "bi-shield-check",
     stepNumber: 4,
@@ -703,5 +703,67 @@ export const deleteOrder = (orderId) => {
   const all = getOrders();
   const filtered = all.filter((o) => o.id !== orderId);
   saveOrders(filtered);
+  return true;
+};
+
+// ==========================================
+// CONFIGURACIÓN Y ASIGNACIÓN DE TALLER (FASES 2, 3 Y 4)
+// ==========================================
+export const WORKSHOP_JEWELERS = [
+  "Joyero | Raúl",
+  "Joyero | Hernán",
+  "Joyero | Felix",
+  "Joyero | Elías",
+  "Joyero | Alejandro",
+  "Joyera | Ermy",
+  "Joyero | Externo",
+  "Joyero | Platino",
+  "Servicio | Baño de Rodhio",
+  "Servicio | Enchape",
+  "Servicio | Diamantado",
+  "Servicio | Otros",
+];
+
+export const WORKSHOP_PROCESSES = [
+  "Grabación Tradicional",
+  "Grabación Láser",
+  "Engaste | Joaquín",
+  "Engaste | Uchupe",
+  "Engaste | Otros",
+  "Engaste | Platino",
+];
+
+export const WORKSHOP_DELIVERY_CHOICES = [
+  "Calidad Aprobada",
+  "Enviar a Sede Miraflores",
+  "Enviar a Sede Lima",
+  "Olva Courier",
+  "Shalom",
+  "Interprovincial",
+  "Motorizado",
+  "Delivery Platino",
+];
+
+export const WORKSHOP_BOX_OPTIONS = [
+  "Cofre de Madera Fina Platino",
+  "Cofre Terciopelo Verde Platino",
+  "Cofre Especial Matrimonio",
+  "Cofre Estándar Platino",
+  "Sin Cofre",
+];
+
+// Actualizar campos específicos de fases de taller (Fase 2, Fase 3, Fase 4)
+export const updateOrderWorkshopFields = (orderId, partialFields) => {
+  const all = getOrders();
+  const index = all.findIndex((o) => o.id === orderId);
+  if (index === -1) return false;
+
+  all[index] = {
+    ...all[index],
+    ...partialFields,
+    lastUpdated: new Date().toISOString().split("T")[0],
+  };
+
+  saveOrders(all);
   return true;
 };

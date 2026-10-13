@@ -55,6 +55,11 @@ import {
   PAYMENT_STATUSES,
   PAYMENT_METHODS,
   getOrderSedeId,
+  WORKSHOP_JEWELERS,
+  WORKSHOP_PROCESSES,
+  WORKSHOP_DELIVERY_CHOICES,
+  WORKSHOP_BOX_OPTIONS,
+  updateOrderWorkshopFields,
 } from "../services/ordersService";
 import { METALS, formatPrice, MASTER_GEM_SHAPES } from "../data/products";
 import { DiamondCutIcon } from "../components/GemstoneIcons";
@@ -541,6 +546,13 @@ export default function AdminCitas() {
       setFeedbackMsg(`✓ Estado del pedido ${orderId} actualizado a: "${stageInfo.label}". El cliente ve este avance en tiempo real en su portal.`);
       setTimeout(() => setFeedbackMsg(""), 6000);
     }
+  };
+
+  const handleUpdateWorkshopField = (orderId, fieldName, value) => {
+    updateOrderWorkshopFields(orderId, { [fieldName]: value });
+    setOrdersList((prev) =>
+      prev.map((o) => (o.id === orderId ? { ...o, [fieldName]: value } : o))
+    );
   };
 
   const handleSaveOrderNote = (orderId) => {
@@ -8066,6 +8078,139 @@ export default function AdminCitas() {
                               </button>
                             );
                           })}
+                        </div>
+                      </div>
+
+                      {/* Asignación Interna de Taller: Fases 2, 3 y 4 (Joyero, Proceso, Envío/Calidad y Cofre) */}
+                      <div className="workshop-phases-container">
+                        {/* Fila superior: Selectores de Fase 2, Fase 3 y Fase 4 */}
+                        <div className="workshop-grid-fases">
+                          {/* FASE 2: TALLER */}
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span className="workshop-badge-fase">
+                              FASE 2: TALLER
+                            </span>
+                            <div style={{ position: "relative", flex: 1 }}>
+                              <i
+                                className="bi bi-person-fill"
+                                style={{
+                                  position: "absolute",
+                                  left: "11px",
+                                  top: "50%",
+                                  transform: "translateY(-50%)",
+                                  color: "#0f172a",
+                                  fontSize: "14px",
+                                  pointerEvents: "none",
+                                }}
+                              ></i>
+                              <select
+                                className="workshop-select-field"
+                                value={order.workshopJeweler || ""}
+                                onChange={(e) => handleUpdateWorkshopField(order.id, "workshopJeweler", e.target.value)}
+                              >
+                                <option value="">Elegir Joyero</option>
+                                {WORKSHOP_JEWELERS.map((jeweler) => (
+                                  <option key={jeweler} value={jeweler}>
+                                    {jeweler}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* FASE 3 */}
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span className="workshop-badge-fase" style={{ padding: "10px 24px" }}>
+                              FASE 3
+                            </span>
+                            <div style={{ position: "relative", flex: 1 }}>
+                              <i
+                                className="bi bi-person-fill"
+                                style={{
+                                  position: "absolute",
+                                  left: "11px",
+                                  top: "50%",
+                                  transform: "translateY(-50%)",
+                                  color: "#0f172a",
+                                  fontSize: "14px",
+                                  pointerEvents: "none",
+                                }}
+                              ></i>
+                              <select
+                                className="workshop-select-field"
+                                value={order.workshopProcess || ""}
+                                onChange={(e) => handleUpdateWorkshopField(order.id, "workshopProcess", e.target.value)}
+                              >
+                                <option value="">Elegir Proceso</option>
+                                {WORKSHOP_PROCESSES.map((proc) => (
+                                  <option key={proc} value={proc}>
+                                    {proc}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+
+                          {/* FASE 4 */}
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                            <span className="workshop-badge-fase" style={{ padding: "10px 24px" }}>
+                              FASE 4
+                            </span>
+                            <div style={{ position: "relative", flex: 1 }}>
+                              <i
+                                className="bi bi-person-fill"
+                                style={{
+                                  position: "absolute",
+                                  left: "11px",
+                                  top: "50%",
+                                  transform: "translateY(-50%)",
+                                  color: "#0f172a",
+                                  fontSize: "14px",
+                                  pointerEvents: "none",
+                                }}
+                              ></i>
+                              <select
+                                className="workshop-select-field"
+                                value={order.workshopDispatch || ""}
+                                onChange={(e) => handleUpdateWorkshopField(order.id, "workshopDispatch", e.target.value)}
+                              >
+                                <option value="">Elegir</option>
+                                {WORKSHOP_DELIVERY_CHOICES.map((choice) => (
+                                  <option key={choice} value={choice}>
+                                    {choice}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Fila inferior: Notas internas (2 columnas) y Cofre (1 columna) */}
+                        <div className="workshop-grid-inputs">
+                          <div>
+                            <input
+                              type="text"
+                              className="workshop-input-field"
+                              placeholder="Escribir Notas Internas (Grabación, detalles adicionales)"
+                              value={order.workshopInternalNotes || ""}
+                              onChange={(e) => handleUpdateWorkshopField(order.id, "workshopInternalNotes", e.target.value)}
+                            />
+                          </div>
+                          <div>
+                            <input
+                              type="text"
+                              className="workshop-input-field"
+                              placeholder="Cofre"
+                              list={`box-suggestions-${order.id}`}
+                              value={order.workshopBox || ""}
+                              onChange={(e) => handleUpdateWorkshopField(order.id, "workshopBox", e.target.value)}
+                            />
+                            <datalist id={`box-suggestions-${order.id}`}>
+                              {WORKSHOP_BOX_OPTIONS.map((opt) => (
+                                <option key={opt} value={opt} />
+                              ))}
+                            </datalist>
+                          </div>
                         </div>
                       </div>
 
