@@ -8480,7 +8480,7 @@ export default function AdminCitas() {
                           })}
                         </div>
 
-                        {/* FASE 1: Programación de Fecha y Hora Aproximada de Entrega (Visible para el Cliente) */}
+                        {/* FASE 5: Programación de Fecha y Hora Aproximada de Entrega (Visible para el Cliente) */}
                         <div
                           style={{
                             marginTop: "14px",
@@ -8513,13 +8513,13 @@ export default function AdminCitas() {
                             </div>
                             <div>
                               <div style={{ fontSize: "12.5px", fontWeight: "800", color: "#166534", display: "flex", alignItems: "center", gap: "6px" }}>
-                                <span>FASE 1: Fecha y Hora de Entrega Aproximada</span>
+                                <span>FASE 5: Fecha y Hora de Entrega</span>
                                 <span style={{ fontSize: "10.5px", background: "#dcfce7", color: "#15803d", padding: "1px 6px", borderRadius: "10px", fontWeight: "700" }}>
                                   Visible para el Cliente
                                 </span>
                               </div>
                               <div style={{ fontSize: "11px", color: "#475569" }}>
-                                El cliente verá esta fecha y hora programada en tiempo real en su portal de seguimiento.
+                                Programa aquí la fecha y hora final de entrega que verá el cliente en su portal al llegar a esta fase.
                               </div>
                             </div>
                           </div>
