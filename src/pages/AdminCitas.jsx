@@ -8177,28 +8177,46 @@ export default function AdminCitas() {
                         </div>
 
                         {/* Metadata del Pedido, Estados y Botón Desplegable */}
-                        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-                          <div style={{ textAlign: "right" }}>
+                        <div style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap", marginLeft: "auto" }}>
+                          {/* Código, Fecha de Creación y Entrega */}
+                          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: "3px" }}>
                             <span
                               style={{
                                 background: "#113B3A",
                                 color: "#C6AC7F",
-                                padding: "3px 9px",
+                                padding: "2px 8px",
                                 borderRadius: "5px",
-                                fontSize: "12.5px",
+                                fontSize: "12px",
                                 fontWeight: "800",
                                 fontFamily: "monospace",
+                                letterSpacing: "0.04em",
                                 display: "inline-block",
                               }}
                             >
                               {order.id}
                             </span>
-                            <div style={{ fontSize: "11px", color: "#64748b", marginTop: "3px" }}>
-                              <i className="bi bi-calendar3"></i> {order.date}
+                            <div style={{ fontSize: "11px", color: "#64748b", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                              <i className="bi bi-calendar3" style={{ fontSize: "10.5px" }}></i>
+                              <span>{order.date}</span>
                             </div>
-                            <div style={{ fontSize: "11.5px", color: "#113B3A", fontWeight: "700", marginTop: "3px", display: "inline-flex", alignItems: "center", gap: "4px" }}>
-                              <i className="bi bi-calendar-check-fill" style={{ color: "#d97706" }}></i>
-                              <span>Entrega: {order.estimatedCompletion || "Por programar"}</span>
+                            <div
+                              style={{
+                                fontSize: "11px",
+                                color: "#92400e",
+                                background: "#fef3c7",
+                                border: "1px solid #fde68a",
+                                padding: "2px 8px",
+                                borderRadius: "4px",
+                                fontWeight: "700",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "4px",
+                                whiteSpace: "nowrap",
+                              }}
+                              title="Fecha y hora de entrega estimada al cliente"
+                            >
+                              <i className="bi bi-calendar-check-fill" style={{ color: "#d97706", fontSize: "11px" }}></i>
+                              <span>Entrega: {order.estimatedCompletion || "Por programar"}{order.estimatedDeliveryTime ? ` (${order.estimatedDeliveryTime})` : ""}</span>
                             </div>
                           </div>
 
@@ -8460,6 +8478,121 @@ export default function AdminCitas() {
                               </button>
                             );
                           })}
+                        </div>
+
+                        {/* FASE 1: Programación de Fecha y Hora Aproximada de Entrega (Visible para el Cliente) */}
+                        <div
+                          style={{
+                            marginTop: "14px",
+                            padding: "12px 14px",
+                            background: "#f0fdf4",
+                            border: "1.5px solid #86efac",
+                            borderRadius: "10px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            flexWrap: "wrap",
+                            gap: "12px",
+                          }}
+                        >
+                          <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                            <div
+                              style={{
+                                width: "34px",
+                                height: "34px",
+                                borderRadius: "8px",
+                                background: "#166534",
+                                color: "#ffffff",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                fontSize: "16px",
+                              }}
+                            >
+                              <i className="bi bi-calendar-event"></i>
+                            </div>
+                            <div>
+                              <div style={{ fontSize: "12.5px", fontWeight: "800", color: "#166534", display: "flex", alignItems: "center", gap: "6px" }}>
+                                <span>FASE 1: Fecha y Hora de Entrega Aproximada</span>
+                                <span style={{ fontSize: "10.5px", background: "#dcfce7", color: "#15803d", padding: "1px 6px", borderRadius: "10px", fontWeight: "700" }}>
+                                  Visible para el Cliente
+                                </span>
+                              </div>
+                              <div style={{ fontSize: "11px", color: "#475569" }}>
+                                El cliente verá esta fecha y hora programada en tiempo real en su portal de seguimiento.
+                              </div>
+                            </div>
+                          </div>
+
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                            {/* Input Fecha Aproximada */}
+                            <div style={{ position: "relative" }}>
+                              <i
+                                className="bi bi-calendar3"
+                                style={{
+                                  position: "absolute",
+                                  left: "10px",
+                                  top: "50%",
+                                  transform: "translateY(-50%)",
+                                  color: "#166534",
+                                  fontSize: "12px",
+                                  pointerEvents: "none",
+                                }}
+                              ></i>
+                              <input
+                                type="text"
+                                placeholder="Ej: 15 de Abril, 2026"
+                                value={order.estimatedCompletion || ""}
+                                onChange={(e) => handleUpdateWorkshopField(order.id, "estimatedCompletion", e.target.value)}
+                                style={{
+                                  padding: "6px 10px 6px 30px",
+                                  background: "#ffffff",
+                                  border: "1.5px solid #86efac",
+                                  borderRadius: "6px",
+                                  fontSize: "12px",
+                                  fontWeight: "700",
+                                  color: "#166534",
+                                  width: "170px",
+                                  outline: "none",
+                                }}
+                                title="Fecha estimada de entrega"
+                              />
+                            </div>
+
+                            {/* Input Hora Aproximada */}
+                            <div style={{ position: "relative" }}>
+                              <i
+                                className="bi bi-clock-fill"
+                                style={{
+                                  position: "absolute",
+                                  left: "10px",
+                                  top: "50%",
+                                  transform: "translateY(-50%)",
+                                  color: "#166534",
+                                  fontSize: "12px",
+                                  pointerEvents: "none",
+                                }}
+                              ></i>
+                              <input
+                                type="text"
+                                placeholder="Ej: 04:30 PM"
+                                value={order.estimatedDeliveryTime || ""}
+                                onChange={(e) => handleUpdateWorkshopField(order.id, "estimatedDeliveryTime", e.target.value)}
+                                style={{
+                                  padding: "6px 10px 6px 30px",
+                                  background: "#ffffff",
+                                  border: "1.5px solid #86efac",
+                                  borderRadius: "6px",
+                                  fontSize: "12px",
+                                  fontWeight: "700",
+                                  color: "#166534",
+                                  width: "125px",
+                                  outline: "none",
+                                }}
+                                title="Hora aproximada de entrega"
+                              />
+                            </div>
+                          </div>
                         </div>
                       </div>
 

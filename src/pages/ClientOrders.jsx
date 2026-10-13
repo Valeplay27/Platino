@@ -1335,7 +1335,12 @@ export default function ClientOrders({ addToCart }) {
                     <div className="order-footer-item">
                       <i className="bi bi-calendar-event" style={{ color: "#0f2a24" }}></i>
                       <span>
-                        Entrega estimada: <strong>{order.estimatedCompletion}</strong>
+                        Entrega estimada: <strong>{order.estimatedCompletion || "Por programar"}</strong>
+                        {order.estimatedDeliveryTime && (
+                          <span style={{ marginLeft: "4px", color: "#0f2a24", fontWeight: "700" }}>
+                            a las {order.estimatedDeliveryTime}
+                          </span>
+                        )}
                         {order.deliveryDays && (
                           <span style={{ marginLeft: "6px", fontSize: "11px", fontWeight: "700", color: order.deliveryDays === 7 ? "#b45309" : "#15803d" }}>
                             ({order.deliveryDays === 7 ? "7 días - Taller" : "2 días - Exprés"})
@@ -1495,6 +1500,13 @@ export default function ClientOrders({ addToCart }) {
                         <label>Tiempo Estimado Taller</label>
                         <span style={{ fontWeight: "700", color: (detailModalOrder.deliveryDays === 7 || item.deliveryDays === 7) ? "#b45309" : "#15803d" }}>
                           {(detailModalOrder.deliveryDays === 7 || item.deliveryDays === 7) ? "7 días hábiles (Ajuste Taller)" : "2 días hábiles (Exprés)"}
+                        </span>
+                      </div>
+                      <div className="order-detail-spec-item">
+                        <label>Entrega Programada</label>
+                        <span style={{ fontWeight: "700", color: "#166534" }}>
+                          {detailModalOrder.estimatedCompletion || "En coordinación"}
+                          {detailModalOrder.estimatedDeliveryTime ? ` (${detailModalOrder.estimatedDeliveryTime})` : ""}
                         </span>
                       </div>
                       <div className="order-detail-spec-item">
