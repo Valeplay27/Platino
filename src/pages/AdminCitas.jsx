@@ -372,6 +372,9 @@ export default function AdminCitas() {
   const [orderSearchQuery, setOrderSearchQuery] = useState("");
   const [orderNotesState, setOrderNotesState] = useState({});
   const [activeEditingNoteId, setActiveEditingNoteId] = useState(null);
+  const [orderDeliveryDateFilter, setOrderDeliveryDateFilter] = useState("todos");
+  const [orderSedeDeliveryFilter, setOrderSedeDeliveryFilter] = useState("todos");
+  const [orderMaterialFilter, setOrderMaterialFilter] = useState("todos");
 
   // Control de pedidos colapsados / expandidos (acordeón para evitar scrollear)
   const [expandedOrders, setExpandedOrders] = useState({});
@@ -684,6 +687,37 @@ export default function AdminCitas() {
       if (orderClientFilter === "camila") {
         if (order.clientEmail.toLowerCase() !== "cliente@platino.pe") return false;
       }
+      if (orderDeliveryDateFilter !== "todos") {
+        if (orderDeliveryDateFilter === "con_fecha") {
+          if (!order.estimatedCompletion) return false;
+        } else if (orderDeliveryDateFilter === "abril_2026") {
+          if (!String(order.estimatedCompletion || "").toLowerCase().includes("abril")) return false;
+        } else if (orderDeliveryDateFilter === "proximos_dias") {
+          if (!order.estimatedCompletion) return false;
+        }
+      }
+      if (orderSedeDeliveryFilter !== "todos") {
+        if (orderSedeDeliveryFilter === "miraflores") {
+          if (getOrderSedeId(order) !== "miraflores") return false;
+        } else if (orderSedeDeliveryFilter === "lima-centro") {
+          if (getOrderSedeId(order) !== "lima-centro") return false;
+        } else if (orderSedeDeliveryFilter === "domicilio") {
+          if (order.deliveryType !== "envio_domicilio") return false;
+        }
+      }
+      if (orderMaterialFilter !== "todos") {
+        const mat = orderMaterialFilter.toLowerCase();
+        const hasMaterial = (order.items || []).some((it) => {
+          const str = `${it.metal || ""} ${it.metalId || ""} ${it.name || ""}`.toLowerCase();
+          if (mat === "oro-blanco") return str.includes("blanco") || str.includes("white");
+          if (mat === "oro-amarillo") return str.includes("amarillo") || str.includes("yellow");
+          if (mat === "oro-rosa") return str.includes("rosa") || str.includes("rose");
+          if (mat === "platino") return str.includes("platino");
+          if (mat === "plata") return str.includes("plata") || str.includes("950");
+          return false;
+        });
+        if (!hasMaterial) return false;
+      }
       if (orderSearchQuery.trim()) {
         const q = orderSearchQuery.trim().toLowerCase();
         const matchCode = order.id.toLowerCase().includes(q);
@@ -697,7 +731,15 @@ export default function AdminCitas() {
       }
       return true;
     });
-  }, [effectiveSedeOrders, orderStageFilter, orderClientFilter, orderSearchQuery]);
+  }, [
+    effectiveSedeOrders,
+    orderStageFilter,
+    orderClientFilter,
+    orderDeliveryDateFilter,
+    orderSedeDeliveryFilter,
+    orderMaterialFilter,
+    orderSearchQuery,
+  ]);
 
   // Producto activo para gestión de inventario
   const currentInventoryProduct = catalogList.find((p) => p.id === selectedInventoryProductId) || catalogList[0];
@@ -7764,6 +7806,98 @@ export default function AdminCitas() {
                   );
                 })}
               </div>
+
+              {/* Fila de 3 Filtros: Fecha de Entrega, Sede de Entrega, Material */}
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))",
+                  gap: "10px",
+                  marginTop: "12px",
+                  paddingTop: "12px",
+                  borderTop: "1px solid #f1f5f9",
+                }}
+              >
+                {/* 1. Filtrar por Fecha de Entrega */}
+                <div style={{ position: "relative" }}>
+                  <i className="bi bi-calendar-event" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", fontSize: "13px", pointerEvents: "none" }}></i>
+                  <select
+                    value={orderDeliveryDateFilter}
+                    onChange={(e) => setOrderDeliveryDateFilter(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "9px 12px 9px 34px",
+                      border: orderDeliveryDateFilter !== "todos" ? "1.5px solid #113B3A" : "1px solid #cbd5e1",
+                      borderRadius: "7px",
+                      background: orderDeliveryDateFilter !== "todos" ? "#F2F9F2" : "#ffffff",
+                      color: orderDeliveryDateFilter !== "todos" ? "#113B3A" : "#334155",
+                      fontWeight: orderDeliveryDateFilter !== "todos" ? "700" : "500",
+                      fontSize: "12.5px",
+                      cursor: "pointer",
+                      outline: "none",
+                    }}
+                  >
+                    <option value="todos">Filtrar por Fecha de Entrega</option>
+                    <option value="con_fecha">Con Fecha de Entrega Asignada</option>
+                    <option value="abril_2026">Entregas en Abril 2026</option>
+                    <option value="proximos_dias">Próximas Entregas</option>
+                  </select>
+                </div>
+
+                {/* 2. Filtrar por Sede de Entrega */}
+                <div style={{ position: "relative" }}>
+                  <i className="bi bi-geo-alt" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", fontSize: "13px", pointerEvents: "none" }}></i>
+                  <select
+                    value={orderSedeDeliveryFilter}
+                    onChange={(e) => setOrderSedeDeliveryFilter(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "9px 12px 9px 34px",
+                      border: orderSedeDeliveryFilter !== "todos" ? "1.5px solid #113B3A" : "1px solid #cbd5e1",
+                      borderRadius: "7px",
+                      background: orderSedeDeliveryFilter !== "todos" ? "#F2F9F2" : "#ffffff",
+                      color: orderSedeDeliveryFilter !== "todos" ? "#113B3A" : "#334155",
+                      fontWeight: orderSedeDeliveryFilter !== "todos" ? "700" : "500",
+                      fontSize: "12.5px",
+                      cursor: "pointer",
+                      outline: "none",
+                    }}
+                  >
+                    <option value="todos">Filtrar por Sede de Entrega</option>
+                    <option value="miraflores">Sede Miraflores (Av. José Larco 880)</option>
+                    <option value="lima-centro">Sede Lima Centro (Jr. de la Unión 540)</option>
+                    <option value="domicilio">Envío a Domicilio</option>
+                  </select>
+                </div>
+
+                {/* 3. Filtrar por Material */}
+                <div style={{ position: "relative" }}>
+                  <i className="bi bi-gem" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", color: "#64748b", fontSize: "13px", pointerEvents: "none" }}></i>
+                  <select
+                    value={orderMaterialFilter}
+                    onChange={(e) => setOrderMaterialFilter(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "9px 12px 9px 34px",
+                      border: orderMaterialFilter !== "todos" ? "1.5px solid #113B3A" : "1px solid #cbd5e1",
+                      borderRadius: "7px",
+                      background: orderMaterialFilter !== "todos" ? "#F2F9F2" : "#ffffff",
+                      color: orderMaterialFilter !== "todos" ? "#113B3A" : "#334155",
+                      fontWeight: orderMaterialFilter !== "todos" ? "700" : "500",
+                      fontSize: "12.5px",
+                      cursor: "pointer",
+                      outline: "none",
+                    }}
+                  >
+                    <option value="todos">Filtrar por Material</option>
+                    <option value="oro-blanco">Oro 18k Blanco</option>
+                    <option value="oro-amarillo">Oro 18k Amarillo</option>
+                    <option value="oro-rosa">Oro 18k Rosa</option>
+                    <option value="platino">Platino 950</option>
+                    <option value="plata">Plata Ley 950</option>
+                  </select>
+                </div>
+              </div>
             </div>
 
             {/* Listado de Pedidos */}
@@ -8018,6 +8152,10 @@ export default function AdminCitas() {
                             </span>
                             <div style={{ fontSize: "11px", color: "#64748b", marginTop: "3px" }}>
                               <i className="bi bi-calendar3"></i> {order.date}
+                            </div>
+                            <div style={{ fontSize: "11.5px", color: "#113B3A", fontWeight: "700", marginTop: "3px", display: "inline-flex", alignItems: "center", gap: "4px" }}>
+                              <i className="bi bi-calendar-check-fill" style={{ color: "#d97706" }}></i>
+                              <span>Entrega: {order.estimatedCompletion || "Por programar"}</span>
                             </div>
                           </div>
 
@@ -8280,88 +8418,9 @@ export default function AdminCitas() {
                             );
                           })}
                         </div>
-
-                        {/* Comentarios Internos Opcionales por Fase (Paso 1 al 6) - Solo Administradores */}
-                        <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px dashed #e2e8f0" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", marginBottom: "8px" }}>
-                            <span style={{ fontSize: "12px", fontWeight: "700", color: "#113B3A", display: "inline-flex", alignItems: "center", gap: "6px" }}>
-                              <i className="bi bi-shield-lock-fill" style={{ color: "#d97706", fontSize: "13px" }}></i>
-                              Comentarios Internos por Fase (Opcional — Solo Admin, no visible para clientes):
-                            </span>
-                            <span style={{ fontSize: "11px", color: "#64748b", background: "#f8fafc", border: "1px solid #e2e8f0", padding: "2px 8px", borderRadius: "10px" }}>
-                              Editando: <strong>{ORDER_STAGES.find((s) => s.id === (activeStageCommentTab[order.id] || order.stage))?.shortLabel}</strong>
-                            </span>
-                          </div>
-
-                          {/* Selector rápido de fase para comentar */}
-                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "8px" }}>
-                            {ORDER_STAGES.map((stg) => {
-                              const activeTabId = activeStageCommentTab[order.id] || order.stage;
-                              const isSelected = activeTabId === stg.id;
-                              const hasComment = Boolean(order.stageComments?.[stg.id]);
-                              return (
-                                <button
-                                  key={stg.id}
-                                  type="button"
-                                  onClick={() => setActiveStageCommentTab({ ...activeStageCommentTab, [order.id]: stg.id })}
-                                  style={{
-                                    border: isSelected ? "1.5px solid #113B3A" : "1px solid #cbd5e1",
-                                    background: isSelected ? "#113B3A" : hasComment ? "#f0fdf4" : "#ffffff",
-                                    color: isSelected ? "#C6AC7F" : hasComment ? "#15803d" : "#475569",
-                                    padding: "4px 9px",
-                                    borderRadius: "6px",
-                                    fontSize: "11.5px",
-                                    fontWeight: "600",
-                                    cursor: "pointer",
-                                    display: "inline-flex",
-                                    alignItems: "center",
-                                    gap: "4px",
-                                    transition: "all 0.15s ease",
-                                  }}
-                                  title={`Fase ${stg.stepNumber}: ${stg.label}`}
-                                >
-                                  <span>Fase {stg.stepNumber}</span>
-                                  {hasComment && <i className="bi bi-chat-text-fill" style={{ fontSize: "10px" }}></i>}
-                                </button>
-                              );
-                            })}
-                          </div>
-
-                          {/* Campo de comentario opcional para la fase seleccionada */}
-                          <div style={{ position: "relative" }}>
-                            <input
-                              type="text"
-                              placeholder={`Escribir comentario interno para Fase ${ORDER_STAGES.find((s) => s.id === (activeStageCommentTab[order.id] || order.stage))?.stepNumber} (${ORDER_STAGES.find((s) => s.id === (activeStageCommentTab[order.id] || order.stage))?.shortLabel}) - Opcional, solo visible para administradores...`}
-                              value={order.stageComments?.[activeStageCommentTab[order.id] || order.stage] || ""}
-                              onChange={(e) => handleUpdateStageComment(order.id, activeStageCommentTab[order.id] || order.stage, e.target.value)}
-                              style={{
-                                width: "100%",
-                                padding: "8px 12px 8px 30px",
-                                background: "#f8fafc",
-                                border: "1px solid #cbd5e1",
-                                borderRadius: "6px",
-                                fontSize: "12px",
-                                color: "#1e293b",
-                                outline: "none",
-                              }}
-                            />
-                            <i
-                              className="bi bi-chat-left-dots"
-                              style={{
-                                position: "absolute",
-                                left: "10px",
-                                top: "50%",
-                                transform: "translateY(-50%)",
-                                color: "#94a3b8",
-                                fontSize: "12px",
-                                pointerEvents: "none",
-                              }}
-                            ></i>
-                          </div>
-                        </div>
                       </div>
 
-                      {/* Asignación Interna de Taller: Fases 2, 3 y 4 (Joyero, Proceso, Envío/Calidad, Cofre y Comentarios Opcionales) */}
+                      {/* Asignación Interna de Taller: Fases 2, 3 y 4 (Joyero, Proceso, Envío/Calidad, Comentarios Internos y Cofre) */}
                       <div className="workshop-phases-container">
                         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px", flexWrap: "wrap", gap: "8px" }}>
                           <span style={{ fontSize: "12px", fontWeight: "700", color: "#113B3A", display: "inline-flex", alignItems: "center", gap: "6px" }}>
@@ -8475,60 +8534,47 @@ export default function AdminCitas() {
                           </div>
                         </div>
 
-                        {/* Fila inferior: Comentarios Internos dedicados por fase (Fase 2, Fase 3, Fase 4 + Cofre) */}
-                        <div className="workshop-grid-comments3">
-                          {/* Comentario Fase 2 */}
+                        {/* Fila inferior: Un solo campo de comentarios/notas internas y Cofre */}
+                        <div className="workshop-grid-inputs">
+                          <div style={{ position: "relative" }}>
+                            <i
+                              className="bi bi-chat-left-dots"
+                              style={{
+                                position: "absolute",
+                                left: "12px",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                color: "#94a3b8",
+                                fontSize: "13px",
+                                pointerEvents: "none",
+                              }}
+                            ></i>
+                            <input
+                              type="text"
+                              className="workshop-input-field"
+                              style={{ paddingLeft: "34px" }}
+                              placeholder="Escribir Notas Internas / Comentarios de Taller (Grabación, especificaciones, etc.)"
+                              value={order.workshopInternalNotes || order.phase2Notes || ""}
+                              onChange={(e) => handleUpdateWorkshopField(order.id, "workshopInternalNotes", e.target.value)}
+                              title="Notas internas y comentarios opcionales para administradores (No visibles para clientes)"
+                            />
+                          </div>
+
                           <div>
                             <input
                               type="text"
                               className="workshop-input-field"
-                              placeholder="💬 Comentario Fase 2 (Opcional - Solo Admin)"
-                              value={order.phase2Notes || order.workshopInternalNotes || ""}
-                              onChange={(e) => handleUpdateWorkshopField(order.id, "phase2Notes", e.target.value)}
-                              title="Comentario interno opcional para Fase 2 (No visible para el cliente)"
+                              placeholder="Cofre"
+                              list={`box-suggestions-${order.id}`}
+                              value={order.workshopBox || ""}
+                              onChange={(e) => handleUpdateWorkshopField(order.id, "workshopBox", e.target.value)}
+                              title="Tipo de cofre o empaque asignado"
                             />
-                          </div>
-
-                          {/* Comentario Fase 3 */}
-                          <div>
-                            <input
-                              type="text"
-                              className="workshop-input-field"
-                              placeholder="💬 Comentario Fase 3 (Opcional - Solo Admin)"
-                              value={order.phase3Notes || ""}
-                              onChange={(e) => handleUpdateWorkshopField(order.id, "phase3Notes", e.target.value)}
-                              title="Comentario interno opcional para Fase 3 (No visible para el cliente)"
-                            />
-                          </div>
-
-                          {/* Fase 4: Cofre + Comentario Fase 4 */}
-                          <div style={{ display: "flex", gap: "8px" }}>
-                            <div style={{ width: "38%", flexShrink: 0 }}>
-                              <input
-                                type="text"
-                                className="workshop-input-field"
-                                placeholder="Cofre"
-                                list={`box-suggestions-${order.id}`}
-                                value={order.workshopBox || ""}
-                                onChange={(e) => handleUpdateWorkshopField(order.id, "workshopBox", e.target.value)}
-                                title="Tipo de cofre o empaque asignado"
-                              />
-                              <datalist id={`box-suggestions-${order.id}`}>
-                                {WORKSHOP_BOX_OPTIONS.map((opt) => (
-                                  <option key={opt} value={opt} />
-                                ))}
-                              </datalist>
-                            </div>
-                            <div style={{ flex: 1 }}>
-                              <input
-                                type="text"
-                                className="workshop-input-field"
-                                placeholder="💬 Comentario Fase 4 (Opcional - Solo Admin)"
-                                value={order.phase4Notes || ""}
-                                onChange={(e) => handleUpdateWorkshopField(order.id, "phase4Notes", e.target.value)}
-                                title="Comentario interno opcional para Fase 4 (No visible para el cliente)"
-                              />
-                            </div>
+                            <datalist id={`box-suggestions-${order.id}`}>
+                              {WORKSHOP_BOX_OPTIONS.map((opt) => (
+                                <option key={opt} value={opt} />
+                              ))}
+                            </datalist>
                           </div>
                         </div>
                       </div>
@@ -8770,6 +8816,29 @@ export default function AdminCitas() {
                                 ? `Retiro: ${order.sedeRecojo}`
                                 : `Envío: ${order.shippingAddress || "Domicilio registrado"}`}
                             </strong>
+                          </span>
+
+                          <span style={{ display: "inline-flex", alignItems: "center", gap: "6px", background: "#fef3c7", border: "1px solid #fde68a", padding: "2px 8px", borderRadius: "6px" }}>
+                            <i className="bi bi-calendar-event-fill" style={{ color: "#b45309" }}></i>
+                            <strong style={{ color: "#92400e" }}>Fecha de Entrega:</strong>
+                            <input
+                              type="text"
+                              value={order.estimatedCompletion || ""}
+                              onChange={(e) => handleUpdateWorkshopField(order.id, "estimatedCompletion", e.target.value)}
+                              placeholder="Ej: 15 de Abril, 2026"
+                              style={{
+                                background: "#ffffff",
+                                border: "1px solid #cbd5e1",
+                                borderRadius: "4px",
+                                padding: "2px 6px",
+                                fontSize: "11.5px",
+                                color: "#113B3A",
+                                fontWeight: "700",
+                                width: "135px",
+                                outline: "none",
+                              }}
+                              title="Fecha estimada de entrega al cliente"
+                            />
                           </span>
 
                           {order.deliveryDays && (
