@@ -70,6 +70,11 @@
   color: #64748b;
   opacity: 0.9;
 }
+.workshop-grid-comments3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+}
 @media (max-width: 900px) {
   .workshop-grid-fases {
     grid-template-columns: 1fr;
@@ -79,4 +84,9 @@
     grid-template-columns: 1fr;
     gap: 10px;
   }
+  .workshop-grid-comments3 {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
 }
+

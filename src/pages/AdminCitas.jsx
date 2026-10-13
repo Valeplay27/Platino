@@ -60,6 +60,7 @@ import {
   WORKSHOP_DELIVERY_CHOICES,
   WORKSHOP_BOX_OPTIONS,
   updateOrderWorkshopFields,
+  updateOrderStageComment,
 } from "../services/ordersService";
 import { METALS, formatPrice, MASTER_GEM_SHAPES } from "../data/products";
 import { DiamondCutIcon } from "../components/GemstoneIcons";
@@ -583,10 +584,45 @@ export default function AdminCitas() {
     }
   };
 
+  const [activeStageCommentTab, setActiveStageCommentTab] = useState({});
+
   const handleUpdateWorkshopField = (orderId, fieldName, value) => {
-    updateOrderWorkshopFields(orderId, { [fieldName]: value });
+    const patch = { [fieldName]: value };
+    const currentOrder = ordersList.find((o) => o.id === orderId);
+    if (fieldName === "phase2Notes" || fieldName === "workshopInternalNotes") {
+      patch.phase2Notes = value;
+      patch.workshopInternalNotes = value;
+      patch.stageComments = { ...(currentOrder?.stageComments || {}), diseno_taller: value };
+    } else if (fieldName === "phase3Notes") {
+      patch.phase3Notes = value;
+      patch.stageComments = { ...(currentOrder?.stageComments || {}), engaste_pulido: value };
+    } else if (fieldName === "phase4Notes") {
+      patch.phase4Notes = value;
+      patch.stageComments = { ...(currentOrder?.stageComments || {}), control_calidad: value };
+    }
+    updateOrderWorkshopFields(orderId, patch);
     setOrdersList((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, [fieldName]: value } : o))
+      prev.map((o) => (o.id === orderId ? { ...o, ...patch } : o))
+    );
+  };
+
+  const handleUpdateStageComment = (orderId, stageId, text) => {
+    updateOrderStageComment(orderId, stageId, text);
+    setOrdersList((prev) =>
+      prev.map((o) => {
+        if (o.id !== orderId) return o;
+        const sc = { ...(o.stageComments || {}), [stageId]: text };
+        const sync = { stageComments: sc };
+        if (stageId === "diseno_taller") {
+          sync.workshopInternalNotes = text;
+          sync.phase2Notes = text;
+        } else if (stageId === "engaste_pulido") {
+          sync.phase3Notes = text;
+        } else if (stageId === "control_calidad") {
+          sync.phase4Notes = text;
+        }
+        return { ...o, ...sync };
+      })
     );
   };
 
@@ -8244,10 +8280,99 @@ export default function AdminCitas() {
                             );
                           })}
                         </div>
+
+                        {/* Comentarios Internos Opcionales por Fase (Paso 1 al 6) - Solo Administradores */}
+                        <div style={{ marginTop: "14px", paddingTop: "12px", borderTop: "1px dashed #e2e8f0" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", marginBottom: "8px" }}>
+                            <span style={{ fontSize: "12px", fontWeight: "700", color: "#113B3A", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                              <i className="bi bi-shield-lock-fill" style={{ color: "#d97706", fontSize: "13px" }}></i>
+                              Comentarios Internos por Fase (Opcional — Solo Admin, no visible para clientes):
+                            </span>
+                            <span style={{ fontSize: "11px", color: "#64748b", background: "#f8fafc", border: "1px solid #e2e8f0", padding: "2px 8px", borderRadius: "10px" }}>
+                              Editando: <strong>{ORDER_STAGES.find((s) => s.id === (activeStageCommentTab[order.id] || order.stage))?.shortLabel}</strong>
+                            </span>
+                          </div>
+
+                          {/* Selector rápido de fase para comentar */}
+                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginBottom: "8px" }}>
+                            {ORDER_STAGES.map((stg) => {
+                              const activeTabId = activeStageCommentTab[order.id] || order.stage;
+                              const isSelected = activeTabId === stg.id;
+                              const hasComment = Boolean(order.stageComments?.[stg.id]);
+                              return (
+                                <button
+                                  key={stg.id}
+                                  type="button"
+                                  onClick={() => setActiveStageCommentTab({ ...activeStageCommentTab, [order.id]: stg.id })}
+                                  style={{
+                                    border: isSelected ? "1.5px solid #113B3A" : "1px solid #cbd5e1",
+                                    background: isSelected ? "#113B3A" : hasComment ? "#f0fdf4" : "#ffffff",
+                                    color: isSelected ? "#C6AC7F" : hasComment ? "#15803d" : "#475569",
+                                    padding: "4px 9px",
+                                    borderRadius: "6px",
+                                    fontSize: "11.5px",
+                                    fontWeight: "600",
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                    transition: "all 0.15s ease",
+                                  }}
+                                  title={`Fase ${stg.stepNumber}: ${stg.label}`}
+                                >
+                                  <span>Fase {stg.stepNumber}</span>
+                                  {hasComment && <i className="bi bi-chat-text-fill" style={{ fontSize: "10px" }}></i>}
+                                </button>
+                              );
+                            })}
+                          </div>
+
+                          {/* Campo de comentario opcional para la fase seleccionada */}
+                          <div style={{ position: "relative" }}>
+                            <input
+                              type="text"
+                              placeholder={`Escribir comentario interno para Fase ${ORDER_STAGES.find((s) => s.id === (activeStageCommentTab[order.id] || order.stage))?.stepNumber} (${ORDER_STAGES.find((s) => s.id === (activeStageCommentTab[order.id] || order.stage))?.shortLabel}) - Opcional, solo visible para administradores...`}
+                              value={order.stageComments?.[activeStageCommentTab[order.id] || order.stage] || ""}
+                              onChange={(e) => handleUpdateStageComment(order.id, activeStageCommentTab[order.id] || order.stage, e.target.value)}
+                              style={{
+                                width: "100%",
+                                padding: "8px 12px 8px 30px",
+                                background: "#f8fafc",
+                                border: "1px solid #cbd5e1",
+                                borderRadius: "6px",
+                                fontSize: "12px",
+                                color: "#1e293b",
+                                outline: "none",
+                              }}
+                            />
+                            <i
+                              className="bi bi-chat-left-dots"
+                              style={{
+                                position: "absolute",
+                                left: "10px",
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                color: "#94a3b8",
+                                fontSize: "12px",
+                                pointerEvents: "none",
+                              }}
+                            ></i>
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Asignación Interna de Taller: Fases 2, 3 y 4 (Joyero, Proceso, Envío/Calidad y Cofre) */}
+                      {/* Asignación Interna de Taller: Fases 2, 3 y 4 (Joyero, Proceso, Envío/Calidad, Cofre y Comentarios Opcionales) */}
                       <div className="workshop-phases-container">
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "10px", flexWrap: "wrap", gap: "8px" }}>
+                          <span style={{ fontSize: "12px", fontWeight: "700", color: "#113B3A", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                            <i className="bi bi-shield-lock-fill" style={{ color: "#d97706" }}></i>
+                            Asignación y Comentarios de Taller (Opcionales — Exclusivo Admin, no visibles para el cliente)
+                          </span>
+                          <span style={{ fontSize: "11px", color: "#64748b", background: "#f8fafc", border: "1px solid #e2e8f0", padding: "2px 8px", borderRadius: "10px" }}>
+                            🔒 Comentarios no obligatorios
+                          </span>
+                        </div>
+
                         {/* Fila superior: Selectores de Fase 2, Fase 3 y Fase 4 */}
                         <div className="workshop-grid-fases">
                           {/* FASE 2: TALLER */}
@@ -8350,31 +8475,60 @@ export default function AdminCitas() {
                           </div>
                         </div>
 
-                        {/* Fila inferior: Notas internas (2 columnas) y Cofre (1 columna) */}
-                        <div className="workshop-grid-inputs">
+                        {/* Fila inferior: Comentarios Internos dedicados por fase (Fase 2, Fase 3, Fase 4 + Cofre) */}
+                        <div className="workshop-grid-comments3">
+                          {/* Comentario Fase 2 */}
                           <div>
                             <input
                               type="text"
                               className="workshop-input-field"
-                              placeholder="Escribir Notas Internas (Grabación, detalles adicionales)"
-                              value={order.workshopInternalNotes || ""}
-                              onChange={(e) => handleUpdateWorkshopField(order.id, "workshopInternalNotes", e.target.value)}
+                              placeholder="💬 Comentario Fase 2 (Opcional - Solo Admin)"
+                              value={order.phase2Notes || order.workshopInternalNotes || ""}
+                              onChange={(e) => handleUpdateWorkshopField(order.id, "phase2Notes", e.target.value)}
+                              title="Comentario interno opcional para Fase 2 (No visible para el cliente)"
                             />
                           </div>
+
+                          {/* Comentario Fase 3 */}
                           <div>
                             <input
                               type="text"
                               className="workshop-input-field"
-                              placeholder="Cofre"
-                              list={`box-suggestions-${order.id}`}
-                              value={order.workshopBox || ""}
-                              onChange={(e) => handleUpdateWorkshopField(order.id, "workshopBox", e.target.value)}
+                              placeholder="💬 Comentario Fase 3 (Opcional - Solo Admin)"
+                              value={order.phase3Notes || ""}
+                              onChange={(e) => handleUpdateWorkshopField(order.id, "phase3Notes", e.target.value)}
+                              title="Comentario interno opcional para Fase 3 (No visible para el cliente)"
                             />
-                            <datalist id={`box-suggestions-${order.id}`}>
-                              {WORKSHOP_BOX_OPTIONS.map((opt) => (
-                                <option key={opt} value={opt} />
-                              ))}
-                            </datalist>
+                          </div>
+
+                          {/* Fase 4: Cofre + Comentario Fase 4 */}
+                          <div style={{ display: "flex", gap: "8px" }}>
+                            <div style={{ width: "38%", flexShrink: 0 }}>
+                              <input
+                                type="text"
+                                className="workshop-input-field"
+                                placeholder="Cofre"
+                                list={`box-suggestions-${order.id}`}
+                                value={order.workshopBox || ""}
+                                onChange={(e) => handleUpdateWorkshopField(order.id, "workshopBox", e.target.value)}
+                                title="Tipo de cofre o empaque asignado"
+                              />
+                              <datalist id={`box-suggestions-${order.id}`}>
+                                {WORKSHOP_BOX_OPTIONS.map((opt) => (
+                                  <option key={opt} value={opt} />
+                                ))}
+                              </datalist>
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <input
+                                type="text"
+                                className="workshop-input-field"
+                                placeholder="💬 Comentario Fase 4 (Opcional - Solo Admin)"
+                                value={order.phase4Notes || ""}
+                                onChange={(e) => handleUpdateWorkshopField(order.id, "phase4Notes", e.target.value)}
+                                title="Comentario interno opcional para Fase 4 (No visible para el cliente)"
+                              />
+                            </div>
                           </div>
                         </div>
                       </div>

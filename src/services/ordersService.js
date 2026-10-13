@@ -767,3 +767,32 @@ export const updateOrderWorkshopFields = (orderId, partialFields) => {
   saveOrders(all);
   return true;
 };
+
+// Actualizar comentarios internos opcionales por fase (Solo visible para Administradores)
+export const updateOrderStageComment = (orderId, stageId, commentText) => {
+  const all = getOrders();
+  const index = all.findIndex((o) => o.id === orderId);
+  if (index === -1) return false;
+
+  const current = all[index];
+  const stageComments = { ...(current.stageComments || {}), [stageId]: commentText };
+
+  const updates = { stageComments };
+  if (stageId === "diseno_taller") {
+    updates.workshopInternalNotes = commentText;
+    updates.phase2Notes = commentText;
+  } else if (stageId === "engaste_pulido") {
+    updates.phase3Notes = commentText;
+  } else if (stageId === "control_calidad") {
+    updates.phase4Notes = commentText;
+  }
+
+  all[index] = {
+    ...current,
+    ...updates,
+    lastUpdated: new Date().toISOString().split("T")[0],
+  };
+
+  saveOrders(all);
+  return true;
+};
