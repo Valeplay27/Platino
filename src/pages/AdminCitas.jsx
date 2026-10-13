@@ -372,6 +372,41 @@ export default function AdminCitas() {
   const [orderNotesState, setOrderNotesState] = useState({});
   const [activeEditingNoteId, setActiveEditingNoteId] = useState(null);
 
+  // Control de pedidos colapsados / expandidos (acordeón para evitar scrollear)
+  const [expandedOrders, setExpandedOrders] = useState({});
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const handleWindowScroll = () => {
+      setShowScrollTop(window.scrollY > 220);
+    };
+    window.addEventListener("scroll", handleWindowScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleWindowScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const toggleOrderExpand = (orderId) => {
+    setExpandedOrders((prev) => ({
+      ...prev,
+      [orderId]: !prev[orderId],
+    }));
+  };
+
+  const handleExpandAllOrders = () => {
+    const all = {};
+    ordersList.forEach((o) => {
+      all[o.id] = true;
+    });
+    setExpandedOrders(all);
+  };
+
+  const handleCollapseAllOrders = () => {
+    setExpandedOrders({});
+  };
+
   // Estado para Catálogo de Joyas
   const [catalogList, setCatalogList] = useState(() => getCatalogProducts());
   const [catalogFilterCategory, setCatalogFilterCategory] = useState("todas");
@@ -7735,11 +7770,101 @@ export default function AdminCitas() {
                 </button>
               </div>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+              <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                {/* Barra de Controles Rápidos: Contador, Desplegar / Colapsar Todos e Ir al Inicio */}
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: "10px",
+                    padding: "10px 16px",
+                    background: "#ffffff",
+                    border: "1px solid #e2e8f0",
+                    borderRadius: "10px",
+                    boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+                  }}
+                >
+                  <span style={{ fontSize: "13px", color: "#475569", fontWeight: "600", display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                    <i className="bi bi-box-seam" style={{ color: "#113B3A", fontSize: "15px" }}></i>
+                    <span>
+                      Mostrando <strong>{filteredOrders.length}</strong> pedido{filteredOrders.length === 1 ? "" : "s"} — <span style={{ color: "#64748b", fontWeight: "500" }}>Haz clic en un pedido para ver u ocultar su información</span>
+                    </span>
+                  </span>
+
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      onClick={handleExpandAllOrders}
+                      style={{
+                        background: "#f8fafc",
+                        color: "#113B3A",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "6px",
+                        padding: "5px 12px",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                      }}
+                      title="Abrir la información de todos los pedidos"
+                    >
+                      <i className="bi bi-arrows-expand"></i> Abrir Todos
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleCollapseAllOrders}
+                      style={{
+                        background: "#f8fafc",
+                        color: "#475569",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: "6px",
+                        padding: "5px 12px",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                      }}
+                      title="Colapsar todos los pedidos para no scrollear tanto"
+                    >
+                      <i className="bi bi-arrows-collapse"></i> Colapsar Todos
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={scrollToTop}
+                      style={{
+                        background: "#113B3A",
+                        color: "#C6AC7F",
+                        border: "1px solid #C6AC7F",
+                        borderRadius: "6px",
+                        padding: "5px 12px",
+                        fontSize: "12px",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "5px",
+                      }}
+                      title="Volver al inicio de la página"
+                    >
+                      <i className="bi bi-arrow-up-circle"></i> Ir al Inicio
+                    </button>
+                  </div>
+                </div>
+
                 {filteredOrders.map((order) => {
                   const currentStageInfo = getOrderStageInfo(order.stage);
                   const clientStageInfo = getClientStageInfo(order.stage);
                   const isEditingThisNote = activeEditingNoteId === order.id;
+                  const isExpanded = Boolean(expandedOrders[order.id]);
+                  const mainProduct = order.items?.[0];
 
                   const currentIdx = ORDER_STAGES.findIndex((s) => s.id === order.stage);
                   const prevStage = currentIdx > 0 ? ORDER_STAGES[currentIdx - 1] : null;
@@ -7750,40 +7875,44 @@ export default function AdminCitas() {
                       key={order.id}
                       style={{
                         background: "#ffffff",
-                        border: "1px solid #e2e8f0",
+                        border: isExpanded ? "1.5px solid #C6AC7F" : "1px solid #e2e8f0",
                         borderRadius: "14px",
                         overflow: "hidden",
-                        boxShadow: "0 4px 16px rgba(15, 42, 36, 0.05)",
-                        transition: "box-shadow 0.2s",
+                        boxShadow: isExpanded ? "0 8px 24px rgba(17, 59, 58, 0.08)" : "0 2px 8px rgba(15, 42, 36, 0.04)",
+                        transition: "all 0.2s ease",
                       }}
                     >
-                      {/* Cabecera de la Orden */}
+                      {/* Cabecera de la Orden - Clic para desplegar / contraer */}
                       <div
+                        onClick={() => toggleOrderExpand(order.id)}
                         style={{
-                          padding: "18px 22px",
-                          background: "#fcfbf9",
-                          borderBottom: "1px solid #ede8df",
+                          padding: "16px 20px",
+                          background: isExpanded ? "#fcfbf9" : "#ffffff",
+                          borderBottom: isExpanded ? "1px solid #ede8df" : "none",
                           display: "flex",
                           justifyContent: "space-between",
                           alignItems: "center",
                           flexWrap: "wrap",
                           gap: "14px",
+                          cursor: "pointer",
+                          userSelect: "none",
+                          transition: "background 0.15s ease",
                         }}
                       >
-                        {/* Cliente */}
-                        <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
+                        {/* Cliente y Joya Principal */}
+                        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
                           <div
                             style={{
-                              width: "46px",
-                              height: "46px",
+                              width: "44px",
+                              height: "44px",
                               borderRadius: "50%",
-                              background: "#113B3A",
+                              background: isExpanded ? "#113B3A" : "#1e293b",
                               color: "#C6AC7F",
                               border: "2px solid #C6AC7F",
                               display: "flex",
                               alignItems: "center",
                               justifyContent: "center",
-                              fontSize: "17px",
+                              fontSize: "16px",
                               fontWeight: "800",
                               flexShrink: 0,
                             }}
@@ -7791,17 +7920,22 @@ export default function AdminCitas() {
                             {order.clientName ? order.clientName.charAt(0).toUpperCase() : "P"}
                           </div>
                           <div>
-                            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                              <strong style={{ fontSize: "16px", color: "#113B3A", fontWeight: "700" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "7px", flexWrap: "wrap" }}>
+                              <strong style={{ fontSize: "15px", color: "#113B3A", fontWeight: "700" }}>
                                 {order.clientName}
                               </strong>
+                              {mainProduct?.name && (
+                                <span style={{ fontSize: "14px", color: "#475569", fontWeight: "600" }}>
+                                  — {mainProduct.name}
+                                </span>
+                              )}
                               {order.clientDni && (
                                 <span
                                   style={{
                                     background: "#f1f5f9",
                                     color: "#334155",
                                     border: "1px solid #cbd5e1",
-                                    padding: "1px 7px",
+                                    padding: "1px 6px",
                                     borderRadius: "4px",
                                     fontSize: "11px",
                                     fontWeight: "700",
@@ -7812,7 +7946,7 @@ export default function AdminCitas() {
                                 </span>
                               )}
                             </div>
-                            <div style={{ fontSize: "12.5px", color: "#64748b", marginTop: "2px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                            <div style={{ fontSize: "12px", color: "#64748b", marginTop: "2px", display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                               {order.clientEmail && (
                                 <span>
                                   <i className="bi bi-envelope" style={{ marginRight: "4px" }}></i>
@@ -7829,7 +7963,7 @@ export default function AdminCitas() {
                           </div>
                         </div>
 
-                        {/* Metadata del Pedido y Estados */}
+                        {/* Metadata del Pedido, Estados y Botón Desplegable */}
                         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
                           <div style={{ textAlign: "right" }}>
                             <span
@@ -7838,7 +7972,7 @@ export default function AdminCitas() {
                                 color: "#C6AC7F",
                                 padding: "3px 9px",
                                 borderRadius: "5px",
-                                fontSize: "13px",
+                                fontSize: "12.5px",
                                 fontWeight: "800",
                                 fontFamily: "monospace",
                                 display: "inline-block",
@@ -7846,7 +7980,7 @@ export default function AdminCitas() {
                             >
                               {order.id}
                             </span>
-                            <div style={{ fontSize: "11.5px", color: "#64748b", marginTop: "3px" }}>
+                            <div style={{ fontSize: "11px", color: "#64748b", marginTop: "3px" }}>
                               <i className="bi bi-calendar3"></i> {order.date}
                             </div>
                           </div>
@@ -7858,13 +7992,13 @@ export default function AdminCitas() {
                                 background: currentStageInfo.bgColor || "#f0fdf4",
                                 color: currentStageInfo.color || "#166534",
                                 border: `1px solid ${currentStageInfo.color || "#166534"}40`,
-                                padding: "5px 12px",
+                                padding: "4px 11px",
                                 borderRadius: "20px",
-                                fontSize: "12px",
+                                fontSize: "11.5px",
                                 fontWeight: "700",
                                 display: "inline-flex",
                                 alignItems: "center",
-                                gap: "6px",
+                                gap: "5px",
                               }}
                             >
                               <i className={`bi ${currentStageInfo.icon}`}></i>
@@ -7884,11 +8018,42 @@ export default function AdminCitas() {
                               Cliente ve: <strong>Paso {clientStageInfo.stepNumber}/4 ({clientStageInfo.shortLabel})</strong>
                             </span>
                           </div>
+
+                          {/* Indicador y Botón Abrir / Cerrar */}
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              toggleOrderExpand(order.id);
+                            }}
+                            title={isExpanded ? "Colapsar información de este pedido" : "Abrir información y fases de taller de este pedido"}
+                            style={{
+                              background: isExpanded ? "#113B3A" : "#f1f5f9",
+                              color: isExpanded ? "#C6AC7F" : "#1e293b",
+                              border: isExpanded ? "1px solid #C6AC7F" : "1px solid #cbd5e1",
+                              borderRadius: "8px",
+                              padding: "6px 12px",
+                              fontSize: "12px",
+                              fontWeight: "700",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              transition: "all 0.15s ease",
+                              boxShadow: isExpanded ? "0 2px 6px rgba(17, 59, 58, 0.2)" : "none",
+                            }}
+                          >
+                            <span>{isExpanded ? "Cerrar" : "Abrir Info"}</span>
+                            <i className={`bi ${isExpanded ? "bi-chevron-up" : "bi-chevron-down"}`} style={{ fontSize: "11px" }}></i>
+                          </button>
                         </div>
                       </div>
 
-                      {/* STEPPER INTERACTIVO DE 6 ETAPAS DE TALLER & BOTONES DE ACCIÓN */}
-                      <div style={{ padding: "18px 22px", background: "#ffffff", borderBottom: "1px solid #f1f5f9" }}>
+                      {/* CONTENIDO EXPANDIBLE: Se muestra únicamente al hacer clic */}
+                      {isExpanded && (
+                        <>
+                          {/* STEPPER INTERACTIVO DE 6 ETAPAS DE TALLER & BOTONES DE ACCIÓN */}
+                          <div style={{ padding: "18px 22px", background: "#ffffff", borderBottom: "1px solid #f1f5f9" }}>
                         {/* Barra Superior de Control de Etapa */}
                         <div
                           style={{
@@ -8528,7 +8693,9 @@ export default function AdminCitas() {
                           </button>
                         </div>
                       </div>
-                    </article>
+                    </>
+                  )}
+                </article>
                   );
                 })}
               </div>
@@ -10207,6 +10374,46 @@ export default function AdminCitas() {
               </form>
             </div>
           </div>
+        )}
+
+        {/* Botón Flotante para Ir al Inicio (Scroll to Top) */}
+        {showScrollTop && (
+          <button
+            type="button"
+            onClick={scrollToTop}
+            title="Ir al inicio de la página"
+            aria-label="Ir al inicio"
+            style={{
+              position: "fixed",
+              bottom: "28px",
+              right: "28px",
+              zIndex: 9999,
+              background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+              color: "#C6AC7F",
+              border: "1.5px solid #C6AC7F",
+              borderRadius: "50px",
+              padding: "10px 18px",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              fontSize: "13px",
+              fontWeight: "700",
+              boxShadow: "0 8px 24px rgba(0, 0, 0, 0.28)",
+              cursor: "pointer",
+              transition: "transform 0.2s, box-shadow 0.2s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = "translateY(-3px)";
+              e.currentTarget.style.boxShadow = "0 12px 28px rgba(0, 0, 0, 0.35)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "0 8px 24px rgba(0, 0, 0, 0.28)";
+            }}
+          >
+            <i className="bi bi-arrow-up-circle-fill" style={{ fontSize: "16px", color: "#C6AC7F" }}></i>
+            <span>Ir al inicio</span>
+          </button>
         )}
       </div>
     </div>
