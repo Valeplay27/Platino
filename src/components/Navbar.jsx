@@ -11,6 +11,8 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [compromisoMenuOpen, setCompromisoMenuOpen] = useState(false);
+  const compromisoNavRef = useRef(null);
   const [announcementText, setAnnouncementText] = useState(getAnnouncementText);
   const [announcementActive, setAnnouncementActive] = useState(getAnnouncementActive);
   const { user, openAuthModal } = useAuth();
@@ -19,10 +21,11 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
   const navigate = useNavigate();
   const currentPath = location.pathname;
 
-  // Cerrar menú al cambiar de ruta
+  // Cerrar menú y megamenú al cambiar de ruta
   useEffect(() => {
     setMenuOpen(false);
     setSearchOpen(false);
+    setCompromisoMenuOpen(false);
   }, [location.pathname]);
 
   // Estado dinámico del carrito (salto cuando hay joyas o al agregar)
@@ -50,10 +53,22 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
   }, [cartCount]);
 
   const handleNavClick = () => {
+    setCompromisoMenuOpen(false);
     if (menuOpen) {
       setMenuOpen(false);
     }
   };
+
+  // Cerrar megamenú al hacer clic afuera en la ventana
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (compromisoNavRef.current && !compromisoNavRef.current.contains(e.target)) {
+        setCompromisoMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const handleSearchSubmit = (e) => {
     if (e.key === "Enter" && searchQuery.trim()) {
@@ -259,30 +274,235 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                   <i className="bi bi-chevron-right mobile-nav-arrow"></i>
                 </Link>
               </li>
-              <li className={`nav-item ${currentPath.includes("anillo-compromiso") ? "active" : ""}`}>
+              <li
+                ref={compromisoNavRef}
+                className={`nav-item has-megamenu ${currentPath.includes("anillo-compromiso") ? "active" : ""} ${compromisoMenuOpen ? "megamenu-open" : ""}`}
+                onMouseEnter={() => setCompromisoMenuOpen(true)}
+                onMouseLeave={() => setCompromisoMenuOpen(false)}
+              >
                 <Link
                   to="/categoria/anillo-compromiso"
-                  onClick={handleNavClick}
+                  onClick={(e) => {
+                    handleNavClick();
+                  }}
+                  className="nav-link-with-indicator"
                 >
                   <span>ANILLO DE COMPROMISO</span>
+                  <i className="bi bi-chevron-down nav-desktop-chevron"></i>
                   <i className="bi bi-chevron-right mobile-nav-arrow"></i>
                 </Link>
+
+                {/* MEGAMENÚ DESPLEGABLE EN DESKTOP */}
+                <div
+                  className={`compromiso-megamenu ${compromisoMenuOpen ? "is-visible" : ""}`}
+                  onMouseEnter={() => setCompromisoMenuOpen(true)}
+                  onMouseLeave={() => setCompromisoMenuOpen(false)}
+                >
+                  <div className="megamenu-inner-container">
+                    {/* Columna 1: FORMA DE LA GEMA */}
+                    <div className="megamenu-col megamenu-col-shapes">
+                      <h4 className="megamenu-col-title">FORMA DE LA GEMA</h4>
+                      <ul className="megamenu-links-list gem-shapes-list">
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?forma=redondo" onClick={handleNavClick}>
+                            <img src={getAssetUrl("/images/gem-shapes/redondo.webp")} alt="Redondo" className="gem-shape-icon-img" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            <span>REDONDO</span>
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?forma=oval" onClick={handleNavClick}>
+                            <img src={getAssetUrl("/images/gem-shapes/oval.webp")} alt="Oval" className="gem-shape-icon-img" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            <span>OVAL</span>
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?forma=marquesa" onClick={handleNavClick}>
+                            <img src={getAssetUrl("/images/gem-shapes/marquesa.webp")} alt="Marquesa" className="gem-shape-icon-img" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            <span>MARQUESA</span>
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?forma=esmeralda" onClick={handleNavClick}>
+                            <img src={getAssetUrl("/images/gem-shapes/esmeralda.webp")} alt="Esmeralda" className="gem-shape-icon-img" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            <span>ESMERALDA</span>
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?forma=corazon" onClick={handleNavClick}>
+                            <i className="bi bi-suit-heart gem-shape-vector-icon"></i>
+                            <span>CORAZÓN</span>
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?forma=otros" onClick={handleNavClick}>
+                            <img src={getAssetUrl("/images/gem-shapes/princesa.webp")} alt="Otros" className="gem-shape-icon-img" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            <span>OTROS</span>
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Columna 2: SEGÚN ESTILO */}
+                    <div className="megamenu-col">
+                      <h4 className="megamenu-col-title">SEGÚN ESTILO</h4>
+                      <ul className="megamenu-links-list">
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?estilo=solitario" onClick={handleNavClick}>
+                            SOLITARIO
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?estilo=3-piedras" onClick={handleNavClick}>
+                            3 PIEDRAS
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?estilo=con-pave" onClick={handleNavClick}>
+                            CON PAVÉ
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?estilo=moderno" onClick={handleNavClick}>
+                            MODERNO
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?estilo=vintage" onClick={handleNavClick}>
+                            VINTAGE
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso" onClick={handleNavClick} className="megamenu-ver-todos">
+                            VER TODOS
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Columna 3: SEGÚN MATERIAL */}
+                    <div className="megamenu-col">
+                      <h4 className="megamenu-col-title">SEGÚN MATERIAL</h4>
+                      <ul className="megamenu-links-list">
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?metal=plata-950" onClick={handleNavClick}>
+                            PLATA 950
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?metal=plata-oro-18k" onClick={handleNavClick}>
+                            PLATA CON ORO 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?metal=oro-natural-18k" onClick={handleNavClick}>
+                            ORO NATURAL 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?metal=oro-amarillo-18k" onClick={handleNavClick}>
+                            ORO AMARILLO 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?metal=oro-rosado-18k" onClick={handleNavClick}>
+                            ORO ROSADO 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?metal=oro-blanco-18k" onClick={handleNavClick}>
+                            ORO BLANCO 18K
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Columna 4: COLECCIÓN GEMAS SELECTAS */}
+                    <div className="megamenu-col megamenu-col-gemas">
+                      <h4 className="megamenu-col-title text-center">COLECCIÓN GEMAS SELECTAS</h4>
+                      <div className="gemas-selectas-grid">
+                        <Link to="/categoria/anillo-compromiso?gema=diamante" className="gema-selecta-item" onClick={handleNavClick}>
+                          <div className="gema-selecta-img-box">
+                            <img src={getAssetUrl("/images/cat-compromiso.jpg")} alt="Diamante Solitario" />
+                            <div className="gema-selecta-overlay">
+                              <span className="gema-name-label">DIAMANTE</span>
+                            </div>
+                          </div>
+                        </Link>
+                        <Link to="/categoria/anillo-compromiso?gema=esmeralda" className="gema-selecta-item" onClick={handleNavClick}>
+                          <div className="gema-selecta-img-box">
+                            <img src={getAssetUrl("/images/mosaic-3.jpg")} alt="Esmeralda Colombiana" onError={(e) => { e.currentTarget.src = "/images/cat-compromiso.jpg"; }} />
+                            <div className="gema-selecta-overlay">
+                              <span className="gema-name-label">ESMERALDA</span>
+                            </div>
+                          </div>
+                        </Link>
+                        <Link to="/categoria/anillo-compromiso?gema=rubi" className="gema-selecta-item" onClick={handleNavClick}>
+                          <div className="gema-selecta-img-box">
+                            <img src={getAssetUrl("/images/mosaic-5.jpg")} alt="Rubí Real" onError={(e) => { e.currentTarget.src = "/images/cat-compromiso.jpg"; }} />
+                            <div className="gema-selecta-overlay">
+                              <span className="gema-name-label">RUBÍ</span>
+                            </div>
+                          </div>
+                        </Link>
+                        <Link to="/categoria/anillo-compromiso?gema=zafiro" className="gema-selecta-item" onClick={handleNavClick}>
+                          <div className="gema-selecta-img-box">
+                            <img src={getAssetUrl("/images/collar-cristal-blue.jpg")} alt="Zafiro Azul" onError={(e) => { e.currentTarget.src = "/images/cat-compromiso.jpg"; }} />
+                            <div className="gema-selecta-overlay">
+                              <span className="gema-name-label">ZAFIRO</span>
+                            </div>
+                          </div>
+                        </Link>
+                      </div>
+                      <Link to="/catalogo-gemas" className="megamenu-gemas-footer-link" onClick={handleNavClick}>
+                        DIAMANTE NATURAL Y LAB GROWN
+                      </Link>
+                    </div>
+
+                    {/* Columna 5: BLOG (Fondo Suave Gris/Blanco) */}
+                    <div className="megamenu-col megamenu-col-blog">
+                      <h4 className="megamenu-col-title">BLOG</h4>
+                      <ul className="megamenu-links-list megamenu-blog-list">
+                        <li>
+                          <Link to="/categoria/todas?q=diamante" onClick={handleNavClick}>
+                            DIAMANTE NATURAL VS LAB GROWN
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/todas?q=moissanita" onClick={handleNavClick}>
+                            ¿QUÉ ES LA MOISSANITA?
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/nosotros" onClick={handleNavClick}>
+                            CORRECTO CUIDADO DE GEMAS
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso" onClick={handleNavClick}>
+                            TENDENCIAS EN A. COMPROMISO
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/agendar-cita" onClick={handleNavClick}>
+                            ¿CÓMO TOMARME LA MEDIDA?
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/nosotros" onClick={handleNavClick} className="megamenu-ver-mas-blog">
+                            VER MÁS
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
               </li>
-              <li className={`nav-item ${currentPath.includes("anillo-promesa") ? "active" : ""}`}>
+              <li className={`nav-item ${currentPath.includes("amor-promesa") || currentPath.includes("anillo-promesa") || currentPath.includes("aros-alianzas") ? "active" : ""}`}>
                 <Link
-                  to="/categoria/anillo-promesa"
+                  to="/categoria/amor-promesa"
                   onClick={handleNavClick}
                 >
-                  <span>ANILLO DE PROMESA</span>
-                  <i className="bi bi-chevron-right mobile-nav-arrow"></i>
-                </Link>
-              </li>
-              <li className={`nav-item ${currentPath.includes("aros-alianzas") ? "active" : ""}`}>
-                <Link
-                  to="/categoria/aros-alianzas"
-                  onClick={handleNavClick}
-                >
-                  <span>AROS DE ALIANZAS</span>
+                  <span>AMOR Y PROMESA</span>
                   <i className="bi bi-chevron-right mobile-nav-arrow"></i>
                 </Link>
               </li>

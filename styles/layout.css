@@ -618,6 +618,292 @@
   display: none;
 }
 
+/* ========================================================
+   MEGAMENÚ ANILLO DE COMPROMISO (DESKTOP)
+   ======================================================== */
+.nav-item.has-megamenu {
+  position: static;
+}
+
+.nav-link-with-indicator {
+  display: inline-flex !important;
+  align-items: center;
+  gap: 5px;
+}
+
+.nav-desktop-chevron {
+  font-size: 10px;
+  color: #718076;
+  transition: transform 0.25s ease, color 0.25s ease;
+}
+
+.nav-item.has-megamenu:hover .nav-desktop-chevron,
+.nav-item.has-megamenu.megamenu-open .nav-desktop-chevron {
+  transform: rotate(180deg);
+  color: var(--platino-gold);
+}
+
+.nav-item.has-megamenu.megamenu-open a::after {
+  width: 100%;
+  background-color: var(--platino-gold);
+}
+
+.compromiso-megamenu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background-color: #ffffff;
+  border-top: 1px solid rgba(0, 0, 0, 0.07);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.08);
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(6px);
+  transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s;
+  z-index: 99999;
+  cursor: default;
+  pointer-events: none;
+}
+
+.compromiso-megamenu.is-visible,
+.nav-item.has-megamenu:hover .compromiso-megamenu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.megamenu-inner-container {
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 32px 36px 36px;
+  display: grid;
+  grid-template-columns: 1.15fr 1fr 1fr 1.6fr 1.4fr;
+  gap: 36px;
+  align-items: stretch;
+}
+
+.megamenu-col {
+  display: flex;
+  flex-direction: column;
+}
+
+.megamenu-col-title {
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #113B3A;
+  text-transform: uppercase;
+  margin: 0 0 18px 0;
+  padding-bottom: 8px;
+  border-bottom: 1.5px solid transparent;
+}
+
+.megamenu-links-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.megamenu-links-list li {
+  margin: 0;
+  padding: 0;
+}
+
+.megamenu-links-list a {
+  text-decoration: none;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: #334139;
+  transition: all 0.18s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 2px 0;
+}
+
+.megamenu-links-list a:hover {
+  color: #C6AC7F;
+  transform: translateX(3px);
+}
+
+.megamenu-links-list a::after {
+  display: none !important;
+}
+
+.megamenu-ver-todos {
+  font-weight: 800 !important;
+  color: #113B3A !important;
+  border-bottom: 1px solid #C6AC7F;
+  padding-bottom: 2px !important;
+  margin-top: 4px;
+}
+
+.megamenu-ver-todos:hover {
+  color: #C6AC7F !important;
+}
+
+/* Columna 1: Formas de gemas con íconos vectoriales / siluetas */
+.gem-shapes-list a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gem-shape-icon-img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  filter: grayscale(100%) brightness(0.2);
+  transition: filter 0.2s ease, transform 0.2s ease;
+  flex-shrink: 0;
+}
+
+.gem-shapes-list a:hover .gem-shape-icon-img {
+  filter: none;
+  transform: scale(1.15);
+}
+
+.gem-shape-vector-icon {
+  font-size: 16px;
+  color: #27332c;
+  width: 20px;
+  text-align: center;
+  flex-shrink: 0;
+  transition: color 0.2s ease, transform 0.2s ease;
+}
+
+.gem-shapes-list a:hover .gem-shape-vector-icon {
+  color: #C6AC7F;
+  transform: scale(1.15);
+}
+
+/* Columna 4: Colección Gemas Selectas (Cuadrícula 2x2) */
+.megamenu-col-gemas .megamenu-col-title {
+  text-align: center;
+  letter-spacing: 0.16em;
+}
+
+.gemas-selectas-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.gema-selecta-item {
+  text-decoration: none;
+  display: block;
+  overflow: hidden;
+  border-radius: 6px;
+  border: 1px solid #e5e9e5;
+  background: #fdfbf7;
+  transition: all 0.25s ease;
+}
+
+.gema-selecta-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(17, 59, 58, 0.15);
+  border-color: #C6AC7F;
+}
+
+.gema-selecta-img-box {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  background: #2b1411;
+}
+
+.gema-selecta-img-box img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.4s ease;
+  display: block;
+}
+
+.gema-selecta-item:hover .gema-selecta-img-box img {
+  transform: scale(1.08);
+}
+
+.gema-selecta-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: linear-gradient(180deg, rgba(0,0,0,0) 0%, rgba(17, 24, 21, 0.85) 100%);
+  padding: 14px 6px 6px;
+  text-align: center;
+}
+
+.gema-name-label {
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.6);
+}
+
+.megamenu-gemas-footer-link {
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  color: #113B3A;
+  text-decoration: none;
+  margin-top: 4px;
+  padding: 6px 10px;
+  transition: color 0.2s ease;
+  display: block;
+}
+
+.megamenu-gemas-footer-link:hover {
+  color: #C6AC7F;
+}
+
+/* Columna 5: Blog (Recuadro sutil con fondo) */
+.megamenu-col-blog {
+  background-color: #f7f8f7;
+  border-radius: 8px;
+  padding: 22px 24px;
+  border: 1px solid #ebeceb;
+}
+
+.megamenu-col-blog .megamenu-col-title {
+  color: #113B3A;
+  margin-bottom: 16px;
+}
+
+.megamenu-blog-list a {
+  font-size: 11.5px !important;
+  color: #3b4740 !important;
+  line-height: 1.35;
+  letter-spacing: 0.05em !important;
+}
+
+.megamenu-blog-list a:hover {
+  color: #C6AC7F !important;
+  transform: translateX(4px);
+}
+
+.megamenu-ver-mas-blog {
+  font-weight: 800 !important;
+  color: #113B3A !important;
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+  margin-top: 6px;
+}
+
 /* 3. Footer Styles */
 .platino-footer {
   background-color: #ffffff;
@@ -919,6 +1205,11 @@
     background: #f7f5ef;
     color: var(--platino-green-dark);
     padding-left: 12px;
+  }
+
+  .compromiso-megamenu,
+  .nav-desktop-chevron {
+    display: none !important;
   }
 
   .mobile-nav-arrow {

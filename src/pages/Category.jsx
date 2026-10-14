@@ -84,24 +84,26 @@ function Category({ addToCart }) {
         );
       }
 
-      // 3. Anillos de Promesa (singular o plural)
-      if (normKey === "anillo-promesa" || normKey === "anillos-promesa" || normKey === "promesa") {
+      // 3. Amor y Promesa (Fusión de Anillos de Promesa y Aros de Alianzas)
+      if (
+        normKey === "amor-promesa" ||
+        normKey === "amor-y-promesa" ||
+        normKey === "anillo-promesa" ||
+        normKey === "anillos-promesa" ||
+        normKey === "promesa" ||
+        normKey === "aros-alianzas" ||
+        normKey === "alianzas"
+      ) {
         return (
           pCat === "anillo-promesa" ||
           pCat === "anillos-promesa" ||
-          pCats.includes("anillo-promesa") ||
-          pCats.includes("anillos-promesa") ||
-          pName.includes("promesa")
-        );
-      }
-
-      // 4. Aros de Alianzas (alianzas)
-      if (normKey === "aros-alianzas" || normKey === "alianzas") {
-        return (
           pCat === "aros-alianzas" ||
           pCat === "alianzas" ||
+          pCats.includes("anillo-promesa") ||
+          pCats.includes("anillos-promesa") ||
           pCats.includes("aros-alianzas") ||
           pCats.includes("alianzas") ||
+          pName.includes("promesa") ||
           pName.includes("alianza")
         );
       }

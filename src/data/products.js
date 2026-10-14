@@ -263,6 +263,18 @@ const RAW_CATEGORY_INFO = {
     desc: "Diamantes seleccionados de brillo extraordinario engastados en sortijas atemporales diseñadas con máxima precisión y certificación gemológica.",
     banner: "/images/hero-compromiso.jpg"
   },
+  "amor-promesa": {
+    title: "Amor y Promesa",
+    eyebrow: "Símbolos de Fidelidad y Devoción",
+    desc: "Nuestra exclusiva selección que une anillos de promesa y aros de alianzas finas. Joyas que conmemoran la lealtad, los aniversarios y el amor incondicional.",
+    banner: "/images/cat-promesa.jpg"
+  },
+  "amor-y-promesa": {
+    title: "Amor y Promesa",
+    eyebrow: "Símbolos de Fidelidad y Devoción",
+    desc: "Nuestra exclusiva selección que une anillos de promesa y aros de alianzas finas. Joyas que conmemoran la lealtad, los aniversarios y el amor incondicional.",
+    banner: "/images/cat-promesa.jpg"
+  },
   "anillo-promesa": {
     title: "Anillos de Promesa",
     eyebrow: "Una Historia que Comienza",
