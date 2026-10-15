@@ -1,17 +1,20 @@
-export function DiamondCutIcon({ shape, size = 48, className = "" }) {
+export function DiamondCutIcon({ shape = "redondo", size = 48, strokeWidth, className = "" }) {
+  const factor = size <= 24 ? 1.7 : 1;
+  const sw = (base) => strokeWidth ? strokeWidth : (Math.round(base * factor * 10) / 10).toString();
+
   const commonProps = {
     width: size,
     height: size,
     viewBox: "0 0 100 100",
     fill: "none",
     stroke: "currentColor",
-    strokeWidth: "1.8",
+    strokeWidth: sw(1.8),
     strokeLinecap: "round",
     strokeLinejoin: "round",
     className: `gemstone-svg ${className}`,
   };
 
-  switch (shape.toLowerCase()) {
+  switch ((shape || "").toLowerCase()) {
     case "redondo": // Round Brilliant Cut
       return (
         <svg {...commonProps}>
@@ -162,11 +165,18 @@ export function DiamondCutIcon({ shape, size = 48, className = "" }) {
         </svg>
       );
 
+    case "otros":
     default:
       return (
         <svg {...commonProps}>
-          <polygon points="50,15 85,40 50,85 15,40" strokeWidth="2" />
-          <line x1="15" y1="40" x2="85" y2="40" strokeWidth="1.2" />
+          {/* Classic multi-facet gem silhouette */}
+          <polygon points="26,24 74,24 88,44 50,86 12,44" strokeWidth={sw(2)} />
+          <polyline points="12,44 88,44" strokeWidth={sw(1.3)} />
+          <line x1="36" y1="24" x2="30" y2="44" strokeWidth={sw(1.1)} />
+          <line x1="64" y1="24" x2="70" y2="44" strokeWidth={sw(1.1)} />
+          <line x1="30" y1="44" x2="50" y2="86" strokeWidth={sw(1.1)} />
+          <line x1="70" y1="44" x2="50" y2="86" strokeWidth={sw(1.1)} />
+          <line x1="50" y1="24" x2="50" y2="44" strokeWidth={sw(1.1)} />
         </svg>
       );
   }

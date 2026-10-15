@@ -5,6 +5,7 @@ import { getAnnouncementText, getAnnouncementActive } from "../services/homeImag
 import { getFavoriteCount } from "../services/favoritesService";
 import { getAssetUrl } from "../utils/assetHelper";
 import UserMenuDropdown from "./UserMenuDropdown";
+import { DiamondCutIcon } from "./GemstoneIcons";
 import "../../styles/layout.css";
 
 const Navbar = ({ cartCount = 0, onOpenCart }) => {
@@ -12,7 +13,13 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [compromisoMenuOpen, setCompromisoMenuOpen] = useState(false);
+  const [bodaMenuOpen, setBodaMenuOpen] = useState(false);
+  const [promesaMenuOpen, setPromesaMenuOpen] = useState(false);
+  const [joyeriaMenuOpen, setJoyeriaMenuOpen] = useState(false);
   const compromisoNavRef = useRef(null);
+  const bodaNavRef = useRef(null);
+  const promesaNavRef = useRef(null);
+  const joyeriaNavRef = useRef(null);
   const [announcementText, setAnnouncementText] = useState(getAnnouncementText);
   const [announcementActive, setAnnouncementActive] = useState(getAnnouncementActive);
   const { user, openAuthModal } = useAuth();
@@ -21,11 +28,14 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
   const navigate = useNavigate();
   const currentPath = location.pathname;
 
-  // Cerrar menú y megamenú al cambiar de ruta
+  // Cerrar menú y megamenús al cambiar de ruta
   useEffect(() => {
     setMenuOpen(false);
     setSearchOpen(false);
     setCompromisoMenuOpen(false);
+    setBodaMenuOpen(false);
+    setPromesaMenuOpen(false);
+    setJoyeriaMenuOpen(false);
   }, [location.pathname]);
 
   // Estado dinámico del carrito (salto cuando hay joyas o al agregar)
@@ -44,7 +54,7 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
 
   // Salto periódico elegante cada 7 segundos si la bolsa contiene joyas
   useEffect(() => {
-    if (cartCount === 0) return;
+    if (cartCount <= 0) return;
     const interval = setInterval(() => {
       setIsCartJumping(true);
       setTimeout(() => setIsCartJumping(false), 950);
@@ -54,16 +64,28 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
 
   const handleNavClick = () => {
     setCompromisoMenuOpen(false);
+    setBodaMenuOpen(false);
+    setPromesaMenuOpen(false);
+    setJoyeriaMenuOpen(false);
     if (menuOpen) {
       setMenuOpen(false);
     }
   };
 
-  // Cerrar megamenú al hacer clic afuera en la ventana
+  // Cerrar megamenús al hacer clic afuera en la ventana
   useEffect(() => {
     const handleClickOutside = (e) => {
       if (compromisoNavRef.current && !compromisoNavRef.current.contains(e.target)) {
         setCompromisoMenuOpen(false);
+      }
+      if (bodaNavRef.current && !bodaNavRef.current.contains(e.target)) {
+        setBodaMenuOpen(false);
+      }
+      if (promesaNavRef.current && !promesaNavRef.current.contains(e.target)) {
+        setPromesaMenuOpen(false);
+      }
+      if (joyeriaNavRef.current && !joyeriaNavRef.current.contains(e.target)) {
+        setJoyeriaMenuOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -268,35 +290,36 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                   <i className="bi bi-chevron-right mobile-nav-arrow"></i>
                 </Link>
               </li>
-              <li className={`nav-item ${currentPath.includes("aros-boda") ? "active" : ""}`}>
-                <Link to="/categoria/aros-boda" onClick={handleNavClick}>
-                  <span>AROS DE BODA</span>
-                  <i className="bi bi-chevron-right mobile-nav-arrow"></i>
-                </Link>
-              </li>
               <li
                 ref={compromisoNavRef}
                 className={`nav-item has-megamenu ${currentPath.includes("anillo-compromiso") ? "active" : ""} ${compromisoMenuOpen ? "megamenu-open" : ""}`}
-                onMouseEnter={() => setCompromisoMenuOpen(true)}
-                onMouseLeave={() => setCompromisoMenuOpen(false)}
               >
-                <Link
-                  to="/categoria/anillo-compromiso"
+                <button
+                  type="button"
                   onClick={(e) => {
-                    handleNavClick();
+                    e.preventDefault();
+                    if (window.innerWidth <= 992) {
+                      handleNavClick();
+                      navigate("/categoria/anillo-compromiso");
+                    } else {
+                      setBodaMenuOpen(false);
+                      setPromesaMenuOpen(false);
+                      setJoyeriaMenuOpen(false);
+                      setCompromisoMenuOpen((prev) => !prev);
+                    }
                   }}
-                  className="nav-link-with-indicator"
+                  className="nav-link-with-indicator megamenu-trigger-btn"
+                  aria-expanded={compromisoMenuOpen}
+                  aria-haspopup="true"
                 >
                   <span>ANILLO DE COMPROMISO</span>
                   <i className="bi bi-chevron-down nav-desktop-chevron"></i>
                   <i className="bi bi-chevron-right mobile-nav-arrow"></i>
-                </Link>
+                </button>
 
                 {/* MEGAMENÚ DESPLEGABLE EN DESKTOP */}
                 <div
                   className={`compromiso-megamenu ${compromisoMenuOpen ? "is-visible" : ""}`}
-                  onMouseEnter={() => setCompromisoMenuOpen(true)}
-                  onMouseLeave={() => setCompromisoMenuOpen(false)}
                 >
                   <div className="megamenu-inner-container">
                     {/* Columna 1: FORMA DE LA GEMA */}
@@ -305,37 +328,37 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                       <ul className="megamenu-links-list gem-shapes-list">
                         <li>
                           <Link to="/categoria/anillo-compromiso?forma=redondo" onClick={handleNavClick}>
-                            <img src={getAssetUrl("/images/gem-shapes/redondo.webp")} alt="Redondo" className="gem-shape-icon-img" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            <DiamondCutIcon shape="redondo" size={20} />
                             <span>REDONDO</span>
                           </Link>
                         </li>
                         <li>
                           <Link to="/categoria/anillo-compromiso?forma=oval" onClick={handleNavClick}>
-                            <img src={getAssetUrl("/images/gem-shapes/oval.webp")} alt="Oval" className="gem-shape-icon-img" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            <DiamondCutIcon shape="oval" size={20} />
                             <span>OVAL</span>
                           </Link>
                         </li>
                         <li>
                           <Link to="/categoria/anillo-compromiso?forma=marquesa" onClick={handleNavClick}>
-                            <img src={getAssetUrl("/images/gem-shapes/marquesa.webp")} alt="Marquesa" className="gem-shape-icon-img" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            <DiamondCutIcon shape="marquesa" size={20} />
                             <span>MARQUESA</span>
                           </Link>
                         </li>
                         <li>
                           <Link to="/categoria/anillo-compromiso?forma=esmeralda" onClick={handleNavClick}>
-                            <img src={getAssetUrl("/images/gem-shapes/esmeralda.webp")} alt="Esmeralda" className="gem-shape-icon-img" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            <DiamondCutIcon shape="esmeralda" size={20} />
                             <span>ESMERALDA</span>
                           </Link>
                         </li>
                         <li>
                           <Link to="/categoria/anillo-compromiso?forma=corazon" onClick={handleNavClick}>
-                            <i className="bi bi-suit-heart gem-shape-vector-icon"></i>
+                            <DiamondCutIcon shape="corazon" size={20} />
                             <span>CORAZÓN</span>
                           </Link>
                         </li>
                         <li>
                           <Link to="/categoria/anillo-compromiso?forma=otros" onClick={handleNavClick}>
-                            <img src={getAssetUrl("/images/gem-shapes/princesa.webp")} alt="Otros" className="gem-shape-icon-img" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            <DiamondCutIcon shape="otros" size={20} />
                             <span>OTROS</span>
                           </Link>
                         </li>
@@ -372,8 +395,8 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                           </Link>
                         </li>
                         <li>
-                          <Link to="/categoria/anillo-compromiso" onClick={handleNavClick} className="megamenu-ver-todos">
-                            VER TODOS
+                          <Link to="/categoria/anillo-compromiso?estilo=con-gemas" onClick={handleNavClick}>
+                            CON GEMAS
                           </Link>
                         </li>
                       </ul>
@@ -426,29 +449,53 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                             <div className="gema-selecta-overlay">
                               <span className="gema-name-label">DIAMANTE</span>
                             </div>
+                            <div className="gema-hover-info">
+                              <span className="gema-hover-badge">DUREZA 10 MOHS</span>
+                              <h5 className="gema-hover-title">DIAMANTE</h5>
+                              <p className="gema-hover-desc">Máximo brillo y pureza. Símbolo supremo de amor eterno certificado.</p>
+                              <span className="gema-hover-action">Ver modelos <i className="bi bi-arrow-right"></i></span>
+                            </div>
                           </div>
                         </Link>
                         <Link to="/categoria/anillo-compromiso?gema=esmeralda" className="gema-selecta-item" onClick={handleNavClick}>
                           <div className="gema-selecta-img-box">
-                            <img src={getAssetUrl("/images/mosaic-3.jpg")} alt="Esmeralda Colombiana" onError={(e) => { e.currentTarget.src = "/images/cat-compromiso.jpg"; }} />
+                            <img src={getAssetUrl("/images/cat-promesa.jpg")} alt="Esmeralda Colombiana" onError={(e) => { e.currentTarget.src = getAssetUrl("/images/cat-compromiso.jpg"); }} />
                             <div className="gema-selecta-overlay">
                               <span className="gema-name-label">ESMERALDA</span>
+                            </div>
+                            <div className="gema-hover-info">
+                              <span className="gema-hover-badge">VERDE BOTÁNICO</span>
+                              <h5 className="gema-hover-title">ESMERALDA</h5>
+                              <p className="gema-hover-desc">Gema noble de esperanza, renacimiento y magnetismo único.</p>
+                              <span className="gema-hover-action">Ver modelos <i className="bi bi-arrow-right"></i></span>
                             </div>
                           </div>
                         </Link>
                         <Link to="/categoria/anillo-compromiso?gema=rubi" className="gema-selecta-item" onClick={handleNavClick}>
                           <div className="gema-selecta-img-box">
-                            <img src={getAssetUrl("/images/mosaic-5.jpg")} alt="Rubí Real" onError={(e) => { e.currentTarget.src = "/images/cat-compromiso.jpg"; }} />
+                            <img src={getAssetUrl("/images/secret-garden-rose.jpg")} alt="Rubí Real" onError={(e) => { e.currentTarget.src = getAssetUrl("/images/cat-compromiso.jpg"); }} />
                             <div className="gema-selecta-overlay">
                               <span className="gema-name-label">RUBÍ</span>
+                            </div>
+                            <div className="gema-hover-info">
+                              <span className="gema-hover-badge">ROJO CARMESÍ</span>
+                              <h5 className="gema-hover-title">RUBÍ</h5>
+                              <p className="gema-hover-desc">Piedra de la pasión viva, fuego interior y lealtad imperecedera.</p>
+                              <span className="gema-hover-action">Ver modelos <i className="bi bi-arrow-right"></i></span>
                             </div>
                           </div>
                         </Link>
                         <Link to="/categoria/anillo-compromiso?gema=zafiro" className="gema-selecta-item" onClick={handleNavClick}>
                           <div className="gema-selecta-img-box">
-                            <img src={getAssetUrl("/images/collar-cristal-blue.jpg")} alt="Zafiro Azul" onError={(e) => { e.currentTarget.src = "/images/cat-compromiso.jpg"; }} />
+                            <img src={getAssetUrl("/images/collar-cristal-blue.jpg")} alt="Zafiro Azul" onError={(e) => { e.currentTarget.src = getAssetUrl("/images/cat-compromiso.jpg"); }} />
                             <div className="gema-selecta-overlay">
                               <span className="gema-name-label">ZAFIRO</span>
+                            </div>
+                            <div className="gema-hover-info">
+                              <span className="gema-hover-badge">AZUL CELESTIAL</span>
+                              <h5 className="gema-hover-title">ZAFIRO</h5>
+                              <p className="gema-hover-desc">Emblema histórico de fidelidad sincera, sabiduría y realeza.</p>
+                              <span className="gema-hover-action">Ver modelos <i className="bi bi-arrow-right"></i></span>
                             </div>
                           </div>
                         </Link>
@@ -497,20 +544,515 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                   </div>
                 </div>
               </li>
-              <li className={`nav-item ${currentPath.includes("amor-promesa") || currentPath.includes("anillo-promesa") || currentPath.includes("aros-alianzas") ? "active" : ""}`}>
-                <Link
-                  to="/categoria/amor-promesa"
-                  onClick={handleNavClick}
+              <li
+                ref={bodaNavRef}
+                className={`nav-item has-megamenu ${currentPath.includes("aros-boda") ? "active" : ""} ${bodaMenuOpen ? "megamenu-open" : ""}`}
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (window.innerWidth <= 992) {
+                      handleNavClick();
+                      navigate("/categoria/aros-boda");
+                    } else {
+                      setCompromisoMenuOpen(false);
+                      setPromesaMenuOpen(false);
+                      setJoyeriaMenuOpen(false);
+                      setBodaMenuOpen((prev) => !prev);
+                    }
+                  }}
+                  className="nav-link-with-indicator megamenu-trigger-btn"
+                  aria-expanded={bodaMenuOpen}
+                  aria-haspopup="true"
+                >
+                  <span>AROS DE BODA</span>
+                  <i className="bi bi-chevron-down nav-desktop-chevron"></i>
+                  <i className="bi bi-chevron-right mobile-nav-arrow"></i>
+                </button>
+
+                {/* MEGAMENÚ DESPLEGABLE EN DESKTOP PARA AROS DE BODA */}
+                <div className={`boda-megamenu ${bodaMenuOpen ? "is-visible" : ""}`}>
+                  <div className="megamenu-inner-container boda-megamenu-container">
+                    {/* Columna 1: SEGÚN MATERIAL */}
+                    <div className="megamenu-col">
+                      <h4 className="megamenu-col-title">SEGÚN MATERIAL</h4>
+                      <ul className="megamenu-links-list">
+                        <li>
+                          <Link to="/categoria/aros-boda?metal=plata-950" onClick={handleNavClick}>
+                            PLATA 950
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda?metal=plata-oro-18k" onClick={handleNavClick}>
+                            PLATA CON ORO 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda?metal=oro-natural-18k" onClick={handleNavClick}>
+                            ORO NATURAL 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda?metal=oro-amarillo-18k" onClick={handleNavClick}>
+                            ORO AMARILLO 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda?metal=oro-rosado-18k" onClick={handleNavClick}>
+                            ORO ROSADO 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda?metal=oro-blanco-18k" onClick={handleNavClick}>
+                            ORO BLANCO 18K
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Columna 2: SEGÚN ESTILO */}
+                    <div className="megamenu-col">
+                      <h4 className="megamenu-col-title">SEGÚN ESTILO</h4>
+                      <ul className="megamenu-links-list">
+                        <li>
+                          <Link to="/categoria/aros-boda?estilo=clasicos" onClick={handleNavClick}>
+                            CLÁSICOS
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda?estilo=con-pedreria" onClick={handleNavClick}>
+                            CON PEDRERÍA
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda?estilo=con-textura" onClick={handleNavClick}>
+                            CON TEXTURA
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda?estilo=moderno" onClick={handleNavClick}>
+                            MODERNO
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda?estilo=vintage" onClick={handleNavClick}>
+                            VINTAGE
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda" onClick={handleNavClick}>
+                            VER TODO
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Columna 3: PORTA AROS */}
+                    <div className="megamenu-col megamenu-col-card">
+                      <h4 className="megamenu-col-title text-center">PORTA AROS</h4>
+                      <Link to="/categoria/regalos?tipo=porta-aros" className="megamenu-boda-card" onClick={handleNavClick}>
+                        <div className="megamenu-card-placeholder">
+                          <span>COLOCAR<br />IMAGEN</span>
+                        </div>
+                      </Link>
+                    </div>
+
+                    {/* Columna 4: COPAS DECORADAS */}
+                    <div className="megamenu-col megamenu-col-card">
+                      <h4 className="megamenu-col-title text-center">COPAS DECORADAS</h4>
+                      <Link to="/categoria/regalos?tipo=copas-decoradas" className="megamenu-boda-card" onClick={handleNavClick}>
+                        <div className="megamenu-card-placeholder">
+                          <span>COLOCAR<br />IMAGEN</span>
+                        </div>
+                      </Link>
+                    </div>
+
+                    {/* Columna 5: CUADROS */}
+                    <div className="megamenu-col megamenu-col-card">
+                      <h4 className="megamenu-col-title text-center">CUADROS</h4>
+                      <Link to="/categoria/regalos?tipo=cuadros" className="megamenu-boda-card" onClick={handleNavClick}>
+                        <div className="megamenu-card-placeholder">
+                          <span>COLOCAR<br />IMAGEN</span>
+                        </div>
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </li>
+              <li
+                ref={promesaNavRef}
+                className={`nav-item has-megamenu ${currentPath.includes("amor-promesa") || currentPath.includes("anillo-promesa") || currentPath.includes("aros-alianzas") ? "active" : ""} ${promesaMenuOpen ? "megamenu-open" : ""}`}
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (window.innerWidth <= 992) {
+                      handleNavClick();
+                      navigate("/categoria/amor-promesa");
+                    } else {
+                      setCompromisoMenuOpen(false);
+                      setBodaMenuOpen(false);
+                      setJoyeriaMenuOpen(false);
+                      setPromesaMenuOpen((prev) => !prev);
+                    }
+                  }}
+                  className="nav-link-with-indicator megamenu-trigger-btn"
+                  aria-expanded={promesaMenuOpen}
+                  aria-haspopup="true"
                 >
                   <span>AMOR Y PROMESA</span>
+                  <i className="bi bi-chevron-down nav-desktop-chevron"></i>
                   <i className="bi bi-chevron-right mobile-nav-arrow"></i>
-                </Link>
+                </button>
+
+                {/* MEGAMENÚ DESPLEGABLE EN DESKTOP PARA AMOR Y PROMESA */}
+                <div className={`promesa-megamenu ${promesaMenuOpen ? "is-visible" : ""}`}>
+                  <div className="megamenu-inner-container promesa-megamenu-container">
+                    {/* Columna 1: Tarjeta Imagen ANILLO PROMESA */}
+                    <div className="megamenu-col megamenu-col-card">
+                      <Link to="/categoria/amor-promesa?subcat=anillo-promesa" className="megamenu-boda-card" onClick={handleNavClick}>
+                        <div className="megamenu-card-placeholder">
+                          <span>COLOCAR<br />IMAGEN<br />ANILLO<br />PROMESA</span>
+                        </div>
+                      </Link>
+                    </div>
+
+                    {/* Columna 2: ANILLO DE PROMESA */}
+                    <div className="megamenu-col">
+                      <h4 className="megamenu-col-title">ANILLO DE PROMESA</h4>
+                      <ul className="megamenu-links-list">
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&estilo=clasicos" onClick={handleNavClick}>
+                            CLÁSICOS
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&estilo=con-pedreria" onClick={handleNavClick}>
+                            CON PEDRERÍA
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&estilo=sin-pedreria" onClick={handleNavClick}>
+                            SIN PEDRERÍA
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&estilo=moderno" onClick={handleNavClick}>
+                            MODERNO
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&estilo=gemas-naturales" onClick={handleNavClick}>
+                            GEMAS NATURALES
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa" onClick={handleNavClick}>
+                            VER TODO
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Columna 3: SEGÚN MATERIAL (Promesa) */}
+                    <div className="megamenu-col">
+                      <h4 className="megamenu-col-title">SEGÚN MATERIAL</h4>
+                      <ul className="megamenu-links-list">
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&metal=plata-950" onClick={handleNavClick}>
+                            PLATA 950
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&metal=plata-oro-18k" onClick={handleNavClick}>
+                            PLATA CON ORO 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&metal=oro-natural-18k" onClick={handleNavClick}>
+                            ORO NATURAL 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&metal=oro-amarillo-18k" onClick={handleNavClick}>
+                            ORO AMARILLO 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&metal=oro-rosado-18k" onClick={handleNavClick}>
+                            ORO ROSADO 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&metal=oro-blanco-18k" onClick={handleNavClick}>
+                            ORO BLANCO 18K
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Columna 4: Tarjeta Imagen ALIANZAS DE AMOR */}
+                    <div className="megamenu-col megamenu-col-card">
+                      <Link to="/categoria/amor-promesa?subcat=alianzas-amor" className="megamenu-boda-card" onClick={handleNavClick}>
+                        <div className="megamenu-card-placeholder">
+                          <span>COLOCAR<br />IMAGEN<br />ALIANZAS<br />DE AMOR</span>
+                        </div>
+                      </Link>
+                    </div>
+
+                    {/* Columna 5: ALIANZAS DE AMOR */}
+                    <div className="megamenu-col">
+                      <h4 className="megamenu-col-title">ALIANZAS DE AMOR</h4>
+                      <ul className="megamenu-links-list">
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=alianzas-amor&estilo=clasicos" onClick={handleNavClick}>
+                            CLÁSICOS
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=alianzas-amor&estilo=con-pedreria" onClick={handleNavClick}>
+                            CON PEDRERÍA
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=alianzas-amor&estilo=sin-pedreria" onClick={handleNavClick}>
+                            SIN PEDRERÍA
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=alianzas-amor&estilo=moderno" onClick={handleNavClick}>
+                            MODERNO
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=alianzas-amor&estilo=vintage" onClick={handleNavClick}>
+                            VINTAGE
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=alianzas-amor" onClick={handleNavClick}>
+                            VER TODO
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Columna 6: SEGÚN MATERIAL (Alianzas) */}
+                    <div className="megamenu-col">
+                      <h4 className="megamenu-col-title">SEGÚN MATERIAL</h4>
+                      <ul className="megamenu-links-list">
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=alianzas-amor&metal=plata-950" onClick={handleNavClick}>
+                            PLATA 950
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=alianzas-amor&metal=plata-oro-18k" onClick={handleNavClick}>
+                            PLATA CON ORO 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=alianzas-amor&metal=oro-natural-18k" onClick={handleNavClick}>
+                            ORO NATURAL 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=alianzas-amor&metal=oro-amarillo-18k" onClick={handleNavClick}>
+                            ORO AMARILLO 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=alianzas-amor&metal=oro-rosado-18k" onClick={handleNavClick}>
+                            ORO ROSADO 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=alianzas-amor&metal=oro-blanco-18k" onClick={handleNavClick}>
+                            ORO BLANCO 18K
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
               </li>
-              <li className={`nav-item ${currentPath.includes("joyeria") ? "active" : ""}`}>
-                <Link to="/categoria/joyeria" onClick={handleNavClick}>
+              <li
+                ref={joyeriaNavRef}
+                className={`nav-item has-megamenu ${currentPath.includes("joyeria") ? "active" : ""} ${joyeriaMenuOpen ? "megamenu-open" : ""}`}
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (window.innerWidth <= 992) {
+                      handleNavClick();
+                      navigate("/categoria/joyeria");
+                    } else {
+                      setCompromisoMenuOpen(false);
+                      setBodaMenuOpen(false);
+                      setPromesaMenuOpen(false);
+                      setJoyeriaMenuOpen((prev) => !prev);
+                    }
+                  }}
+                  className="nav-link-with-indicator megamenu-trigger-btn"
+                  aria-expanded={joyeriaMenuOpen}
+                  aria-haspopup="true"
+                >
                   <span>JOYERÍA</span>
+                  <i className="bi bi-chevron-down nav-desktop-chevron"></i>
                   <i className="bi bi-chevron-right mobile-nav-arrow"></i>
-                </Link>
+                </button>
+
+                {/* MEGAMENÚ DESPLEGABLE EN DESKTOP PARA JOYERÍA */}
+                <div className={`joyeria-megamenu ${joyeriaMenuOpen ? "is-visible" : ""}`}>
+                  <div className="megamenu-inner-container joyeria-megamenu-container">
+                    {/* SECCIÓN 1: PARA ELLA (Caja sombreada gris suave con 3 subcolumnas) */}
+                    <div className="joyeria-seccion-ella">
+                      <h4 className="megamenu-col-title joyeria-seccion-title">PARA ELLA</h4>
+                      <div className="joyeria-ella-grid">
+                        {/* Subcolumna 1: Aretes */}
+                        <div className="joyeria-subcol">
+                          <Link to="/categoria/joyeria?genero=mujer&tipo=aretes" className="joyeria-subcat-header" onClick={handleNavClick}>
+                            ARETES
+                          </Link>
+                          <ul className="megamenu-links-list joyeria-dash-list">
+                            <li>
+                              <Link to="/categoria/joyeria?genero=mujer&tipo=aretes-bebes" onClick={handleNavClick}>
+                                <span className="dash-bullet">-</span> ARETES PARA BEBÉS
+                              </Link>
+                            </li>
+                            <li>
+                              <Link to="/categoria/joyeria?genero=mujer&tipo=aretes-pegados" onClick={handleNavClick}>
+                                <span className="dash-bullet">-</span> ARETES PEGADOS
+                              </Link>
+                            </li>
+                            <li>
+                              <Link to="/categoria/joyeria?genero=mujer&tipo=aretes-colgantes" onClick={handleNavClick}>
+                                <span className="dash-bullet">-</span> ARETES COLGANTES
+                              </Link>
+                            </li>
+                          </ul>
+                        </div>
+
+                        {/* Subcolumna 2: Collares */}
+                        <div className="joyeria-subcol">
+                          <Link to="/categoria/joyeria?genero=mujer&tipo=collares" className="joyeria-subcat-header" onClick={handleNavClick}>
+                            COLLARES
+                          </Link>
+                          <ul className="megamenu-links-list joyeria-dash-list">
+                            <li>
+                              <Link to="/categoria/joyeria?genero=mujer&tipo=collares-vestir" onClick={handleNavClick}>
+                                <span className="dash-bullet">-</span> DE VESTIR
+                              </Link>
+                            </li>
+                            <li>
+                              <Link to="/categoria/joyeria?genero=mujer&tipo=collares-gemas" onClick={handleNavClick}>
+                                <span className="dash-bullet">-</span> GEMAS NATURALES
+                              </Link>
+                            </li>
+                            <li>
+                              <Link to="/categoria/joyeria?genero=mujer&tipo=collares-relicarios" onClick={handleNavClick}>
+                                <span className="dash-bullet">-</span> RELICARIOS
+                              </Link>
+                            </li>
+                            <li>
+                              <Link to="/categoria/joyeria?genero=mujer&tipo=collares-religiosos" onClick={handleNavClick}>
+                                <span className="dash-bullet">-</span> RELIGIOSOS
+                              </Link>
+                            </li>
+                            <li>
+                              <Link to="/categoria/joyeria?genero=mujer&tipo=collares-personalizados" onClick={handleNavClick}>
+                                <span className="dash-bullet">-</span> PERSONALIZADOS
+                              </Link>
+                            </li>
+                          </ul>
+                        </div>
+
+                        {/* Subcolumna 3: Otras joyas para ella */}
+                        <div className="joyeria-subcol joyeria-direct-list">
+                          <ul className="megamenu-links-list">
+                            <li>
+                              <Link to="/categoria/joyeria?genero=mujer&tipo=anillos" onClick={handleNavClick}>
+                                ANILLOS
+                              </Link>
+                            </li>
+                            <li>
+                              <Link to="/categoria/joyeria?genero=mujer&tipo=cadenas" onClick={handleNavClick}>
+                                CADENAS
+                              </Link>
+                            </li>
+                            <li>
+                              <Link to="/categoria/joyeria?genero=mujer&tipo=juegos" onClick={handleNavClick}>
+                                JUEGOS
+                              </Link>
+                            </li>
+                            <li>
+                              <Link to="/categoria/joyeria?genero=mujer&tipo=pulseras" onClick={handleNavClick}>
+                                PULSERAS
+                              </Link>
+                            </li>
+                            <li>
+                              <Link to="/categoria/joyeria?genero=mujer&tipo=tobilleras" onClick={handleNavClick}>
+                                TOBILLERAS
+                              </Link>
+                            </li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* SECCIÓN 2: PARA ÉL */}
+                    <div className="megamenu-col joyeria-col-regular">
+                      <h4 className="megamenu-col-title">PARA ÉL</h4>
+                      <ul className="megamenu-links-list">
+                        <li>
+                          <Link to="/categoria/joyeria?genero=hombre&tipo=aros-casuales" onClick={handleNavClick}>
+                            AROS CASUALES
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/joyeria?genero=hombre&tipo=cadenas" onClick={handleNavClick}>
+                            CADENAS
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/joyeria?genero=hombre&tipo=pulseras" onClick={handleNavClick}>
+                            PULSERAS
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/joyeria?genero=hombre&tipo=relojes" onClick={handleNavClick}>
+                            RELOJES
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* SECCIÓN 3: KIDS */}
+                    <div className="megamenu-col joyeria-col-regular">
+                      <h4 className="megamenu-col-title">KIDS</h4>
+                      <ul className="megamenu-links-list">
+                        <li>
+                          <Link to="/categoria/joyeria?genero=kids&tipo=aretes-nina" onClick={handleNavClick}>
+                            ARETES PARA NIÑA
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/joyeria?genero=kids&tipo=cadenas" onClick={handleNavClick}>
+                            CADENAS
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/joyeria?genero=kids&tipo=pulseras" onClick={handleNavClick}>
+                            PULSERAS
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
               </li>
               <li className={`nav-item ${currentPath.includes("regalos") ? "active" : ""}`}>
                 <Link to="/categoria/regalos" onClick={handleNavClick}>
