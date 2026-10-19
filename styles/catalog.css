@@ -84,13 +84,99 @@
   border: 1px solid var(--platino-border);
   background: white;
   padding: 8px 14px;
-  border-radius: 2px;
+  border-radius: 4px;
   font-family: var(--font-sans);
   font-size: 12px;
   font-weight: 500;
   color: #2b332e;
   outline: none;
   cursor: pointer;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.catalog-filter-select:hover,
+.catalog-filter-select:focus {
+  border-color: var(--platino-gold, #c6ac7f);
+  box-shadow: 0 0 0 2px rgba(198, 172, 127, 0.15);
+}
+
+/* Active Filters Row & Chips */
+.active-filters-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: -15px;
+  margin-bottom: 25px;
+  padding: 12px 16px;
+  background: #f4f1eb;
+  border-radius: 6px;
+  border: 1px solid #e7e2d8;
+}
+
+.active-filters-label {
+  font-size: 11.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #113B3A;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.active-filters-chips {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.active-filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #ffffff;
+  border: 1px solid #d5cec2;
+  color: #1a2e2b;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 5px 10px;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.03);
+}
+
+.active-filter-chip:hover {
+  background: #113B3A;
+  color: #ffffff;
+  border-color: #113B3A;
+}
+
+.active-filter-chip i {
+  font-size: 9px;
+  opacity: 0.7;
+}
+
+.active-filter-chip:hover i {
+  opacity: 1;
+}
+
+.clear-all-filters-btn {
+  background: none;
+  border: none;
+  color: #8c7355;
+  font-size: 11px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px 8px;
+  transition: color 0.2s ease;
+}
+
+.clear-all-filters-btn:hover {
+  color: #5c4327;
 }
 
 /* Product Grid */

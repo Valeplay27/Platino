@@ -1,7 +1,11 @@
 import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
-import { getAnnouncementText, getAnnouncementActive } from "../services/homeImagesService";
+import {
+  getAnnouncementText,
+  getAnnouncementActive,
+  getHomeImages,
+} from "../services/homeImagesService";
 import { getFavoriteCount } from "../services/favoritesService";
 import { getAssetUrl } from "../utils/assetHelper";
 import UserMenuDropdown from "./UserMenuDropdown";
@@ -22,6 +26,13 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
   const joyeriaNavRef = useRef(null);
   const [announcementText, setAnnouncementText] = useState(getAnnouncementText);
   const [announcementActive, setAnnouncementActive] = useState(getAnnouncementActive);
+  const [homeImages, setHomeImages] = useState(() => getHomeImages());
+
+  useEffect(() => {
+    const handleHomeImagesUpdate = () => setHomeImages(getHomeImages());
+    window.addEventListener("home_images_updated", handleHomeImagesUpdate);
+    return () => window.removeEventListener("home_images_updated", handleHomeImagesUpdate);
+  }, []);
   const { user, openAuthModal } = useAuth();
   const [favCount, setFavCount] = useState(() => (user ? getFavoriteCount(user.email) : 0));
   const location = useLocation();
@@ -652,9 +663,28 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                     <div className="megamenu-col megamenu-col-card">
                       <h4 className="megamenu-col-title text-center">PORTA AROS</h4>
                       <Link to="/categoria/regalos?tipo=porta-aros" className="megamenu-boda-card" onClick={handleNavClick}>
-                        <div className="megamenu-card-placeholder">
-                          <span>COLOCAR<br />IMAGEN</span>
-                        </div>
+                        {homeImages?.megamenuPortaAros?.image ? (
+                          <div className="megamenu-card-img-wrapper">
+                            <img
+                              src={homeImages.megamenuPortaAros.image}
+                              alt="Porta Aros"
+                              className="megamenu-card-img"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                if (e.currentTarget.nextElementSibling) {
+                                  e.currentTarget.nextElementSibling.style.display = "flex";
+                                }
+                              }}
+                            />
+                            <div className="megamenu-card-placeholder" style={{ display: "none" }}>
+                              <span>COLOCAR<br />IMAGEN</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="megamenu-card-placeholder">
+                            <span>COLOCAR<br />IMAGEN</span>
+                          </div>
+                        )}
                       </Link>
                     </div>
 
@@ -662,9 +692,28 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                     <div className="megamenu-col megamenu-col-card">
                       <h4 className="megamenu-col-title text-center">COPAS DECORADAS</h4>
                       <Link to="/categoria/regalos?tipo=copas-decoradas" className="megamenu-boda-card" onClick={handleNavClick}>
-                        <div className="megamenu-card-placeholder">
-                          <span>COLOCAR<br />IMAGEN</span>
-                        </div>
+                        {homeImages?.megamenuCopas?.image ? (
+                          <div className="megamenu-card-img-wrapper">
+                            <img
+                              src={homeImages.megamenuCopas.image}
+                              alt="Copas Decoradas"
+                              className="megamenu-card-img"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                if (e.currentTarget.nextElementSibling) {
+                                  e.currentTarget.nextElementSibling.style.display = "flex";
+                                }
+                              }}
+                            />
+                            <div className="megamenu-card-placeholder" style={{ display: "none" }}>
+                              <span>COLOCAR<br />IMAGEN</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="megamenu-card-placeholder">
+                            <span>COLOCAR<br />IMAGEN</span>
+                          </div>
+                        )}
                       </Link>
                     </div>
 
@@ -672,9 +721,28 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                     <div className="megamenu-col megamenu-col-card">
                       <h4 className="megamenu-col-title text-center">CUADROS</h4>
                       <Link to="/categoria/regalos?tipo=cuadros" className="megamenu-boda-card" onClick={handleNavClick}>
-                        <div className="megamenu-card-placeholder">
-                          <span>COLOCAR<br />IMAGEN</span>
-                        </div>
+                        {homeImages?.megamenuCuadros?.image ? (
+                          <div className="megamenu-card-img-wrapper">
+                            <img
+                              src={homeImages.megamenuCuadros.image}
+                              alt="Cuadros"
+                              className="megamenu-card-img"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                if (e.currentTarget.nextElementSibling) {
+                                  e.currentTarget.nextElementSibling.style.display = "flex";
+                                }
+                              }}
+                            />
+                            <div className="megamenu-card-placeholder" style={{ display: "none" }}>
+                              <span>COLOCAR<br />IMAGEN</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="megamenu-card-placeholder">
+                            <span>COLOCAR<br />IMAGEN</span>
+                          </div>
+                        )}
                       </Link>
                     </div>
                   </div>
@@ -713,9 +781,28 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                     {/* Columna 1: Tarjeta Imagen ANILLO PROMESA */}
                     <div className="megamenu-col megamenu-col-card">
                       <Link to="/categoria/amor-promesa?subcat=anillo-promesa" className="megamenu-boda-card" onClick={handleNavClick}>
-                        <div className="megamenu-card-placeholder">
-                          <span>COLOCAR<br />IMAGEN<br />ANILLO<br />PROMESA</span>
-                        </div>
+                        {homeImages?.megamenuPromesaAnillo?.image ? (
+                          <div className="megamenu-card-img-wrapper">
+                            <img
+                              src={homeImages.megamenuPromesaAnillo.image}
+                              alt="Anillo de Promesa"
+                              className="megamenu-card-img"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                if (e.currentTarget.nextElementSibling) {
+                                  e.currentTarget.nextElementSibling.style.display = "flex";
+                                }
+                              }}
+                            />
+                            <div className="megamenu-card-placeholder" style={{ display: "none" }}>
+                              <span>COLOCAR<br />IMAGEN<br />ANILLO<br />PROMESA</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="megamenu-card-placeholder">
+                            <span>COLOCAR<br />IMAGEN<br />ANILLO<br />PROMESA</span>
+                          </div>
+                        )}
                       </Link>
                     </div>
 
@@ -796,9 +883,28 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                     {/* Columna 4: Tarjeta Imagen ALIANZAS DE AMOR */}
                     <div className="megamenu-col megamenu-col-card">
                       <Link to="/categoria/amor-promesa?subcat=alianzas-amor" className="megamenu-boda-card" onClick={handleNavClick}>
-                        <div className="megamenu-card-placeholder">
-                          <span>COLOCAR<br />IMAGEN<br />ALIANZAS<br />DE AMOR</span>
-                        </div>
+                        {homeImages?.megamenuAlianzasAros?.image ? (
+                          <div className="megamenu-card-img-wrapper">
+                            <img
+                              src={homeImages.megamenuAlianzasAros.image}
+                              alt="Alianzas de Amor"
+                              className="megamenu-card-img"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                if (e.currentTarget.nextElementSibling) {
+                                  e.currentTarget.nextElementSibling.style.display = "flex";
+                                }
+                              }}
+                            />
+                            <div className="megamenu-card-placeholder" style={{ display: "none" }}>
+                              <span>COLOCAR<br />IMAGEN<br />ALIANZAS<br />DE AMOR</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="megamenu-card-placeholder">
+                            <span>COLOCAR<br />IMAGEN<br />ALIANZAS<br />DE AMOR</span>
+                          </div>
+                        )}
                       </Link>
                     </div>
 
