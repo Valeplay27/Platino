@@ -278,11 +278,26 @@ function requireAdmin(array $user): void
 
 function enforceSameOrigin(): void
 {
-    $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-    $expectedOrigin = rtrim(requiredEnv('PLATINO_APP_ORIGIN'), '/');
-    if ($origin === '' || !hash_equals($expectedOrigin, rtrim($origin, '/'))) {
-        respond(403, ['error' => 'Origen de solicitud no permitido.']);
+    $origin = rtrim((string) ($_SERVER['HTTP_ORIGIN'] ?? ''), '/');
+    if ($origin === '') {
+        return;
     }
+    $originHost = strtolower((string) parse_url($origin, PHP_URL_HOST));
+    $serverHost = strtolower((string) preg_replace('/:\d+$/', '', (string) ($_SERVER['HTTP_HOST'] ?? '')));
+    $stripWww = static fn(string $h): string => preg_replace('/^www\./i', '', $h);
+    if ($originHost !== '' && $serverHost !== '' && $stripWww($originHost) === $stripWww($serverHost)) {
+        return;
+    }
+    try {
+        $expectedOrigin = rtrim(requiredEnv('PLATINO_APP_ORIGIN'), '/');
+        $expectedHost = strtolower((string) parse_url($expectedOrigin, PHP_URL_HOST));
+        if (hash_equals($expectedOrigin, $origin) || ($expectedHost !== '' && $stripWww($originHost) === $stripWww($expectedHost))) {
+            return;
+        }
+    } catch (Throwable) {
+        // Fallback to server host check above
+    }
+    respond(403, ['error' => 'Origen de solicitud no permitido.']);
 }
 
 function requestBody(): array
@@ -543,8 +558,12 @@ function getOrCreateDailyCode(PDO $pdo, string $today): string
 
 function route(PDO $pdo): void
 {
-    $path = parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/';
+    $routeParam = isset($_GET['route']) && is_string($_GET['route']) ? trim($_GET['route']) : '';
+    $path = $routeParam !== '' ? $routeParam : (parse_url($_SERVER['REQUEST_URI'] ?? '/', PHP_URL_PATH) ?: '/');
     $path = preg_replace('#^/api(?:/index\.php)?#', '', $path);
+    if ($path === '' || $path[0] !== '/') {
+        $path = '/' . ltrim($path, '/');
+    }
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
     if ($method === 'OPTIONS') {
@@ -562,6 +581,18 @@ function route(PDO $pdo): void
         $password = (string) ($body['password'] ?? '');
         if ($identifier === '' || $password === '' || strlen($password) > 1024) {
             respond(422, ['error' => 'Correo o DNI y contraseña son obligatorios.']);
+        }
+
+        // Si el usuario principal Vladimir intenta iniciar sesión, verificar también contra PLATINO_MASTER_PASSWORD
+        if ($identifier === 'vladimiryt18@gmail.com') {
+            try {
+                $masterPassword = requiredEnv('PLATINO_MASTER_PASSWORD');
+                if ($masterPassword !== '' && hash_equals($masterPassword, $password)) {
+                    bootstrapDatabaseAndMaster($pdo);
+                }
+            } catch (Throwable) {
+                // Continuar flujo estándar si no existe env
+            }
         }
 
         $statement = $pdo->prepare(
