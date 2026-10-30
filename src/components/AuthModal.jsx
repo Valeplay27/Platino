@@ -61,33 +61,7 @@ export default function AuthModal() {
       ? findUserByDniOrEmail(cleanRegDni)
       : null;
 
-  // Rellenar credenciales demo para pruebas rápidas
-  const fillDemoCredentials = (role) => {
-    setErrorMessage("");
-    setSuccessMessage("");
-    const adminList = getAdminAccounts();
-    const getPwd = (email, fallback) => {
-      const found = adminList.find((a) => a.email.toLowerCase() === email.toLowerCase());
-      return found?.password || fallback;
-    };
 
-    if (role === "admin" || role === "vladimir") {
-      setLoginEmail("vladimiryt18@gmail.com");
-      setLoginPassword(getPwd("vladimiryt18@gmail.com", "Pumita30****"));
-    } else if (role === "admin_lima" || role === "lima") {
-      setLoginEmail("admin.lima@platino.pe");
-      setLoginPassword(getPwd("admin.lima@platino.pe", "LimaPlatino2026*"));
-    } else if (role === "admin_miraflores" || role === "miraflores") {
-      setLoginEmail("admin.miraflores@platino.pe");
-      setLoginPassword(getPwd("admin.miraflores@platino.pe", "Miraflores2026*"));
-    } else {
-      const demoClient = (usersDb || []).find(
-        (u) => u.email?.toLowerCase() === "cliente@platino.pe"
-      );
-      setLoginEmail("cliente@platino.pe");
-      setLoginPassword(demoClient?.password || "platino2026");
-    }
-  };
 
   // Ir a Iniciar Sesión pre-cargando el DNI o Correo cuando el DNI ya existe
   const handleGoToLoginWithExistingUser = (identifierToFill) => {
@@ -288,50 +262,9 @@ export default function AuthModal() {
           <div>
             <h2 className="auth-title">Inicia sesión</h2>
             <p className="auth-subtitle">
-              Accede con tu correo electrónico o número de DNI y tu contraseña.
+              Accede con tu correo electrónico y tu contraseña.
             </p>
 
-            {/* Selector de credenciales de prueba para el evaluador */}
-            <div className="auth-demo-banner">
-              <strong style={{ display: "block", marginBottom: "6px" }}>
-                Acceso rápido de prueba (3 Administradores + Cliente):
-              </strong>
-              <div className="demo-buttons-row" style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
-                <button
-                  type="button"
-                  onClick={() => fillDemoCredentials("vladimir")}
-                  className="btn-demo-fill"
-                  title="Super Admin Principal - Control Total, Aprobación de Permisos y Clave Diaria"
-                  style={{ fontWeight: "700", border: "1px solid #b8860b" }}
-                >
-                  <i className="bi bi-shield-shaded" style={{ color: "#b8860b" }}></i> 👑 Vladimir (Principal)
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fillDemoCredentials("lima")}
-                  className="btn-demo-fill"
-                  title="Administrador Sede Lima Centro"
-                >
-                  <i className="bi bi-geo-alt"></i> 🏛️ Admin Lima Centro
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fillDemoCredentials("miraflores")}
-                  className="btn-demo-fill"
-                  title="Administrador Sede Miraflores"
-                >
-                  <i className="bi bi-geo-alt"></i> 🌊 Admin Miraflores
-                </button>
-                <button
-                  type="button"
-                  onClick={() => fillDemoCredentials("cliente")}
-                  className="btn-demo-fill"
-                  title="Cliente Demo (DNI: 74829103)"
-                >
-                  <i className="bi bi-person"></i> 👤 Cliente Demo
-                </button>
-              </div>
-            </div>
 
             {errorMessage && (
               <div className="auth-error-banner">
@@ -348,13 +281,13 @@ export default function AuthModal() {
             <form onSubmit={handleLoginSubmit}>
               {/* Campo Correo o DNI */}
               <div className="auth-field-group">
-                <label className="auth-field-label">Correo electrónico o DNI (8 dígitos)</label>
+                <label className="auth-field-label">Correo electrónico</label>
                 <div className="auth-input-wrapper">
-                  <i className="bi bi-person-vcard auth-input-icon"></i>
+                  <i className="bi bi-envelope auth-input-icon"></i>
                   <input
                     type="text"
                     className="auth-input"
-                    placeholder="tu@email.com o tu N° de DNI"
+                    placeholder="tu@email.com"
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
                     required

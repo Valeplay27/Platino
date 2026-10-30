@@ -37,7 +37,7 @@ export default function ClientOrders({ addToCart }) {
     if (user && user.email) {
       return getOrdersByClientEmail(user.email);
     }
-    return getOrders();
+    return [];
   }, [user]);
 
   const [orders, setOrders] = useState(getInitialOrders);
@@ -323,7 +323,8 @@ export default function ClientOrders({ addToCart }) {
           </div>
         </section>
 
-        {/* Barra de Acceso Rápido y Generador de Prueba */}
+        {/* Barra de Acceso Rápido visible únicamente para Administrador en modo prueba */}
+        {user?.role === "admin" && (
         <div className="orders-demo-banner">
           <div className="orders-demo-text">
             <i className="bi bi-magic" style={{ fontSize: "20px", color: "#b45309" }}></i>
@@ -353,6 +354,7 @@ export default function ClientOrders({ addToCart }) {
             )}
           </div>
         </div>
+        )}
 
         {/* Pestañas de Navegación y Búsqueda */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px", marginBottom: "20px" }}>
@@ -1061,9 +1063,10 @@ export default function ClientOrders({ addToCart }) {
             <p style={{ color: "#68776f", fontSize: "14px", maxWidth: "450px", margin: "0 auto 20px" }}>
               {searchCode
                 ? `No hay órdenes que coincidan con "${searchCode}".`
-                : "Puedes generar un pedido de demostración o explorar nuestro catálogo."}
+                : "Aún no registras pedidos en tu cuenta. Explora nuestro catálogo y elige tus joyas favoritas."}
             </p>
             <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
+              {user?.role === "admin" && (
               <button
                 type="button"
                 className="btn-order-action"
@@ -1072,6 +1075,7 @@ export default function ClientOrders({ addToCart }) {
               >
                 <i className="bi bi-plus-circle"></i> Generar Pedido de Demostración
               </button>
+              )}
               <Link to="/catalogo" className="btn-order-action" style={{ background: "#0f2a24", color: "#ffffff", padding: "10px 22px" }}>
                 <i className="bi bi-gem"></i> Explorar Catálogo de Joyas
               </Link>

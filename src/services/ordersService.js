@@ -421,14 +421,9 @@ const saveOrders = (orders) => {
 // Obtener pedidos de un cliente por su correo
 export const getOrdersByClientEmail = (email) => {
   const all = getOrders();
-  if (!email) return all;
+  if (!email) return [];
   const cleanEmail = email.trim().toLowerCase();
-  const directMatches = all.filter((o) => o.clientEmail.toLowerCase() === cleanEmail);
-  if (directMatches.length > 0) return directMatches;
-
-  // Si es la cuenta de Vladimir / Admin, o si no tiene órdenes registradas con este correo,
-  // mostrar las órdenes de demostración disponibles para que siempre pueda visualizar el detallado y probar los avances
-  return all;
+  return all.filter((o) => (o.clientEmail || '').trim().toLowerCase() === cleanEmail);
 };
 
 // Avanzar al siguiente paso del proceso de fabricación
