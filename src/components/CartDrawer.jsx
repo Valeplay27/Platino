@@ -88,7 +88,7 @@ export default function CartDrawer({
                   }}
                 >
                   <img
-                    src={getAssetUrl("/images/platino-logo-gold.jpg")}
+                    src={getAssetUrl("/images/platino-logo-emerald.jpg")}
                     alt="Logo Platino"
                     style={{
                       width: "13px",
@@ -172,7 +172,7 @@ export default function CartDrawer({
                   }}
                 >
                   <img
-                    src={getAssetUrl("/images/platino-logo-gold.jpg")}
+                    src={getAssetUrl("/images/platino-logo-emerald.jpg")}
                     alt="Logo Platino Perú"
                     style={{
                       width: "24px",

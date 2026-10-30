@@ -80,7 +80,7 @@
   height: 34px;
   border-radius: 7px;
   object-fit: cover;
-  box-shadow: 0 2px 8px rgba(197, 160, 89, 0.3);
+  box-shadow: 0 2px 8px rgba(8, 66, 54, 0.25);
   flex-shrink: 0;
   display: block;
 }

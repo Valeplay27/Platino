@@ -82,7 +82,7 @@ function Cart({ cart, updateQuantity }) {
                   }}
                 >
                   <img
-                    src={getAssetUrl("/images/platino-logo-gold.jpg")}
+                    src={getAssetUrl("/images/platino-logo-emerald.jpg")}
                     alt="Logo Platino Perú"
                     style={{
                       width: "22px",
@@ -229,7 +229,7 @@ function Cart({ cart, updateQuantity }) {
                   }}
                 >
                   <img
-                    src={getAssetUrl("/images/platino-logo-gold.jpg")}
+                    src={getAssetUrl("/images/platino-logo-emerald.jpg")}
                     alt="Platino Logo"
                     style={{
                       width: "30px",
@@ -336,7 +336,7 @@ function Cart({ cart, updateQuantity }) {
                         alt={item.name}
                         style={{ width: "100%", height: "100%", objectFit: "cover" }}
                         onError={(e) => {
-                          e.currentTarget.src = getAssetUrl("/images/platino-logo-gold.jpg");
+                          e.currentTarget.src = getAssetUrl("/images/platino-logo-emerald.jpg");
                         }}
                       />
                     </div>

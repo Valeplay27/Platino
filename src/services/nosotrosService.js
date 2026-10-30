@@ -18,7 +18,7 @@ export const DEFAULT_NOSOTROS_CONTENT = {
       "Nuestros maestros joyeros forjan a mano cada montura asegurando confort ergonómico, brillo imperecedero y proporciones áureas que destacan la belleza inigualable de cada piedra central.",
     paragraph3:
       "Desde nuestro taller fundado en Lima, combinamos la técnica ancestral de fundición a la cera perdida con modelado digital 3D de alta precisión, garantizando que cada joya entregada sea un legado eterno para las familias peruanas.",
-    image: "/images/platino-logo-gold.jpg",
+    image: "/images/platino-logo-emerald.jpg",
     imageCaption: "Platino Perú - Taller y Showroom de Alta Joyería",
   },
   misionVision: {
@@ -59,9 +59,15 @@ export const getNosotrosContent = () => {
     const raw = localStorage.getItem(STORAGE_KEY_NOSOTROS);
     if (!raw) return DEFAULT_NOSOTROS_CONTENT;
     const parsed = JSON.parse(raw);
+    const historia = { ...DEFAULT_NOSOTROS_CONTENT.historia, ...(parsed.historia || {}) };
+    const imagePath = historia.image?.split(/[?#]/, 1)[0].toLowerCase();
+    if (imagePath?.endsWith("platino-logo-gold.jpg")) {
+      historia.image = "/images/platino-logo-emerald.jpg";
+    }
+
     return {
       hero: { ...DEFAULT_NOSOTROS_CONTENT.hero, ...(parsed.hero || {}) },
-      historia: { ...DEFAULT_NOSOTROS_CONTENT.historia, ...(parsed.historia || {}) },
+      historia,
       misionVision: { ...DEFAULT_NOSOTROS_CONTENT.misionVision, ...(parsed.misionVision || {}) },
       pilares: { ...DEFAULT_NOSOTROS_CONTENT.pilares, ...(parsed.pilares || {}) },
       talleresBoutiques: { ...DEFAULT_NOSOTROS_CONTENT.talleresBoutiques, ...(parsed.talleresBoutiques || {}) },

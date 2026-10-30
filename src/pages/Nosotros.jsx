@@ -514,17 +514,10 @@ export default function Nosotros() {
                       type="text"
                       value={formData.historia.image}
                       onChange={(e) => handleFieldChange("historia", "image", e.target.value)}
-                      placeholder="/images/platino-logo-gold.jpg"
+                      placeholder="/images/platino-logo-emerald.jpg"
                       style={{ width: "100%", padding: "10px 14px", borderRadius: "8px", border: "1px solid #d2cbbe", fontSize: "13.5px" }}
                     />
                     <div style={{ display: "flex", gap: "8px", marginTop: "8px" }}>
-                      <button
-                        type="button"
-                        onClick={() => handleFieldChange("historia", "image", "/images/platino-logo-gold.jpg")}
-                        style={{ fontSize: "11px", padding: "4px 8px", background: "#f0ece1", border: "1px solid #dcd4c3", borderRadius: "4px", cursor: "pointer" }}
-                      >
-                        Logo Dorado
-                      </button>
                       <button
                         type="button"
                         onClick={() => handleFieldChange("historia", "image", "/images/platino-logo-emerald.jpg")}
@@ -940,7 +933,7 @@ export default function Nosotros() {
               }}
             >
               <img
-                src={getAssetUrl(content.historia.image || "/images/platino-logo-gold.jpg")}
+                src={getAssetUrl(content.historia.image || "/images/platino-logo-emerald.jpg")}
                 alt={content.historia.imageCaption || "Platino Perú Insignia"}
                 style={{
                   maxWidth: "280px",

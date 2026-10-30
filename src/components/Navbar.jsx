@@ -162,7 +162,7 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
           {/* Logo Center */}
           <Link to="/" className="brand-logo" aria-label="Platino Perú Inicio">
             <img
-              src={getAssetUrl("/images/platino-logo-gold.jpg")}
+              src={getAssetUrl("/images/platino-logo-emerald.jpg")}
               alt="Platino Perú Insignia"
               className="brand-logo-img"
             />
@@ -234,7 +234,7 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                     <div className="bag-handles"></div>
                     <div className="bag-body">
                       <img
-                        src={getAssetUrl("/images/platino-logo-gold.jpg")}
+                        src={getAssetUrl("/images/platino-logo-emerald.jpg")}
                         alt="Logo Platino Perú"
                         className="bag-center-logo"
                       />
