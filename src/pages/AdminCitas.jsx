@@ -460,6 +460,7 @@ export default function AdminCitas() {
   const [formSelectedMetal, setFormSelectedMetal] = useState("Oro 18k Blanco");
   const [formMetalPrices, setFormMetalPrices] = useState({});
   const [formMetalImages, setFormMetalImages] = useState({});
+  const [formMetalGalleries, setFormMetalGalleries] = useState({});
   const [formShowDeliveryEstimate, setFormShowDeliveryEstimate] = useState(true);
   const [formHasGemSelection, setFormHasGemSelection] = useState(true);
   const [formAvailableGemShapes, setFormAvailableGemShapes] = useState(() => (Array.isArray(MASTER_GEM_SHAPES) ? MASTER_GEM_SHAPES.map((s) => s.id) : []));
@@ -1622,12 +1623,15 @@ export default function AdminCitas() {
     setFormSelectedMetal("Oro 18k Blanco");
     const initPrices = {};
     const initImages = {};
+    const initGalleries = {};
     initMetals.forEach((mId) => {
       initPrices[mId] = "";
-      initImages[mId] = ""; // Vacío por defecto: obliga a subir una foto individual por cada material
+      initImages[mId] = ""; // Vacío por defecto: obliga a subir al menos una foto por cada material
+      initGalleries[mId] = [""];
     });
     setFormMetalPrices(initPrices);
     setFormMetalImages(initImages);
+    setFormMetalGalleries(initGalleries);
     setFormShowDeliveryEstimate(initialGroup !== "anillos");
     setFormHasGemSelection(initialGroup === "anillos");
     const masterShapes = Array.isArray(MASTER_GEM_SHAPES) ? MASTER_GEM_SHAPES : [];
@@ -1682,8 +1686,10 @@ export default function AdminCitas() {
 
     const existingPrices = prod.metalPrices || {};
     const existingImages = prod.metalImages || {};
+    const existingGalleries = prod.metalGalleries || {};
     const editPrices = {};
     const editImages = {};
+    const editGalleries = {};
 
     finalMetals.forEach((mId) => {
       let p = existingPrices[mId];
@@ -1692,16 +1698,22 @@ export default function AdminCitas() {
       if (p === undefined && mId === "oro-18k-rosa") p = existingPrices["oro-rosa-18k"];
       editPrices[mId] = p !== undefined && p !== null ? String(p) : (prod.price ? String(prod.price) : "");
 
-      // Foto estrictamente individual por cada material (sin agrupar en solo 3 imágenes)
       let img = existingImages[mId] || "";
       if (!img && mId === "oro-18k-blanco") img = existingImages["oro-blanco-18k"] || "";
       if (!img && mId === "oro-18k-amarillo") img = existingImages["oro-amarillo-18k"] || "";
       if (!img && mId === "oro-18k-rosa") img = existingImages["oro-rosa-18k"] || "";
-      editImages[mId] = img;
+
+      const rawSeq = Array.isArray(existingGalleries[mId])
+        ? existingGalleries[mId].filter((u) => typeof u === "string" && u.trim())
+        : [];
+      const seq = rawSeq.length > 0 ? rawSeq : (img ? [img] : [""]);
+      editGalleries[mId] = seq;
+      editImages[mId] = seq.find((u) => u && u.trim()) || img || "";
     });
 
     setFormMetalPrices(editPrices);
     setFormMetalImages(editImages);
+    setFormMetalGalleries(editGalleries);
 
     // Siluetas y formas de gemas para este modelo
     const hasGems = prod.hasGemSelection !== undefined 
@@ -1835,25 +1847,81 @@ export default function AdminCitas() {
     setFormPrice(sourcePrice);
   };
 
-  const handleMetalImageChange = (metalId, val) => {
+  const getMetalGalleryList = (metalId) => {
+    const list = formMetalGalleries[metalId];
+    if (Array.isArray(list) && list.length > 0) return list;
+    return [formMetalImages[metalId] || ""];
+  };
+
+  const updateMetalGalleryState = (metalId, nextList) => {
+    const safeList = Array.isArray(nextList) && nextList.length > 0 ? nextList : [""];
+    const firstValid = safeList.find((u) => typeof u === "string" && u.trim()) || "";
+    setFormMetalGalleries((prev) => ({
+      ...prev,
+      [metalId]: safeList,
+    }));
     setFormMetalImages((prev) => ({
       ...prev,
-      [metalId]: val,
+      [metalId]: firstValid,
     }));
   };
 
-  const handleMetalFileUpload = async (metalId, e) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      try {
+  const handleMetalImageChange = (metalId, val, index = 0) => {
+    const current = [...getMetalGalleryList(metalId)];
+    current[index] = val;
+    updateMetalGalleryState(metalId, current);
+  };
+
+  const handleAddMetalPhotoSlot = (metalId) => {
+    const current = [...getMetalGalleryList(metalId), ""];
+    updateMetalGalleryState(metalId, current);
+  };
+
+  const handleRemoveMetalPhotoSlot = (metalId, index) => {
+    const current = [...getMetalGalleryList(metalId)];
+    if (current.length <= 1) {
+      updateMetalGalleryState(metalId, [""]);
+      return;
+    }
+    current.splice(index, 1);
+    updateMetalGalleryState(metalId, current);
+  };
+
+  const handleMoveMetalPhotoSlot = (metalId, index, direction) => {
+    const current = [...getMetalGalleryList(metalId)];
+    const target = index + direction;
+    if (target < 0 || target >= current.length) return;
+    const temp = current[index];
+    current[index] = current[target];
+    current[target] = temp;
+    updateMetalGalleryState(metalId, current);
+  };
+
+  const handleMetalFileUpload = async (metalId, e, slotIndex = null) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    try {
+      const compressedList = [];
+      for (const file of files) {
         const compressed = await compressImageFile(file);
-        setFormMetalImages((prev) => ({
-          ...prev,
-          [metalId]: compressed,
-        }));
-      } catch (err) {
-        alert(err.message || "Error al procesar la imagen del material.");
+        compressedList.push(compressed);
       }
+      const current = [...getMetalGalleryList(metalId)];
+      if (slotIndex !== null && slotIndex >= 0) {
+        current.splice(slotIndex, 1, ...compressedList);
+      } else {
+        // Si el primer espacio está vacío, reemplazarlo; si no, agregar al final respetando la secuencia
+        if (current.length === 1 && (!current[0] || !current[0].trim())) {
+          current.splice(0, 1, ...compressedList);
+        } else {
+          current.push(...compressedList);
+        }
+      }
+      updateMetalGalleryState(metalId, current);
+    } catch (err) {
+      alert(err.message || "Error al procesar las imágenes del material.");
+    } finally {
+      e.target.value = "";
     }
   };
 
@@ -1971,12 +2039,15 @@ export default function AdminCitas() {
       }
     }
 
-    // 2. Validar OBLIGATORIAMENTE que cada material seleccionado tenga fotografía asignada
+    // 2. Validar OBLIGATORIAMENTE que cada material seleccionado tenga al menos una fotografía asignada
     for (const mId of formAvailableMetals) {
       const metalObj = METALS.find((m) => m.id === mId) || { name: mId };
-      const imgVal = formMetalImages[mId];
-      if (!imgVal || !imgVal.trim()) {
-        alert(`⚠️ Falta la fotografía obligatoria para el material "${metalObj.name}". Es obligatorio asignar una foto para cada material seleccionado.`);
+      const seq = getMetalGalleryList(mId)
+        .map((u) => (typeof u === "string" ? u.trim() : ""))
+        .filter(Boolean);
+      const imgVal = seq[0] || (formMetalImages[mId] || "").trim();
+      if (!imgVal) {
+        alert(`⚠️ Falta la fotografía para el material "${metalObj.name}". Es obligatorio asignar al menos una foto para cada material seleccionado.`);
         return;
       }
     }
@@ -1992,9 +2063,15 @@ export default function AdminCitas() {
 
     const metalPricesMap = {};
     const metalImagesMap = {};
+    const metalGalleriesMap = {};
     formAvailableMetals.forEach((mId) => {
       metalPricesMap[mId] = Number(formMetalPrices[mId]);
-      metalImagesMap[mId] = formMetalImages[mId].trim();
+      const seq = getMetalGalleryList(mId)
+        .map((u) => (typeof u === "string" ? u.trim() : ""))
+        .filter(Boolean);
+      const primary = seq[0] || (formMetalImages[mId] || "").trim();
+      metalGalleriesMap[mId] = seq.length > 0 ? seq : [primary];
+      metalImagesMap[mId] = primary;
     });
 
     const defaultMetalObj = activeMetalsObjects.find((m) => m.name === finalSelectedMetal) || activeMetalsObjects[0];
@@ -2013,10 +2090,11 @@ export default function AdminCitas() {
 
     const finalBoxImage = formBoxImage.trim() || "/images/detail-box-green.jpg";
     const allImagesToInclude = [
+      ...(metalGalleriesMap[defaultMetalId] || []),
       mainImg,
+      ...Object.values(metalGalleriesMap).flat().filter((v) => typeof v === "string"),
       ...Object.values(metalImagesMap).filter((v) => typeof v === "string"),
       finalBoxImage,
-      ...(Array.isArray(editingProduct?.gallery) ? editingProduct.gallery : [])
     ].filter(Boolean);
     const baseGallery = Array.from(new Set(allImagesToInclude));
 
@@ -2039,6 +2117,7 @@ export default function AdminCitas() {
       boxImage: finalBoxImage,
       gallery: baseGallery,
       metalImages: metalImagesMap,
+      metalGalleries: metalGalleriesMap,
       availableMetals: activeMetalsObjects,
       selectedMetal: finalSelectedMetal,
       showDeliveryEstimate: isRingGroup ? false : formShowDeliveryEstimate,
@@ -10861,12 +10940,12 @@ export default function AdminCitas() {
                       </span>
                     </div>
                     <span className="metal-photos-badge" style={{ background: "#e8f2ec", color: "#113B3A", fontWeight: "600" }}>
-                      <i className="bi bi-check2-circle"></i> 1 Foto y 1 Precio por cada material
+                      <i className="bi bi-images"></i> Secuencia ilimitada de fotos + Precio por material
                     </span>
                   </div>
 
                   <p style={{ fontSize: "12.5px", color: "#4f6057", margin: 0, lineHeight: 1.45 }}>
-                    <strong>No se limitan a 3 imágenes</strong>: cada material seleccionado tiene su propia fotografía individual obligatoria y su valor en Soles (S/.). Sube o ingresa la foto para cada uno de los materiales que habilitaste en el Paso 3.
+                    <strong>Secuencia de imágenes por material</strong>: agrega todas las fotografías que necesites para cada material y ordénalas con las flechas (<strong>↑ / ↓</strong>). En la página del producto se mostrarán exactamente en esa misma secuencia.
                   </p>
 
                   {/* Barra de Atajos Rápidos para Precios */}
@@ -10896,7 +10975,7 @@ export default function AdminCitas() {
                         const metal = METALS.find((m) => m.id === mId) || { id: mId, name: mId, color: "#e4e7e7", border: "#cfd3d3", group: "General" };
                         const isDefault = formSelectedMetal === metal.name;
                         const currentPrice = formMetalPrices[mId] ?? "";
-                        const currentImg = formMetalImages[mId] || "";
+                        const gallerySeq = getMetalGalleryList(mId);
 
                         return (
                           <div
@@ -10955,52 +11034,185 @@ export default function AdminCitas() {
                               </div>
                             </div>
 
-                            {/* Campo de Foto Obligatoria por este material */}
-                            <div className="metal-photo-field" style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                              <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#173628" }}>
-                                Foto Obligatoria para {metal.name} *
-                              </label>
-
-                              {/* Preview de la foto */}
-                              <div className="metal-photo-preview" style={{ height: "135px" }}>
-                                {currentImg ? (
-                                  <img
-                                    src={currentImg}
-                                    alt={`Foto ${metal.name}`}
-                                    onError={(e) => {
-                                      e.target.onerror = null;
-                                      e.target.src = "/images/cat-compromiso.jpg";
-                                    }}
-                                  />
-                                ) : (
-                                  <div className="metal-photo-preview-placeholder">
-                                    <i className="bi bi-camera" style={{ fontSize: "24px", color: "#d9534f" }}></i>
-                                    <span style={{ color: "#d9534f", fontWeight: "600" }}>Foto requerida</span>
-                                  </div>
-                                )}
+                            {/* Secuencia de Fotos para este material */}
+                            <div className="metal-photo-field" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#173628" }}>
+                                  Secuencia de Fotos para {metal.name} ({gallerySeq.filter((u) => u && u.trim()).length}) *
+                                </label>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddMetalPhotoSlot(metal.id)}
+                                  style={{
+                                    background: "#edf5f0",
+                                    border: "1px solid #0d5c36",
+                                    color: "#0d5c36",
+                                    fontSize: "10.5px",
+                                    fontWeight: "700",
+                                    padding: "3px 8px",
+                                    borderRadius: "6px",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  + Agregar foto
+                                </button>
                               </div>
 
-                              {/* Input de URL / Ruta */}
-                              <input
-                                type="text"
-                                className="catalog-form-input"
-                                style={{ fontSize: "11.5px", padding: "6px 8px" }}
-                                placeholder={`/images/... o https:// para ${metal.name}`}
-                                value={currentImg}
-                                onChange={(e) => handleMetalImageChange(metal.id, e.target.value)}
-                                required
-                              />
+                              {gallerySeq.map((slotImg, slotIdx) => (
+                                <div
+                                  key={`${metal.id}-slot-${slotIdx}`}
+                                  style={{
+                                    border: "1px solid #dfe8e3",
+                                    borderRadius: "8px",
+                                    padding: "8px",
+                                    background: slotIdx === 0 ? "#fcfdfa" : "#f8faf9",
+                                    display: "flex",
+                                    flexDirection: "column",
+                                    gap: "6px",
+                                  }}
+                                >
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                    <span style={{ fontSize: "10.5px", fontWeight: "700", color: slotIdx === 0 ? "#0d5c36" : "#506258" }}>
+                                      {slotIdx === 0 ? "Foto #1 (Principal)" : `Foto #${slotIdx + 1} en secuencia`}
+                                    </span>
+                                    <div style={{ display: "flex", gap: "4px" }}>
+                                      {gallerySeq.length > 1 && (
+                                        <>
+                                          <button
+                                            type="button"
+                                            disabled={slotIdx === 0}
+                                            onClick={() => handleMoveMetalPhotoSlot(metal.id, slotIdx, -1)}
+                                            title="Subir en la secuencia"
+                                            style={{
+                                              border: "1px solid #cbd8d1",
+                                              background: "#fff",
+                                              borderRadius: "4px",
+                                              padding: "1px 5px",
+                                              fontSize: "10px",
+                                              cursor: slotIdx === 0 ? "not-allowed" : "pointer",
+                                              opacity: slotIdx === 0 ? 0.4 : 1,
+                                            }}
+                                          >
+                                            ↑
+                                          </button>
+                                          <button
+                                            type="button"
+                                            disabled={slotIdx === gallerySeq.length - 1}
+                                            onClick={() => handleMoveMetalPhotoSlot(metal.id, slotIdx, 1)}
+                                            title="Bajar en la secuencia"
+                                            style={{
+                                              border: "1px solid #cbd8d1",
+                                              background: "#fff",
+                                              borderRadius: "4px",
+                                              padding: "1px 5px",
+                                              fontSize: "10px",
+                                              cursor: slotIdx === gallerySeq.length - 1 ? "not-allowed" : "pointer",
+                                              opacity: slotIdx === gallerySeq.length - 1 ? 0.4 : 1,
+                                            }}
+                                          >
+                                            ↓
+                                          </button>
+                                          <button
+                                            type="button"
+                                            onClick={() => handleRemoveMetalPhotoSlot(metal.id, slotIdx)}
+                                            title="Quitar esta foto"
+                                            style={{
+                                              border: "1px solid #f1b8b6",
+                                              background: "#fff5f5",
+                                              color: "#c9302c",
+                                              borderRadius: "4px",
+                                              padding: "1px 6px",
+                                              fontSize: "10px",
+                                              cursor: "pointer",
+                                            }}
+                                          >
+                                            ✕
+                                          </button>
+                                        </>
+                                      )}
+                                    </div>
+                                  </div>
 
-                              {/* Botón de subir archivo con compresión */}
-                              <label className="btn-upload-metal-file" style={{ padding: "6px 10px", fontSize: "11.5px" }}>
-                                <i className="bi bi-cloud-arrow-up-fill"></i> Subir foto de {metal.name}
-                                <input
-                                  type="file"
-                                  accept="image/*"
-                                  onChange={(e) => handleMetalFileUpload(metal.id, e)}
-                                  style={{ display: "none" }}
-                                />
-                              </label>
+                                  {/* Preview de la foto */}
+                                  <div className="metal-photo-preview" style={{ height: slotIdx === 0 ? "125px" : "95px" }}>
+                                    {slotImg ? (
+                                      <img
+                                        src={slotImg}
+                                        alt={`Foto #${slotIdx + 1} ${metal.name}`}
+                                        onError={(e) => {
+                                          e.target.onerror = null;
+                                          e.target.src = "/images/cat-compromiso.jpg";
+                                        }}
+                                      />
+                                    ) : (
+                                      <div className="metal-photo-preview-placeholder">
+                                        <i className="bi bi-camera" style={{ fontSize: "20px", color: slotIdx === 0 ? "#d9534f" : "#7b8c83" }}></i>
+                                        <span style={{ color: slotIdx === 0 ? "#d9534f" : "#7b8c83", fontWeight: "600", fontSize: "11px" }}>
+                                          {slotIdx === 0 ? "Foto #1 requerida" : `Foto #${slotIdx + 1}`}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+
+                                  {/* Input de URL / Ruta */}
+                                  <input
+                                    type="text"
+                                    className="catalog-form-input"
+                                    style={{ fontSize: "11px", padding: "5px 8px" }}
+                                    placeholder={`/images/... o https:// (Foto #${slotIdx + 1} ${metal.name})`}
+                                    value={slotImg}
+                                    onChange={(e) => handleMetalImageChange(metal.id, e.target.value, slotIdx)}
+                                    required={slotIdx === 0}
+                                  />
+
+                                  {/* Subir archivo para este slot */}
+                                  <label className="btn-upload-metal-file" style={{ padding: "5px 8px", fontSize: "11px" }}>
+                                    <i className="bi bi-upload"></i> Subir Foto #{slotIdx + 1}
+                                    <input
+                                      type="file"
+                                      accept="image/*"
+                                      onChange={(e) => handleMetalFileUpload(metal.id, e, slotIdx)}
+                                      style={{ display: "none" }}
+                                    />
+                                  </label>
+                                </div>
+                              ))}
+
+                              {/* Botones para agregar más fotos o subir varias de golpe en orden */}
+                              <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", marginTop: "2px" }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleAddMetalPhotoSlot(metal.id)}
+                                  style={{
+                                    flex: 1,
+                                    padding: "6px 8px",
+                                    fontSize: "11px",
+                                    fontWeight: "600",
+                                    borderRadius: "6px",
+                                    border: "1px dashed #0d5c36",
+                                    background: "#f4faf6",
+                                    color: "#0d5c36",
+                                    cursor: "pointer",
+                                  }}
+                                >
+                                  <i className="bi bi-plus-circle"></i> Añadir otra imagen
+                                </button>
+
+                                <label
+                                  className="btn-upload-metal-file"
+                                  style={{ flex: 1, padding: "6px 8px", fontSize: "11px", margin: 0, textAlign: "center" }}
+                                  title="Selecciona varias fotos a la vez desde tu computadora"
+                                >
+                                  <i className="bi bi-cloud-arrow-up-fill"></i> Subir varias fotos
+                                  <input
+                                    type="file"
+                                    accept="image/*"
+                                    multiple
+                                    onChange={(e) => handleMetalFileUpload(metal.id, e, null)}
+                                    style={{ display: "none" }}
+                                  />
+                                </label>
+                              </div>
                             </div>
                           </div>
                         );

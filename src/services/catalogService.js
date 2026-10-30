@@ -1,6 +1,55 @@
 import { products as defaultProducts, formatPrice, METALS, DEFAULT_METAL_IMAGES, MASTER_GEM_SHAPES } from "../data/products";
 import { getRemoteData, setRemoteData } from "./remoteData";
 
+const REMOVED_DEMO_PRODUCT_IDS = new Set([
+  "collar-cristal",
+  "anillo-9-promesas",
+  "aros-trial",
+  "anillo-solitario-sublime",
+  "anillo-trilogia-tres-piedras",
+  "anillo-vintage-heritage",
+  "anillo-moderno-bisel",
+  "anillo-compromiso-esmeralda-real",
+  "anillo-compromiso-rubi-pasion",
+  "anillo-compromiso-zafiro-royal",
+  "anillo-corazon-amor-eterno",
+  "anillo-marquesa-realeza",
+  "aros-romance-clasico",
+  "anillo-promesa-esmeralda",
+  "pulsera-tennis-diamantes",
+  "collar-solitario-lagrima",
+  "aros-alianza-eterna",
+  "aros-boda-pedreria-lux",
+  "aros-boda-textura-laurel",
+  "aros-boda-moderno-dual",
+  "aros-boda-vintage-milgrain",
+  "porta-aros-cristal-lujo",
+  "copas-decoradas-nupciales",
+  "cuadros-conmemorativos-boda",
+  "aretes-bebes-bolita-oro",
+  "aretes-pegados-solitarios",
+  "aretes-colgantes-cascada",
+  "relicario-corazon-oro",
+  "cadena-grumet-varon",
+  "tobillera-esferas-plata",
+  "anillo-promesa-infinito-oro",
+  "anillo-promesa-nudo-amor",
+  "anillo-promesa-moderno-onda",
+  "alianza-amor-clasica-oro",
+  "alianza-amor-sin-pedreria-dual",
+  "alianza-amor-moderna-bisel",
+  "alianza-amor-vintage-corona",
+  "collar-cruz-latina-oro",
+  "collar-nombre-personalizado",
+  "juego-nupcial-perlas-australianas",
+  "aro-casual-varon-plata-oro",
+  "pulsera-eslabon-hombre-baraka",
+  "reloj-cronografo-platino-swiss",
+  "aretes-nina-mariposa-oro",
+  "cadena-bebe-angel-guarda",
+  "esclava-bebe-identidad-oro",
+]);
+
 // Normalizar metales disponibles con los 10 metales oficiales y fotos por metal
 const normalizeProductMetals = (prod) => {
   const defaultProdMatch = defaultProducts.find((p) => p.id === prod.id);
@@ -9,15 +58,21 @@ const normalizeProductMetals = (prod) => {
     prod.metalImages ||
     defaultProdMatch?.metalImages ||
     (prod.id === "aros-trial" ? DEFAULT_METAL_IMAGES : null);
+  const metalGalleries = prod.metalGalleries || defaultProdMatch?.metalGalleries || null;
   const boxImage = prod.boxImage || defaultProdMatch?.boxImage || "/images/detail-box-green.jpg";
 
-  // Reconstruir portafolio de galería unificando foto principal, variantes por metal y caja de presentación
+  // Reconstruir portafolio de galería unificando foto principal, secuencias por metal y caja de presentación
+  const metalGalleryValues =
+    metalGalleries && typeof metalGalleries === "object"
+      ? Object.values(metalGalleries).flat().filter((v) => typeof v === "string" && v.trim())
+      : [];
   const metalValues = metalImages && typeof metalImages === "object" ? Object.values(metalImages) : [];
   const existingGallery = Array.isArray(prod.gallery) && prod.gallery.length > 0
     ? prod.gallery
     : (Array.isArray(defaultProdMatch?.gallery) ? defaultProdMatch.gallery : []);
   const allGalleryImgs = [
     prod.image || defaultProdMatch?.image || "/images/cat-compromiso.jpg",
+    ...metalGalleryValues,
     ...metalValues,
     boxImage,
     ...existingGallery,
@@ -45,6 +100,7 @@ const normalizeProductMetals = (prod) => {
     availableMetals: finalMetals,
     selectedMetal: prod.selectedMetal || "Oro 18k Blanco",
     metalImages,
+    metalGalleries,
     metalPrices: prod.metalPrices || defaultProdMatch?.metalPrices || null,
     boxImage,
     gallery: combinedGallery,
@@ -59,21 +115,21 @@ const normalizeProductMetals = (prod) => {
   };
 };
 
-// Cargar catálogo remoto o inicializar con valores por defecto
+// Cargar catálogo remoto (sin productos de demostración)
 export const getCatalogProducts = () => {
   const parsed = getRemoteData("catalog", defaultProducts);
-  if (Array.isArray(parsed) && parsed.length > 0) {
-    const merged = [...parsed];
-    defaultProducts.forEach((product) => {
-      if (!merged.some((item) => item.id === product.id)) merged.push(product);
-    });
-    return merged.map(normalizeProductMetals);
+  if (Array.isArray(parsed)) {
+    return parsed
+      .filter((p) => p && !REMOVED_DEMO_PRODUCT_IDS.has(p.id))
+      .map(normalizeProductMetals);
   }
-  return defaultProducts.map(normalizeProductMetals);
+  return [];
 };
 
 export const saveCatalogProducts = (list) => {
-  const normalized = list.map(normalizeProductMetals);
+  const normalized = (Array.isArray(list) ? list : [])
+    .filter((p) => p && !REMOVED_DEMO_PRODUCT_IDS.has(p.id))
+    .map(normalizeProductMetals);
   setRemoteData("catalog", normalized, "catalog_updated", { products: normalized });
   return { success: true };
 };
@@ -124,6 +180,7 @@ export const createProduct = (productData) => {
     image: productData.image || "/images/cat-compromiso.jpg",
     boxImage: finalBoxImage,
     metalImages: productData.metalImages || null,
+    metalGalleries: productData.metalGalleries || null,
     metalPrices: productData.metalPrices || null,
     gallery: combinedGallery,
     badge: productData.badge?.trim() || "Nuevo",
@@ -224,6 +281,7 @@ export const updateProduct = (id, updatedFields) => {
     boxImage: finalBoxImage,
     gallery: combinedGallery,
     metalImages: finalMetalImages,
+    metalGalleries: updatedFields.metalGalleries !== undefined ? updatedFields.metalGalleries : (current.metalGalleries || null),
     metalPrices: updatedFields.metalPrices !== undefined ? updatedFields.metalPrices : (current.metalPrices || null),
     showDeliveryEstimate: updatedFields.showDeliveryEstimate !== undefined
       ? updatedFields.showDeliveryEstimate
@@ -262,8 +320,8 @@ export const deleteProduct = (id) => {
   return true;
 };
 
-// Restaurar catálogo predeterminado
+// Restaurar catálogo predeterminado (vacío sin productos de prueba)
 export const resetToDefaultCatalog = () => {
-  saveCatalogProducts(defaultProducts);
-  return defaultProducts;
+  saveCatalogProducts([]);
+  return [];
 };

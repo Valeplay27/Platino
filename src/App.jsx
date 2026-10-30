@@ -23,6 +23,7 @@ import LibroReclamaciones from './pages/LibroReclamaciones'
 import GoogleReviewsToast from './components/GoogleReviewsToast'
 import CartDrawer from './components/CartDrawer'
 import ApiDataBootstrap from './components/ApiDataBootstrap'
+import MaintenanceNoticeModal from './components/MaintenanceNoticeModal'
 import './App.css'
 
 function App() {
@@ -147,6 +148,7 @@ function App() {
           </Routes>
         </main>
         <Footer />
+        <MaintenanceNoticeModal />
         <AuthModal />
         <CartDrawer
           isOpen={isCartDrawerOpen}

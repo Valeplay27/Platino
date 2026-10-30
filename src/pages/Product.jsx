@@ -22,11 +22,28 @@ import { getAssetUrl } from "../utils/assetHelper";
 import { setLastViewedProduct } from "../services/recentProducts";
 import "../../styles/product.css";
 
+const EMPTY_PRODUCT_PLACEHOLDER = {
+  id: "sin-producto",
+  name: "Catálogo en actualización",
+  subtitle: "Platino Perú Joyería Fina",
+  category: "todas",
+  categories: ["todas"],
+  type: "anillo",
+  price: 0,
+  priceFormatted: "S/. 0",
+  image: "/images/cat-compromiso.jpg",
+  gallery: ["/images/cat-compromiso.jpg"],
+  availableMetals: [],
+  availableGemShapes: ["redondo"],
+  defaultGemShape: "redondo",
+  description: "Actualmente no hay productos publicados en esta sección.",
+};
+
 export default function Product({ addToCart }) {
   const { productId } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState(() => {
-    return getProductById(productId) || getCatalogProducts()[0];
+    return getProductById(productId) || getCatalogProducts()[0] || EMPTY_PRODUCT_PLACEHOLDER;
   });
 
   useEffect(() => {
@@ -35,7 +52,7 @@ export default function Product({ addToCart }) {
       if (found) {
         setProduct(found);
       } else {
-        setProduct(getCatalogProducts()[0]);
+        setProduct(getCatalogProducts()[0] || EMPTY_PRODUCT_PLACEHOLDER);
       }
     };
     refreshProduct();
@@ -69,35 +86,71 @@ export default function Product({ addToCart }) {
     setActiveImageIdx(0);
   }, [product.id]);
 
-  // Galería de imágenes (incluye fotos de la joya + variantes de metales + caja de presentación en el portafolio)
-  const galleryImages = useMemo(() => {
-    const imagesSet = new Set();
-    if (product.image) imagesSet.add(product.image);
-
-    if (Array.isArray(product.gallery)) {
-      product.gallery.forEach((img) => {
-        if (img && typeof img === "string" && img.trim()) imagesSet.add(img.trim());
-      });
+  const [selectedMetal, setSelectedMetal] = useState(() => {
+    if (product.availableMetals && product.availableMetals.length > 0) {
+      const match = product.availableMetals.find(
+        (m) => m.name === product.selectedMetal || m.id === product.selectedMetal
+      );
+      return match || product.availableMetals[0];
     }
+    return { name: product.selectedMetal || "Oro 18k Blanco", id: "oro-18k-blanco", color: "#e8eaeb", border: "#c2c7c8" };
+  });
 
-    if (product.metalImages && typeof product.metalImages === "object") {
-      Object.values(product.metalImages).forEach((img) => {
-        if (img && typeof img === "string" && img.trim()) imagesSet.add(img.trim());
-      });
+  useEffect(() => {
+    if (product.availableMetals && product.availableMetals.length > 0) {
+      const match = product.availableMetals.find(
+        (m) => m.name === product.selectedMetal || m.id === product.selectedMetal
+      );
+      setSelectedMetal(match || product.availableMetals[0]);
+    }
+  }, [product.id]);
+
+  // Galería de imágenes (respeta la secuencia exacta configurada por material + estuche)
+  const galleryImages = useMemo(() => {
+    const orderedList = [];
+    const pushUnique = (img) => {
+      if (img && typeof img === "string" && img.trim()) {
+        const clean = img.trim();
+        if (!orderedList.includes(clean)) {
+          orderedList.push(clean);
+        }
+      }
+    };
+
+    const activeMetalId = selectedMetal?.id;
+    const metalSeq =
+      activeMetalId &&
+      product.metalGalleries &&
+      Array.isArray(product.metalGalleries[activeMetalId])
+        ? product.metalGalleries[activeMetalId].filter((u) => typeof u === "string" && u.trim())
+        : [];
+
+    if (metalSeq.length > 0) {
+      // Respetar estrictamente la secuencia de fotos subida para este material
+      metalSeq.forEach(pushUnique);
+    } else {
+      if (activeMetalId && product.metalImages && product.metalImages[activeMetalId]) {
+        pushUnique(product.metalImages[activeMetalId]);
+      }
+      if (product.image) pushUnique(product.image);
+      if (Array.isArray(product.gallery)) {
+        product.gallery.forEach(pushUnique);
+      }
+      if (product.metalImages && typeof product.metalImages === "object") {
+        Object.values(product.metalImages).forEach(pushUnique);
+      }
     }
 
     const boxSrc = product.boxImage || "/images/detail-box-green.jpg";
-    if (boxSrc && typeof boxSrc === "string" && boxSrc.trim()) {
-      imagesSet.add(boxSrc.trim());
+    pushUnique(boxSrc);
+
+    if (orderedList.length === 0) {
+      orderedList.push("/images/aros-boda-taller.jpg");
+      orderedList.push("/images/detail-box-green.jpg");
     }
 
-    if (imagesSet.size === 0) {
-      imagesSet.add("/images/aros-boda-taller.jpg");
-      imagesSet.add("/images/detail-box-green.jpg");
-    }
-
-    return Array.from(imagesSet);
-  }, [product.gallery, product.image, product.metalImages, product.boxImage]);
+    return orderedList;
+  }, [product.gallery, product.image, product.metalImages, product.metalGalleries, product.boxImage, selectedMetal?.id]);
 
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [zoomOpen, setZoomOpen] = useState(false);
@@ -117,25 +170,6 @@ export default function Product({ addToCart }) {
     window.addEventListener("platino_favorites_updated", handleFavUpdate);
     return () => window.removeEventListener("platino_favorites_updated", handleFavUpdate);
   }, [user?.email, product.id]);
-
-  const [selectedMetal, setSelectedMetal] = useState(() => {
-    if (product.availableMetals && product.availableMetals.length > 0) {
-      const match = product.availableMetals.find(
-        (m) => m.name === product.selectedMetal || m.id === product.selectedMetal
-      );
-      return match || product.availableMetals[0];
-    }
-    return { name: product.selectedMetal || "Oro 18k Blanco", id: "oro-18k-blanco", color: "#e8eaeb", border: "#c2c7c8" };
-  });
-
-  useEffect(() => {
-    if (product.availableMetals && product.availableMetals.length > 0) {
-      const match = product.availableMetals.find(
-        (m) => m.name === product.selectedMetal || m.id === product.selectedMetal
-      );
-      setSelectedMetal(match || product.availableMetals[0]);
-    }
-  }, [product.id]);
 
   // Precio dinámico del producto según el material seleccionado (cada material tiene su propio valor)
   const currentMetalPrice = useMemo(() => {
@@ -404,6 +438,14 @@ export default function Product({ addToCart }) {
 
   // Función para resolver la URL de la imagen según el material seleccionado
   const getImageUrlForMetal = (metalId) => {
+    if (
+      product.metalGalleries &&
+      Array.isArray(product.metalGalleries[metalId]) &&
+      product.metalGalleries[metalId].length > 0 &&
+      product.metalGalleries[metalId][0]
+    ) {
+      return getAssetUrl(product.metalGalleries[metalId][0]);
+    }
     if (product.metalImages && product.metalImages[metalId]) {
       return getAssetUrl(product.metalImages[metalId]);
     }
@@ -424,6 +466,7 @@ export default function Product({ addToCart }) {
   // Sincronizar la imagen principal cuando cambie el producto o el metal por defecto
   useEffect(() => {
     setMainImage(getImageUrlForMetal(selectedMetal?.id));
+    setActiveImageIdx(0);
   }, [product.id, selectedMetal?.id]);
 
   // Al cambiar de paso: si entra al paso de Complementos & Estuche (Paso 2 o 3 según gemas), mostrar la caja en el visor principal
@@ -443,35 +486,13 @@ export default function Product({ addToCart }) {
     setSelectedMetal(metal);
     const newImageUrl = getImageUrlForMetal(metal.id);
     setMainImage(newImageUrl);
-
-    // Sincronizar miniatura activa del portafolio si coincide con el metal seleccionado
-    const foundIdx = galleryImages.findIndex(
-      (img) => img === newImageUrl || getAssetUrl(img) === newImageUrl
-    );
-    if (foundIdx !== -1) {
-      setActiveImageIdx(foundIdx);
-    }
+    setActiveImageIdx(0);
   };
 
-  // Selección de miniaturas (portafolio de fotos)
+  // Selección de miniaturas (portafolio de fotos en secuencia)
   const handleSelectThumbnail = (imgUrl, idx) => {
     setActiveImageIdx(idx);
     setMainImage(getAssetUrl(imgUrl));
-
-    // Si la miniatura seleccionada coincide con la foto de un metal disponible, seleccionamos ese metal
-    if (product.metalImages && typeof product.metalImages === "object") {
-      const matched = Object.entries(product.metalImages).find(
-        ([, url]) => url && (url === imgUrl || getAssetUrl(url) === getAssetUrl(imgUrl))
-      );
-      if (matched) {
-        const foundMetal = (product.availableMetals || METALS).find(
-          (m) => m.id === matched[0] || m.name === matched[0]
-        );
-        if (foundMetal) {
-          setSelectedMetal(foundMetal);
-        }
-      }
-    }
   };
 
   // Navegación del slider
