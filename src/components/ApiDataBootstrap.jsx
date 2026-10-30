@@ -6,6 +6,7 @@ import { DEFAULT_HOME_IMAGES, DEFAULT_ANNOUNCEMENT } from "../services/homeImage
 import { getStoredGemstones, getStoredLaboratories } from "../services/gemstonesService";
 import { getAllStoredInventory } from "../services/inventoryService";
 import { DEFAULT_NOSOTROS_CONTENT } from "../services/nosotrosService";
+import { DEFAULT_EDUCACION_POSTS } from "../services/educacionService";
 import { DEFAULT_CATEGORY_MARGINS } from "../services/financeService";
 import { DEFAULT_PLATINO_CARE_CONFIG } from "../services/platinoCareService";
 import { getPermissionsMatrix, getPermissionRequests } from "../services/permissionsService";
@@ -22,6 +23,7 @@ const publicDefaults = {
   laboratories: getStoredLaboratories(),
   inventory: getAllStoredInventory(),
   nosotros: DEFAULT_NOSOTROS_CONTENT,
+  educacion: DEFAULT_EDUCACION_POSTS,
   finance: DEFAULT_CATEGORY_MARGINS,
   care_config: DEFAULT_PLATINO_CARE_CONFIG,
 };
@@ -67,20 +69,14 @@ export default function ApiDataBootstrap({ children }) {
       );
       results.forEach((result) => {
         if (result.status === "rejected") {
-          console.error("Could not preload API data:", result.reason);
-          window.dispatchEvent(new CustomEvent("platino_api_error", {
-            detail: { message: result.reason.message },
-          }));
+          console.warn("Could not preload API data (using default fallback):", result.reason);
         }
       });
 
       if (userEmail) {
         await loadRemoteData("favorites", [], `favorites_${userEmail.trim().toLowerCase()}`)
           .catch((error) => {
-            console.error("Could not preload account favorites:", error);
-            window.dispatchEvent(new CustomEvent("platino_api_error", {
-              detail: { namespace: "favorites", message: error.message },
-            }));
+            console.warn("Could not preload account favorites:", error);
           });
       } else {
         clearRemoteCache("orders");

@@ -31,12 +31,12 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     let active = true;
     apiGet("/auth/me")
-      .then(({ user: sessionUser }) => {
-        if (active) setUser(mapApiUser(sessionUser));
+      .then((res) => {
+        if (active) setUser(mapApiUser(res?.user));
       })
       .catch((error) => {
         console.error("Could not restore the server session:", error);
-        window.dispatchEvent(new CustomEvent("platino_api_error", { detail: { message: error.message } }));
+        console.warn("Could not restore the server session:", error);
       })
       .finally(() => {
         if (active) setIsSessionReady(true);

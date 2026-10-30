@@ -10,6 +10,7 @@ import { getFavoriteCount } from "../services/favoritesService";
 import { getAssetUrl } from "../utils/assetHelper";
 import UserMenuDropdown from "./UserMenuDropdown";
 import { DiamondCutIcon } from "./GemstoneIcons";
+import platinoLogoWordmark from "../assets/platino-peru-logo.png?inline";
 import "../../styles/layout.css";
 
 const Navbar = ({ cartCount = 0, onOpenCart }) => {
@@ -162,13 +163,10 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
           {/* Logo Center */}
           <Link to="/" className="brand-logo" aria-label="Platino Perú Inicio">
             <img
-              src={getAssetUrl("/images/platino-logo-emerald.jpg")}
-              alt="Platino Perú Insignia"
-              className="brand-logo-img"
+              src={platinoLogoWordmark}
+              alt="Platino Perú"
+              className="brand-logo-wordmark"
             />
-            <span className="brand-name">PLATINO</span>
-            <span className="brand-gem">❖</span>
-            <span className="brand-country">PERÚ</span>
           </Link>
 
           {/* User Actions & Currency Right */}
@@ -338,37 +336,37 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                       <h4 className="megamenu-col-title">FORMA DE LA GEMA</h4>
                       <ul className="megamenu-links-list gem-shapes-list">
                         <li>
-                          <Link to="/categoria/anillo-compromiso?forma=redondo" onClick={handleNavClick}>
+                          <Link to="/catalogo-gemas?forma=redondo" onClick={handleNavClick}>
                             <DiamondCutIcon shape="redondo" size={20} />
                             <span>REDONDO</span>
                           </Link>
                         </li>
                         <li>
-                          <Link to="/categoria/anillo-compromiso?forma=oval" onClick={handleNavClick}>
+                          <Link to="/catalogo-gemas?forma=oval" onClick={handleNavClick}>
                             <DiamondCutIcon shape="oval" size={20} />
                             <span>OVAL</span>
                           </Link>
                         </li>
                         <li>
-                          <Link to="/categoria/anillo-compromiso?forma=marquesa" onClick={handleNavClick}>
+                          <Link to="/catalogo-gemas?forma=marquesa" onClick={handleNavClick}>
                             <DiamondCutIcon shape="marquesa" size={20} />
                             <span>MARQUESA</span>
                           </Link>
                         </li>
                         <li>
-                          <Link to="/categoria/anillo-compromiso?forma=esmeralda" onClick={handleNavClick}>
+                          <Link to="/catalogo-gemas?forma=esmeralda" onClick={handleNavClick}>
                             <DiamondCutIcon shape="esmeralda" size={20} />
                             <span>ESMERALDA</span>
                           </Link>
                         </li>
                         <li>
-                          <Link to="/categoria/anillo-compromiso?forma=corazon" onClick={handleNavClick}>
+                          <Link to="/catalogo-gemas?forma=corazon" onClick={handleNavClick}>
                             <DiamondCutIcon shape="corazon" size={20} />
                             <span>CORAZÓN</span>
                           </Link>
                         </li>
                         <li>
-                          <Link to="/categoria/anillo-compromiso?forma=otros" onClick={handleNavClick}>
+                          <Link to="/catalogo-gemas" onClick={handleNavClick}>
                             <DiamondCutIcon shape="otros" size={20} />
                             <span>OTROS</span>
                           </Link>
@@ -521,229 +519,36 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                       <h4 className="megamenu-col-title">BLOG</h4>
                       <ul className="megamenu-links-list megamenu-blog-list">
                         <li>
-                          <Link to="/categoria/todas?q=diamante" onClick={handleNavClick}>
+                          <Link to="/educacion?post=diamante-natural-vs-lab-grown" onClick={handleNavClick}>
                             DIAMANTE NATURAL VS LAB GROWN
                           </Link>
                         </li>
                         <li>
-                          <Link to="/categoria/todas?q=moissanita" onClick={handleNavClick}>
+                          <Link to="/educacion?post=que-es-la-moissanita" onClick={handleNavClick}>
                             ¿QUÉ ES LA MOISSANITA?
                           </Link>
                         </li>
                         <li>
-                          <Link to="/nosotros" onClick={handleNavClick}>
+                          <Link to="/educacion?post=correcto-cuidado-de-gemas" onClick={handleNavClick}>
                             CORRECTO CUIDADO DE GEMAS
                           </Link>
                         </li>
                         <li>
-                          <Link to="/categoria/anillo-compromiso" onClick={handleNavClick}>
+                          <Link to="/educacion?post=tendencias-anillos-compromiso" onClick={handleNavClick}>
                             TENDENCIAS EN A. COMPROMISO
                           </Link>
                         </li>
                         <li>
-                          <Link to="/agendar-cita" onClick={handleNavClick}>
+                          <Link to="/educacion?post=como-tomarme-la-medida" onClick={handleNavClick}>
                             ¿CÓMO TOMARME LA MEDIDA?
                           </Link>
                         </li>
                         <li>
-                          <Link to="/nosotros" onClick={handleNavClick} className="megamenu-ver-mas-blog">
+                          <Link to="/educacion" onClick={handleNavClick} className="megamenu-ver-mas-blog">
                             VER MÁS
                           </Link>
                         </li>
                       </ul>
-                    </div>
-                  </div>
-                </div>
-              </li>
-              <li
-                ref={bodaNavRef}
-                className={`nav-item has-megamenu ${currentPath.includes("aros-boda") ? "active" : ""} ${bodaMenuOpen ? "megamenu-open" : ""}`}
-              >
-                <button
-                  type="button"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    if (window.innerWidth <= 992) {
-                      handleNavClick();
-                      navigate("/categoria/aros-boda");
-                    } else {
-                      setCompromisoMenuOpen(false);
-                      setPromesaMenuOpen(false);
-                      setJoyeriaMenuOpen(false);
-                      setBodaMenuOpen((prev) => !prev);
-                    }
-                  }}
-                  className="nav-link-with-indicator megamenu-trigger-btn"
-                  aria-expanded={bodaMenuOpen}
-                  aria-haspopup="true"
-                >
-                  <span>AROS DE BODA</span>
-                  <i className="bi bi-chevron-down nav-desktop-chevron"></i>
-                  <i className="bi bi-chevron-right mobile-nav-arrow"></i>
-                </button>
-
-                {/* MEGAMENÚ DESPLEGABLE EN DESKTOP PARA AROS DE BODA */}
-                <div className={`boda-megamenu ${bodaMenuOpen ? "is-visible" : ""}`}>
-                  <div className="megamenu-inner-container boda-megamenu-container">
-                    {/* Columna 1: SEGÚN MATERIAL */}
-                    <div className="megamenu-col">
-                      <h4 className="megamenu-col-title">SEGÚN MATERIAL</h4>
-                      <ul className="megamenu-links-list">
-                        <li>
-                          <Link to="/categoria/aros-boda?metal=plata-950" onClick={handleNavClick}>
-                            PLATA 950
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/aros-boda?metal=plata-oro-18k" onClick={handleNavClick}>
-                            PLATA CON ORO 18K
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/aros-boda?metal=oro-natural-18k" onClick={handleNavClick}>
-                            ORO NATURAL 18K
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/aros-boda?metal=oro-amarillo-18k" onClick={handleNavClick}>
-                            ORO AMARILLO 18K
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/aros-boda?metal=oro-rosado-18k" onClick={handleNavClick}>
-                            ORO ROSADO 18K
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/aros-boda?metal=oro-blanco-18k" onClick={handleNavClick}>
-                            ORO BLANCO 18K
-                          </Link>
-                        </li>
-                      </ul>
-                    </div>
-
-                    {/* Columna 2: SEGÚN ESTILO */}
-                    <div className="megamenu-col">
-                      <h4 className="megamenu-col-title">SEGÚN ESTILO</h4>
-                      <ul className="megamenu-links-list">
-                        <li>
-                          <Link to="/categoria/aros-boda?estilo=clasicos" onClick={handleNavClick}>
-                            CLÁSICOS
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/aros-boda?estilo=con-pedreria" onClick={handleNavClick}>
-                            CON PEDRERÍA
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/aros-boda?estilo=con-textura" onClick={handleNavClick}>
-                            CON TEXTURA
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/aros-boda?estilo=moderno" onClick={handleNavClick}>
-                            MODERNO
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/aros-boda?estilo=vintage" onClick={handleNavClick}>
-                            VINTAGE
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/aros-boda" onClick={handleNavClick}>
-                            VER TODO
-                          </Link>
-                        </li>
-                      </ul>
-                    </div>
-
-                    {/* Columna 3: PORTA AROS */}
-                    <div className="megamenu-col megamenu-col-card">
-                      <h4 className="megamenu-col-title text-center">PORTA AROS</h4>
-                      <Link to="/categoria/regalos?tipo=porta-aros" className="megamenu-boda-card" onClick={handleNavClick}>
-                        {homeImages?.megamenuPortaAros?.image ? (
-                          <div className="megamenu-card-img-wrapper">
-                            <img
-                              src={homeImages.megamenuPortaAros.image}
-                              alt="Porta Aros"
-                              className="megamenu-card-img"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                                if (e.currentTarget.nextElementSibling) {
-                                  e.currentTarget.nextElementSibling.style.display = "flex";
-                                }
-                              }}
-                            />
-                            <div className="megamenu-card-placeholder" style={{ display: "none" }}>
-                              <span>COLOCAR<br />IMAGEN</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="megamenu-card-placeholder">
-                            <span>COLOCAR<br />IMAGEN</span>
-                          </div>
-                        )}
-                      </Link>
-                    </div>
-
-                    {/* Columna 4: COPAS DECORADAS */}
-                    <div className="megamenu-col megamenu-col-card">
-                      <h4 className="megamenu-col-title text-center">COPAS DECORADAS</h4>
-                      <Link to="/categoria/regalos?tipo=copas-decoradas" className="megamenu-boda-card" onClick={handleNavClick}>
-                        {homeImages?.megamenuCopas?.image ? (
-                          <div className="megamenu-card-img-wrapper">
-                            <img
-                              src={homeImages.megamenuCopas.image}
-                              alt="Copas Decoradas"
-                              className="megamenu-card-img"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                                if (e.currentTarget.nextElementSibling) {
-                                  e.currentTarget.nextElementSibling.style.display = "flex";
-                                }
-                              }}
-                            />
-                            <div className="megamenu-card-placeholder" style={{ display: "none" }}>
-                              <span>COLOCAR<br />IMAGEN</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="megamenu-card-placeholder">
-                            <span>COLOCAR<br />IMAGEN</span>
-                          </div>
-                        )}
-                      </Link>
-                    </div>
-
-                    {/* Columna 5: CUADROS */}
-                    <div className="megamenu-col megamenu-col-card">
-                      <h4 className="megamenu-col-title text-center">CUADROS</h4>
-                      <Link to="/categoria/regalos?tipo=cuadros" className="megamenu-boda-card" onClick={handleNavClick}>
-                        {homeImages?.megamenuCuadros?.image ? (
-                          <div className="megamenu-card-img-wrapper">
-                            <img
-                              src={homeImages.megamenuCuadros.image}
-                              alt="Cuadros"
-                              className="megamenu-card-img"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                                if (e.currentTarget.nextElementSibling) {
-                                  e.currentTarget.nextElementSibling.style.display = "flex";
-                                }
-                              }}
-                            />
-                            <div className="megamenu-card-placeholder" style={{ display: "none" }}>
-                              <span>COLOCAR<br />IMAGEN</span>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="megamenu-card-placeholder">
-                            <span>COLOCAR<br />IMAGEN</span>
-                          </div>
-                        )}
-                      </Link>
                     </div>
                   </div>
                 </div>
@@ -770,7 +575,7 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                   aria-expanded={promesaMenuOpen}
                   aria-haspopup="true"
                 >
-                  <span>AMOR Y PROMESA</span>
+                  <span>ALIANZAS Y PROMESA</span>
                   <i className="bi bi-chevron-down nav-desktop-chevron"></i>
                   <i className="bi bi-chevron-right mobile-nav-arrow"></i>
                 </button>
@@ -985,6 +790,199 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                 </div>
               </li>
               <li
+                ref={bodaNavRef}
+                className={`nav-item has-megamenu ${currentPath.includes("aros-boda") ? "active" : ""} ${bodaMenuOpen ? "megamenu-open" : ""}`}
+              >
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    if (window.innerWidth <= 992) {
+                      handleNavClick();
+                      navigate("/categoria/aros-boda");
+                    } else {
+                      setCompromisoMenuOpen(false);
+                      setPromesaMenuOpen(false);
+                      setJoyeriaMenuOpen(false);
+                      setBodaMenuOpen((prev) => !prev);
+                    }
+                  }}
+                  className="nav-link-with-indicator megamenu-trigger-btn"
+                  aria-expanded={bodaMenuOpen}
+                  aria-haspopup="true"
+                >
+                  <span>AROS DE BODA</span>
+                  <i className="bi bi-chevron-down nav-desktop-chevron"></i>
+                  <i className="bi bi-chevron-right mobile-nav-arrow"></i>
+                </button>
+
+                {/* MEGAMENÚ DESPLEGABLE EN DESKTOP PARA AROS DE BODA */}
+                <div className={`boda-megamenu ${bodaMenuOpen ? "is-visible" : ""}`}>
+                  <div className="megamenu-inner-container boda-megamenu-container">
+                    {/* Columna 1: SEGÚN MATERIAL */}
+                    <div className="megamenu-col">
+                      <h4 className="megamenu-col-title">SEGÚN MATERIAL</h4>
+                      <ul className="megamenu-links-list">
+                        <li>
+                          <Link to="/categoria/aros-boda?metal=plata-950" onClick={handleNavClick}>
+                            PLATA 950
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda?metal=plata-oro-18k" onClick={handleNavClick}>
+                            PLATA CON ORO 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda?metal=oro-natural-18k" onClick={handleNavClick}>
+                            ORO NATURAL 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda?metal=oro-amarillo-18k" onClick={handleNavClick}>
+                            ORO AMARILLO 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda?metal=oro-rosado-18k" onClick={handleNavClick}>
+                            ORO ROSADO 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda?metal=oro-blanco-18k" onClick={handleNavClick}>
+                            ORO BLANCO 18K
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Columna 2: SEGÚN ESTILO */}
+                    <div className="megamenu-col">
+                      <h4 className="megamenu-col-title">SEGÚN ESTILO</h4>
+                      <ul className="megamenu-links-list">
+                        <li>
+                          <Link to="/categoria/aros-boda?estilo=clasicos" onClick={handleNavClick}>
+                            CLÁSICOS
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda?estilo=con-pedreria" onClick={handleNavClick}>
+                            CON PEDRERÍA
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda?estilo=con-textura" onClick={handleNavClick}>
+                            CON TEXTURA
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda?estilo=moderno" onClick={handleNavClick}>
+                            MODERNO
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda?estilo=vintage" onClick={handleNavClick}>
+                            VINTAGE
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/aros-boda" onClick={handleNavClick}>
+                            VER TODO
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Columna 3: PORTA AROS */}
+                    <div className="megamenu-col megamenu-col-card">
+                      <h4 className="megamenu-col-title text-center">PORTA AROS</h4>
+                      <Link to="/categoria/regalos?tipo=porta-aros" className="megamenu-boda-card" onClick={handleNavClick}>
+                        {homeImages?.megamenuPortaAros?.image ? (
+                          <div className="megamenu-card-img-wrapper">
+                            <img
+                              src={homeImages.megamenuPortaAros.image}
+                              alt="Porta Aros"
+                              className="megamenu-card-img"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                if (e.currentTarget.nextElementSibling) {
+                                  e.currentTarget.nextElementSibling.style.display = "flex";
+                                }
+                              }}
+                            />
+                            <div className="megamenu-card-placeholder" style={{ display: "none" }}>
+                              <span>COLOCAR<br />IMAGEN</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="megamenu-card-placeholder">
+                            <span>COLOCAR<br />IMAGEN</span>
+                          </div>
+                        )}
+                      </Link>
+                    </div>
+
+                    {/* Columna 4: COPAS DECORADAS */}
+                    <div className="megamenu-col megamenu-col-card">
+                      <h4 className="megamenu-col-title text-center">COPAS DECORADAS</h4>
+                      <Link to="/categoria/regalos?tipo=copas-decoradas" className="megamenu-boda-card" onClick={handleNavClick}>
+                        {homeImages?.megamenuCopas?.image ? (
+                          <div className="megamenu-card-img-wrapper">
+                            <img
+                              src={homeImages.megamenuCopas.image}
+                              alt="Copas Decoradas"
+                              className="megamenu-card-img"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                if (e.currentTarget.nextElementSibling) {
+                                  e.currentTarget.nextElementSibling.style.display = "flex";
+                                }
+                              }}
+                            />
+                            <div className="megamenu-card-placeholder" style={{ display: "none" }}>
+                              <span>COLOCAR<br />IMAGEN</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="megamenu-card-placeholder">
+                            <span>COLOCAR<br />IMAGEN</span>
+                          </div>
+                        )}
+                      </Link>
+                    </div>
+
+                    {/* Columna 5: CUADROS */}
+                    <div className="megamenu-col megamenu-col-card">
+                      <h4 className="megamenu-col-title text-center">CUADROS</h4>
+                      <Link to="/categoria/regalos?tipo=cuadros" className="megamenu-boda-card" onClick={handleNavClick}>
+                        {homeImages?.megamenuCuadros?.image ? (
+                          <div className="megamenu-card-img-wrapper">
+                            <img
+                              src={homeImages.megamenuCuadros.image}
+                              alt="Cuadros"
+                              className="megamenu-card-img"
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                                if (e.currentTarget.nextElementSibling) {
+                                  e.currentTarget.nextElementSibling.style.display = "flex";
+                                }
+                              }}
+                            />
+                            <div className="megamenu-card-placeholder" style={{ display: "none" }}>
+                              <span>COLOCAR<br />IMAGEN</span>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="megamenu-card-placeholder">
+                            <span>COLOCAR<br />IMAGEN</span>
+                          </div>
+                        )}
+                      </Link>
+                    </div>
+                  </div>
+                </div>
+              </li>
+              <li
                 ref={joyeriaNavRef}
                 className={`nav-item has-megamenu ${currentPath.includes("joyeria") ? "active" : ""} ${joyeriaMenuOpen ? "megamenu-open" : ""}`}
               >
@@ -1006,7 +1004,7 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                   aria-expanded={joyeriaMenuOpen}
                   aria-haspopup="true"
                 >
-                  <span>JOYERÍA</span>
+                  <span>JOYAS</span>
                   <i className="bi bi-chevron-down nav-desktop-chevron"></i>
                   <i className="bi bi-chevron-right mobile-nav-arrow"></i>
                 </button>
@@ -1160,9 +1158,15 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                   </div>
                 </div>
               </li>
-              <li className={`nav-item ${currentPath.includes("regalos") ? "active" : ""}`}>
-                <Link to="/categoria/regalos" onClick={handleNavClick}>
-                  <span>REGALOS</span>
+              <li className={`nav-item ${currentPath.includes("gemas") ? "active" : ""}`}>
+                <Link to="/catalogo-gemas" onClick={handleNavClick}>
+                  <span>GEMAS</span>
+                  <i className="bi bi-chevron-right mobile-nav-arrow"></i>
+                </Link>
+              </li>
+              <li className={`nav-item ${currentPath.startsWith("/educacion") ? "active" : ""}`}>
+                <Link to="/educacion" onClick={handleNavClick}>
+                  <span>EDUCACIÓN</span>
                   <i className="bi bi-chevron-right mobile-nav-arrow"></i>
                 </Link>
               </li>

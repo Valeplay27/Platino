@@ -42,7 +42,8 @@ export async function loadRemoteData(namespace, fallback, cacheKey = namespace) 
   }
   if (!namespaceLoads.has(cacheKey)) {
     const pending = apiGet(`/data?namespace=${encodeURIComponent(namespace)}`)
-      .then(({ data }) => {
+      .then((res) => {
+        const data = res && typeof res === "object" ? res.data : undefined;
         cache.set(cacheKey, data ?? namespaceDefaults.get(cacheKey));
         window.dispatchEvent(new CustomEvent("platino_data_loaded", { detail: { namespace } }));
       })

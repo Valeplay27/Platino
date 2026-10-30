@@ -220,6 +220,18 @@ export default function UserMenuDropdown() {
                         </Link>
                       </li>
                     )}
+                    {canSeeNosotros && (
+                      <li>
+                        <Link
+                          to="/educacion?admin=1"
+                          className="user-dropdown-item"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          <i className="bi bi-newspaper"></i>
+                          <span>Blog & Educación (Publicaciones)</span>
+                        </Link>
+                      </li>
+                    )}
                   </>
                 )}
 

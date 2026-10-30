@@ -13,6 +13,9 @@ export async function apiRequest(path, { method = "GET", body, signal } = {}) {
   if (!response.ok) {
     throw new Error(payload?.error || `La solicitud falló (${response.status}).`);
   }
+  if (payload === null || typeof payload !== "object") {
+    throw new Error("El servidor API aún no está configurado o devolvió una respuesta inválida.");
+  }
   return payload;
 }
 

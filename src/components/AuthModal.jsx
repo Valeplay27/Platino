@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth } from "../context/useAuth";
+import { useAuth } from "../context/useAuth"; import platinoLogoWordmark from "../assets/platino-peru-logo.png?inline";
 import "../../styles/auth.css";
 
 export default function AuthModal() {
@@ -241,11 +241,7 @@ export default function AuthModal() {
 
         {/* Logo superior oficial Platino Perú */}
         <div className="auth-brand-badge">
-          <div className="auth-brand-inner">
-            <span>PLATINO</span>
-            <span className="auth-brand-gem">✦</span>
-            <span>PERÚ</span>
-          </div>
+          <img src={platinoLogoWordmark} alt="Platino Perú" style={{ height: "25px", width: "auto", objectFit: "contain", marginBottom: "4px" }} />
           <span className="auth-tagline">JOYERÍA QUE CUENTA TU HISTORIA</span>
         </div>
 

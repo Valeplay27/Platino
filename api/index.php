@@ -434,6 +434,7 @@ function adminHasNamespacePermission(PDO $pdo, array $user, int $masterOwnerId, 
         'announcement' => ['home_images'],
         'announcement_active' => ['home_images'],
         'nosotros' => ['nosotros'],
+        'educacion' => ['nosotros', 'educacion'],
         'finance' => ['finanzas'],
         'inventory' => ['inventario', 'inventario_global'],
         'appointments' => ['citas', 'citas_global'],
@@ -1347,7 +1348,7 @@ function route(PDO $pdo): void
             'catalog', 'home_images', 'announcement', 'announcement_active', 'gemstones',
             'laboratories', 'inventory', 'appointments', 'blocked_slots', 'orders',
             'favorites', 'finance', 'nosotros', 'permissions', 'permission_requests',
-            'reclamations', 'care_config', 'care_clients', 'recovery_logs',
+            'reclamations', 'care_config', 'care_clients', 'recovery_logs', 'educacion',
         ];
         if (!in_array($namespace, $allowedNamespaces, true)) {
             respond(422, ['error' => 'Espacio de datos no válido.']);
@@ -1732,6 +1733,79 @@ function route(PDO $pdo): void
     respond(404, ['error' => 'Ruta API no encontrada.']);
 }
 
+function bootstrapDatabaseAndMaster(PDO $pdo, string $name, string $email, string $password): void
+{
+    ensureSchema($pdo);
+    $name = trim($name);
+    $email = strtolower(trim($email));
+    if ($email !== 'vladimiryt18@gmail.com' || strlen($password) < 12) {
+        throw new RuntimeException('Use the master admin email and a password of at least 12 characters.');
+    }
+    $findAccount = $pdo->prepare('SELECT id FROM app_users WHERE email_lookup = ? LIMIT 1');
+    $findAccount->execute([emailLookup($email)]);
+    if (!$findAccount->fetchColumn()) {
+        [$nameNonce, $nameCipher] = encryptData($name);
+        [$emailNonce, $emailCipher] = encryptData($email);
+        $statement = $pdo->prepare(
+            "INSERT INTO app_users (name_nonce, name_cipher, email_nonce, email_cipher, email_lookup, password_hash, role)
+             VALUES (?, ?, ?, ?, ?, ?, 'admin_master')"
+        );
+        $statement->execute([
+            $nameNonce, $nameCipher, $emailNonce, $emailCipher, emailLookup($email),
+            password_hash($password, defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_DEFAULT),
+        ]);
+    }
+
+    foreach ([
+        ['Admin Sede Lima Centro', 'admin.lima@platino.pe', 'lima-centro'],
+        ['Admin Sede Miraflores', 'admin.miraflores@platino.pe', 'miraflores'],
+    ] as [$branchName, $branchEmail, $branchSede]) {
+        $findAccount->execute([emailLookup($branchEmail)]);
+        if ($findAccount->fetchColumn()) {
+            continue;
+        }
+        [$branchNameNonce, $branchNameCipher] = encryptData($branchName);
+        [$branchEmailNonce, $branchEmailCipher] = encryptData($branchEmail);
+        $randomPassword = bin2hex(random_bytes(32));
+        $statement = $pdo->prepare(
+            "INSERT INTO app_users (name_nonce, name_cipher, email_nonce, email_cipher, email_lookup, password_hash, role, sede_id)
+             VALUES (?, ?, ?, ?, ?, ?, 'admin_sede', ?)"
+        );
+        $statement->execute([
+            $branchNameNonce, $branchNameCipher, $branchEmailNonce, $branchEmailCipher,
+            emailLookup($branchEmail),
+            password_hash($randomPassword, defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_DEFAULT),
+            $branchSede,
+        ]);
+    }
+}
+
+function autoBootstrapIfNeeded(PDO $pdo): void
+{
+    try {
+        $check = $pdo->prepare("SELECT id FROM app_users WHERE role = 'admin_master' AND email_lookup = ? LIMIT 1");
+        $check->execute([emailLookup('vladimiryt18@gmail.com')]);
+        if ($check->fetchColumn()) {
+            return;
+        }
+    } catch (Throwable) {
+        // Table app_users does not exist yet; proceed with bootstrap
+    }
+
+    try {
+        $name = requiredEnv('PLATINO_ADMIN_NAME');
+    } catch (Throwable) {
+        $name = 'Vladimir';
+    }
+    try {
+        $email = requiredEnv('PLATINO_ADMIN_EMAIL');
+    } catch (Throwable) {
+        $email = 'vladimiryt18@gmail.com';
+    }
+    $password = requiredEnv('PLATINO_ADMIN_PASSWORD');
+    bootstrapDatabaseAndMaster($pdo, $name, $email, $password);
+}
+
 if (PHP_SAPI === 'cli') {
     if (($argv[1] ?? '') !== 'bootstrap-admin') {
         fwrite(STDERR, "Usage: php api/index.php bootstrap-admin\n");
@@ -1739,50 +1813,12 @@ if (PHP_SAPI === 'cli') {
     }
     try {
         $pdo = database();
-        ensureSchema($pdo);
-        $name = trim(requiredEnv('PLATINO_ADMIN_NAME'));
-        $email = strtolower(trim(requiredEnv('PLATINO_ADMIN_EMAIL')));
-        $password = requiredEnv('PLATINO_ADMIN_PASSWORD');
-        if ($email !== 'vladimiryt18@gmail.com' || strlen($password) < 12) {
-            throw new RuntimeException('Use the master admin email and a password of at least 12 characters.');
-        }
-        $findAccount = $pdo->prepare('SELECT id FROM app_users WHERE email_lookup = ? LIMIT 1');
-        $findAccount->execute([emailLookup($email)]);
-        if (!$findAccount->fetchColumn()) {
-            [$nameNonce, $nameCipher] = encryptData($name);
-            [$emailNonce, $emailCipher] = encryptData($email);
-            $statement = $pdo->prepare(
-                "INSERT INTO app_users (name_nonce, name_cipher, email_nonce, email_cipher, email_lookup, password_hash, role)
-                 VALUES (?, ?, ?, ?, ?, ?, 'admin_master')"
-            );
-            $statement->execute([
-                $nameNonce, $nameCipher, $emailNonce, $emailCipher, emailLookup($email),
-                password_hash($password, defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_DEFAULT),
-            ]);
-        }
-
-        foreach ([
-            ['Admin Sede Lima Centro', 'admin.lima@platino.pe', 'lima-centro'],
-            ['Admin Sede Miraflores', 'admin.miraflores@platino.pe', 'miraflores'],
-        ] as [$branchName, $branchEmail, $branchSede]) {
-            $findAccount->execute([emailLookup($branchEmail)]);
-            if ($findAccount->fetchColumn()) {
-                continue;
-            }
-            [$branchNameNonce, $branchNameCipher] = encryptData($branchName);
-            [$branchEmailNonce, $branchEmailCipher] = encryptData($branchEmail);
-            $randomPassword = bin2hex(random_bytes(32));
-            $statement = $pdo->prepare(
-                "INSERT INTO app_users (name_nonce, name_cipher, email_nonce, email_cipher, email_lookup, password_hash, role, sede_id)
-                 VALUES (?, ?, ?, ?, ?, ?, 'admin_sede', ?)"
-            );
-            $statement->execute([
-                $branchNameNonce, $branchNameCipher, $branchEmailNonce, $branchEmailCipher,
-                emailLookup($branchEmail),
-                password_hash($randomPassword, defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_DEFAULT),
-                $branchSede,
-            ]);
-        }
+        bootstrapDatabaseAndMaster(
+            $pdo,
+            requiredEnv('PLATINO_ADMIN_NAME'),
+            requiredEnv('PLATINO_ADMIN_EMAIL'),
+            requiredEnv('PLATINO_ADMIN_PASSWORD')
+        );
         fwrite(STDOUT, "Master and branch admin accounts are initialized. Reset branch passwords from the master account.\n");
     } catch (Throwable $error) {
         error_log((string) $error);
@@ -1797,6 +1833,7 @@ try {
         respond(400, ['error' => 'La API requiere HTTPS.']);
     }
     $pdo = database();
+    autoBootstrapIfNeeded($pdo);
     route($pdo);
 } catch (Throwable $error) {
     error_log((string) $error);

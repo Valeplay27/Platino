@@ -18,6 +18,7 @@ import { AuthProvider } from './context/AuthContext'
 import AuthModal from './components/AuthModal'
 import ScrollToTop from './components/ScrollToTop'
 import Nosotros from './pages/Nosotros'
+import Educacion from './pages/Educacion'
 import LibroReclamaciones from './pages/LibroReclamaciones'
 import GoogleReviewsToast from './components/GoogleReviewsToast'
 import CartDrawer from './components/CartDrawer'
@@ -112,6 +113,8 @@ function App() {
             <Route path="/gemas" element={<GemstonesCatalog />} />
             <Route path="/favoritos" element={<Favorites addToCart={addToCart} />} />
             <Route path="/nosotros" element={<Nosotros />} />
+            <Route path="/educacion" element={<Educacion />} />
+            <Route path="/blog" element={<Educacion />} />
             <Route path="/nosotros/:subpage" element={<Nosotros />} />
             <Route path="/libro-de-reclamaciones" element={<LibroReclamaciones />} />
             <Route path="/reclamaciones" element={<LibroReclamaciones />} />

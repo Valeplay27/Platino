@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link } from "react-router-dom"; import platinoLogoWordmark from "../assets/platino-peru-logo.png?inline";
 import "../../styles/layout.css";
 
 const Footer = () => {
@@ -169,9 +169,9 @@ const Footer = () => {
           {/* Center Brand Logo */}
           <div className="footer-center-brand">
             <Link to="/" className="brand-logo" aria-label="Platino Perú Inicio">
-              <span className="brand-name">PLATINO</span>
-              <span className="brand-gem">❖</span>
-              <span className="brand-country">PERÚ</span>
+              <img src={platinoLogoWordmark} alt="Platino Perú" className="brand-logo-wordmark" />
+
+
             </Link>
           </div>
 
