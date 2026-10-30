@@ -1,6 +1,5 @@
 import { products as defaultProducts, formatPrice, METALS, DEFAULT_METAL_IMAGES, MASTER_GEM_SHAPES } from "../data/products";
-
-const STORAGE_KEY_CATALOG = "platino_catalog_products_v1";
+import { getRemoteData, setRemoteData } from "./remoteData";
 
 // Normalizar metales disponibles con los 10 metales oficiales y fotos por metal
 const normalizeProductMetals = (prod) => {
@@ -60,53 +59,23 @@ const normalizeProductMetals = (prod) => {
   };
 };
 
-// Cargar catálogo desde localStorage o inicializar con valores por defecto
+// Cargar catálogo remoto o inicializar con valores por defecto
 export const getCatalogProducts = () => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_CATALOG);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (Array.isArray(parsed) && parsed.length >= defaultProducts.length) {
-        return parsed.map(normalizeProductMetals);
-      }
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        // Combinar productos personalizados con las joyas oficiales por defecto
-        const merged = [...parsed];
-        defaultProducts.forEach((dp) => {
-          if (!merged.some((p) => p.id === dp.id)) {
-            merged.push(dp);
-          }
-        });
-        const normalized = merged.map(normalizeProductMetals);
-        localStorage.setItem(STORAGE_KEY_CATALOG, JSON.stringify(normalized));
-        return normalized;
-      }
-    }
-    // Inicializar por primera vez
-    const initialized = defaultProducts.map(normalizeProductMetals);
-    localStorage.setItem(STORAGE_KEY_CATALOG, JSON.stringify(initialized));
-    return initialized;
-  } catch (error) {
-    console.error("Error reading catalog from localStorage", error);
-    return defaultProducts.map(normalizeProductMetals);
+  const parsed = getRemoteData("catalog", defaultProducts);
+  if (Array.isArray(parsed) && parsed.length > 0) {
+    const merged = [...parsed];
+    defaultProducts.forEach((product) => {
+      if (!merged.some((item) => item.id === product.id)) merged.push(product);
+    });
+    return merged.map(normalizeProductMetals);
   }
+  return defaultProducts.map(normalizeProductMetals);
 };
 
-// Guardar lista en localStorage y notificar a la app
 export const saveCatalogProducts = (list) => {
-  try {
-    localStorage.setItem(STORAGE_KEY_CATALOG, JSON.stringify(list));
-    window.dispatchEvent(
-      new CustomEvent("catalog_updated", { detail: { products: list } })
-    );
-    return { success: true };
-  } catch (error) {
-    console.error("Error saving catalog to localStorage", error);
-    if (error && (error.name === "QuotaExceededError" || error.code === 22)) {
-      alert("⚠️ El almacenamiento del navegador se encuentra lleno. Si subiste fotos muy pesadas, por favor usa fotos más ligeras.");
-    }
-    return { success: false, error };
-  }
+  const normalized = list.map(normalizeProductMetals);
+  setRemoteData("catalog", normalized, "catalog_updated", { products: normalized });
+  return { success: true };
 };
 
 // Obtener un producto por ID

@@ -12,11 +12,11 @@ export const TIME_SLOTS = [
   "06:00 PM",
 ];
 
-const CITAS_STORAGE_KEY = "platino_citas_v1";
-const BLOCKED_SLOTS_KEY = "platino_blocked_slots_v1";
+import { apiPost } from "./apiClient";
+import { getRemoteData, setRemoteData, updateRemoteCache } from "./remoteData";
 
 // Citas iniciales de demostración (exclusivamente Asesoría General)
-const INITIAL_CITAS = [
+export const INITIAL_CITAS = [
   {
     id: "PLT-1082",
     sedeId: "miraflores",
@@ -50,7 +50,7 @@ const INITIAL_CITAS = [
 ];
 
 // Bloqueos iniciales de demostración
-const INITIAL_BLOCKED = [
+export const INITIAL_BLOCKED = [
   {
     id: "block-1",
     sedeId: "lima-centro",
@@ -72,59 +72,48 @@ const INITIAL_BLOCKED = [
 ];
 
 export const getCitas = () => {
-  try {
-    const data = localStorage.getItem(CITAS_STORAGE_KEY);
-    if (!data) {
-      localStorage.setItem(CITAS_STORAGE_KEY, JSON.stringify(INITIAL_CITAS));
-      return INITIAL_CITAS;
-    }
-    return JSON.parse(data);
-  } catch {
-    return INITIAL_CITAS;
-  }
+  return getRemoteData("appointments", []);
 };
 
-export const saveCita = (citaData) => {
-  const citas = getCitas();
-  const newCita = {
-    ...citaData,
-    id: `PLT-${Math.floor(1000 + Math.random() * 9000)}`,
-    status: "confirmada",
-    createdAt: new Date().toISOString(),
-  };
-  const updated = [newCita, ...citas];
-  localStorage.setItem(CITAS_STORAGE_KEY, JSON.stringify(updated));
-  window.dispatchEvent(new Event("citas_updated"));
-  return newCita;
+export const saveCita = async (citaData) => {
+  const { appointment } = await apiPost("/public/appointments", citaData);
+  const updated = [appointment, ...getCitas()];
+  updateRemoteCache("appointments", updated, "citas_updated");
+  return appointment;
 };
 
 export const updateCitaStatus = (id, newStatus) => {
   const citas = getCitas();
   const updated = citas.map((c) => (c.id === id ? { ...c, status: newStatus } : c));
-  localStorage.setItem(CITAS_STORAGE_KEY, JSON.stringify(updated));
-  window.dispatchEvent(new Event("citas_updated"));
+  updateRemoteCache("appointments", updated, "citas_updated");
+  apiPost("/admin/appointments/mutate", { action: "update_status", id, status: newStatus })
+    .then(({ data }) => {
+      if (Array.isArray(data)) updateRemoteCache("appointments", data, "citas_updated");
+    })
+    .catch((error) => {
+      console.error("Could not update appointment status:", error);
+      window.dispatchEvent(new CustomEvent("platino_api_error", { detail: { namespace: "appointments", message: error.message } }));
+    });
   return updated;
 };
 
 export const deleteCita = (id) => {
   const citas = getCitas();
   const updated = citas.filter((c) => c.id !== id);
-  localStorage.setItem(CITAS_STORAGE_KEY, JSON.stringify(updated));
-  window.dispatchEvent(new Event("citas_updated"));
+  updateRemoteCache("appointments", updated, "citas_updated");
+  apiPost("/admin/appointments/mutate", { action: "delete", id })
+    .then(({ data }) => {
+      if (Array.isArray(data)) updateRemoteCache("appointments", data, "citas_updated");
+    })
+    .catch((error) => {
+      console.error("Could not delete appointment:", error);
+      window.dispatchEvent(new CustomEvent("platino_api_error", { detail: { namespace: "appointments", message: error.message } }));
+    });
   return updated;
 };
 
 export const getBlockedSlots = () => {
-  try {
-    const data = localStorage.getItem(BLOCKED_SLOTS_KEY);
-    if (!data) {
-      localStorage.setItem(BLOCKED_SLOTS_KEY, JSON.stringify(INITIAL_BLOCKED));
-      return INITIAL_BLOCKED;
-    }
-    return JSON.parse(data);
-  } catch {
-    return INITIAL_BLOCKED;
-  }
+  return getRemoteData("blocked_slots", []);
 };
 
 export const isSlotBlocked = (sedeId, dateStr, timeStr, serviceType = "all") => {
@@ -204,16 +193,14 @@ export const blockSlot = (
     createdAt: new Date().toISOString(),
   };
   const updated = [newBlock, ...filtered];
-  localStorage.setItem(BLOCKED_SLOTS_KEY, JSON.stringify(updated));
-  window.dispatchEvent(new Event("citas_updated"));
+  setRemoteData("blocked_slots", updated, "citas_updated");
   return updated;
 };
 
 export const unblockSlot = (blockId) => {
   const blocked = getBlockedSlots();
   const updated = blocked.filter((b) => b.id !== blockId);
-  localStorage.setItem(BLOCKED_SLOTS_KEY, JSON.stringify(updated));
-  window.dispatchEvent(new Event("citas_updated"));
+  setRemoteData("blocked_slots", updated, "citas_updated");
   return updated;
 };
 
@@ -227,8 +214,7 @@ export const unblockFullDay = (sedeId, dateStr, serviceType = "all") => {
         (serviceType === "all" || !b.serviceType || b.serviceType === "all" || b.serviceType === serviceType)
       )
   );
-  localStorage.setItem(BLOCKED_SLOTS_KEY, JSON.stringify(updated));
-  window.dispatchEvent(new Event("citas_updated"));
+  setRemoteData("blocked_slots", updated, "citas_updated");
   return updated;
 };
 
@@ -243,8 +229,6 @@ export const unblockBySlotDetails = (sedeId, dateStr, timeStr, serviceType = "al
         (serviceType === "all" || !b.serviceType || b.serviceType === "all" || b.serviceType === serviceType)
       )
   );
-  localStorage.setItem(BLOCKED_SLOTS_KEY, JSON.stringify(updated));
-  window.dispatchEvent(new Event("citas_updated"));
+  setRemoteData("blocked_slots", updated, "citas_updated");
   return updated;
 };
-

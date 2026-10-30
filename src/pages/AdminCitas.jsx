@@ -81,6 +81,7 @@ import {
   toggleUserPermission,
   getActivePendingRequest,
   getDailyAdminRecoveryCodeInfo,
+  loadDailyAdminRecoveryCodeInfo,
   validateDailyAdminRecoveryCode,
   rotateDailyAdminRecoveryCode,
   getPasswordRecoveryLogs,
@@ -90,6 +91,7 @@ import AdminReclamacionesTab from "../components/AdminReclamacionesTab";
 import AdminPlatinoCareTab from "../components/AdminPlatinoCareTab";
 import AdminGemstonesTab from "../components/AdminGemstonesTab";
 import { compressImageFile } from "../utils/imageCompressor";
+import { getLastViewedProduct } from "../services/recentProducts";
 import "../../styles/citas.css";
 import "../../styles/orders.css";
 
@@ -196,7 +198,8 @@ const getProductCategoryGroup = (prod) => {
 };
 
 export default function AdminCitas() {
-  const { user, isAdmin, openAuthModal, usersDb, findUserByDniOrEmail } = useAuth();
+  const { user, isAdmin, openAuthModal, findUserByDniOrEmail } = useAuth();
+  const isRealMaster = isMasterAdmin(user);
   const [searchParams] = useSearchParams();
   const location = useLocation();
   const navigate = useNavigate();
@@ -269,6 +272,14 @@ export default function AdminCitas() {
   const [activeTab, setActiveTab] = useState(getTabFromLocation);
 
   useEffect(() => {
+    if (isRealMaster) {
+      loadDailyAdminRecoveryCodeInfo()
+        .then(setDailyCodeInfo)
+        .catch((error) => alert(`No se pudo cargar la clave diaria: ${error.message}`));
+    }
+  }, [isRealMaster]);
+
+  useEffect(() => {
     setActiveTab(getTabFromLocation());
   }, [getTabFromLocation]);
 
@@ -309,7 +320,9 @@ export default function AdminCitas() {
       setAdminAccountsList(getAdminAccounts());
     };
     const handleDailyCodeUpdate = () => {
-      setDailyCodeInfo(getDailyAdminRecoveryCodeInfo());
+      if (isRealMaster) {
+        loadDailyAdminRecoveryCodeInfo().then(setDailyCodeInfo).catch((error) => console.error(error));
+      }
     };
     const handleRecoveryLogsUpdate = () => {
       setRecoveryLogs(getPasswordRecoveryLogs());
@@ -326,7 +339,9 @@ export default function AdminCitas() {
         setPermissionsMatrix(getPermissionsMatrix());
         setPermissionRequests(getPermissionRequests());
         setAdminAccountsList(getAdminAccounts());
-        setDailyCodeInfo(getDailyAdminRecoveryCodeInfo());
+        if (isRealMaster) {
+          loadDailyAdminRecoveryCodeInfo().then(setDailyCodeInfo).catch((error) => console.error(error));
+        }
         setRecoveryLogs(getPasswordRecoveryLogs());
       }
     };
@@ -346,10 +361,9 @@ export default function AdminCitas() {
       window.removeEventListener("platino_reclamaciones_updated", handleRecUpdate);
       window.removeEventListener("storage", handleCrossTabStorage);
     };
-  }, []);
+  }, [isRealMaster]);
 
   // Determinar usuario efectivo según la sesión iniciada
-  const isRealMaster = isMasterAdmin(user);
   const effectiveUser = user || ADMIN_ACCOUNTS[0];
   const isEffectiveMaster = isMasterAdmin(effectiveUser);
   const isMaster = isEffectiveMaster;
@@ -494,7 +508,7 @@ export default function AdminCitas() {
       const urlProd = params?.get("prod");
       if (urlProd && catalogList.some((p) => p.id === urlProd)) return urlProd;
 
-      const lastViewed = typeof window !== "undefined" ? localStorage.getItem("platino_last_viewed_product_id") : null;
+      const lastViewed = getLastViewedProduct();
       if (lastViewed && catalogList.some((p) => p.id === lastViewed)) return lastViewed;
     } catch {
       // ignore
@@ -1025,12 +1039,12 @@ export default function AdminCitas() {
     setNewPasswordInput(`${prefix}${sym}${year}${randNum}`);
   };
 
-  const handleSavePassword = (email, name) => {
-    if (!newPasswordInput || newPasswordInput.trim().length < 4) {
-      alert("Por favor ingresa una contraseña válida de al menos 4 caracteres.");
+  const handleSavePassword = async (email, name) => {
+    if (!newPasswordInput || newPasswordInput.trim().length < 12) {
+      alert("Por favor ingresa una contraseña de al menos 12 caracteres.");
       return;
     }
-    const res = updateAdminPassword(email, newPasswordInput.trim());
+    const res = await updateAdminPassword(email, newPasswordInput.trim());
     if (res.success) {
       setPasswordChangeFeedback(`✓ Contraseña de ${name} actualizada exitosamente.`);
       setEditingPasswordEmail(null);
@@ -1054,32 +1068,53 @@ export default function AdminCitas() {
     }
   };
 
-  const handleRotateDailyRecoveryCode = () => {
-    const updatedInfo = rotateDailyAdminRecoveryCode();
-    setDailyCodeInfo(updatedInfo);
-    setValidatorCodeInput(updatedInfo.code);
-    setValidatorResult(null);
-    setFeedbackMsg(
-      `🔑 Nueva clave diaria generada para hoy (${updatedInfo.displayDate}): ${updatedInfo.code} (${updatedInfo.formattedCode})`
-    );
-    setTimeout(() => setFeedbackMsg(""), 5000);
+  const handleRotateDailyRecoveryCode = async () => {
+    try {
+      const updatedInfo = await rotateDailyAdminRecoveryCode();
+      setDailyCodeInfo(updatedInfo);
+      setValidatorCodeInput(updatedInfo.code);
+      setValidatorResult(null);
+      setFeedbackMsg(
+        `Nueva clave diaria generada para hoy (${updatedInfo.displayDate}): ${updatedInfo.code} (${updatedInfo.formattedCode})`
+      );
+      setTimeout(() => setFeedbackMsg(""), 5000);
+    } catch (error) {
+      alert(`No se pudo generar la clave diaria: ${error.message}`);
+    }
   };
 
-  const lookedUpValidatorClient = useMemo(() => {
-    const q = validatorDniInput.trim();
-    if (!q || !findUserByDniOrEmail) return null;
-    const found = findUserByDniOrEmail(q);
-    if (found && found.role !== "admin") return found;
-    return null;
-  }, [validatorDniInput, findUserByDniOrEmail, usersDb]);
+  const [lookedUpValidatorClient, setLookedUpValidatorClient] = useState(null);
+  useEffect(() => {
+    let active = true;
+    const query = validatorDniInput.trim();
+    if (!query || !isRealMaster) {
+      setLookedUpValidatorClient(null);
+      return () => { active = false; };
+    }
+    findUserByDniOrEmail(query).then((found) => {
+      if (active) setLookedUpValidatorClient(found?.role === "cliente" ? found : null);
+    });
+    return () => { active = false; };
+  }, [validatorDniInput, findUserByDniOrEmail, isRealMaster]);
 
-  const handleRunAdminCodeValidator = (e) => {
+  const handleRunAdminCodeValidator = async (e) => {
     if (e && e.preventDefault) e.preventDefault();
-    const currentDaily = getDailyAdminRecoveryCodeInfo();
-    setDailyCodeInfo(currentDaily);
-
-    const codeToTest = (validatorCodeInput || currentDaily.code).trim();
-    const isCodeValid = validateDailyAdminRecoveryCode(codeToTest);
+    let currentDaily;
+    let isCodeValid;
+    try {
+      currentDaily = await loadDailyAdminRecoveryCodeInfo();
+      setDailyCodeInfo(currentDaily);
+      const codeToTest = (validatorCodeInput || lookedUpValidatorClient?.recoveryCode || currentDaily.code).trim();
+      isCodeValid = await validateDailyAdminRecoveryCode(codeToTest, validatorDniInput.trim());
+    } catch (error) {
+      setValidatorResult({
+        valid: false,
+        title: "No se pudo verificar el código",
+        message: error.message,
+      });
+      return;
+    }
+    const codeToTest = (validatorCodeInput || lookedUpValidatorClient?.recoveryCode || currentDaily.code).trim();
     const q = validatorDniInput.trim();
 
     if (!isCodeValid) {
@@ -1092,7 +1127,7 @@ export default function AdminCitas() {
     }
 
     if (q) {
-      const client = findUserByDniOrEmail ? findUserByDniOrEmail(q) : null;
+      const client = await findUserByDniOrEmail(q);
       if (!client || client.role === "admin") {
         setValidatorResult({
           valid: false,
@@ -1105,9 +1140,9 @@ export default function AdminCitas() {
       setValidatorResult({
         valid: true,
         title: "✓ ¡Validación Exitosa! Cliente y Clave Diaria Verificados",
-        message: `El cliente ${client.name} (DNI: ${client.dni || "Registrado"} • ${client.email}) está verificado. Facilítale el código ${currentDaily.code} para que valide su acceso e ingrese su nueva contraseña dos veces.`,
+        message: `El cliente ${client.name} (DNI: ${client.dni || "Registrado"} • ${client.email}) está verificado. Facilítale su código personal de hoy: ${client.recoveryCode || currentDaily.code} (${client.formattedRecoveryCode || `PLT-${client.recoveryCode || currentDaily.code}`}) para que valide su acceso e ingrese su nueva contraseña dos veces.`,
         client,
-        code: currentDaily.code,
+        code: client.recoveryCode || currentDaily.code,
       });
       return;
     }
@@ -4299,7 +4334,7 @@ export default function AdminCitas() {
                           <strong>{lookedUpValidatorClient.dni || "S/N"}</strong> • {lookedUpValidatorClient.email})
                         </span>
                         <span style={{ fontWeight: "800", fontSize: "11px", background: "#dcfce7", padding: "2px 8px", borderRadius: "999px" }}>
-                          Apto para recuperar clave
+                          Código personal hoy: {lookedUpValidatorClient.formattedRecoveryCode || lookedUpValidatorClient.recoveryCode || "Listo"}
                         </span>
                       </>
                     ) : (
@@ -4336,7 +4371,7 @@ export default function AdminCitas() {
                   <button
                     type="button"
                     onClick={() => {
-                      setValidatorCodeInput(dailyCodeInfo.code);
+                      setValidatorCodeInput(lookedUpValidatorClient?.recoveryCode || dailyCodeInfo.code);
                       if (!validatorDniInput) setValidatorDniInput("74829103");
                     }}
                     style={{
@@ -5936,7 +5971,7 @@ export default function AdminCitas() {
 
               {/* Notificación rápida si el usuario estaba viendo otra joya en la tienda */}
               {(() => {
-                const lastViewedId = typeof window !== "undefined" ? localStorage.getItem("platino_last_viewed_product_id") : null;
+                const lastViewedId = getLastViewedProduct();
                 const lastProd = lastViewedId && lastViewedId !== currentInventoryProduct?.id ? catalogList.find((p) => p.id === lastViewedId) : null;
                 if (!lastProd) return null;
                 return (

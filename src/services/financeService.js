@@ -1,4 +1,5 @@
 // Servicio para la gestión financiera y porcentajes de ganancia por categoría de Platino Joyería (Exclusivo Administrador)
+import { getRemoteData, setRemoteData } from "./remoteData";
 
 export const CATEGORIES_CONFIG = [
   { id: "anillo-compromiso", label: "Anillos de Compromiso", icon: "💍", defaultMargin: 40 },
@@ -16,41 +17,22 @@ export const DEFAULT_CATEGORY_MARGINS = {
   "joyeria": 45,
 };
 
-const STORAGE_KEY_CATEGORY_MARGINS = "platino_category_margins_v2";
-
 /**
  * Obtiene los porcentajes de ganancia de cada categoría
  */
 export const getCategoryMargins = () => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_CATEGORY_MARGINS);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (typeof parsed === "object" && parsed !== null) {
-        return { ...DEFAULT_CATEGORY_MARGINS, ...parsed };
-      }
-    }
-  } catch (e) {
-    console.error("Error al leer márgenes de categorías:", e);
-  }
-  return { ...DEFAULT_CATEGORY_MARGINS };
+  return { ...DEFAULT_CATEGORY_MARGINS, ...getRemoteData("finance", DEFAULT_CATEGORY_MARGINS) };
 };
 
 /**
  * Guarda el porcentaje de ganancia de una categoría específica
  */
 export const saveCategoryMargin = (categoryId, marginVal) => {
-  try {
-    const current = getCategoryMargins();
-    const num = Math.min(99, Math.max(1, parseInt(marginVal, 10) || 0));
-    current[categoryId] = num;
-    localStorage.setItem(STORAGE_KEY_CATEGORY_MARGINS, JSON.stringify(current));
-    window.dispatchEvent(new Event("platino_category_margins_updated"));
-    return current;
-  } catch (e) {
-    console.error("Error al guardar margen de categoría:", e);
-    return DEFAULT_CATEGORY_MARGINS;
-  }
+  const current = getCategoryMargins();
+  const num = Math.min(99, Math.max(1, parseInt(marginVal, 10) || 0));
+  current[categoryId] = num;
+  setRemoteData("finance", current, "platino_category_margins_updated");
+  return current;
 };
 
 /**

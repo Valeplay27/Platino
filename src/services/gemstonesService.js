@@ -1,8 +1,6 @@
 // Servicio de administración y persistencia de Gemas y Diamantes Certificados para Platino Perú
 import { CERTIFIED_GEMSTONES } from "../data/gemstones";
-
-const STORAGE_KEY = "platino_certified_gemstones";
-const LABS_STORAGE_KEY = "platino_gem_laboratories";
+import { getRemoteData, setRemoteData } from "./remoteData";
 
 /**
  * Laboratorios gemológicos por defecto
@@ -23,35 +21,16 @@ export const DEFAULT_LABORATORIES = [
  * Obtiene los laboratorios gemológicos almacenados (o por defecto)
  */
 export const getStoredLaboratories = () => {
-  try {
-    const raw = localStorage.getItem(LABS_STORAGE_KEY);
-    if (!raw) {
-      localStorage.setItem(LABS_STORAGE_KEY, JSON.stringify(DEFAULT_LABORATORIES));
-      return DEFAULT_LABORATORIES;
-    }
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
-    }
-    return DEFAULT_LABORATORIES;
-  } catch (error) {
-    console.error("Error al cargar laboratorios gemológicos:", error);
-    return DEFAULT_LABORATORIES;
-  }
+  const parsed = getRemoteData("laboratories", DEFAULT_LABORATORIES);
+  return Array.isArray(parsed) && parsed.length > 0 ? parsed : DEFAULT_LABORATORIES;
 };
 
 /**
- * Guarda los laboratorios gemológicos en localStorage y emite evento reactivo
+ * Guarda los laboratorios gemológicos en el servidor y emite evento reactivo
  */
 export const saveStoredLaboratories = (laboratories) => {
-  try {
-    localStorage.setItem(LABS_STORAGE_KEY, JSON.stringify(laboratories));
-    window.dispatchEvent(new CustomEvent("platino_gem_laboratories_updated"));
-    return true;
-  } catch (error) {
-    console.error("Error al guardar laboratorios gemológicos:", error);
-    return false;
-  }
+  setRemoteData("laboratories", laboratories, "platino_gem_laboratories_updated");
+  return true;
 };
 
 /**
@@ -111,41 +90,22 @@ export const normalizeGemstone = (g) => {
 };
 
 /**
- * Obtiene la lista actual de gemas certificadas (desde localStorage o por defecto)
+ * Obtiene la lista actual de gemas certificadas (desde el servidor o por defecto)
  */
 export const getStoredGemstones = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      const normalizedDefaults = CERTIFIED_GEMSTONES.map(normalizeGemstone);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(normalizedDefaults));
-      return normalizedDefaults;
-    }
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.map(normalizeGemstone);
-    }
-    const normalizedDefaults = CERTIFIED_GEMSTONES.map(normalizeGemstone);
-    return normalizedDefaults;
-  } catch (error) {
-    console.error("Error al cargar gemas certificadas de almacenamiento:", error);
-    return CERTIFIED_GEMSTONES.map(normalizeGemstone);
-  }
+  const parsed = getRemoteData("gemstones", CERTIFIED_GEMSTONES);
+  return Array.isArray(parsed) && parsed.length > 0
+    ? parsed.map(normalizeGemstone)
+    : CERTIFIED_GEMSTONES.map(normalizeGemstone);
 };
 
 /**
- * Guarda la lista de gemas en localStorage y emite evento global
+ * Guarda la lista de gemas en el servidor y emite evento global
  */
 export const saveStoredGemstones = (gemstones) => {
-  try {
-    const normalized = (gemstones || []).map(normalizeGemstone);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(normalized));
-    window.dispatchEvent(new CustomEvent("platino_gemstones_updated"));
-    return true;
-  } catch (error) {
-    console.error("Error al guardar gemas certificadas:", error);
-    return false;
-  }
+  const normalized = (gemstones || []).map(normalizeGemstone);
+  setRemoteData("gemstones", normalized, "platino_gemstones_updated");
+  return true;
 };
 
 /**

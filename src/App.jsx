@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
@@ -21,12 +21,20 @@ import Nosotros from './pages/Nosotros'
 import LibroReclamaciones from './pages/LibroReclamaciones'
 import GoogleReviewsToast from './components/GoogleReviewsToast'
 import CartDrawer from './components/CartDrawer'
+import ApiDataBootstrap from './components/ApiDataBootstrap'
 import './App.css'
 
 function App() {
   const [cart, setCart] = useState([])
   const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false)
   const [lastAddedItem, setLastAddedItem] = useState(null)
+  const [apiError, setApiError] = useState("")
+
+  useEffect(() => {
+    const handleApiError = (event) => setApiError(event.detail?.message || "No se pudo conectar con el servidor.");
+    window.addEventListener("platino_api_error", handleApiError);
+    return () => window.removeEventListener("platino_api_error", handleApiError);
+  }, [])
 
   const addToCart = (product) => {
     const itemKey = product.cartItemId || `${product.id}-${product.selectedMetal || product.metal || ''}-${product.selectedSize || product.size || ''}-${product.engraving || ''}`;
@@ -77,6 +85,13 @@ function App() {
   return (
     <AuthProvider>
       <BrowserRouter basename={import.meta.env.BASE_URL}>
+        <ApiDataBootstrap>
+        {apiError && (
+          <div className="api-error-banner" role="alert" style={{ background: "#8b1e1e", color: "white", padding: "12px 20px", display: "flex", justifyContent: "space-between", gap: "16px" }}>
+            {apiError}
+            <button type="button" onClick={() => setApiError("")} aria-label="Cerrar aviso">×</button>
+          </div>
+        )}
         <ScrollToTop />
         <Navbar
           cartCount={cart.reduce((total, item) => total + item.quantity, 0)}
@@ -142,6 +157,7 @@ function App() {
           lastAddedItem={lastAddedItem}
         />
         <GoogleReviewsToast />
+        </ApiDataBootstrap>
       </BrowserRouter>
     </AuthProvider>
   )

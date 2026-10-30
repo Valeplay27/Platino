@@ -174,10 +174,12 @@ export function generateDefaultProductStock(_productId, _hasDoubleSizes = false)
  * Obtener todos los inventarios almacenados, con auto-migración y curación de tallas
  */
 export function getAllStoredInventory() {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_INVENTORY);
-    if (stored) {
-      const parsed = JSON.parse(stored);
+  const parsedData = getRemoteData("inventory", null);
+  if (parsedData && typeof parsedData === "object" && Object.keys(parsedData).length === 0) {
+      return {};
+  }
+  if (parsedData && typeof parsedData === "object") {
+      const parsed = parsedData;
       let needsSave = false;
 
       // Asegurar que exista _master_
@@ -227,13 +229,10 @@ export function getAllStoredInventory() {
       }
 
       if (needsSave) {
-        localStorage.setItem(STORAGE_KEY_INVENTORY, JSON.stringify(parsed));
+        updateRemoteCache("inventory", parsed, "platino_inventory_updated", { inventory: parsed });
       }
 
       return parsed;
-    }
-  } catch (err) {
-    console.error("Error reading inventory from localStorage", err);
   }
   return {};
 }
@@ -242,16 +241,7 @@ export function getAllStoredInventory() {
  * Guardar inventario completo y notificar tanto localmente como a otras pestañas
  */
 export function saveAllInventory(inventoryMap) {
-  try {
-    localStorage.setItem(STORAGE_KEY_INVENTORY, JSON.stringify(inventoryMap));
-    // Ping con timestamp para forzar evento storage en todas las pestañas
-    localStorage.setItem("platino_inventory_sync_ping", String(Date.now()));
-    window.dispatchEvent(
-      new CustomEvent("platino_inventory_updated", { detail: { inventory: inventoryMap } })
-    );
-  } catch (err) {
-    console.error("Error saving inventory to localStorage", err);
-  }
+  setRemoteData("inventory", inventoryMap, "platino_inventory_updated", { inventory: inventoryMap });
 }
 
 /**
@@ -266,7 +256,7 @@ export function getProductStock(productId, hasDoubleSizes = false) {
   if (!all[productId] || !all[productId].dama || !all[productId].varon) {
     const initial = master ? JSON.parse(JSON.stringify(master)) : generateDefaultProductStock(productId, hasDoubleSizes);
     all[productId] = initial;
-    saveAllInventory(all);
+    updateRemoteCache("inventory", all, "platino_inventory_updated", { inventory: all });
     return initial;
   }
 
@@ -505,3 +495,4 @@ export function getProductTotalStockStats(productStock) {
     outOfStockCount,
   };
 }
+import { getRemoteData, setRemoteData, updateRemoteCache } from "./remoteData";

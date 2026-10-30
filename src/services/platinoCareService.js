@@ -1,7 +1,7 @@
 // Servicio de Configuración y Gestión de Platino Care (Platino Perú)
 // Permite al Administrador / Vladimir editar beneficios, precios y coberturas
-
-const STORAGE_KEY = "platino_care_config_v2";
+import { apiGet, apiPost } from "./apiClient";
+import { getRemoteData, setRemoteData, updateRemoteCache } from "./remoteData";
 
 export const DEFAULT_PLATINO_CARE_CONFIG = {
   isActive: true,
@@ -84,50 +84,29 @@ export const DEFAULT_PLATINO_CARE_CONFIG = {
  * Obtener configuración actual de Platino Care
  */
 export function getPlatinoCareConfig() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_PLATINO_CARE_CONFIG));
-      return { ...DEFAULT_PLATINO_CARE_CONFIG };
-    }
-    const parsed = JSON.parse(raw);
-    return {
-      ...DEFAULT_PLATINO_CARE_CONFIG,
-      ...parsed,
-      plus: { ...DEFAULT_PLATINO_CARE_CONFIG.plus, ...(parsed.plus || {}) },
-      cortesia: { ...DEFAULT_PLATINO_CARE_CONFIG.cortesia, ...(parsed.cortesia || {}) },
-    };
-  } catch (err) {
-    console.error("Error leyendo platino_care_config:", err);
-    return { ...DEFAULT_PLATINO_CARE_CONFIG };
-  }
+  const parsed = getRemoteData("care_config", DEFAULT_PLATINO_CARE_CONFIG);
+  return {
+    ...DEFAULT_PLATINO_CARE_CONFIG,
+    ...parsed,
+    plus: { ...DEFAULT_PLATINO_CARE_CONFIG.plus, ...(parsed.plus || {}) },
+    cortesia: { ...DEFAULT_PLATINO_CARE_CONFIG.cortesia, ...(parsed.cortesia || {}) },
+  };
 }
 
 /**
  * Guardar nueva configuración de Platino Care
  */
 export function savePlatinoCareConfig(config) {
-  try {
-    const updated = {
-      ...config,
-      lastUpdated: new Date().toISOString(),
-    };
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
-    // Disparar evento para que otras pestañas o componentes se actualicen reactivamente
-    window.dispatchEvent(new Event("platino_care_updated"));
-    return updated;
-  } catch (err) {
-    console.error("Error guardando platino_care_config:", err);
-    return config;
-  }
+  const updated = { ...config, lastUpdated: new Date().toISOString() };
+  setRemoteData("care_config", updated, "platino_care_updated");
+  return updated;
 }
 
 /**
  * Restablecer a los valores predeterminados
  */
 export function resetPlatinoCareConfig() {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(DEFAULT_PLATINO_CARE_CONFIG));
-  window.dispatchEvent(new Event("platino_care_updated"));
+  setRemoteData("care_config", DEFAULT_PLATINO_CARE_CONFIG, "platino_care_updated");
   return { ...DEFAULT_PLATINO_CARE_CONFIG };
 }
 
@@ -135,163 +114,58 @@ export function resetPlatinoCareConfig() {
 // REGISTRO & VALIDACIÓN DE CLIENTES PLATINO CARE POR DNI
 // =========================================================================
 
-const CLIENTS_STORAGE_KEY = "platino_care_clients_v2";
+export const INITIAL_PLATINO_CARE_CLIENTS = [];
 
-export const INITIAL_PLATINO_CARE_CLIENTS = [
-  {
-    id: "CARE-2026-001",
-    dni: "47829103",
-    clientName: "Camila Mendoza",
-    clientEmail: "cliente@platino.pe",
-    clientPhone: "+51 912 345 678",
-    planType: "plus",
-    planTitle: "Platino Care + (Premium S/. 90)",
-    orderId: "PLT-2026-8941",
-    productName: "Anillo Solitario Secret Garden",
-    productMetal: "Oro 18K Rosa",
-    fechaRegistro: "2026-03-25",
-    fechaValidacionGratuidad: null,
-    fechaEntallado: "2026-04-02",
-    entalladoStatus: "realizado",
-    entalladoDetalle: "Ajuste de talla 11 a 12.5 (Sede Miraflores)",
-    fechaLimpieza: "2026-04-05",
-    fechaProximoMantenimiento: "2026-10-05",
-    status: "aprobado", // 'pendiente_pago' | 'aprobado' | 'rechazado'
-    paymentConfirmed: true,
-    paymentConfirmedAt: "25/03/2026 11:30 AM",
-    approvedBy: "Admin Central (Vladimir)",
-    paymentMethod: "BCP",
-    amountPaid: 90,
-    canEnjoyBenefits: true,
-    notes: "Pago de S/. 90 confirmado vía BCP. Cobertura total Platino Care + activada.",
-  },
-  {
-    id: "CARE-2026-002",
-    dni: "45192837",
-    clientName: "Valeria Morales",
-    clientEmail: "v.morales@gmail.com",
-    clientPhone: "+51 984 281 116",
-    planType: "plus",
-    planTitle: "Platino Care + (Premium S/. 90)",
-    orderId: "PLT-2026-9115",
-    productName: "Pulsera Tennis Diamantes Platino",
-    productMetal: "Platino 950",
-    fechaRegistro: "2026-03-30",
-    fechaValidacionGratuidad: null,
-    fechaEntallado: null,
-    entalladoStatus: "pendiente",
-    entalladoDetalle: "",
-    fechaLimpieza: null,
-    fechaProximoMantenimiento: null,
-    status: "pendiente_pago",
-    paymentConfirmed: false,
-    paymentConfirmedAt: null,
-    approvedBy: null,
-    paymentMethod: "IziPay",
-    amountPaid: 90,
-    canEnjoyBenefits: false,
-    notes: "Plan Premium registrado. Pendiente de pago para habilitar beneficios de taller.",
-  },
-  {
-    id: "CARE-2026-003",
-    dni: "72910384",
-    clientName: "Diego Alarcón",
-    clientEmail: "d.alarcon@gmail.com",
-    clientPhone: "+51 927 357 217",
-    planType: "cortesia",
-    planTitle: "Platino Care Cortesía (Gratuito S/. 0)",
-    orderId: "PLT-2026-9240",
-    productName: "Anillo Aura Zafiro Azul",
-    productMetal: "Oro 18K Blanco",
-    fechaRegistro: "2026-04-03",
-    fechaValidacionGratuidad: "2026-04-03",
-    fechaEntallado: "2026-04-10",
-    entalladoStatus: "realizado",
-    entalladoDetalle: "Ajuste de talla 13 a 14 (Sede Lima Centro)",
-    fechaLimpieza: "2026-04-15",
-    fechaProximoMantenimiento: "2026-10-15",
-    status: "activo",
-    paymentConfirmed: true,
-    paymentConfirmedAt: null,
-    approvedBy: "Sistema Oficial Platino",
-    paymentMethod: "Gratuito (Cortesía)",
-    amountPaid: 0,
-    canEnjoyBenefits: true,
-    notes: "Validación de gratuidad completada con DNI. Beneficio de 1 entallado realizado el 10/04/2026.",
-  },
-  {
-    id: "CARE-2026-004",
-    dni: "41893021",
-    clientName: "Rodrigo Benavides",
-    clientEmail: "r.benavides@empresa.pe",
-    clientPhone: "+51 998 765 432",
-    planType: "cortesia",
-    planTitle: "Platino Care Cortesía (Gratuito S/. 0)",
-    orderId: "PLT-2026-9023",
-    productName: "Anillo Corona Imperial",
-    productMetal: "Oro 18K Amarillo",
-    fechaRegistro: "2026-04-01",
-    fechaValidacionGratuidad: "2026-04-01",
-    fechaEntallado: null,
-    entalladoStatus: "pendiente",
-    entalladoDetalle: "Entallado de cortesía disponible dentro de los 90 días.",
-    fechaLimpieza: null,
-    fechaProximoMantenimiento: "2026-10-01",
-    status: "activo",
-    paymentConfirmed: true,
-    paymentConfirmedAt: null,
-    approvedBy: "Sistema Oficial Platino",
-    paymentMethod: "Gratuito (Cortesía)",
-    amountPaid: 0,
-    canEnjoyBenefits: true,
-    notes: "Plan Gratuito validado el 01/04/2026. Beneficio de 1 entallado pendiente de uso.",
-  },
-];
+const mutateCareClientsOnServer = (payload) => {
+  apiPost("/admin/care-clients/mutate", payload)
+    .then(({ data }) => {
+      if (Array.isArray(data)) updateRemoteCache("care_clients", data, "platino_care_clients_updated");
+    })
+    .catch((error) => {
+      console.error("Could not persist Platino Care client on the API:", error);
+      window.dispatchEvent(new CustomEvent("platino_api_error", { detail: { namespace: "care_clients", message: error.message } }));
+    });
+};
 
 /**
  * Obtener todos los clientes registrados en Platino Care
  */
 export function getPlatinoCareClients() {
-  try {
-    const raw = localStorage.getItem(CLIENTS_STORAGE_KEY);
-    if (!raw) {
-      localStorage.setItem(CLIENTS_STORAGE_KEY, JSON.stringify(INITIAL_PLATINO_CARE_CLIENTS));
-      return [...INITIAL_PLATINO_CARE_CLIENTS];
-    }
-    const parsed = JSON.parse(raw);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed;
-    }
-    localStorage.setItem(CLIENTS_STORAGE_KEY, JSON.stringify(INITIAL_PLATINO_CARE_CLIENTS));
-    return [...INITIAL_PLATINO_CARE_CLIENTS];
-  } catch (err) {
-    console.error("Error leyendo platino_care_clients:", err);
-    return [...INITIAL_PLATINO_CARE_CLIENTS];
-  }
+  const clients = getRemoteData("care_clients", []);
+  return Array.isArray(clients) ? clients : [];
 }
 
 /**
  * Guardar lista completa de clientes de Platino Care
  */
 export function savePlatinoCareClients(clients) {
-  try {
-    localStorage.setItem(CLIENTS_STORAGE_KEY, JSON.stringify(clients));
-    window.dispatchEvent(new Event("platino_care_clients_updated"));
-    return clients;
-  } catch (err) {
-    console.error("Error guardando platino_care_clients:", err);
-    return clients;
-  }
+  setRemoteData("care_clients", clients, "platino_care_clients_updated");
+  return clients;
 }
 
 /**
- * Buscar cliente por DNI (ignora espacios)
+ * Buscar cliente por DNI (en memoria para admin)
  */
 export function getPlatinoCareClientByDni(dni) {
   if (!dni) return null;
   const cleanDni = String(dni).trim();
   const all = getPlatinoCareClients();
   return all.find((c) => String(c.dni).trim() === cleanDni) || null;
+}
+
+/**
+ * Consultar cobertura Platino Care por DNI en el servidor (seguro para portal de clientes)
+ */
+export async function lookupPlatinoCareClientByDni(dni) {
+  const cleanDni = String(dni || "").replace(/\D/g, "");
+  if (cleanDni.length !== 8) return null;
+  try {
+    const { record } = await apiGet(`/public/care/lookup?dni=${encodeURIComponent(cleanDni)}`);
+    return record || null;
+  } catch (error) {
+    console.error("Could not lookup Platino Care record:", error);
+    return getPlatinoCareClientByDni(cleanDni);
+  }
 }
 
 /**
@@ -354,7 +228,7 @@ export function registerPlatinoCareClient({
     approvedBy: !isPlus ? "Sistema Oficial Platino" : null,
     paymentMethod: isPlus ? paymentMethod : "Gratuito (Cortesía)",
     amountPaid: isPlus ? (amountPaid ?? 90) : 0,
-    canEnjoyBenefits: !isPlus, // Para premium es false hasta que el admin confirme el pago
+    canEnjoyBenefits: !isPlus,
     notes: notes || (isPlus
       ? "Plan Premium registrado. Pendiente de confirmación de pago para activar beneficios de taller."
       : `Plan Gratuito de Cortesía validado en sistema con fecha ${finalFechaGratuidad}.`),
@@ -371,7 +245,8 @@ export function registerPlatinoCareClient({
     updatedList = [newRecord, ...all];
   }
 
-  savePlatinoCareClients(updatedList);
+  updateRemoteCache("care_clients", updatedList, "platino_care_clients_updated");
+  mutateCareClientsOnServer({ action: "upsert", record: updatedList[existingIdx >= 0 ? existingIdx : 0] });
   return newRecord;
 }
 
@@ -397,7 +272,8 @@ export function updatePlatinoCareClientDates(idOrDni, datesData = {}) {
 
   const updatedList = [...all];
   updatedList[index] = updatedClient;
-  savePlatinoCareClients(updatedList);
+  updateRemoteCache("care_clients", updatedList, "platino_care_clients_updated");
+  mutateCareClientsOnServer({ action: "upsert", record: updatedClient });
   return updatedClient;
 }
 
@@ -424,7 +300,8 @@ export function approvePlatinoCareClientPayment(idOrDni, adminUser = "Administra
 
   const updatedList = [...all];
   updatedList[index] = updatedClient;
-  savePlatinoCareClients(updatedList);
+  updateRemoteCache("care_clients", updatedList, "platino_care_clients_updated");
+  mutateCareClientsOnServer({ action: "upsert", record: updatedClient });
   return updatedClient;
 }
 
@@ -446,7 +323,8 @@ export function rejectPlatinoCareClientPayment(idOrDni, reason = "Pago no identi
 
   const updatedList = [...all];
   updatedList[index] = updatedClient;
-  savePlatinoCareClients(updatedList);
+  updateRemoteCache("care_clients", updatedList, "platino_care_clients_updated");
+  mutateCareClientsOnServer({ action: "upsert", record: updatedClient });
   return updatedClient;
 }
 
@@ -456,7 +334,8 @@ export function rejectPlatinoCareClientPayment(idOrDni, reason = "Pago no identi
 export function deletePlatinoCareClient(idOrDni) {
   const all = getPlatinoCareClients();
   const updatedList = all.filter((c) => c.id !== idOrDni && String(c.dni).trim() !== String(idOrDni).trim());
-  savePlatinoCareClients(updatedList);
+  updateRemoteCache("care_clients", updatedList, "platino_care_clients_updated");
+  mutateCareClientsOnServer({ action: "delete", idOrDni: String(idOrDni).trim() });
   return true;
 }
 
@@ -476,4 +355,3 @@ export function validateFreePlatinoCareByDni(dni, clientData = {}) {
     notes: "Validación de cortesía gratuita realizada con DNI.",
   });
 }
-

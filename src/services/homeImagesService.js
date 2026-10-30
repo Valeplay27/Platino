@@ -1,6 +1,6 @@
 import { getAssetUrl, toCleanAssetPath } from "../utils/assetHelper";
+import { getRemoteData, setRemoteData } from "./remoteData";
 
-const STORAGE_KEY_HOME_IMAGES = "platino_home_images_v1";
 
 export const DEFAULT_HOME_IMAGES = {
   // 1. Hero Principal
@@ -293,17 +293,7 @@ export const DEFAULT_HOME_IMAGES = {
 
 // Obtener la configuración actual de imágenes del Inicio
 export const getHomeImages = () => {
-  let data = { ...DEFAULT_HOME_IMAGES };
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_HOME_IMAGES);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      // Combinar con los valores por defecto en caso de llaves nuevas
-      data = { ...DEFAULT_HOME_IMAGES, ...parsed };
-    }
-  } catch (error) {
-    console.error("Error loading home images from localStorage", error);
-  }
+  const data = { ...DEFAULT_HOME_IMAGES, ...getRemoteData("home_images", DEFAULT_HOME_IMAGES) };
 
   // Resolver rutas relativas para soportar GitHub Pages (BASE_URL)
   const resolved = {};
@@ -318,21 +308,14 @@ export const getHomeImages = () => {
 
 // Guardar y notificar cambios (guardando siempre rutas relativas limpias para que no dependan del host)
 export const saveHomeImages = (data) => {
-  try {
-    const toStore = {};
-    for (const [key, item] of Object.entries(data)) {
-      toStore[key] = {
-        ...item,
-        image: item?.image ? toCleanAssetPath(item.image) : item?.image,
-      };
-    }
-    localStorage.setItem(STORAGE_KEY_HOME_IMAGES, JSON.stringify(toStore));
-    window.dispatchEvent(
-      new CustomEvent("home_images_updated", { detail: { images: data } })
-    );
-  } catch (error) {
-    console.error("Error saving home images to localStorage", error);
+  const toStore = {};
+  for (const [key, item] of Object.entries(data)) {
+    toStore[key] = {
+      ...item,
+      image: item?.image ? toCleanAssetPath(item.image) : item?.image,
+    };
   }
+  setRemoteData("home_images", toStore, "home_images_updated", { images: data });
 };
 
 export const HOME_SECTIONS = [
@@ -368,92 +351,37 @@ export const updateSingleHomeImage = (key, newImageSrc, extraFields = {}) => {
 
 // Restaurar imágenes de inicio a su estado original
 export const resetHomeImages = () => {
-  try {
-    localStorage.removeItem(STORAGE_KEY_HOME_IMAGES);
-    window.dispatchEvent(
-      new CustomEvent("home_images_updated", { detail: { images: DEFAULT_HOME_IMAGES } })
-    );
-    return { ...DEFAULT_HOME_IMAGES };
-  } catch (error) {
-    console.error("Error resetting home images", error);
-    return { ...DEFAULT_HOME_IMAGES };
-  }
+  saveHomeImages(DEFAULT_HOME_IMAGES);
+  return { ...DEFAULT_HOME_IMAGES };
 };
 
 // ========================================================
 // LÍNEA VERDE SUPERIOR (BARRA DE ANUNCIOS GLOBAL)
 // ========================================================
-const STORAGE_KEY_ANNOUNCEMENT = "platino_announcement_text_v1";
-const STORAGE_KEY_ANNOUNCEMENT_ACTIVE = "platino_announcement_active_v1";
-
 export const DEFAULT_ANNOUNCEMENT =
   "¡ÚLTIMAS UNIDADES! Elige tu caja de presentación para tu momento especial.";
 
 export const getAnnouncementActive = () => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_ANNOUNCEMENT_ACTIVE);
-    if (stored !== null && stored !== undefined) {
-      return stored === "true";
-    }
-    return true; // Activo por defecto
-  } catch (error) {
-    console.error("Error reading announcement active state", error);
-    return true;
-  }
+  return getRemoteData("announcement_active", true);
 };
 
 export const saveAnnouncementActive = (isActive) => {
-  try {
-    const val = isActive ? "true" : "false";
-    localStorage.setItem(STORAGE_KEY_ANNOUNCEMENT_ACTIVE, val);
-    window.dispatchEvent(
-      new CustomEvent("announcement_updated", { detail: { active: isActive } })
-    );
-    return isActive;
-  } catch (error) {
-    console.error("Error saving announcement active state", error);
-    return isActive;
-  }
+  setRemoteData("announcement_active", Boolean(isActive), "announcement_updated", { active: Boolean(isActive) });
+  return Boolean(isActive);
 };
 
 export const getAnnouncementText = () => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_ANNOUNCEMENT);
-    if (stored !== null && stored !== undefined) {
-      return stored;
-    }
-    return DEFAULT_ANNOUNCEMENT;
-  } catch (error) {
-    console.error("Error reading announcement from localStorage", error);
-    return DEFAULT_ANNOUNCEMENT;
-  }
+  return getRemoteData("announcement", DEFAULT_ANNOUNCEMENT);
 };
 
 export const saveAnnouncementText = (text) => {
-  try {
-    const cleanText = text.trim();
-    localStorage.setItem(STORAGE_KEY_ANNOUNCEMENT, cleanText);
-    window.dispatchEvent(
-      new CustomEvent("announcement_updated", { detail: { text: cleanText } })
-    );
-    return cleanText;
-  } catch (error) {
-    console.error("Error saving announcement to localStorage", error);
-    return text;
-  }
+  const cleanText = text.trim();
+  setRemoteData("announcement", cleanText, "announcement_updated", { text: cleanText });
+  return cleanText;
 };
 
 export const resetAnnouncementText = () => {
-  try {
-    localStorage.removeItem(STORAGE_KEY_ANNOUNCEMENT);
-    localStorage.removeItem(STORAGE_KEY_ANNOUNCEMENT_ACTIVE);
-    window.dispatchEvent(
-      new CustomEvent("announcement_updated", { detail: { text: DEFAULT_ANNOUNCEMENT, active: true } })
-    );
-    return DEFAULT_ANNOUNCEMENT;
-  } catch (error) {
-    console.error("Error resetting announcement text", error);
-    return DEFAULT_ANNOUNCEMENT;
-  }
+  saveAnnouncementText(DEFAULT_ANNOUNCEMENT);
+  saveAnnouncementActive(true);
+  return DEFAULT_ANNOUNCEMENT;
 };
-

@@ -19,6 +19,7 @@ import { isUserFavorite, toggleUserFavorite } from "../services/favoritesService
 import { getPlatinoCareConfig } from "../services/platinoCareService";
 import { DiamondCutIcon } from "../components/GemstoneIcons";
 import { getAssetUrl } from "../utils/assetHelper";
+import { setLastViewedProduct } from "../services/recentProducts";
 import "../../styles/product.css";
 
 export default function Product({ addToCart }) {
@@ -167,7 +168,7 @@ export default function Product({ addToCart }) {
   // Guardar última joya vista para sincronización automática con el panel de administración
   useEffect(() => {
     if (product?.id) {
-      localStorage.setItem("platino_last_viewed_product_id", product.id);
+      setLastViewedProduct(product.id);
     }
   }, [product?.id]);
 

@@ -26,8 +26,6 @@ export default function AgendarCita() {
       : sedesData[0].id
   );
 
-  const serviceType = "asesoria";
-
   // Fecha mínima permitida (1 día de anticipación a partir de mañana)
   const minBookingDate = getMinBookingDateString();
   const [selectedDate, setSelectedDate] = useState(() => getMinBookingDateString());
@@ -55,7 +53,7 @@ export default function AgendarCita() {
 
   const selectedSede = sedesData.find((s) => s.id === selectedSedeId) || sedesData[0];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
 
     if (selectedDate < minBookingDate) {
@@ -87,20 +85,23 @@ export default function AgendarCita() {
       return;
     }
 
-    const newCita = saveCita({
-      sedeId: selectedSede.id,
-      sedeName: selectedSede.name,
-      serviceType: "asesoria",
-      serviceTitle: "Cita de Asesoría General (Aros y Joyería Fina)",
-      date: selectedDate,
-      time: selectedTime,
-      clientName: clientName.trim(),
-      clientPhone: clientPhone.trim(),
-      clientEmail: clientEmail.trim(),
-      observation: observation.trim() || "Asesoría general en joyería fina.",
-    });
-
-    setConfirmedCita(newCita);
+    try {
+      const newCita = await saveCita({
+        sedeId: selectedSede.id,
+        sedeName: selectedSede.name,
+        serviceType: "asesoria",
+        serviceTitle: "Cita de Asesoría General (Aros y Joyería Fina)",
+        date: selectedDate,
+        time: selectedTime,
+        clientName: clientName.trim(),
+        clientPhone: clientPhone.trim(),
+        clientEmail: clientEmail.trim(),
+        observation: observation.trim() || "Asesoría general en joyería fina.",
+      });
+      setConfirmedCita(newCita);
+    } catch (error) {
+      alert(error.message);
+    }
   };
 
   const getWhatsAppMessageUrl = () => {

@@ -2,29 +2,24 @@ import { useState, useEffect, useCallback } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import {
-  getOrders,
   getOrdersByClientEmail,
   updateOrderStatus,
   advanceOrderStep,
   stepBackOrderStep,
-  createOrder,
-  ORDER_STAGES,
   getOrderStageInfo,
   CLIENT_ORDER_STAGES,
   getClientStageInfo,
   getClientProgressPercentage,
 } from "../services/ordersService";
 import {
-  getPlatinoCareClients,
-  getPlatinoCareClientByDni,
-  validateFreePlatinoCareByDni,
+  getPlatinoCareClientByDni, lookupPlatinoCareClientByDni,
 } from "../services/platinoCareService";
 import { getUserFavorites, removeFromFavorites } from "../services/favoritesService";
 import { formatPrice } from "../data/products";
 import "../../styles/orders.css";
 
 export default function ClientOrders({ addToCart }) {
-  const { user, login, openAuthModal } = useAuth();
+  const { user, openAuthModal } = useAuth();
   const [searchParams] = useSearchParams();
   const isNewlyCreated = searchParams.get("nuevo") === "1";
   const tabParam = searchParams.get("tab");
@@ -87,41 +82,6 @@ export default function ClientOrders({ addToCart }) {
     window.addEventListener("orders_updated", handleUpdate);
     return () => window.removeEventListener("orders_updated", handleUpdate);
   }, [getInitialOrders]);
-
-  // Manejar acceso rápido como cliente prueba
-  const handleQuickLoginCliente = () => {
-    login("cliente@platino.pe", "platino2026");
-  };
-
-  // Crear una nueva orden de demostración con 1 clic para el usuario actual
-  const handleCreateSampleOrder = () => {
-    const newOrd = createOrder({
-      clientName: user?.name || "Vladimir",
-      clientEmail: user?.email || "vladimiryt18@gmail.com",
-      clientPhone: user?.phone || "+51 927 357 217",
-      deliveryType: "recojo_sede",
-      sedeRecojo: "Sede Miraflores - Av. José Larco 880",
-      total: 4850,
-      paymentMethod: "BCP",
-      items: [
-        {
-          id: "prod-secret-garden",
-          name: "Anillo Solitario Secret Garden",
-          metal: "Oro 18K Rosa",
-          metalId: "oro-18k-rosa",
-          tone: "rose",
-          size: "12 (Dama)",
-          gemstone: "Diamante Natural 1.00 ct - Corte Redondo Brillante (GIA)",
-          price: 4850,
-          quantity: 1,
-          image: "/images/secret-garden-rose.jpg",
-          sku: "SG-OR-12",
-        },
-      ],
-    });
-    setToastMessage(`✓ Nueva orden de prueba #${newOrd.id} generada con éxito.`);
-    setTimeout(() => setToastMessage(""), 5000);
-  };
 
   // Dar el siguiente paso en el proceso (4 fases cliente: Recibido -> En Proceso -> Listo para Entrega -> Entregado)
   const handleAdvanceStep = (orderId) => {
@@ -186,13 +146,13 @@ export default function ClientOrders({ addToCart }) {
   };
 
   // Funciones de consulta y validación Platino Care por DNI (vinculado al pago de compra)
-  const handleSearchCare = (e) => {
+  const handleSearchCare = async (e) => {
     e?.preventDefault();
     const cleanDni = careSearchDni.trim();
     if (!cleanDni) return;
     setSearchedDniValue(cleanDni);
     setHasSearchedCare(true);
-    const found = getPlatinoCareClientByDni(cleanDni);
+    const found = await lookupPlatinoCareClientByDni(cleanDni);
     setSearchedClientRecord(found);
   };
 
@@ -322,39 +282,6 @@ export default function ClientOrders({ addToCart }) {
             )}
           </div>
         </section>
-
-        {/* Barra de Acceso Rápido visible únicamente para Administrador en modo prueba */}
-        {user?.role === "admin" && (
-        <div className="orders-demo-banner">
-          <div className="orders-demo-text">
-            <i className="bi bi-magic" style={{ fontSize: "20px", color: "#b45309" }}></i>
-            <div>
-              <strong>Acceso y Pruebas del Portal:</strong> Puedes visualizar el detallado de los pedidos existentes o generar un nuevo pedido de demostración con 1 clic para interactuar con el flujo.
-            </div>
-          </div>
-          <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-            <button
-              type="button"
-              className="orders-demo-btn"
-              onClick={handleCreateSampleOrder}
-              style={{ background: "#c5a059", color: "#1a221f" }}
-              title="Generar un nuevo pedido en taller para probar el flujo de avance"
-            >
-              <i className="bi bi-plus-circle-fill"></i> Crear Pedido de Prueba
-            </button>
-
-            {(!user || user.email !== "cliente@platino.pe") && (
-              <button
-                type="button"
-                className="orders-demo-btn"
-                onClick={handleQuickLoginCliente}
-              >
-                <i className="bi bi-person-badge"></i> Cambiar a Camila Mendoza
-              </button>
-            )}
-          </div>
-        </div>
-        )}
 
         {/* Pestañas de Navegación y Búsqueda */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px", marginBottom: "20px" }}>
@@ -1066,16 +993,6 @@ export default function ClientOrders({ addToCart }) {
                 : "Aún no registras pedidos en tu cuenta. Explora nuestro catálogo y elige tus joyas favoritas."}
             </p>
             <div style={{ display: "flex", gap: "12px", justifyContent: "center" }}>
-              {user?.role === "admin" && (
-              <button
-                type="button"
-                className="btn-order-action"
-                onClick={handleCreateSampleOrder}
-                style={{ background: "#c5a059", color: "#1a221f", fontWeight: "700" }}
-              >
-                <i className="bi bi-plus-circle"></i> Generar Pedido de Demostración
-              </button>
-              )}
               <Link to="/catalogo" className="btn-order-action" style={{ background: "#0f2a24", color: "#ffffff", padding: "10px 22px" }}>
                 <i className="bi bi-gem"></i> Explorar Catálogo de Joyas
               </Link>
@@ -1127,7 +1044,7 @@ export default function ClientOrders({ addToCart }) {
                 <div className="order-stepper-box">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                     <div className="order-stepper-title" style={{ margin: 0 }}>
-                      <i className="bi bi-bezier2"></i> Proceso de Fabricación (Haz clic en cualquier fase para avanzar o retroceder)
+                      <i className="bi bi-bezier2"></i> Proceso de Fabricación
                     </div>
                     <span style={{ fontSize: "12px", color: "#8c9791" }}>
                       Avance: <strong>{progressPct}%</strong>
@@ -1148,11 +1065,11 @@ export default function ClientOrders({ addToCart }) {
                       return (
                         <div
                           key={s.id}
-                          className={`stepper-node clickable ${
+                          className={`stepper-node ${user?.role === "admin" ? "clickable" : ""} ${
                             isStepDone ? "completed" : ""
                           } ${isCurrent ? "current" : ""}`}
-                          onClick={() => handleJumpToStep(order.id, s.internalStages[0])}
-                          title={`Paso ${s.stepNumber} de 4: ${s.label}\nHaz clic para situar el pedido en esta fase.`}
+                          onClick={user?.role === "admin" ? () => handleJumpToStep(order.id, s.internalStages[0]) : undefined}
+                          title={`Paso ${s.stepNumber} de 4: ${s.label}`}
                         >
                           <div className="stepper-circle">
                             {isStepDone ? (
@@ -1199,7 +1116,7 @@ export default function ClientOrders({ addToCart }) {
                       </div>
                     </div>
 
-                    <div className="order-step-advance-actions">
+                    {user?.role === "admin" && <div className="order-step-advance-actions">
                       {clientStepNum > 1 && (
                         <button
                           type="button"
@@ -1233,7 +1150,7 @@ export default function ClientOrders({ addToCart }) {
                           <span>Probar ciclo nuevamente desde Paso 1</span>
                         </button>
                       )}
-                    </div>
+                    </div>}
                   </div>
 
                   {/* Nota oficial del Taller / Administrador */}
@@ -1553,7 +1470,7 @@ export default function ClientOrders({ addToCart }) {
                       </h4>
                     </div>
 
-                    <div style={{ display: "flex", gap: "8px" }}>
+                    {user?.role === "admin" && <div style={{ display: "flex", gap: "8px" }}>
                       <button
                         type="button"
                         className="btn-step-back"
@@ -1581,7 +1498,7 @@ export default function ClientOrders({ addToCart }) {
                       >
                         <i className="bi bi-play-fill"></i> Siguiente Paso
                       </button>
-                    </div>
+                    </div>}
                   </div>
 
                   <p style={{ margin: 0, fontSize: "13px", color: "#54635d" }}>

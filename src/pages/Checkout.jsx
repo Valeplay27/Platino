@@ -1,15 +1,14 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { formatPrice } from '../data/products'
 import { createOrder, PAYMENT_METHODS_DATA } from '../services/ordersService'
-import { registerPlatinoCareClient } from '../services/platinoCareService'
 
 function Checkout({ cart, clearCart }) {
-  const { user } = useAuth()
+  const { user, openAuthModal } = useAuth()
   const navigate = useNavigate()
 
-  const [name, setName] = useState(user?.name || (user?.email === 'cliente@platino.pe' ? 'Camila Mendoza' : ''))
+  const [name, setName] = useState(user?.name || '')
   const [dni, setDni] = useState(user?.dni || '')
   const [email, setEmail] = useState(user?.email || '')
   const [phone, setPhone] = useState(user?.phone || '+51 912 345 678')
@@ -19,21 +18,31 @@ function Checkout({ cart, clearCart }) {
   const [paymentMethod, setPaymentMethod] = useState('BCP')
   const [isProcessing, setIsProcessing] = useState(false)
 
+  useEffect(() => {
+    if (!user) return
+    if (user.name) setName((prev) => prev || user.name)
+    if (user.dni) setDni((prev) => prev || user.dni)
+    if (user.email) setEmail((prev) => prev || user.email)
+    if (user.phone) setPhone((prev) => (prev === '+51 912 345 678' || !prev ? user.phone : prev))
+  }, [user])
+
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault()
     if (cart.length === 0) {
       alert('Tu bolsa de compras está vacía.')
       return
+    }
+    if (!user) {
+      if (typeof openAuthModal === "function") openAuthModal("login"); alert("Inicia sesión o regístrate para finalizar tu compra.");
+      return;
     }
 
     setIsProcessing(true)
 
     const maxDeliveryDays = cart.reduce((max, i) => Math.max(max, i.deliveryDays || 2), 2);
     const targetDeliveryDate = cart.find((i) => i.estimatedDeliveryDate)?.estimatedDeliveryDate || `${maxDeliveryDays} días hábiles`;
-
-    const hasPlusCare = cart.some((i) => i.platinoCarePlan === 'plus');
 
     const orderPayload = {
       clientName: name.trim() || 'Cliente Platino',
@@ -65,35 +74,18 @@ function Checkout({ cart, clearCart }) {
       })),
     }
 
-    setTimeout(() => {
-      const created = createOrder(orderPayload);
-      
-      // Registrar automáticamente en Platino Care con su DNI
-      try {
-        if (dni.trim()) {
-          registerPlatinoCareClient({
-            dni: dni.trim(),
-            clientName: name.trim() || 'Cliente Platino',
-            clientEmail: email.trim().toLowerCase(),
-            clientPhone: phone.trim(),
-            planType: hasPlusCare ? 'plus' : 'cortesia',
-            orderId: created?.id || '',
-            productName: cart[0]?.name || 'Joya Platino',
-            productMetal: cart[0]?.selectedMetal || (typeof cart[0]?.metal === 'string' ? cart[0]?.metal : cart[0]?.metal?.name) || 'Oro 18K',
-            paymentMethod,
-            amountPaid: hasPlusCare ? 90 : 0,
-          });
-        }
-      } catch (err) {
-        console.error('Error registrando en Platino Care:', err);
-      }
+    try {
+      await createOrder(orderPayload);
 
       if (typeof clearCart === 'function') {
         clearCart()
       }
-      setIsProcessing(false)
       navigate('/mis-pedidos?nuevo=1')
-    }, 600)
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   return (

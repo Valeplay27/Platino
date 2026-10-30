@@ -1,7 +1,7 @@
 /**
  * Comprime y redimensiona una imagen en el navegador usando HTML5 Canvas.
  * Reduce el peso de imágenes pesadas de celular/cámara (de varios MB a ~60KB - 120KB)
- * permitiendo almacenar decenas de fotos de joyas y portafolio en localStorage
+ * permitiendo guardar imágenes optimizadas en la persistencia de la aplicación
  * sin sobrepasar la cuota del navegador (5MB).
  */
 export async function compressImageFile(file, maxWidth = 1000, maxHeight = 1000, quality = 0.82) {

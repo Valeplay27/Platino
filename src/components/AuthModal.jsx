@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useAuth } from "../context/useAuth";
-import { getAdminAccounts } from "../services/permissionsService";
 import "../../styles/auth.css";
 
 export default function AuthModal() {
@@ -11,10 +10,8 @@ export default function AuthModal() {
     closeAuthModal,
     login,
     register,
-    findUserByDniOrEmail,
     validateRecoveryCode,
     resetPasswordWithAdminCode,
-    usersDb,
   } = useAuth();
 
   const view = modalInitialView || "login";
@@ -56,10 +53,7 @@ export default function AuthModal() {
 
   // Detectar en vivo si el DNI ingresado en el registro (8 dígitos) ya existe en la página
   const cleanRegDni = regDni.replace(/\D/g, "").trim();
-  const duplicateDniUser =
-    cleanRegDni.length === 8 && findUserByDniOrEmail
-      ? findUserByDniOrEmail(cleanRegDni)
-      : null;
+  const duplicateDniUser = null;
 
 
 
@@ -88,7 +82,7 @@ export default function AuthModal() {
   };
 
   // Manejar Login
-  const handleLoginSubmit = (e) => {
+  const handleLoginSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage("");
     setSuccessMessage("");
@@ -98,14 +92,14 @@ export default function AuthModal() {
       return;
     }
 
-    const result = login(loginEmail, loginPassword);
+    const result = await login(loginEmail, loginPassword);
     if (!result.success) {
       setErrorMessage(result.error);
     }
   };
 
   // Manejar Registro (con validación obligatoria de DNI único)
-  const handleRegisterSubmit = (e) => {
+  const handleRegisterSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage("");
     setSuccessMessage("");
@@ -125,12 +119,12 @@ export default function AuthModal() {
       return;
     }
 
-    if (regPassword.length < 6) {
-      setErrorMessage("La contraseña debe tener al menos 6 caracteres.");
+    if (regPassword.length < 12) {
+      setErrorMessage("La contraseña debe tener al menos 12 caracteres.");
       return;
     }
 
-    const result = register({
+    const result = await register({
       name: regName,
       dni: cleanRegDni,
       email: regEmail,
@@ -154,7 +148,7 @@ export default function AuthModal() {
   };
 
   // Paso 1 de Recuperación: Validar DNI/Correo + Código Diario del Admin
-  const handleValidateAdminCodeSubmit = (e) => {
+  const handleValidateAdminCodeSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage("");
     setSuccessMessage("");
@@ -168,7 +162,7 @@ export default function AuthModal() {
       return;
     }
 
-    const res = validateRecoveryCode(forgotIdentifier, forgotAdminCode);
+    const res = await validateRecoveryCode(forgotIdentifier, forgotAdminCode);
     if (!res.success) {
       setErrorMessage(res.error);
       return;
@@ -182,12 +176,12 @@ export default function AuthModal() {
   };
 
   // Paso 2 de Recuperación: Guardar Nueva Contraseña y Confirmación
-  const handleResetPasswordSubmit = (e) => {
+  const handleResetPasswordSubmit = async (e) => {
     e.preventDefault();
     setErrorMessage("");
 
-    if (!forgotNewPassword || forgotNewPassword.length < 6) {
-      setErrorMessage("La nueva contraseña debe tener al menos 6 caracteres.");
+    if (!forgotNewPassword || forgotNewPassword.length < 12) {
+      setErrorMessage("La nueva contraseña debe tener al menos 12 caracteres.");
       return;
     }
 
@@ -196,7 +190,7 @@ export default function AuthModal() {
       return;
     }
 
-    const res = resetPasswordWithAdminCode({
+    const res = await resetPasswordWithAdminCode({
       identifier: forgotIdentifier,
       inputCode: forgotAdminCode,
       newPassword: forgotNewPassword,
@@ -831,7 +825,7 @@ export default function AuthModal() {
                     <input
                       type={showNewPassword ? "text" : "password"}
                       className="auth-input"
-                      placeholder="Mínimo 6 caracteres"
+                      placeholder="Mínimo 12 caracteres"
                       value={forgotNewPassword}
                       onChange={(e) => setForgotNewPassword(e.target.value)}
                       required
@@ -896,11 +890,11 @@ export default function AuthModal() {
                 <button
                   type="submit"
                   className="auth-btn-primary"
-                  disabled={!passwordsMatch || forgotNewPassword.length < 6}
+                  disabled={!passwordsMatch || forgotNewPassword.length < 12}
                   style={{
                     marginTop: "8px",
-                    opacity: !passwordsMatch || forgotNewPassword.length < 6 ? 0.55 : 1,
-                    cursor: !passwordsMatch || forgotNewPassword.length < 6 ? "not-allowed" : "pointer",
+                    opacity: !passwordsMatch || forgotNewPassword.length < 12 ? 0.55 : 1,
+                    cursor: !passwordsMatch || forgotNewPassword.length < 12 ? "not-allowed" : "pointer",
                   }}
                 >
                   Guardar Nueva Contraseña <i className="bi bi-check2-circle"></i>
@@ -933,4 +927,3 @@ export default function AuthModal() {
     </div>
   );
 }
-

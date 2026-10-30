@@ -1,4 +1,4 @@
-const STORAGE_KEY_NOSOTROS = "platino_nosotros_content_v1";
+import { getRemoteData, setRemoteData } from "./remoteData";
 
 export const DEFAULT_NOSOTROS_CONTENT = {
   hero: {
@@ -55,47 +55,28 @@ export const DEFAULT_NOSOTROS_CONTENT = {
 };
 
 export const getNosotrosContent = () => {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY_NOSOTROS);
-    if (!raw) return DEFAULT_NOSOTROS_CONTENT;
-    const parsed = JSON.parse(raw);
-    const historia = { ...DEFAULT_NOSOTROS_CONTENT.historia, ...(parsed.historia || {}) };
-    const imagePath = historia.image?.split(/[?#]/, 1)[0].toLowerCase();
-    if (imagePath?.endsWith("platino-logo-gold.jpg")) {
-      historia.image = "/images/platino-logo-emerald.jpg";
-    }
-
-    return {
-      hero: { ...DEFAULT_NOSOTROS_CONTENT.hero, ...(parsed.hero || {}) },
-      historia,
-      misionVision: { ...DEFAULT_NOSOTROS_CONTENT.misionVision, ...(parsed.misionVision || {}) },
-      pilares: { ...DEFAULT_NOSOTROS_CONTENT.pilares, ...(parsed.pilares || {}) },
-      talleresBoutiques: { ...DEFAULT_NOSOTROS_CONTENT.talleresBoutiques, ...(parsed.talleresBoutiques || {}) },
-    };
-  } catch (error) {
-    console.error("Error reading nosotros content from localStorage:", error);
-    return DEFAULT_NOSOTROS_CONTENT;
+  const parsed = getRemoteData("nosotros", DEFAULT_NOSOTROS_CONTENT);
+  const historia = { ...DEFAULT_NOSOTROS_CONTENT.historia, ...(parsed.historia || {}) };
+  const imagePath = historia.image?.split(/[?#]/, 1)[0].toLowerCase();
+  if (imagePath?.endsWith("platino-logo-gold.jpg")) {
+    historia.image = "/images/platino-logo-emerald.jpg";
   }
+
+  return {
+    hero: { ...DEFAULT_NOSOTROS_CONTENT.hero, ...(parsed.hero || {}) },
+    historia,
+    misionVision: { ...DEFAULT_NOSOTROS_CONTENT.misionVision, ...(parsed.misionVision || {}) },
+    pilares: { ...DEFAULT_NOSOTROS_CONTENT.pilares, ...(parsed.pilares || {}) },
+    talleresBoutiques: { ...DEFAULT_NOSOTROS_CONTENT.talleresBoutiques, ...(parsed.talleresBoutiques || {}) },
+  };
 };
 
 export const saveNosotrosContent = (updatedContent) => {
-  try {
-    localStorage.setItem(STORAGE_KEY_NOSOTROS, JSON.stringify(updatedContent));
-    window.dispatchEvent(new CustomEvent("platino_nosotros_updated", { detail: updatedContent }));
-    return true;
-  } catch (error) {
-    console.error("Error saving nosotros content to localStorage:", error);
-    return false;
-  }
+  setRemoteData("nosotros", updatedContent, "platino_nosotros_updated");
+  return true;
 };
 
 export const resetNosotrosContent = () => {
-  try {
-    localStorage.removeItem(STORAGE_KEY_NOSOTROS);
-    window.dispatchEvent(new CustomEvent("platino_nosotros_updated", { detail: DEFAULT_NOSOTROS_CONTENT }));
-    return DEFAULT_NOSOTROS_CONTENT;
-  } catch (error) {
-    console.error("Error resetting nosotros content:", error);
-    return DEFAULT_NOSOTROS_CONTENT;
-  }
+  setRemoteData("nosotros", DEFAULT_NOSOTROS_CONTENT, "platino_nosotros_updated");
+  return DEFAULT_NOSOTROS_CONTENT;
 };

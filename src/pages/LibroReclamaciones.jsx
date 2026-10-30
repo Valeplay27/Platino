@@ -34,7 +34,7 @@ export default function LibroReclamaciones() {
   const [pedido, setPedido] = useState("");
   const [aceptoTerminos, setAceptoTerminos] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     if (!aceptoTerminos) {
       alert("Debes confirmar la veracidad de la información y aceptar las condiciones legales para registrar tu reclamo.");
@@ -68,12 +68,15 @@ export default function LibroReclamaciones() {
       pedido,
     };
 
-    setTimeout(() => {
-      const recorded = createReclamacion(payload);
+    try {
+      const recorded = await createReclamacion(payload);
       setSubmittedData(recorded);
-      setIsSubmitting(false);
       window.scrollTo({ top: 0, behavior: "smooth" });
-    }, 600);
+    } catch (error) {
+      alert(error.message);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handlePrint = () => {

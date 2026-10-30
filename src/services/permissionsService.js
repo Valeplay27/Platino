@@ -1,9 +1,6 @@
 // Servicio de Gestión de Roles, Sedes y Permisos Administrativos para Platino Perú
-
-const STORAGE_KEY_PERMISSIONS = "platino_admin_permissions_v4";
-const STORAGE_KEY_REQUESTS = "platino_permission_requests_v4";
-
-const STORAGE_KEY_ADMIN_PASSWORDS = "platino_admin_passwords_v2";
+import { apiGet, apiPost } from "./apiClient";
+import { getRemoteData, setRemoteData, updateRemoteCache } from "./remoteData";
 
 // Definición de las 3 Cuentas Oficiales de Administrador
 export const INITIAL_ADMIN_ACCOUNTS = [
@@ -11,7 +8,6 @@ export const INITIAL_ADMIN_ACCOUNTS = [
     id: "usr-admin-vladimir",
     name: "Vladimir",
     email: "vladimiryt18@gmail.com",
-    defaultPassword: "Pumita30****",
     role: "admin",
     adminType: "master", // Super Administrador Principal
     sede: "global",
@@ -25,7 +21,6 @@ export const INITIAL_ADMIN_ACCOUNTS = [
     id: "usr-admin-lima",
     name: "Admin Sede Lima Centro",
     email: "admin.lima@platino.pe",
-    defaultPassword: "LimaPlatino2026*",
     role: "admin",
     adminType: "sede",
     sede: "lima-centro",
@@ -39,7 +34,6 @@ export const INITIAL_ADMIN_ACCOUNTS = [
     id: "usr-admin-miraflores",
     name: "Admin Sede Miraflores",
     email: "admin.miraflores@platino.pe",
-    defaultPassword: "Miraflores2026*",
     role: "admin",
     adminType: "sede",
     sede: "miraflores",
@@ -51,83 +45,24 @@ export const INITIAL_ADMIN_ACCOUNTS = [
   },
 ];
 
-// Obtener mapa de contraseñas activas
-export const getAdminPasswordsMap = () => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_ADMIN_PASSWORDS);
-    if (!stored) {
-      const map = {};
-      INITIAL_ADMIN_ACCOUNTS.forEach((a) => {
-        map[a.email.toLowerCase()] = a.defaultPassword;
-      });
-      localStorage.setItem(STORAGE_KEY_ADMIN_PASSWORDS, JSON.stringify(map));
-      return map;
-    }
-    return JSON.parse(stored);
-  } catch {
-    const map = {};
-    INITIAL_ADMIN_ACCOUNTS.forEach((a) => {
-      map[a.email.toLowerCase()] = a.defaultPassword;
-    });
-    return map;
-  }
-};
-
-// Obtener las cuentas de administrador con sus contraseñas actuales
 export const getAdminAccounts = () => {
-  const passwordsMap = getAdminPasswordsMap();
-  return INITIAL_ADMIN_ACCOUNTS.map((a) => ({
-    ...a,
-    password: passwordsMap[a.email.toLowerCase()] || a.defaultPassword,
-  }));
+  return INITIAL_ADMIN_ACCOUNTS.map((account) => ({ ...account }));
 };
 
 // Exportar cuentas activas de administrador
 export const ADMIN_ACCOUNTS = getAdminAccounts();
 
 // Actualizar la contraseña de una cuenta de administrador (Función para Vladimir)
-export const updateAdminPassword = (email, newPassword) => {
-  if (!email || !newPassword || newPassword.trim().length < 4) {
-    return { success: false, error: "La contraseña debe tener al menos 4 caracteres." };
+export const updateAdminPassword = async (email, newPassword) => {
+  if (!email || !newPassword || newPassword.trim().length < 12) {
+    return { success: false, error: "La contraseña debe tener al menos 12 caracteres." };
   }
   try {
-    const cleanEmail = email.toLowerCase().trim();
-    const cleanPass = newPassword.trim();
-    const passwordsMap = getAdminPasswordsMap();
-    passwordsMap[cleanEmail] = cleanPass;
-    localStorage.setItem(STORAGE_KEY_ADMIN_PASSWORDS, JSON.stringify(passwordsMap));
-
-    // Sincronizar en platino_users_database si existe
-    try {
-      const storedUsers = localStorage.getItem("platino_users_database");
-      if (storedUsers) {
-        const usersList = JSON.parse(storedUsers);
-        const idx = usersList.findIndex((u) => u.email.toLowerCase() === cleanEmail);
-        if (idx >= 0) {
-          usersList[idx].password = cleanPass;
-          localStorage.setItem("platino_users_database", JSON.stringify(usersList));
-        }
-      }
-    } catch {
-      // ignore
-    }
-
-    // Actualizar array de ADMIN_ACCOUNTS en memoria
-    const updatedAccounts = getAdminAccounts();
-    ADMIN_ACCOUNTS.length = 0;
-    ADMIN_ACCOUNTS.push(...updatedAccounts);
-
-    // Disparar evento para actualizar en tiempo real AuthContext y demás componentes
-    window.dispatchEvent(
-      new CustomEvent("platino_admin_credentials_updated", {
-        detail: { email: cleanEmail, newPassword: cleanPass },
-      })
-    );
-
+    await apiPost("/auth/admin/password", { email: email.toLowerCase().trim(), newPassword });
+    window.dispatchEvent(new CustomEvent("platino_admin_credentials_updated"));
     return { success: true, message: "Contraseña actualizada exitosamente." };
-  } catch (e) {
-    console.error("Error al actualizar contraseña de administrador", e);
-    return { success: false, error: "Error al guardar en almacenamiento local." };
+  } catch (error) {
+    return { success: false, error: error.message };
   }
 };
 
@@ -244,72 +179,24 @@ const DEFAULT_USER_PERMISSIONS = {
   "admin.miraflores@platino.pe": [],
 };
 
-// Solicitudes de ejemplo iniciales para que Vladimir tenga interacción inmediata
-const INITIAL_REQUESTS = [
-  {
-    id: "req-17912001",
-    userEmail: "admin.lima@platino.pe",
-    userName: "Admin Sede Lima Centro",
-    userSede: "lima-centro",
-    userSedeLabel: "Sede Lima Centro",
-    permissionKey: "finanzas",
-    permissionName: "Control de Pagos & Pedidos",
-    reason: "Necesito validar en tiempo real los pagos recibidos por Yape y Datáfono de los clientes que compran en el local de Lima Centro.",
-    status: "pendiente", // 'pendiente' | 'aprobado' | 'rechazado'
-    createdAt: "2026-10-04T15:30:00.000Z",
-    resolvedAt: null,
-    resolvedBy: null,
-  },
-  {
-    id: "req-17912002",
-    userEmail: "admin.miraflores@platino.pe",
-    userName: "Admin Sede Miraflores",
-    userSede: "miraflores",
-    userSedeLabel: "Sede Miraflores",
-    permissionKey: "inventario_global",
-    permissionName: "Inventario General & Bodega",
-    reason: "Solicito autorización para consultar y solicitar traslados de stock desde la Bodega Central hacia la vitrina de Miraflores.",
-    status: "pendiente",
-    createdAt: "2026-10-04T18:15:00.000Z",
-    resolvedAt: null,
-    resolvedBy: null,
-  },
-];
+// Solicitudes iniciales vacías en producción (se conserva constante por compatibilidad)
+export const INITIAL_REQUESTS = [];
 
 // Obtener la matriz de permisos activa
 export const getPermissionsMatrix = () => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_PERMISSIONS);
-    if (!stored) {
-      localStorage.setItem(STORAGE_KEY_PERMISSIONS, JSON.stringify(DEFAULT_USER_PERMISSIONS));
-      return { ...DEFAULT_USER_PERMISSIONS };
-    }
-    const parsed = JSON.parse(stored);
-    // Asegurar que Vladimir siempre tenga todos los permisos
-    parsed["vladimiryt18@gmail.com"] = PERMISSIONS_CATALOG.map((p) => p.key);
-    ADMIN_ACCOUNTS.forEach((acc) => {
-      if (!Array.isArray(parsed[acc.email])) {
-        parsed[acc.email] = DEFAULT_USER_PERMISSIONS[acc.email] || [];
-      }
-    });
-    return parsed;
-  } catch {
-    return { ...DEFAULT_USER_PERMISSIONS };
-  }
+  const parsed = { ...DEFAULT_USER_PERMISSIONS, ...getRemoteData("permissions", DEFAULT_USER_PERMISSIONS) };
+  parsed["vladimiryt18@gmail.com"] = PERMISSIONS_CATALOG.map((permission) => permission.key);
+  ADMIN_ACCOUNTS.forEach((account) => {
+    if (!Array.isArray(parsed[account.email])) parsed[account.email] = DEFAULT_USER_PERMISSIONS[account.email] || [];
+  });
+  return parsed;
 };
 
 // Guardar la matriz de permisos
 export const savePermissionsMatrix = (matrix) => {
-  try {
-    // Proteger permisos de Vladimir
-    matrix["vladimiryt18@gmail.com"] = PERMISSIONS_CATALOG.map((p) => p.key);
-    localStorage.setItem(STORAGE_KEY_PERMISSIONS, JSON.stringify(matrix));
-    window.dispatchEvent(new CustomEvent("platino_permissions_updated", { detail: matrix }));
-    return true;
-  } catch (e) {
-    console.error("Error saving permissions matrix", e);
-    return false;
-  }
+  matrix["vladimiryt18@gmail.com"] = PERMISSIONS_CATALOG.map((permission) => permission.key);
+  setRemoteData("permissions", matrix, "platino_permissions_updated");
+  return true;
 };
 
 // Comprobar si un usuario es el Super Admin Principal (Vladimir)
@@ -333,28 +220,14 @@ export const hasPermission = (user, permissionKey) => {
 
 // Obtener todas las solicitudes de permiso
 export const getPermissionRequests = () => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_REQUESTS);
-    if (!stored) {
-      localStorage.setItem(STORAGE_KEY_REQUESTS, JSON.stringify(INITIAL_REQUESTS));
-      return [...INITIAL_REQUESTS];
-    }
-    return JSON.parse(stored);
-  } catch {
-    return [...INITIAL_REQUESTS];
-  }
+  const stored = getRemoteData("permission_requests", []);
+  return Array.isArray(stored) ? stored : [];
 };
 
 // Guardar solicitudes
 export const savePermissionRequests = (requests) => {
-  try {
-    localStorage.setItem(STORAGE_KEY_REQUESTS, JSON.stringify(requests));
-    window.dispatchEvent(new CustomEvent("platino_permission_requests_updated", { detail: requests }));
-    return true;
-  } catch (e) {
-    console.error("Error saving permission requests", e);
-    return false;
-  }
+  setRemoteData("permission_requests", requests, "platino_permission_requests_updated");
+  return true;
 };
 
 // Crear una nueva solicitud de permiso
@@ -390,7 +263,11 @@ export const requestPermission = ({ user, permissionKey, reason = "" }) => {
   };
 
   const updated = [newRequest, ...requests];
-  savePermissionRequests(updated);
+  updateRemoteCache("permission_requests", updated, "platino_permission_requests_updated");
+  apiPost("/admin/permission-requests/mutate", { action: "create", request: newRequest }).catch((error) => {
+    console.error("Failed to create permission request:", error);
+    window.dispatchEvent(new CustomEvent("platino_api_error", { detail: { namespace: "permission_requests", message: error.message } }));
+  });
   return { success: true, request: newRequest };
 };
 
@@ -414,7 +291,16 @@ export const approvePermissionRequest = (requestId, resolverName = "Vladimir") =
     savePermissionsMatrix(matrix);
   }
 
-  savePermissionRequests(requests);
+  updateRemoteCache("permission_requests", requests, "platino_permission_requests_updated");
+  apiPost("/admin/permission-requests/mutate", {
+    action: "resolve",
+    id: requestId,
+    status: "aprobado",
+    resolvedBy: resolverName,
+  }).catch((error) => {
+    console.error("Failed to approve permission request:", error);
+    window.dispatchEvent(new CustomEvent("platino_api_error", { detail: { namespace: "permission_requests", message: error.message } }));
+  });
   return { success: true, request: targetReq };
 };
 
@@ -437,7 +323,16 @@ export const rejectPermissionRequest = (requestId, resolverName = "Vladimir") =>
     savePermissionsMatrix(matrix);
   }
 
-  savePermissionRequests(requests);
+  updateRemoteCache("permission_requests", requests, "platino_permission_requests_updated");
+  apiPost("/admin/permission-requests/mutate", {
+    action: "resolve",
+    id: requestId,
+    status: "rechazado",
+    resolvedBy: resolverName,
+  }).catch((error) => {
+    console.error("Failed to reject permission request:", error);
+    window.dispatchEvent(new CustomEvent("platino_api_error", { detail: { namespace: "permission_requests", message: error.message } }));
+  });
   return { success: true, request: targetReq };
 };
 
@@ -499,9 +394,6 @@ export const getActivePendingRequest = (user, permissionKey) => {
 // CLAVE DIARIA DEL ADMINISTRADOR PRINCIPAL (VLADIMIR) PARA RECUPERACIÓN DE CONTRASEÑA
 // Cambia automáticamente todos los días a las 00:00 (según la fecha local YYYY-MM-DD)
 // ============================================================================
-const STORAGE_KEY_DAILY_CODE_SEED = "platino_daily_recovery_seed_v1";
-const STORAGE_KEY_RECOVERY_LOGS = "platino_password_recovery_logs_v1";
-
 // Obtener fecha local en formato YYYY-MM-DD
 export const getTodayDateKey = () => {
   const now = new Date();
@@ -511,110 +403,55 @@ export const getTodayDateKey = () => {
   return `${year}-${month}-${day}`;
 };
 
-// Generar código determinístico de 6 dígitos basado en la fecha del día + semilla opcional del día
 export const getDailyAdminRecoveryCodeInfo = () => {
   const todayKey = getTodayDateKey();
-  let customSalt = 0;
-
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_DAILY_CODE_SEED);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      // Solo aplica si corresponde exactamente a la fecha de HOY; al cambiar de día se reinicia solo
-      if (parsed && parsed.dateKey === todayKey && typeof parsed.salt === "number") {
-        customSalt = parsed.salt;
-      }
-    }
-  } catch {
-    // ignore
-  }
-
-  const seedStr = `PLATINO-VLADIMIR-${todayKey}-SALT-${customSalt}`;
-  let hash = 2166136261;
-  for (let i = 0; i < seedStr.length; i++) {
-    hash ^= seedStr.charCodeAt(i);
-    hash = Math.imul(hash, 16777619);
-  }
-  const positiveNum = Math.abs(hash);
-  const sixDigits = String(100000 + (positiveNum % 900000));
-
-  const [y, m, d] = todayKey.split("-");
-  const formattedDate = `${d}/${m}/${y}`;
-
-  return {
-    code: sixDigits, // Ej: "482916"
-    formattedCode: `PLT-${sixDigits}`, // Ej: "PLT-482916"
-    dateKey: todayKey,
-    formattedDate,
-    rotationCountToday: customSalt,
-  };
+  const cached = getRemoteData("recovery_code", null);
+  const formattedDate = new Date(`${todayKey}T12:00:00`).toLocaleDateString("es-PE");
+  return cached?.dateKey === todayKey
+    ? { ...cached, formattedCode: `PLT-${cached.code}`, formattedDate, displayDate: formattedDate }
+    : { code: "", formattedCode: "", dateKey: todayKey, formattedDate, displayDate: formattedDate, rotationCountToday: 0 };
 };
 
-// Validar si un código ingresado por el cliente coincide con la clave diaria vigente de Vladimir
-export const validateDailyAdminRecoveryCode = (inputCode) => {
-  if (!inputCode) return false;
-  const cleanInput = String(inputCode)
+export const loadDailyAdminRecoveryCodeInfo = async () => {
+  const info = await apiGet("/admin/recovery-code");
+  const normalized = {
+    ...info,
+    formattedCode: `PLT-${info.code}`,
+    formattedDate: new Date(`${info.dateKey}T12:00:00`).toLocaleDateString("es-PE"),
+    displayDate: new Date(`${info.dateKey}T12:00:00`).toLocaleDateString("es-PE"),
+  };
+  updateRemoteCache("recovery_code", normalized);
+  return normalized;
+};
+
+export const validateDailyAdminRecoveryCode = async (inputCode, identifier = "") => {
+  const cleanInput = String(inputCode || "")
     .trim()
     .toUpperCase()
     .replace(/^PLT[-\s]?/, "")
     .replace(/\s+/g, "");
-  const { code } = getDailyAdminRecoveryCodeInfo();
-  return cleanInput === code;
+  const { valid } = await apiPost("/admin/recovery-code/validate", {
+    code: cleanInput,
+    identifier: String(identifier || "").trim(),
+  });
+  return valid;
 };
 
-// Permitir a Vladimir regenerar/rotar manualmente la clave del día si lo desea (además del cambio diario automático)
-export const rotateDailyAdminRecoveryCode = () => {
-  const todayKey = getTodayDateKey();
-  let nextSalt = 1;
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_DAILY_CODE_SEED);
-    if (stored) {
-      const parsed = JSON.parse(stored);
-      if (parsed && parsed.dateKey === todayKey && typeof parsed.salt === "number") {
-        nextSalt = parsed.salt + 1;
-      }
-    }
-    localStorage.setItem(
-      STORAGE_KEY_DAILY_CODE_SEED,
-      JSON.stringify({ dateKey: todayKey, salt: nextSalt })
-    );
-  } catch {
-    // ignore
-  }
-  const info = getDailyAdminRecoveryCodeInfo();
+export const rotateDailyAdminRecoveryCode = async () => {
+  const response = await apiPost("/admin/recovery-code", {});
+  const info = {
+    ...response,
+    formattedCode: `PLT-${response.code}`,
+    formattedDate: new Date(`${response.dateKey}T12:00:00`).toLocaleDateString("es-PE"),
+    displayDate: new Date(`${response.dateKey}T12:00:00`).toLocaleDateString("es-PE"),
+  };
+  updateRemoteCache("recovery_code", info);
   window.dispatchEvent(new CustomEvent("platino_daily_code_updated", { detail: info }));
   return info;
 };
 
-// Obtener historial de validaciones y cambios de contraseña realizados con el código diario
 export const getPasswordRecoveryLogs = () => {
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY_RECOVERY_LOGS);
-    return stored ? JSON.parse(stored) : [];
-  } catch {
-    return [];
-  }
+  return getRemoteData("recovery_logs", []);
 };
 
-// Registrar un evento de recuperación de contraseña exitosa
-export const addPasswordRecoveryLog = ({ userDni, userName, userEmail, usedCode }) => {
-  try {
-    const current = getPasswordRecoveryLogs();
-    const entry = {
-      id: `rec-${Date.now()}`,
-      userDni: userDni || "No registrado",
-      userName: userName || "Cliente",
-      userEmail: userEmail || "",
-      usedCode: usedCode || getDailyAdminRecoveryCodeInfo().code,
-      dateKey: getTodayDateKey(),
-      timestamp: new Date().toISOString(),
-    };
-    const updated = [entry, ...current].slice(0, 50);
-    localStorage.setItem(STORAGE_KEY_RECOVERY_LOGS, JSON.stringify(updated));
-    window.dispatchEvent(new CustomEvent("platino_daily_code_updated", { detail: updated }));
-    return entry;
-  } catch {
-    return null;
-  }
-};
-
+export const addPasswordRecoveryLog = () => null;
