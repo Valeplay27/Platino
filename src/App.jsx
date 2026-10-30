@@ -19,6 +19,7 @@ import AuthModal from './components/AuthModal'
 import ScrollToTop from './components/ScrollToTop'
 import Nosotros from './pages/Nosotros'
 import LibroReclamaciones from './pages/LibroReclamaciones'
+import GoogleReviewsToast from './components/GoogleReviewsToast'
 import CartDrawer from './components/CartDrawer'
 import './App.css'
 
@@ -140,6 +141,7 @@ function App() {
           removeFromCart={removeFromCart}
           lastAddedItem={lastAddedItem}
         />
+        <GoogleReviewsToast />
       </BrowserRouter>
     </AuthProvider>
   )

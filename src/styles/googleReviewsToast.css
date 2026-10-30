@@ -1,0 +1,235 @@
+.gr-toast-container {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 1050;
+  max-width: 380px;
+  width: calc(100vw - 48px);
+  pointer-events: none;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+}
+
+.gr-toast-card {
+  pointer-events: auto;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15), 0 3px 10px rgba(0, 0, 0, 0.08);
+  border: 1px solid #e2e8f0;
+  padding: 14px 16px;
+  position: relative;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: grToastSlideIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  overflow: hidden;
+}
+
+.gr-toast-card.gr-toast-leaving {
+  animation: grToastSlideOut 0.35s cubic-bezier(0.7, 0, 0.84, 0) forwards;
+}
+
+@keyframes grToastSlideIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes grToastSlideOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+}
+
+/* User Author Row (Google Maps format) */
+.gr-toast-user-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.gr-toast-avatar {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+}
+
+.gr-toast-avatar-fallback {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1a73e8, #1557b0);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.95rem;
+  flex-shrink: 0;
+}
+
+.gr-toast-user-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.gr-toast-user-name {
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: #1f1f1f;
+  margin: 0;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.gr-toast-user-meta {
+  font-size: 0.72rem;
+  color: #5f6368;
+  margin: 1px 0 0;
+  line-height: 1.2;
+}
+
+.gr-toast-close {
+  background: transparent;
+  border: none;
+  color: #5f6368;
+  font-size: 1.2rem;
+  line-height: 1;
+  padding: 0 4px;
+  cursor: pointer;
+  align-self: flex-start;
+  transition: color 0.15s ease;
+}
+
+.gr-toast-close:hover {
+  color: #202124;
+}
+
+/* Rating & Date (Google Maps format) */
+.gr-toast-rating-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.gr-toast-stars {
+  display: inline-flex;
+  gap: 2px;
+  font-size: 0.85rem;
+}
+
+.gr-star-filled {
+  color: #fa7b17; /* Google Maps orange-gold star color */
+}
+
+.gr-star-empty {
+  color: #dadce0;
+}
+
+.gr-toast-date {
+  font-size: 0.74rem;
+  color: #5f6368;
+}
+
+/* Review text */
+.gr-toast-text {
+  font-size: 0.82rem;
+  line-height: 1.42;
+  color: #202124;
+  margin: 0 0 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+/* Photo attached by customer (e.g. red box with rings) */
+.gr-toast-photo-wrap {
+  width: 100%;
+  height: 110px;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 10px;
+  background-color: #f1f3f4;
+  border: 1px solid #e8eaed;
+}
+
+.gr-toast-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* Footer / Google Brand Row */
+.gr-toast-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 8px;
+  border-top: 1px solid #f1f3f4;
+  font-size: 0.74rem;
+}
+
+.gr-toast-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+  color: #5f6368;
+  font-weight: 500;
+}
+
+.gr-toast-brand:hover {
+  color: #1a73e8;
+}
+
+.gr-toast-brand-icon {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+
+.gr-toast-maps-btn {
+  color: #1a73e8;
+  text-decoration: none;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gr-toast-maps-btn:hover {
+  text-decoration: underline;
+}
+
+/* Mobile responsive */
+@media (max-width: 576px) {
+  .gr-toast-container {
+    bottom: 16px;
+    left: 12px;
+    right: 12px;
+    width: auto;
+    max-width: calc(100vw - 24px);
+  }
+  .gr-toast-card {
+    padding: 12px 14px;
+  }
+  .gr-toast-photo-wrap {
+    height: 95px;
+  }
+}
