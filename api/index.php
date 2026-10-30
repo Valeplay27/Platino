@@ -22,11 +22,31 @@ function respond(int $status, array $body): never
 
 function requiredEnv(string $name): string
 {
-    $value = getenv($name);
-    if ($value === false || $value === '') {
-        throw new RuntimeException("Missing server configuration: {$name}");
+    static $localEnv = null;
+    if ($localEnv === null) {
+        $localEnv = [];
+        $localPath = __DIR__ . '/env.local.php';
+        if (is_file($localPath)) {
+            $loaded = require $localPath;
+            if (is_array($loaded)) {
+                $localEnv = $loaded;
+            }
+        }
     }
-    return $value;
+
+    $candidates = [
+        $localEnv[$name] ?? null,
+        getenv($name),
+        $_ENV[$name] ?? null,
+        $_SERVER[$name] ?? null,
+        $_SERVER['REDIRECT_' . $name] ?? null,
+    ];
+    foreach ($candidates as $value) {
+        if (is_string($value) && $value !== '') {
+            return $value;
+        }
+    }
+    throw new RuntimeException("Missing server configuration: {$name}");
 }
 
 function database(): PDO

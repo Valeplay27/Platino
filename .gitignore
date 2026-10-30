@@ -35,3 +35,4 @@ database/
 
 # Scratch y archivos temporales
 scratch/
+api/env.local.php
