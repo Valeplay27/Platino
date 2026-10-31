@@ -242,7 +242,7 @@ export default function AuthModal() {
         {/* Logo superior oficial Platino Perú */}
         <div className="auth-brand-badge">
           <img src={platinoLogoWordmark} alt="Platino Perú" style={{ height: "25px", width: "auto", objectFit: "contain", marginBottom: "4px" }} />
-          <span className="auth-tagline">JOYERÍA QUE CUENTA TU HISTORIA</span>
+          <span className="auth-tagline">SÍMBOLO PERDURABLE DE TUS SENTIMIENTOS</span>
         </div>
 
         {/* ==============================================================

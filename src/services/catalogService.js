@@ -50,8 +50,57 @@ const REMOVED_DEMO_PRODUCT_IDS = new Set([
   "esclava-bebe-identidad-oro",
 ]);
 
+const IMG_POOL_PREFIX = "__IMG_POOL_";
+
+// Descomprimir referencias de imágenes deduplicadas al leer un producto
+const expandProductImages = (rawProd) => {
+  if (!rawProd || !Array.isArray(rawProd._imgPool) || rawProd._imgPool.length === 0) {
+    return rawProd;
+  }
+  const pool = rawProd._imgPool;
+  const resolveStr = (val) => {
+    if (typeof val === "string" && val.startsWith(IMG_POOL_PREFIX)) {
+      const idx = Number(val.slice(IMG_POOL_PREFIX.length));
+      if (!Number.isNaN(idx) && pool[idx]) {
+        return pool[idx];
+      }
+    }
+    return val;
+  };
+
+  const expandedMetalImages = rawProd.metalImages && typeof rawProd.metalImages === "object"
+    ? Object.fromEntries(Object.entries(rawProd.metalImages).map(([k, v]) => [k, resolveStr(v)]))
+    : rawProd.metalImages;
+
+  const expandedMetalGalleries = rawProd.metalGalleries && typeof rawProd.metalGalleries === "object"
+    ? Object.fromEntries(
+        Object.entries(rawProd.metalGalleries).map(([k, arr]) => [
+          k,
+          Array.isArray(arr) ? arr.map(resolveStr) : arr,
+        ])
+      )
+    : rawProd.metalGalleries;
+
+  const expandedGallery = Array.isArray(rawProd.gallery)
+    ? rawProd.gallery.map(resolveStr)
+    : rawProd.gallery;
+
+  const { _imgPool, ...rest } = rawProd;
+  return {
+    ...rest,
+    image: resolveStr(rawProd.image),
+    boxImage: resolveStr(rawProd.boxImage),
+    metalImages: expandedMetalImages,
+    metalGalleries: expandedMetalGalleries,
+    gallery: expandedGallery,
+  };
+};
+
+
+
 // Normalizar metales disponibles con los 10 metales oficiales y fotos por metal
-const normalizeProductMetals = (prod) => {
+const normalizeProductMetals = (rawProd) => {
+  const prod = expandProductImages(rawProd);
   const defaultProdMatch = defaultProducts.find((p) => p.id === prod.id);
   const categories = prod.categories || defaultProdMatch?.categories || [prod.category];
   const metalImages =
@@ -156,11 +205,16 @@ export const createProduct = (productData) => {
 
   const numPrice = Number(productData.price) || 0;
   const finalBoxImage = productData.boxImage || "/images/detail-box-green.jpg";
+  const metalGalleryValues =
+    productData.metalGalleries && typeof productData.metalGalleries === "object"
+      ? Object.values(productData.metalGalleries).flat().filter((v) => typeof v === "string" && v.trim())
+      : [];
   const metalValues = productData.metalImages && typeof productData.metalImages === "object"
     ? Object.values(productData.metalImages)
     : [];
   const allGalleryImgs = [
     productData.image || "/images/cat-compromiso.jpg",
+    ...metalGalleryValues,
     ...metalValues,
     finalBoxImage,
     ...(Array.isArray(productData.gallery) ? productData.gallery : []),
@@ -168,12 +222,19 @@ export const createProduct = (productData) => {
   const combinedGallery = Array.from(new Set(allGalleryImgs));
 
   const newProduct = {
+    ...productData,
     id: cleanId,
     name: productData.name.trim(),
     subtitle: productData.subtitle?.trim() || "Platino Perú Colección Exclusiva",
+    category: productData.category || (Array.isArray(productData.categories) && productData.categories[0]) || "joyeria",
     categories: Array.isArray(productData.categories) && productData.categories.length > 0
       ? productData.categories
       : [productData.category || "joyeria"],
+    subtype: productData.subtype || "",
+    subtypeOptionId: productData.subtypeOptionId || "",
+    gender: productData.gender || "",
+    style: productData.style || "",
+    gem: productData.gem || "",
     type: productData.type || "anillo",
     price: numPrice,
     priceFormatted: formatPrice(numPrice),
@@ -256,6 +317,15 @@ export const updateProduct = (id, updatedFields) => {
     ? updatedFields.metalImages
     : (current.metalImages || null);
 
+  const finalMetalGalleries = updatedFields.metalGalleries !== undefined
+    ? updatedFields.metalGalleries
+    : (current.metalGalleries || null);
+
+  const metalGalleryValues =
+    finalMetalGalleries && typeof finalMetalGalleries === "object"
+      ? Object.values(finalMetalGalleries).flat().filter((v) => typeof v === "string" && v.trim())
+      : [];
+
   const metalValues = finalMetalImages && typeof finalMetalImages === "object"
     ? Object.values(finalMetalImages)
     : [];
@@ -266,6 +336,7 @@ export const updateProduct = (id, updatedFields) => {
 
   const allGalleryImgs = [
     newImage,
+    ...metalGalleryValues,
     ...metalValues,
     finalBoxImage,
     ...existingGallery,
@@ -281,7 +352,7 @@ export const updateProduct = (id, updatedFields) => {
     boxImage: finalBoxImage,
     gallery: combinedGallery,
     metalImages: finalMetalImages,
-    metalGalleries: updatedFields.metalGalleries !== undefined ? updatedFields.metalGalleries : (current.metalGalleries || null),
+    metalGalleries: finalMetalGalleries,
     metalPrices: updatedFields.metalPrices !== undefined ? updatedFields.metalPrices : (current.metalPrices || null),
     showDeliveryEstimate: updatedFields.showDeliveryEstimate !== undefined
       ? updatedFields.showDeliveryEstimate

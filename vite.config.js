@@ -17,6 +17,14 @@ function copyPhpApiPlugin() {
           fs.copyFileSync(srcFile, path.join(outDir, file))
         }
       }
+      const storageDir = path.join(outDir, 'storage')
+      fs.mkdirSync(storageDir, { recursive: true })
+      const htaccessStorage = path.join(srcDir, 'storage', '.htaccess')
+      if (fs.existsSync(htaccessStorage)) {
+        fs.copyFileSync(htaccessStorage, path.join(storageDir, '.htaccess'))
+      } else {
+        fs.writeFileSync(path.join(storageDir, '.htaccess'), "Options -Indexes\nRequire all denied\n")
+      }
     },
   }
 }

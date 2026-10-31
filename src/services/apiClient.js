@@ -1,6 +1,7 @@
 import { handleLocalApiFallback } from "./localApiFallback";
 
 const API_BASE_URL = `${import.meta.env.BASE_URL}api`;
+const LOCAL_SESSION_KEY = "platino_local_api_session_v1";
 
 function buildApiUrl(path) {
   const [pathname, query = ""] = String(path || "/").split("?");
@@ -21,28 +22,68 @@ function isLocalEnvironment() {
   );
 }
 
+function getLocalSessionHeader() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LOCAL_SESSION_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.email) {
+      return JSON.stringify({
+        id: parsed.id || 1,
+        email: parsed.email,
+        name: parsed.name || "Vladimir",
+        role: parsed.role || "admin_master",
+        sede_id: parsed.sede_id || parsed.sede || null,
+      });
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 export async function apiRequest(path, { method = "GET", body, signal } = {}) {
   // En entorno local sin PHP (Vite dev / preview) o GitHub Pages, usar el motor local directamente
   if (isLocalEnvironment()) {
-    return handleLocalApiFallback(path, { method, body });
+    const res = await handleLocalApiFallback(path, { method, body });
+    return res && typeof res === "object" ? { ...res, __localFallback: true } : res;
+  }
+
+  // En servidores Apache/SiteGround, usar POST en lugar de PUT para evitar bloqueos 405/403 de ModSecurity
+  const wireMethod = method === "PUT" ? "POST" : method;
+  const headers = {};
+  if (body !== undefined) {
+    headers["Content-Type"] = "application/json";
+  }
+  const sessionHeader = getLocalSessionHeader();
+  if (sessionHeader) {
+    headers["X-Platino-User"] = sessionHeader;
   }
 
   let response;
   try {
     response = await fetch(buildApiUrl(path), {
-      method,
+      method: wireMethod,
       credentials: "include",
-      headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+      headers: Object.keys(headers).length > 0 ? headers : undefined,
       body: body === undefined ? undefined : JSON.stringify(body),
       signal,
     });
   } catch {
-    return handleLocalApiFallback(path, { method, body });
+    const res = await handleLocalApiFallback(path, { method, body });
+    return res && typeof res === "object" ? { ...res, __localFallback: true } : res;
   }
 
-  // Si un servidor estático devuelve 404/405 o la BD aún no está configurada (500+), usar fallback local
-  if (response.status === 404 || response.status === 405 || response.status >= 500) {
-    return handleLocalApiFallback(path, { method, body });
+  // Si el servidor devuelve 404/405/500+, o 401/403 cuando hay sesión local activa, usar fallback local sin perder datos
+  if (
+    response.status === 404 ||
+    response.status === 405 ||
+    response.status >= 500 ||
+    ((response.status === 401 || response.status === 403) && sessionHeader && !String(path).startsWith("/auth/login"))
+  ) {
+    const res = await handleLocalApiFallback(path, { method, body });
+    return res && typeof res === "object" ? { ...res, __localFallback: true } : res;
   }
 
   const payload = response.status === 204 ? {} : await response.json().catch(() => null);
@@ -50,7 +91,8 @@ export async function apiRequest(path, { method = "GET", body, signal } = {}) {
     throw new Error(payload?.error || `La solicitud falló (${response.status}).`);
   }
   if (payload === null || typeof payload !== "object") {
-    return handleLocalApiFallback(path, { method, body });
+    const res = await handleLocalApiFallback(path, { method, body });
+    return res && typeof res === "object" ? { ...res, __localFallback: true } : res;
   }
   return payload;
 }

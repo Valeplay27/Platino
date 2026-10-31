@@ -8,7 +8,12 @@ const MASTER_EMAIL = "vladimiryt18@gmail.com";
 function readJson(key, fallback) {
   try {
     const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : fallback;
+    if (!raw) return fallback;
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed === "object" && "__ts" in parsed && "data" in parsed) {
+      return parsed.data;
+    }
+    return parsed;
   } catch {
     return fallback;
   }
@@ -18,7 +23,12 @@ function writeJson(key, value) {
   try {
     localStorage.setItem(key, JSON.stringify(value));
   } catch {
-    // ignore storage quota errors in fallback
+    // Si supera la cuota de localStorage, evitar que quede data obsoleta
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      // ignore
+    }
   }
 }
 
@@ -50,7 +60,34 @@ function readNamespace(ns, fallback = null) {
 }
 
 function writeNamespace(ns, data) {
-  writeJson(`${LOCAL_NS_PREFIX}${ns}`, data);
+  const envelope = { __ts: Date.now(), data };
+  try {
+    localStorage.setItem(`${LOCAL_NS_PREFIX}${ns}`, JSON.stringify(envelope));
+  } catch {
+    try {
+      localStorage.removeItem(`${LOCAL_NS_PREFIX}${ns}`);
+    } catch {
+      // ignore
+    }
+  }
+  if (typeof window !== "undefined" && window.indexedDB) {
+    try {
+      const req = window.indexedDB.open("platino_storage_db_v1", 1);
+      req.onsuccess = () => {
+        try {
+          const db = req.result;
+          if (db.objectStoreNames.contains("namespaces")) {
+            const tx = db.transaction("namespaces", "readwrite");
+            tx.objectStore("namespaces").put(envelope, ns);
+          }
+        } catch {
+          // ignore
+        }
+      };
+    } catch {
+      // ignore
+    }
+  }
 }
 
 export function handleLocalApiFallback(rawPath, { method = "GET", body } = {}) {
@@ -165,7 +202,7 @@ export function handleLocalApiFallback(rawPath, { method = "GET", body } = {}) {
   }
 
   // 7. Escritura de namespaces (/data?namespace=...)
-  if (path === "/data" && upperMethod === "PUT") {
+  if (path === "/data" && (upperMethod === "PUT" || upperMethod === "POST")) {
     const ns = params.get("namespace");
     if (!ns) {
       throw new Error("Namespace requerido.");

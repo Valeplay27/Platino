@@ -57,10 +57,16 @@ export default function Product({ addToCart }) {
     };
     refreshProduct();
     window.addEventListener("catalog_updated", refreshProduct);
+    window.addEventListener("platino_data_loaded", refreshProduct);
     window.addEventListener("storage", refreshProduct);
+    window.addEventListener("focus", refreshProduct);
+    document.addEventListener("visibilitychange", refreshProduct);
     return () => {
       window.removeEventListener("catalog_updated", refreshProduct);
+      window.removeEventListener("platino_data_loaded", refreshProduct);
       window.removeEventListener("storage", refreshProduct);
+      window.removeEventListener("focus", refreshProduct);
+      document.removeEventListener("visibilitychange", refreshProduct);
     };
   }, [productId]);
   const { user, openAuthModal, isAdmin } = useAuth();
@@ -103,7 +109,7 @@ export default function Product({ addToCart }) {
       );
       setSelectedMetal(match || product.availableMetals[0]);
     }
-  }, [product.id]);
+  }, [product.id, product.availableMetals, product.selectedMetal]);
 
   // Galería de imágenes (respeta la secuencia exacta configurada por material + estuche)
   const galleryImages = useMemo(() => {
@@ -240,32 +246,50 @@ export default function Product({ addToCart }) {
 
   const cat = (product?.category || "").toLowerCase();
   const prodType = (product?.type || "").toLowerCase();
+  const prodSubtype = (product?.subtype || "").toLowerCase();
   const prodName = (product?.name || "").toLowerCase();
+  const isPortaArosOrCasual =
+    prodSubtype === "porta-aros" ||
+    prodSubtype === "aros-casuales" ||
+    cat === "aros-casuales" ||
+    cat === "regalos" ||
+    prodName.includes("porta aro") ||
+    prodName.includes("porta-aro");
   const isAros =
-    prodType === "aros" ||
-    cat.includes("aro") ||
-    cat.includes("boda") ||
-    cat.includes("alianza") ||
-    cat.includes("matrimonio") ||
-    prodName.includes("aro") ||
-    prodName.includes("alianza") ||
-    prodName.includes("matrimonio") ||
-    !!product?.hasDoubleSizes;
+    !isPortaArosOrCasual &&
+    (prodType === "aros" ||
+      cat === "aros-boda" ||
+      cat === "aros-alianzas" ||
+      cat.includes("boda") ||
+      cat.includes("alianza") ||
+      cat.includes("matrimonio") ||
+      prodName.includes("alianza") ||
+      prodName.includes("matrimonio") ||
+      !!product?.hasDoubleSizes);
   const isAccesorio =
     prodType === "accesorio" ||
     cat.includes("accesorio") ||
     cat.includes("collar") ||
     cat.includes("pulsera") ||
-    cat.includes("aretes");
-  const isAnillo = prodType === "anillo" || (!isAros && !isAccesorio);
+    cat.includes("aretes") ||
+    cat.includes("cadena") ||
+    cat.includes("tobillera") ||
+    cat.includes("juego") ||
+    cat.includes("reloj") ||
+    cat.includes("regalo") ||
+    prodSubtype.startsWith("aretes") ||
+    prodSubtype.startsWith("collares") ||
+    ["cadenas", "pulseras", "tobilleras", "juegos", "relojes", "porta-aros", "copas-decoradas", "cuadros"].includes(prodSubtype);
+  const isAnillo = (prodType === "anillo" || (!isAros && !isAccesorio)) && !isAccesorio;
 
-  // Tallas: Para aros de matrimonio y alianzas -> ambos (dama y varón); para anillos de compromiso y promesa -> dama
-  const defaultTargetGender = isAros ? "ambos" : "dama";
+  // Tallas: Para aros de matrimonio y alianzas -> ambos (dama y varón); para aros casuales de varón -> varón; para anillos de dama -> dama
+  const isVaronSingleRing = isAnillo && (product?.gender === "hombre" || prodSubtype === "aros-casuales" || cat === "aros-casuales");
+  const defaultTargetGender = isAros ? "ambos" : isVaronSingleRing ? "varon" : "dama";
   const [targetGender, setTargetGender] = useState(defaultTargetGender);
 
   useEffect(() => {
-    setTargetGender(isAros ? "ambos" : "dama");
-  }, [product?.id, isAros]);
+    setTargetGender(isAros ? "ambos" : isVaronSingleRing ? "varon" : "dama");
+  }, [product?.id, isAros, isVaronSingleRing]);
 
   const [selectedSizeDama, setSelectedSizeDama] = useState("12");
   const [selectedSizeVaron, setSelectedSizeVaron] = useState("20");

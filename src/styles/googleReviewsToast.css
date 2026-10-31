@@ -217,19 +217,15 @@
   text-decoration: underline;
 }
 
-/* Mobile responsive */
-@media (max-width: 576px) {
+/* Ocultar completamente en celulares, tablets y dispositivos móviles (solo visible en PC/Desktop con pantalla amplia) */
+@media (max-width: 1024px), (pointer: coarse), (hover: none) {
   .gr-toast-container {
-    bottom: 16px;
-    left: 12px;
-    right: 12px;
-    width: auto;
-    max-width: calc(100vw - 24px);
-  }
-  .gr-toast-card {
-    padding: 12px 14px;
-  }
-  .gr-toast-photo-wrap {
-    height: 95px;
+    display: none !important;
+    visibility: hidden !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transform: scale(0) !important;
+    max-height: 0 !important;
+    overflow: hidden !important;
   }
 }

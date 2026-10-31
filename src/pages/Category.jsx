@@ -100,9 +100,20 @@ function Category({ addToCart }) {
 
   useEffect(() => {
     const handleUpdate = () => setProductsList(getCatalogProducts());
+    handleUpdate();
     window.addEventListener("catalog_updated", handleUpdate);
-    return () => window.removeEventListener("catalog_updated", handleUpdate);
-  }, []);
+    window.addEventListener("platino_data_loaded", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+    window.addEventListener("focus", handleUpdate);
+    document.addEventListener("visibilitychange", handleUpdate);
+    return () => {
+      window.removeEventListener("catalog_updated", handleUpdate);
+      window.removeEventListener("platino_data_loaded", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+      window.removeEventListener("focus", handleUpdate);
+      document.removeEventListener("visibilitychange", handleUpdate);
+    };
+  }, [category]);
 
   useEffect(() => {
     try {
@@ -160,6 +171,8 @@ function Category({ addToCart }) {
       const pCat = (p.category || "").toLowerCase();
       const pCats = Array.isArray(p.categories) ? p.categories.map((c) => String(c).toLowerCase()) : [];
       const pType = (p.type || "").toLowerCase();
+      const pSubtype = (p.subtype || "").toLowerCase();
+      const pStyle = (p.style || "").toLowerCase();
       const pName = (p.name || "").toLowerCase();
 
       // 1. Aros de Boda y Matrimonio
@@ -175,11 +188,11 @@ function Category({ addToCart }) {
           pCat === "aros-boda" ||
           pCat === "aros-matrimonio" ||
           pCat === "aros" ||
+          pSubtype === "aros-boda" ||
           pCats.includes("aros-boda") ||
           pCats.includes("aros-matrimonio") ||
           pCats.includes("aros") ||
-          pType === "aros" ||
-          pName.includes("aros") ||
+          (pType === "aros" && pCat !== "aros-alianzas" && pCat !== "alianzas") ||
           pName.includes("boda") ||
           pName.includes("matrimonio")
         );
@@ -190,10 +203,31 @@ function Category({ addToCart }) {
         return (
           pCat === "anillo-compromiso" ||
           pCat === "anillos-compromiso" ||
+          pSubtype === "anillo-compromiso" ||
           pCats.includes("anillo-compromiso") ||
           pCats.includes("anillos-compromiso") ||
           pName.includes("compromiso")
         );
+      }
+
+      // 2b. Rutas de Estilos de Anillos desde la Portada
+      if (normKey === "anillos-solitarios") {
+        return pStyle === "solitario" || pCats.includes("anillos-solitarios") || pName.includes("solitario");
+      }
+      if (normKey === "anillos-tres-piedras") {
+        return pStyle === "3-piedras" || pCats.includes("anillos-tres-piedras") || pName.includes("3 piedras") || pName.includes("tres piedras");
+      }
+      if (normKey === "anillos-vintage") {
+        return pStyle === "vintage" || pCats.includes("anillos-vintage") || pName.includes("vintage");
+      }
+      if (normKey === "anillos-naturaleza") {
+        return pStyle === "naturaleza" || pCats.includes("anillos-naturaleza") || pName.includes("naturaleza");
+      }
+      if (normKey === "conjuntos-nupciales") {
+        return pStyle === "conjunto-nupcial" || pCats.includes("conjuntos-nupciales") || pName.includes("nupcial");
+      }
+      if (normKey === "anillos-bisel") {
+        return pStyle === "bisel" || pStyle === "moderno" || pCats.includes("anillos-bisel") || pName.includes("bisel");
       }
 
       // 3. Amor y Promesa (Fusión de Anillos de Promesa y Aros de Alianzas)
@@ -206,16 +240,42 @@ function Category({ addToCart }) {
         normKey === "aros-alianzas" ||
         normKey === "alianzas"
       ) {
+        if (normKey === "anillo-promesa" || normKey === "anillos-promesa" || normKey === "promesa") {
+          return (
+            pCat === "anillo-promesa" ||
+            pCat === "anillos-promesa" ||
+            pSubtype === "anillo-promesa" ||
+            pCats.includes("anillo-promesa") ||
+            pCats.includes("anillos-promesa") ||
+            pName.includes("promesa")
+          );
+        }
+        if (normKey === "aros-alianzas" || normKey === "alianzas") {
+          return (
+            pCat === "aros-alianzas" ||
+            pCat === "alianzas" ||
+            pSubtype === "alianzas-amor" ||
+            pSubtype === "aros-alianzas" ||
+            pCats.includes("aros-alianzas") ||
+            pCats.includes("alianzas") ||
+            pCats.includes("alianzas-amor") ||
+            pName.includes("alianza")
+          );
+        }
         return (
           pCat === "anillo-promesa" ||
           pCat === "anillos-promesa" ||
           pCat === "aros-alianzas" ||
           pCat === "alianzas" ||
           pCat === "amor-promesa" ||
+          pSubtype === "anillo-promesa" ||
+          pSubtype === "alianzas-amor" ||
+          pSubtype === "aros-alianzas" ||
           pCats.includes("anillo-promesa") ||
           pCats.includes("anillos-promesa") ||
           pCats.includes("aros-alianzas") ||
           pCats.includes("alianzas") ||
+          pCats.includes("alianzas-amor") ||
           pCats.includes("amor-promesa") ||
           pName.includes("promesa") ||
           pName.includes("alianza")
@@ -235,6 +295,7 @@ function Category({ addToCart }) {
           pCat === "relojes" ||
           pCat === "anillos" ||
           pCat === "aros-casuales" ||
+          pCat === "bebes-kids" ||
           pCats.includes("joyeria") ||
           pCats.includes("collares") ||
           pCats.includes("pulseras") ||
@@ -242,8 +303,12 @@ function Category({ addToCart }) {
           pCats.includes("cadenas") ||
           pCats.includes("tobilleras") ||
           pCats.includes("juegos") ||
+          pCats.includes("relojes") ||
+          pCats.includes("aros-casuales") ||
           pCats.includes("kids") ||
-          Boolean(p.gender) ||
+          pCats.includes("bebes-kids") ||
+          Boolean(p.gender && p.gender !== "unisex") ||
+          Boolean(pSubtype && !["anillo-compromiso", "aros-boda", "anillo-promesa", "alianzas-amor", "aros-alianzas", "porta-aros", "copas-decoradas", "cuadros"].includes(pSubtype)) ||
           pType === "accesorio"
         );
       }
@@ -253,8 +318,12 @@ function Category({ addToCart }) {
         return (
           pCat === "regalos" ||
           pCats.includes("regalos") ||
-          p.hasPresentationChoice ||
-          pType === "accesorio" ||
+          pSubtype === "porta-aros" ||
+          pSubtype === "copas-decoradas" ||
+          pSubtype === "cuadros" ||
+          pCats.includes("porta-aros") ||
+          pCats.includes("copas-decoradas") ||
+          pCats.includes("cuadros") ||
           pType === "porta-aros" ||
           pType === "copas-decoradas" ||
           pType === "cuadros" ||
@@ -264,7 +333,7 @@ function Category({ addToCart }) {
         );
       }
 
-      return pCat === normKey || pCats.includes(normKey);
+      return pCat === normKey || pSubtype === normKey || pCats.includes(normKey);
     });
 
     // Filtro por Subcategoría (Amor y Promesa: Anillo de Promesa vs Alianzas de Amor)
@@ -274,29 +343,34 @@ function Category({ addToCart }) {
         const pCat = (p.category || "").toLowerCase();
         const pCats = Array.isArray(p.categories) ? p.categories.map((c) => String(c).toLowerCase()) : [];
         const pType = (p.type || "").toLowerCase();
+        const pSubtype = (p.subtype || "").toLowerCase();
         const pName = (p.name || "").toLowerCase();
 
         if (targetSubcat === "anillo-promesa" || targetSubcat === "promesa") {
           return (
             pCat === "anillo-promesa" ||
             pCat === "anillos-promesa" ||
+            pSubtype === "anillo-promesa" ||
             pCats.includes("anillo-promesa") ||
             pCats.includes("anillos-promesa") ||
             pName.includes("promesa") ||
-            pType === "anillo"
+            (pType === "anillo" && pCat !== "aros-alianzas" && pSubtype !== "alianzas-amor")
           );
         }
         if (targetSubcat === "alianzas-amor" || targetSubcat === "alianzas" || targetSubcat === "alianza") {
           return (
             pCat === "alianzas" ||
             pCat === "aros-alianzas" ||
+            pSubtype === "alianzas-amor" ||
+            pSubtype === "aros-alianzas" ||
             pCats.includes("alianzas") ||
             pCats.includes("aros-alianzas") ||
+            pCats.includes("alianzas-amor") ||
             pName.includes("alianza") ||
             pType === "aros"
           );
         }
-        return pCat === targetSubcat || pCats.includes(targetSubcat);
+        return pCat === targetSubcat || pSubtype === targetSubcat || pCats.includes(targetSubcat);
       });
     }
 
@@ -305,19 +379,30 @@ function Category({ addToCart }) {
       const targetGenero = generoParam.toLowerCase();
       list = list.filter((p) => {
         const pGender = (p.gender || "").toLowerCase();
+        const pSubtype = (p.subtype || "").toLowerCase();
         const pCats = Array.isArray(p.categories) ? p.categories.map((c) => String(c).toLowerCase()) : [];
         const pName = (p.name || "").toLowerCase();
 
         if (targetGenero === "mujer") {
-          return pGender === "mujer" || (!pGender && pGender !== "hombre" && pGender !== "kids");
+          return (
+            pGender === "mujer" ||
+            pSubtype === "aretes-bebes" ||
+            pCats.includes("aretes-bebes") ||
+            (!pGender && pGender !== "hombre" && pGender !== "kids")
+          );
         }
         if (targetGenero === "hombre" || targetGenero === "el" || targetGenero === "él") {
-          return pGender === "hombre" || pName.includes("varón") || pName.includes("varon") || pName.includes("hombre");
+          return pGender === "hombre" || pCats.includes("hombre") || pName.includes("varón") || pName.includes("varon") || pName.includes("hombre");
         }
         if (targetGenero === "kids" || targetGenero === "ninos" || targetGenero === "niños") {
           return (
             pGender === "kids" ||
+            pSubtype === "aretes-bebes" ||
+            pSubtype === "aretes-nina" ||
             pCats.includes("kids") ||
+            pCats.includes("bebes-kids") ||
+            pCats.includes("aretes-bebes") ||
+            pCats.includes("aretes-nina") ||
             pName.includes("bebé") ||
             pName.includes("bebe") ||
             pName.includes("niña") ||
@@ -594,80 +679,215 @@ function Category({ addToCart }) {
         const pCat = (p.category || "").toLowerCase();
         const pCats = Array.isArray(p.categories) ? p.categories.map((c) => String(c).toLowerCase()) : [];
         const pType = (p.type || "").toLowerCase();
+        const pSubtype = (p.subtype || "").toLowerCase();
         const pName = (p.name || "").toLowerCase();
 
         // Aretes
         if (targetTipo === "aretes") {
-          return pCat === "aretes" || pCats.includes("aretes") || pType.includes("aretes") || pName.includes("arete");
+          return (
+            pCat === "aretes" ||
+            pCats.includes("aretes") ||
+            pSubtype.startsWith("aretes") ||
+            pType.includes("aretes") ||
+            pName.includes("arete")
+          );
         }
         if (targetTipo === "aretes-bebes") {
-          return pType === "aretes-bebes" || pName.includes("bebé") || pName.includes("bebe") || pName.includes("abridor");
+          return (
+            pSubtype === "aretes-bebes" ||
+            pCats.includes("aretes-bebes") ||
+            pType === "aretes-bebes" ||
+            pName.includes("bebé") ||
+            pName.includes("bebe") ||
+            pName.includes("abridor")
+          );
         }
         if (targetTipo === "aretes-pegados") {
-          return pType === "aretes-pegados" || pName.includes("pegado") || pName.includes("solitario");
+          return (
+            pSubtype === "aretes-pegados" ||
+            pCats.includes("aretes-pegados") ||
+            pType === "aretes-pegados" ||
+            pName.includes("pegado") ||
+            pName.includes("solitario")
+          );
         }
         if (targetTipo === "aretes-colgantes") {
-          return pType === "aretes-colgantes" || pName.includes("colgante") || pName.includes("cascada");
+          return (
+            pSubtype === "aretes-colgantes" ||
+            pCats.includes("aretes-colgantes") ||
+            pType === "aretes-colgantes" ||
+            pName.includes("colgante") ||
+            pName.includes("cascada")
+          );
         }
         if (targetTipo === "aretes-nina") {
-          return pType === "aretes-nina" || pType === "aretes-bebes" || pName.includes("niña") || pName.includes("mariposa");
+          return (
+            pSubtype === "aretes-nina" ||
+            pSubtype === "aretes-bebes" ||
+            pCats.includes("aretes-nina") ||
+            pCats.includes("aretes-bebes") ||
+            pType === "aretes-nina" ||
+            pType === "aretes-bebes" ||
+            pName.includes("niña") ||
+            pName.includes("mariposa")
+          );
         }
 
         // Collares
         if (targetTipo === "collares") {
-          return pCat === "collares" || pCats.includes("collares") || pType.includes("collar") || pName.includes("collar") || pName.includes("gargantilla");
+          return (
+            pCat === "collares" ||
+            pCats.includes("collares") ||
+            pSubtype.startsWith("collares") ||
+            pType.includes("collar") ||
+            pName.includes("collar") ||
+            pName.includes("gargantilla")
+          );
         }
         if (targetTipo === "collares-vestir") {
-          return pType === "collares-vestir" || p.id === "collar-solitario-lagrima" || (pCat === "collares" && !pName.includes("relicario"));
+          return (
+            pSubtype === "collares-vestir" ||
+            pCats.includes("collares-vestir") ||
+            pType === "collares-vestir" ||
+            (pCat === "collares" && !pSubtype && !pName.includes("relicario"))
+          );
         }
         if (targetTipo === "collares-gemas") {
-          return pType === "collares-gemas" || p.id === "collar-cristal" || p.id === "collar-solitario-lagrima" || Boolean(p.gem) || (p.badge || "").includes("Cristal");
+          return (
+            pSubtype === "collares-gemas" ||
+            pCats.includes("collares-gemas") ||
+            pType === "collares-gemas" ||
+            (pCat === "collares" && Boolean(p.gem))
+          );
         }
         if (targetTipo === "collares-relicarios") {
-          return pType === "collares-relicarios" || pName.includes("relicario") || pName.includes("guardapelo");
+          return (
+            pSubtype === "collares-relicarios" ||
+            pCats.includes("collares-relicarios") ||
+            pType === "collares-relicarios" ||
+            pName.includes("relicario") ||
+            pName.includes("guardapelo")
+          );
         }
         if (targetTipo === "collares-religiosos") {
-          return pType === "collares-religiosos" || pName.includes("cruz") || pName.includes("ángel") || pName.includes("angel") || pName.includes("religioso");
+          return (
+            pSubtype === "collares-religiosos" ||
+            pCats.includes("collares-religiosos") ||
+            pType === "collares-religiosos" ||
+            pName.includes("cruz") ||
+            pName.includes("ángel") ||
+            pName.includes("angel") ||
+            pName.includes("religioso")
+          );
         }
         if (targetTipo === "collares-personalizados") {
-          return pType === "collares-personalizados" || pName.includes("personalizado") || pName.includes("nombre");
+          return (
+            pSubtype === "collares-personalizados" ||
+            pCats.includes("collares-personalizados") ||
+            pType === "collares-personalizados" ||
+            pName.includes("personalizado") ||
+            pName.includes("nombre")
+          );
         }
 
         // Otras Joyas
         if (targetTipo === "anillos") {
-          return pType === "anillo" || pCat.includes("anillo") || pCats.some((c) => c.includes("anillo")) || pName.includes("anillo");
+          return (
+            pSubtype === "anillos" ||
+            pCats.includes("anillos") ||
+            pType === "anillo" ||
+            pCat.includes("anillo") ||
+            pCats.some((c) => c.includes("anillo")) ||
+            pName.includes("anillo")
+          );
         }
         if (targetTipo === "cadenas") {
-          return pType === "cadenas" || pCat === "cadenas" || pCats.includes("cadenas") || pName.includes("cadena");
+          return (
+            pSubtype === "cadenas" ||
+            pType === "cadenas" ||
+            pCat === "cadenas" ||
+            pCats.includes("cadenas") ||
+            pName.includes("cadena")
+          );
         }
         if (targetTipo === "juegos") {
-          return pType === "juegos" || pCats.includes("juegos") || pName.includes("juego") || pName.includes("set");
+          return (
+            pSubtype === "juegos" ||
+            pType === "juegos" ||
+            pCat === "juegos" ||
+            pCats.includes("juegos") ||
+            pName.includes("juego") ||
+            pName.includes("set")
+          );
         }
         if (targetTipo === "pulseras") {
-          return pCat === "pulseras" || pCats.includes("pulseras") || pType === "pulseras" || pName.includes("pulsera") || pName.includes("esclava");
+          return (
+            pSubtype === "pulseras" ||
+            pCat === "pulseras" ||
+            pCats.includes("pulseras") ||
+            pType === "pulseras" ||
+            pName.includes("pulsera") ||
+            pName.includes("esclava")
+          );
         }
         if (targetTipo === "tobilleras") {
-          return pType === "tobilleras" || pCats.includes("tobilleras") || pName.includes("tobillera");
+          return (
+            pSubtype === "tobilleras" ||
+            pCat === "tobilleras" ||
+            pType === "tobilleras" ||
+            pCats.includes("tobilleras") ||
+            pName.includes("tobillera")
+          );
         }
         if (targetTipo === "aros-casuales") {
-          return pType === "aros-casuales" || pCats.includes("aros-casuales") || (pName.includes("aro") && (p.gender === "hombre" || pName.includes("varón")));
+          return (
+            pSubtype === "aros-casuales" ||
+            pCat === "aros-casuales" ||
+            pType === "aros-casuales" ||
+            pCats.includes("aros-casuales") ||
+            (pName.includes("aro") && (p.gender === "hombre" || pName.includes("varón")))
+          );
         }
         if (targetTipo === "relojes") {
-          return pType === "relojes" || pCats.includes("relojes") || pName.includes("reloj");
+          return (
+            pSubtype === "relojes" ||
+            pCat === "relojes" ||
+            pType === "relojes" ||
+            pCats.includes("relojes") ||
+            pName.includes("reloj")
+          );
         }
 
         // Accesorios y Regalos
         if (targetTipo === "porta-aros" || targetTipo === "porta-aro") {
-          return pType === "porta-aros" || pName.includes("porta") || p.id.includes("porta");
+          return (
+            pSubtype === "porta-aros" ||
+            pCats.includes("porta-aros") ||
+            pType === "porta-aros" ||
+            pName.includes("porta") ||
+            p.id.includes("porta")
+          );
         }
         if (targetTipo === "copas-decoradas" || targetTipo === "copas") {
-          return pType === "copas-decoradas" || pName.includes("copa") || p.id.includes("copa");
+          return (
+            pSubtype === "copas-decoradas" ||
+            pCats.includes("copas-decoradas") ||
+            pType === "copas-decoradas" ||
+            pName.includes("copa") ||
+            p.id.includes("copa")
+          );
         }
         if (targetTipo === "cuadros") {
-          return pType === "cuadros" || pName.includes("cuadro") || p.id.includes("cuadro");
+          return (
+            pSubtype === "cuadros" ||
+            pCats.includes("cuadros") ||
+            pType === "cuadros" ||
+            pName.includes("cuadro") ||
+            p.id.includes("cuadro")
+          );
         }
 
-        return pType === targetTipo || pCat === targetTipo;
+        return pSubtype === targetTipo || pType === targetTipo || pCat === targetTipo || pCats.includes(targetTipo);
       });
     }
 
@@ -867,12 +1087,13 @@ function Category({ addToCart }) {
                 >
                   <option value="">Tipo: Todos</option>
                   <optgroup label="Para Ella">
-                    <option value="aretes">Aretes</option>
+                    <option value="aretes">Aretes (Todos)</option>
+                    <option value="aretes-bebes">Aretes para Bebés</option>
                     <option value="aretes-pegados">Aretes Pegados</option>
                     <option value="aretes-colgantes">Aretes Colgantes</option>
-                    <option value="collares">Collares</option>
+                    <option value="collares">Collares (Todos)</option>
                     <option value="collares-vestir">Collares de Vestir</option>
-                    <option value="collares-gemas">Collares con Gemas</option>
+                    <option value="collares-gemas">Collares con Gemas Naturales</option>
                     <option value="collares-relicarios">Relicarios</option>
                     <option value="collares-religiosos">Collares Religiosos</option>
                     <option value="collares-personalizados">Collares Personalizados</option>
@@ -888,11 +1109,11 @@ function Category({ addToCart }) {
                     <option value="pulseras">Pulseras</option>
                     <option value="relojes">Relojes</option>
                   </optgroup>
-                  <optgroup label="Kids">
-                    <option value="aretes-bebes">Aretes Bebé</option>
-                    <option value="aretes-nina">Aretes Niña</option>
+                  <optgroup label="Kids / Bebés">
+                    <option value="aretes-bebes">Aretes para Bebés</option>
+                    <option value="aretes-nina">Aretes para Niña</option>
                     <option value="cadenas">Cadenas</option>
-                    <option value="pulseras">Pulseras</option>
+                    <option value="pulseras">Pulseras / Esclavas</option>
                   </optgroup>
                 </select>
               </>

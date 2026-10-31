@@ -34,7 +34,7 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
     window.addEventListener("home_images_updated", handleHomeImagesUpdate);
     return () => window.removeEventListener("home_images_updated", handleHomeImagesUpdate);
   }, []);
-  const { user, openAuthModal } = useAuth();
+  const { user, openAuthModal, isAdmin } = useAuth();
   const [favCount, setFavCount] = useState(() => (user ? getFavoriteCount(user.email) : 0));
   const location = useLocation();
   const navigate = useNavigate();
@@ -139,7 +139,23 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
       {announcementActive && announcementText && (
         <div className="announcement-bar">
           <div className="announcement-content">
-            <span>{announcementText}</span>
+            <span className="announcement-msg-wrapper">
+              <svg className="announcement-diamond-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 3h12l4 7-10 11L2 10l4-7z" />
+                <path d="M2 10h20" />
+                <path d="M10 3l-2 7 4 11 4-11-2-7" />
+              </svg>
+              <span className="announcement-text-main">
+                {announcementText.includes("¡ÚLTIMAS UNIDADES!") ? (
+                  <>
+                    <strong className="announcement-highlight">¡ÚLTIMAS UNIDADES!</strong>
+                    {announcementText.replace("¡ÚLTIMAS UNIDADES!", "")}
+                  </>
+                ) : (
+                  announcementText
+                )}
+              </span>
+            </span>
           </div>
         </div>
       )}
@@ -148,6 +164,15 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
       <header className="platino-header">
         {/* Row 1: Contact/Sedes on Left, Logo Center, Actions Right */}
         <div className="header-top-row">
+          {/* Mobile hamburger button - Ubicado a la izquierda según BOCETO 1 */}
+          <button
+            className="mobile-menu-btn"
+            onClick={() => setMenuOpen(!menuOpen)}
+            aria-label={menuOpen ? "Cerrar menú" : "Abrir menú principal"}
+          >
+            <i className={menuOpen ? "bi bi-x-lg" : "bi bi-list"}></i>
+          </button>
+
           <div className="header-contact-links">
             <div className="header-utility-group">
               <Link to="/sedes" className="top-utility-link">
@@ -160,16 +185,23 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
             </div>
           </div>
 
-          {/* Logo Center */}
+          {/* Logo Center (Estilo vector exacto BOCETO 1: PLATINO 💎 PERÚ) */}
           <Link to="/" className="brand-logo" aria-label="Platino Perú Inicio">
-            <img
-              src={platinoLogoWordmark}
-              alt="Platino Perú"
-              className="brand-logo-wordmark"
-            />
+            <span className="brand-logo-custom">
+              <span className="brand-word">PLATINO</span>
+              <svg className="brand-diamond-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M6 3h12l4 7-10 11L2 10l4-7z" />
+                <path d="M2 10h20" />
+                <path d="M10 3l-2 7 4 11 4-11-2-7" />
+              </svg>
+              <span className="brand-word">PERÚ</span>
+            </span>
           </Link>
 
-          {/* User Actions & Currency Right */}
+          {/* Línea vertical divisora para móvil según BOCETO 1 */}
+          <div className="header-mobile-divider" aria-hidden="true"></div>
+
+          {/* User Actions Right (Buscar, Perfil, Deseos, Carrito con badge) */}
           <div className="header-actions">
             <button
               className="action-icon-btn"
@@ -226,33 +258,9 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                 }
               }}
             >
-              {cartCount > 0 ? (
-                <div className="dynamic-cart-bag-wrapper">
-                  <div className="platino-brand-bag">
-                    <div className="bag-handles"></div>
-                    <div className="bag-body">
-                      <img
-                        src={getAssetUrl("/images/platino-logo-emerald.jpg")}
-                        alt="Logo Platino Perú"
-                        className="bag-center-logo"
-                      />
-                    </div>
-                  </div>
-                  <span className="cart-badge cart-badge-pulse">{cartCount}</span>
-                </div>
-              ) : (
-                <i className="bi bi-bag"></i>
-              )}
+              <i className="bi bi-bag"></i>
+              <span className="cart-badge">{cartCount}</span>
             </Link>
-
-            {/* Mobile hamburger button */}
-            <button
-              className="mobile-menu-btn"
-              onClick={() => setMenuOpen(!menuOpen)}
-              aria-label={menuOpen ? "Cerrar menú" : "Abrir menú principal"}
-            >
-              <i className={menuOpen ? "bi bi-x-lg" : "bi bi-list"}></i>
-            </button>
           </div>
         </div>
 
@@ -307,15 +315,10 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
-                    if (window.innerWidth <= 992) {
-                      handleNavClick();
-                      navigate("/categoria/anillo-compromiso");
-                    } else {
-                      setBodaMenuOpen(false);
-                      setPromesaMenuOpen(false);
-                      setJoyeriaMenuOpen(false);
-                      setCompromisoMenuOpen((prev) => !prev);
-                    }
+                    setBodaMenuOpen(false);
+                    setPromesaMenuOpen(false);
+                    setJoyeriaMenuOpen(false);
+                    setCompromisoMenuOpen((prev) => !prev);
                   }}
                   className="nav-link-with-indicator megamenu-trigger-btn"
                   aria-expanded={compromisoMenuOpen}
@@ -323,7 +326,7 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                 >
                   <span>ANILLO DE COMPROMISO</span>
                   <i className="bi bi-chevron-down nav-desktop-chevron"></i>
-                  <i className="bi bi-chevron-right mobile-nav-arrow"></i>
+                  <i className={`bi bi-chevron-right mobile-nav-arrow ${compromisoMenuOpen ? "arrow-rotated" : ""}`}></i>
                 </button>
 
                 {/* MEGAMENÚ DESPLEGABLE EN DESKTOP */}
@@ -404,8 +407,8 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                           </Link>
                         </li>
                         <li>
-                          <Link to="/categoria/anillo-compromiso?estilo=con-gemas" onClick={handleNavClick}>
-                            CON GEMAS
+                          <Link to="/categoria/anillo-compromiso" onClick={handleNavClick}>
+                            VER TODOS
                           </Link>
                         </li>
                       </ul>
@@ -512,6 +515,35 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                       <Link to="/catalogo-gemas" className="megamenu-gemas-footer-link" onClick={handleNavClick}>
                         DIAMANTE NATURAL Y LAB GROWN
                       </Link>
+
+                      {/* Lista de texto para móvil (sin imágenes) */}
+                      <ul className="megamenu-links-list mobile-gemas-text-list">
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?gema=diamante" onClick={handleNavClick}>
+                            DIAMANTE
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?gema=esmeralda" onClick={handleNavClick}>
+                            ESMERALDA
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?gema=rubi" onClick={handleNavClick}>
+                            RUBÍ
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?gema=zafiro" onClick={handleNavClick}>
+                            ZAFIRO
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/catalogo-gemas" onClick={handleNavClick}>
+                            DIAMANTE NATURAL Y LAB GROWN
+                          </Link>
+                        </li>
+                      </ul>
                     </div>
 
                     {/* Columna 5: BLOG (Fondo Suave Gris/Blanco) */}
@@ -561,15 +593,10 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
-                    if (window.innerWidth <= 992) {
-                      handleNavClick();
-                      navigate("/categoria/amor-promesa");
-                    } else {
-                      setCompromisoMenuOpen(false);
-                      setBodaMenuOpen(false);
-                      setJoyeriaMenuOpen(false);
-                      setPromesaMenuOpen((prev) => !prev);
-                    }
+                    setCompromisoMenuOpen(false);
+                    setBodaMenuOpen(false);
+                    setJoyeriaMenuOpen(false);
+                    setPromesaMenuOpen((prev) => !prev);
                   }}
                   className="nav-link-with-indicator megamenu-trigger-btn"
                   aria-expanded={promesaMenuOpen}
@@ -577,7 +604,7 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                 >
                   <span>ALIANZAS Y PROMESA</span>
                   <i className="bi bi-chevron-down nav-desktop-chevron"></i>
-                  <i className="bi bi-chevron-right mobile-nav-arrow"></i>
+                  <i className={`bi bi-chevron-right mobile-nav-arrow ${promesaMenuOpen ? "arrow-rotated" : ""}`}></i>
                 </button>
 
                 {/* MEGAMENÚ DESPLEGABLE EN DESKTOP PARA AMOR Y PROMESA */}
@@ -586,28 +613,21 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                     {/* Columna 1: Tarjeta Imagen ANILLO PROMESA */}
                     <div className="megamenu-col megamenu-col-card">
                       <Link to="/categoria/amor-promesa?subcat=anillo-promesa" className="megamenu-boda-card" onClick={handleNavClick}>
-                        {homeImages?.megamenuPromesaAnillo?.image ? (
-                          <div className="megamenu-card-img-wrapper">
-                            <img
-                              src={homeImages.megamenuPromesaAnillo.image}
-                              alt="Anillo de Promesa"
-                              className="megamenu-card-img"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                                if (e.currentTarget.nextElementSibling) {
-                                  e.currentTarget.nextElementSibling.style.display = "flex";
-                                }
-                              }}
-                            />
-                            <div className="megamenu-card-placeholder" style={{ display: "none" }}>
-                              <span>COLOCAR<br />IMAGEN<br />ANILLO<br />PROMESA</span>
+                        <div className="megamenu-card-img-wrapper" style={{ position: "relative" }}>
+                          <img
+                            src={homeImages?.megamenuPromesaAnillo?.image || getAssetUrl("/images/anillo-9-promesas.jpg")}
+                            alt="Anillo de Promesa"
+                            className="megamenu-card-img"
+                            onError={(e) => {
+                              e.currentTarget.src = getAssetUrl("/images/anillo-9-promesas.jpg");
+                            }}
+                          />
+                          {isAdmin && !homeImages?.megamenuPromesaAnillo?.image && (
+                            <div className="megamenu-card-placeholder" style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", textAlign: "center", fontWeight: "700" }}>
+                              <span>CONFIGURAR FOTO<br />(SOLO ADMIN)</span>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="megamenu-card-placeholder">
-                            <span>COLOCAR<br />IMAGEN<br />ANILLO<br />PROMESA</span>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </Link>
                     </div>
 
@@ -688,28 +708,21 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                     {/* Columna 4: Tarjeta Imagen ALIANZAS DE AMOR */}
                     <div className="megamenu-col megamenu-col-card">
                       <Link to="/categoria/amor-promesa?subcat=alianzas-amor" className="megamenu-boda-card" onClick={handleNavClick}>
-                        {homeImages?.megamenuAlianzasAros?.image ? (
-                          <div className="megamenu-card-img-wrapper">
-                            <img
-                              src={homeImages.megamenuAlianzasAros.image}
-                              alt="Alianzas de Amor"
-                              className="megamenu-card-img"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                                if (e.currentTarget.nextElementSibling) {
-                                  e.currentTarget.nextElementSibling.style.display = "flex";
-                                }
-                              }}
-                            />
-                            <div className="megamenu-card-placeholder" style={{ display: "none" }}>
-                              <span>COLOCAR<br />IMAGEN<br />ALIANZAS<br />DE AMOR</span>
+                        <div className="megamenu-card-img-wrapper" style={{ position: "relative" }}>
+                          <img
+                            src={homeImages?.megamenuAlianzasAros?.image || getAssetUrl("/images/aros-trial.jpg")}
+                            alt="Alianzas de Amor"
+                            className="megamenu-card-img"
+                            onError={(e) => {
+                              e.currentTarget.src = getAssetUrl("/images/aros-trial.jpg");
+                            }}
+                          />
+                          {isAdmin && !homeImages?.megamenuAlianzasAros?.image && (
+                            <div className="megamenu-card-placeholder" style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", textAlign: "center", fontWeight: "700" }}>
+                              <span>CONFIGURAR FOTO<br />(SOLO ADMIN)</span>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="megamenu-card-placeholder">
-                            <span>COLOCAR<br />IMAGEN<br />ALIANZAS<br />DE AMOR</span>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </Link>
                     </div>
 
@@ -797,15 +810,10 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
-                    if (window.innerWidth <= 992) {
-                      handleNavClick();
-                      navigate("/categoria/aros-boda");
-                    } else {
-                      setCompromisoMenuOpen(false);
-                      setPromesaMenuOpen(false);
-                      setJoyeriaMenuOpen(false);
-                      setBodaMenuOpen((prev) => !prev);
-                    }
+                    setCompromisoMenuOpen(false);
+                    setPromesaMenuOpen(false);
+                    setJoyeriaMenuOpen(false);
+                    setBodaMenuOpen((prev) => !prev);
                   }}
                   className="nav-link-with-indicator megamenu-trigger-btn"
                   aria-expanded={bodaMenuOpen}
@@ -813,7 +821,7 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                 >
                   <span>AROS DE BODA</span>
                   <i className="bi bi-chevron-down nav-desktop-chevron"></i>
-                  <i className="bi bi-chevron-right mobile-nav-arrow"></i>
+                  <i className={`bi bi-chevron-right mobile-nav-arrow ${bodaMenuOpen ? "arrow-rotated" : ""}`}></i>
                 </button>
 
                 {/* MEGAMENÚ DESPLEGABLE EN DESKTOP PARA AROS DE BODA */}
@@ -893,32 +901,47 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                       </ul>
                     </div>
 
+                    {/* Lista para móvil de Accesorios de Boda (sin imágenes) */}
+                    <div className="megamenu-col mobile-boda-accesorios-col">
+                      <h4 className="megamenu-col-title">ACCESORIOS Y REGALOS</h4>
+                      <ul className="megamenu-links-list">
+                        <li>
+                          <Link to="/categoria/regalos?tipo=porta-aros" onClick={handleNavClick}>
+                            PORTA AROS
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/regalos?tipo=copas-decoradas" onClick={handleNavClick}>
+                            COPAS DECORADAS
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/regalos?tipo=cuadros" onClick={handleNavClick}>
+                            CUADROS
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+
                     {/* Columna 3: PORTA AROS */}
                     <div className="megamenu-col megamenu-col-card">
                       <h4 className="megamenu-col-title text-center">PORTA AROS</h4>
                       <Link to="/categoria/regalos?tipo=porta-aros" className="megamenu-boda-card" onClick={handleNavClick}>
-                        {homeImages?.megamenuPortaAros?.image ? (
-                          <div className="megamenu-card-img-wrapper">
-                            <img
-                              src={homeImages.megamenuPortaAros.image}
-                              alt="Porta Aros"
-                              className="megamenu-card-img"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                                if (e.currentTarget.nextElementSibling) {
-                                  e.currentTarget.nextElementSibling.style.display = "flex";
-                                }
-                              }}
-                            />
-                            <div className="megamenu-card-placeholder" style={{ display: "none" }}>
-                              <span>COLOCAR<br />IMAGEN</span>
+                        <div className="megamenu-card-img-wrapper" style={{ position: "relative" }}>
+                          <img
+                            src={homeImages?.megamenuPortaAros?.image || getAssetUrl("/images/cat-boda.jpg")}
+                            alt="Porta Aros"
+                            className="megamenu-card-img"
+                            onError={(e) => {
+                              e.currentTarget.src = getAssetUrl("/images/cat-boda.jpg");
+                            }}
+                          />
+                          {isAdmin && !homeImages?.megamenuPortaAros?.image && (
+                            <div className="megamenu-card-placeholder" style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", textAlign: "center", fontWeight: "700" }}>
+                              <span>CONFIGURAR FOTO<br />(SOLO ADMIN)</span>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="megamenu-card-placeholder">
-                            <span>COLOCAR<br />IMAGEN</span>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </Link>
                     </div>
 
@@ -926,28 +949,21 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                     <div className="megamenu-col megamenu-col-card">
                       <h4 className="megamenu-col-title text-center">COPAS DECORADAS</h4>
                       <Link to="/categoria/regalos?tipo=copas-decoradas" className="megamenu-boda-card" onClick={handleNavClick}>
-                        {homeImages?.megamenuCopas?.image ? (
-                          <div className="megamenu-card-img-wrapper">
-                            <img
-                              src={homeImages.megamenuCopas.image}
-                              alt="Copas Decoradas"
-                              className="megamenu-card-img"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                                if (e.currentTarget.nextElementSibling) {
-                                  e.currentTarget.nextElementSibling.style.display = "flex";
-                                }
-                              }}
-                            />
-                            <div className="megamenu-card-placeholder" style={{ display: "none" }}>
-                              <span>COLOCAR<br />IMAGEN</span>
+                        <div className="megamenu-card-img-wrapper" style={{ position: "relative" }}>
+                          <img
+                            src={homeImages?.megamenuCopas?.image || getAssetUrl("/images/cat-boda.jpg")}
+                            alt="Copas Decoradas"
+                            className="megamenu-card-img"
+                            onError={(e) => {
+                              e.currentTarget.src = getAssetUrl("/images/cat-boda.jpg");
+                            }}
+                          />
+                          {isAdmin && !homeImages?.megamenuCopas?.image && (
+                            <div className="megamenu-card-placeholder" style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", textAlign: "center", fontWeight: "700" }}>
+                              <span>CONFIGURAR FOTO<br />(SOLO ADMIN)</span>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="megamenu-card-placeholder">
-                            <span>COLOCAR<br />IMAGEN</span>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </Link>
                     </div>
 
@@ -955,28 +971,21 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                     <div className="megamenu-col megamenu-col-card">
                       <h4 className="megamenu-col-title text-center">CUADROS</h4>
                       <Link to="/categoria/regalos?tipo=cuadros" className="megamenu-boda-card" onClick={handleNavClick}>
-                        {homeImages?.megamenuCuadros?.image ? (
-                          <div className="megamenu-card-img-wrapper">
-                            <img
-                              src={homeImages.megamenuCuadros.image}
-                              alt="Cuadros"
-                              className="megamenu-card-img"
-                              onError={(e) => {
-                                e.currentTarget.style.display = "none";
-                                if (e.currentTarget.nextElementSibling) {
-                                  e.currentTarget.nextElementSibling.style.display = "flex";
-                                }
-                              }}
-                            />
-                            <div className="megamenu-card-placeholder" style={{ display: "none" }}>
-                              <span>COLOCAR<br />IMAGEN</span>
+                        <div className="megamenu-card-img-wrapper" style={{ position: "relative" }}>
+                          <img
+                            src={homeImages?.megamenuCuadros?.image || getAssetUrl("/images/cat-boda.jpg")}
+                            alt="Cuadros"
+                            className="megamenu-card-img"
+                            onError={(e) => {
+                              e.currentTarget.src = getAssetUrl("/images/cat-boda.jpg");
+                            }}
+                          />
+                          {isAdmin && !homeImages?.megamenuCuadros?.image && (
+                            <div className="megamenu-card-placeholder" style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", textAlign: "center", fontWeight: "700" }}>
+                              <span>CONFIGURAR FOTO<br />(SOLO ADMIN)</span>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="megamenu-card-placeholder">
-                            <span>COLOCAR<br />IMAGEN</span>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </Link>
                     </div>
                   </div>
@@ -990,15 +999,10 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                   type="button"
                   onClick={(e) => {
                     e.preventDefault();
-                    if (window.innerWidth <= 992) {
-                      handleNavClick();
-                      navigate("/categoria/joyeria");
-                    } else {
-                      setCompromisoMenuOpen(false);
-                      setBodaMenuOpen(false);
-                      setPromesaMenuOpen(false);
-                      setJoyeriaMenuOpen((prev) => !prev);
-                    }
+                    setCompromisoMenuOpen(false);
+                    setBodaMenuOpen(false);
+                    setPromesaMenuOpen(false);
+                    setJoyeriaMenuOpen((prev) => !prev);
                   }}
                   className="nav-link-with-indicator megamenu-trigger-btn"
                   aria-expanded={joyeriaMenuOpen}
@@ -1006,7 +1010,7 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                 >
                   <span>JOYAS</span>
                   <i className="bi bi-chevron-down nav-desktop-chevron"></i>
-                  <i className="bi bi-chevron-right mobile-nav-arrow"></i>
+                  <i className={`bi bi-chevron-right mobile-nav-arrow ${joyeriaMenuOpen ? "arrow-rotated" : ""}`}></i>
                 </button>
 
                 {/* MEGAMENÚ DESPLEGABLE EN DESKTOP PARA JOYERÍA */}

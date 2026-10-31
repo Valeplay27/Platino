@@ -80,7 +80,7 @@ export default function MaintenanceNoticeModal() {
               fontWeight: "600",
             }}
           >
-            JOYERÍA QUE CUENTA TU HISTORIA
+            SÍMBOLO PERDURABLE DE TUS SENTIMIENTOS
           </div>
         </div>
 
@@ -102,7 +102,7 @@ export default function MaintenanceNoticeModal() {
             marginBottom: "14px",
           }}
         >
-          <i className="bi bi-tools"></i> Sitio Web en Mantenimiento
+          <i className="bi bi-tools"></i> En Mantenimiento hasta el 2 de Noviembre
         </div>
 
         <h2
@@ -116,7 +116,7 @@ export default function MaintenanceNoticeModal() {
             lineHeight: 1.2,
           }}
         >
-          Estamos renovando nuestro catálogo exclusivo
+          Página en mantenimiento hasta el 2 de noviembre
         </h2>
 
         <p
@@ -127,7 +127,7 @@ export default function MaintenanceNoticeModal() {
             margin: "0 0 22px",
           }}
         >
-          Actualmente nuestra página se encuentra en proceso de <strong>mantenimiento y actualización de colecciones</strong> para brindarte una experiencia superior. Nuestras boutiques en <strong>Miraflores</strong> y <strong>Lima Centro</strong> atienden con total normalidad.
+          Nuestra página web se encontrará en proceso de <strong>mantenimiento y actualización de catálogo hasta el 2 de noviembre</strong> para brindarte una experiencia superior. Mientras tanto, nuestras boutiques en <strong>Miraflores</strong> y <strong>Lima Centro</strong> atienden con total normalidad.
         </p>
 
         {/* Acciones principales */}

@@ -18,13 +18,13 @@
 
 /* 1. Announcement Bar */
 .announcement-bar {
-  background-color: var(--platino-green-dark);
+  background-color: #07231a;
   color: #f1ede3;
   font-family: var(--font-sans);
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 500;
-  letter-spacing: 0.05em;
-  padding: 10px 18px;
+  letter-spacing: 0.04em;
+  padding: 8px 18px;
   text-align: center;
   position: relative;
   z-index: 1001;
@@ -33,6 +33,61 @@
 .announcement-content {
   max-width: 1360px;
   margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+}
+
+
+
+.announcement-msg-wrapper {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  text-align: center;
+}
+
+.announcement-diamond-icon {
+  width: 15px;
+  height: 15px;
+  stroke: #c5a059;
+  flex-shrink: 0;
+  display: inline-block;
+}
+
+.announcement-highlight {
+  color: #d4af37;
+  font-weight: 700;
+  margin-right: 4px;
+}
+
+/* Brand Logo Vectorial BOCETO 1: PLATINO 💎 PERÚ */
+.brand-logo-custom {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: var(--font-serif);
+  color: #113B3A;
+  text-decoration: none;
+  font-weight: 500;
+  letter-spacing: 0.16em;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.brand-diamond-svg {
+  width: 19px;
+  height: 19px;
+  stroke: #113B3A;
+  flex-shrink: 0;
+  transform: translateY(-0.5px);
+}
+
+.header-mobile-divider {
+  display: none;
 }
 
 .announcement-link {
@@ -757,6 +812,15 @@
   padding: 2px 0;
 }
 
+.mobile-megamenu-all-link {
+  display: none;
+}
+
+.mobile-gemas-text-list,
+.mobile-boda-accesorios-col {
+  display: none !important;
+}
+
 .megamenu-links-list a:hover {
   color: #C6AC7F;
   transform: translateX(3px);
@@ -1349,80 +1413,206 @@
   border-color: var(--platino-green-dark);
 }
 
-/* Mobile & Tablet Responsiveness */
+/* Mobile & Tablet Responsiveness - Exacto BOCETO 1 */
 @media (max-width: 992px) {
-  .header-top-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 10px 16px;
-    gap: 8px;
-    width: 100%;
-    box-sizing: border-box;
+  .platino-header {
+    background: transparent;
+    border-bottom: none;
+    box-shadow: none;
+    position: sticky;
+    top: 0;
+    z-index: 90000;
   }
 
-  .header-contact-links {
-    display: none;
-  }
-
-  .brand-logo {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-    white-space: nowrap;
-    text-decoration: none;
-  }
-
-  .brand-logo-img {
-    width: 28px;
-    height: 28px;
-    border-radius: 6px;
-    flex-shrink: 0;
-  }
-
-  .brand-name {
-    font-size: 21px;
-    letter-spacing: 0.12em;
-    line-height: 1;
-  }
-
-  .brand-gem {
-    font-size: 13px;
-    line-height: 1;
-    transform: translateY(-0.5px);
-  }
-
-  .brand-country {
-    font-size: 18px;
-    letter-spacing: 0.14em;
-    line-height: 1;
-  }
-
-  .header-actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-shrink: 0;
-  }
-
-  .action-icon-btn {
-    font-size: 17px;
-    padding: 6px;
-    min-width: 32px;
-    height: 32px;
-  }
-
-  .mobile-menu-btn {
+  .announcement-bar {
+    background-color: #062017;
+    color: #FAF7F2;
+    padding: 7px 12px;
+    font-size: 11.5px;
+    letter-spacing: 0.02em;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 34px;
-    height: 34px;
-    padding: 4px;
-    font-size: 22px;
-    color: var(--platino-green-dark);
   }
+
+  .announcement-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .announcement-msg-wrapper {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    text-align: center;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    flex: 1 1 auto;
+    font-size: 11px;
+  }
+
+  .announcement-diamond-icon {
+    width: 14px;
+    height: 14px;
+    stroke: #d4af37;
+    flex-shrink: 0;
+    transform: translateY(-0.5px);
+  }
+
+  .announcement-text-main {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .announcement-highlight {
+    color: #e5c158;
+    font-weight: 700;
+    margin-right: 4px;
+  }
+
+  .header-top-row {
+    background: #FAF7F2;
+    border-radius: 0 0 20px 20px;
+    box-shadow: 0 4px 18px rgba(10, 37, 29, 0.08);
+    border: 1px solid #e7ded0;
+    border-top: none;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    width: 100%;
+    box-sizing: border-box;
+    position: relative;
+    z-index: 90010;
+  }
+
+  .header-contact-links {
+    display: none !important;
+  }
+
+  /* Hamburger Menu Button - Ubicado a la izquierda */
+  .mobile-menu-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: none;
+    color: #113B3A;
+    font-size: 25px;
+    padding: 2px 4px 2px 0;
+    cursor: pointer;
+    flex-shrink: 0;
+    line-height: 1;
+    min-width: 32px;
+    height: 32px;
+    order: 1;
+  }
+
+  /* Logo Center (PLATINO 💎 PERÚ) */
+  .brand-logo {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    flex: 1 1 auto;
+    text-align: center;
+    order: 2;
+    white-space: nowrap;
+    padding: 0 4px;
+  }
+
+  .brand-logo-custom {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    font-family: var(--font-serif);
+    color: #113B3A;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    font-size: 19px;
+    line-height: 1;
+  }
+
+  .brand-diamond-svg {
+    width: 17px;
+    height: 17px;
+    stroke: #113B3A;
+    flex-shrink: 0;
+    transform: translateY(-0.5px);
+  }
+
+  /* Divider vertical line between logo and right icons */
+  .header-mobile-divider {
+    display: block !important;
+    width: 1.2px;
+    height: 22px;
+    background: #D9CEBE;
+    flex-shrink: 0;
+    margin: 0 4px 0 2px;
+    order: 3;
+  }
+
+  /* Actions Right (Search, User, Heart, Bag) */
+  .header-actions {
+    display: flex !important;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 9px;
+    flex-shrink: 0;
+    order: 4;
+  }
+
+  .action-icon-btn {
+    background: transparent;
+    border: none;
+    color: #113B3A;
+    font-size: 18px;
+    padding: 4px;
+    min-width: 28px;
+    height: 28px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    line-height: 1;
+    position: relative;
+    text-decoration: none;
+  }
+
+  .action-icon-btn i {
+    font-size: 18px;
+    color: #113B3A;
+    line-height: 1;
+  }
+
+  .action-icon-btn .cart-badge {
+    position: absolute;
+    top: -4px;
+    right: -6px;
+    background: #113B3A;
+    color: #ffffff;
+    font-size: 9px;
+    font-weight: 800;
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1.5px solid #FAF7F2;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    line-height: 1;
+  }
+
+
 
   /* Mobile Drawer Menu */
   .header-nav-menu {
@@ -1500,10 +1690,6 @@
     padding-left: 12px;
   }
 
-  .compromiso-megamenu,
-  .boda-megamenu,
-  .promesa-megamenu,
-  .joyeria-megamenu,
   .nav-desktop-chevron {
     display: none !important;
   }
@@ -1512,11 +1698,212 @@
     display: block;
     font-size: 11px;
     color: var(--platino-gold);
-    transition: transform 0.2s;
+    transition: transform 0.25s ease;
+  }
+
+  .mobile-nav-arrow.arrow-rotated {
+    transform: rotate(90deg) !important;
   }
 
   .nav-item a:hover .mobile-nav-arrow {
     transform: translateX(3px);
+  }
+
+  /* Megamenús en versión móvil: Acordeón elegante que solo muestra opciones y texto (SIN IMÁGENES) */
+  .compromiso-megamenu,
+  .boda-megamenu,
+  .promesa-megamenu,
+  .joyeria-megamenu {
+    display: none !important;
+    position: static !important;
+    width: 100% !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-top: 1px solid #e7ded0 !important;
+    background: #FAF7F2 !important;
+    padding: 10px 6px 14px !important;
+    border-radius: 0 0 12px 12px !important;
+    margin: 4px 0 10px !important;
+    transform: none !important;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease;
+    box-sizing: border-box !important;
+  }
+
+  .compromiso-megamenu.is-visible,
+  .boda-megamenu.is-visible,
+  .promesa-megamenu.is-visible,
+  .joyeria-megamenu.is-visible {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+  }
+
+  /* Listas móviles de texto (activadas en celular) */
+  .mobile-gemas-text-list,
+  .mobile-boda-accesorios-col {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+  }
+
+  /* En celular NO mostrar imágenes del menú (solo listas y texto limpio) */
+  .megamenu-col-card,
+  .megamenu-boda-card,
+  .megamenu-card-img-wrapper,
+  .gemas-selectas-grid,
+  .gema-selecta-item,
+  .gema-selecta-img-box,
+  .megamenu-gemas-footer-link,
+  .megamenu-col-shapes .gem-shapes-list svg {
+    display: none !important;
+  }
+
+  /* Botón destacado 'Ver todo...' en celular */
+  .nav-item .mobile-megamenu-all-link,
+  .mobile-megamenu-all-link {
+    display: flex !important;
+    align-items: center !important;
+    justify-content: space-between !important;
+    background: #0d3b2e !important;
+    color: #ffffff !important;
+    padding: 12px 16px !important;
+    border-radius: 8px !important;
+    font-family: var(--font-sans) !important;
+    font-size: 13px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.05em !important;
+    text-decoration: none !important;
+    margin: 4px 0 12px 0 !important;
+    box-shadow: 0 4px 12px rgba(13, 59, 46, 0.22) !important;
+    border: 1px solid #1a5644 !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .nav-item .mobile-megamenu-all-link:hover,
+  .mobile-megamenu-all-link:hover {
+    background: #09261c !important;
+    color: #ffffff !important;
+  }
+
+  .nav-item .mobile-megamenu-all-link i,
+  .mobile-megamenu-all-link i {
+    color: #dfba73 !important;
+    font-size: 14px !important;
+  }
+
+  /* Contenedores de ancho completo en móvil */
+  .megamenu-inner-container,
+  .promesa-megamenu-container,
+  .boda-megamenu-container,
+  .joyeria-megamenu-container {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    padding: 0 !important;
+    width: 100% !important;
+    background: transparent !important;
+    grid-template-columns: 1fr !important;
+  }
+
+  .megamenu-col,
+  .joyeria-seccion-ella,
+  .joyeria-col-regular {
+    background: #ffffff !important;
+    border-radius: 10px !important;
+    padding: 14px 16px !important;
+    border: 1px solid #e7dfd2 !important;
+    box-shadow: 0 2px 8px rgba(10, 37, 29, 0.04) !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .megamenu-col-title,
+  .joyeria-seccion-title {
+    font-family: var(--font-sans) !important;
+    font-size: 11px !important;
+    font-weight: 800 !important;
+    letter-spacing: 0.12em !important;
+    color: #113B3A !important;
+    text-transform: uppercase !important;
+    margin: 0 0 10px 0 !important;
+    padding-bottom: 6px !important;
+    border-bottom: 1.5px solid #ece4d7 !important;
+    display: flex !important;
+    align-items: center !important;
+  }
+
+  .joyeria-ella-grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 14px !important;
+    width: 100% !important;
+  }
+
+  .joyeria-subcol {
+    width: 100% !important;
+  }
+
+  .joyeria-subcat-header {
+    font-family: var(--font-sans) !important;
+    font-size: 11.5px !important;
+    font-weight: 700 !important;
+    letter-spacing: 0.08em !important;
+    color: #113B3A !important;
+    text-decoration: none !important;
+    margin-bottom: 6px !important;
+    padding-bottom: 4px !important;
+    display: block !important;
+    border-bottom: 1px dashed #e2d9cb !important;
+  }
+
+  .megamenu-links-list {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  .megamenu-links-list li {
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+
+  .nav-item .megamenu-links-list a,
+  .megamenu-links-list a {
+    font-family: var(--font-sans) !important;
+    font-size: 12.5px !important;
+    font-weight: 500 !important;
+    color: #2c3e37 !important;
+    padding: 7px 8px !important;
+    border-radius: 6px !important;
+    text-decoration: none !important;
+    display: flex !important;
+    align-items: center !important;
+    justify-content: flex-start !important;
+    transition: background 0.15s ease, color 0.15s ease !important;
+    background: transparent !important;
+    width: 100% !important;
+    box-sizing: border-box !important;
+    border: none !important;
+  }
+
+  .nav-item .megamenu-links-list a:hover,
+  .megamenu-links-list a:hover {
+    background: #f4efe6 !important;
+    color: #113B3A !important;
+    padding-left: 12px !important;
+  }
+
+  .dash-bullet {
+    color: #c5a059 !important;
+    font-weight: bold !important;
+    margin-right: 6px !important;
   }
 
   /* Mobile Extras Box */
@@ -1695,12 +2082,24 @@
   }
 
   .header-top-row {
-    padding: 8px 12px;
+    padding: 8px 10px;
     gap: 6px;
+  }
+
+  .brand-logo-custom {
+    font-size: 16.5px;
+    letter-spacing: 0.1em;
+    gap: 5px;
+  }
+
+  .brand-diamond-svg {
+    width: 15px;
+    height: 15px;
   }
 
   .brand-logo {
     gap: 6px;
+    padding: 0 2px;
   }
 
   .brand-logo-img {
@@ -1724,28 +2123,28 @@
   }
 
   .header-actions {
-    gap: 5px;
+    gap: 6px;
   }
 
   .action-icon-btn {
-    font-size: 16px;
-    padding: 4px;
-    min-width: 29px;
-    height: 29px;
+    font-size: 17px;
+    padding: 3px;
+    min-width: 28px;
+    height: 28px;
   }
 
   .mobile-menu-btn {
-    font-size: 21px;
-    padding: 4px;
+    font-size: 23px;
+    padding: 2px;
     min-width: 30px;
     height: 30px;
   }
 
   .cart-badge {
-    top: -2px;
-    right: -4px;
-    width: 15px;
-    height: 15px;
+    top: -3px;
+    right: -5px;
+    width: 14px;
+    height: 14px;
     font-size: 8.5px;
   }
 
@@ -1757,48 +2156,50 @@
 
 @media (max-width: 380px) {
   .header-top-row {
-    padding: 8px 8px;
+    padding: 7px 6px;
     gap: 4px;
   }
 
-  .brand-logo {
-    gap: 5px;
-  }
-
-  .brand-logo-img {
-    width: 22px;
-    height: 22px;
-  }
-
-  .brand-name {
-    font-size: 15px;
+  .brand-logo-custom {
+    font-size: 14px;
     letter-spacing: 0.08em;
+    gap: 4px;
   }
 
-  .brand-gem {
-    font-size: 9px;
+  .brand-diamond-svg {
+    width: 13px;
+    height: 13px;
   }
 
-  .brand-country {
-    font-size: 13px;
-    letter-spacing: 0.1em;
+  .brand-logo {
+    gap: 4px;
+    padding: 0 1px;
+  }
+
+  .header-mobile-divider {
+    height: 18px;
+    margin: 0 2px;
   }
 
   .header-actions {
-    gap: 3px;
+    gap: 4px;
   }
 
   .action-icon-btn {
-    padding: 3px;
-    min-width: 26px;
-    height: 26px;
+    padding: 2px;
+    min-width: 25px;
+    height: 25px;
+    font-size: 15px;
+  }
+
+  .action-icon-btn i {
     font-size: 15px;
   }
 
   .mobile-menu-btn {
-    min-width: 28px;
-    height: 28px;
-    font-size: 19px;
+    min-width: 27px;
+    height: 27px;
+    font-size: 20px;
   }
 }
 

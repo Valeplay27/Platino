@@ -3,6 +3,31 @@ import { AuthContext } from "./authContextDef";
 import { apiGet, apiPost } from "../services/apiClient";
 import { isMasterAdmin as checkMasterAdmin } from "../services/permissionsService";
 
+const LOCAL_SESSION_KEY = "platino_local_api_session_v1";
+
+function readStoredSessionUser() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(LOCAL_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveStoredSessionUser(account) {
+  if (typeof window === "undefined") return;
+  try {
+    if (account) {
+      localStorage.setItem(LOCAL_SESSION_KEY, JSON.stringify(account));
+    } else {
+      localStorage.removeItem(LOCAL_SESSION_KEY);
+    }
+  } catch {
+    // ignore
+  }
+}
+
 function mapApiUser(user) {
   if (!user) return null;
   const master = user.role === "admin_master" || user.email?.toLowerCase() === "vladimiryt18@gmail.com";
@@ -23,7 +48,7 @@ function mapApiUser(user) {
 }
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  const [user, setUser] = useState(() => mapApiUser(readStoredSessionUser()));
   const [isSessionReady, setIsSessionReady] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [modalInitialView, setModalInitialView] = useState("login");
@@ -32,11 +57,20 @@ export function AuthProvider({ children }) {
     let active = true;
     apiGet("/auth/me")
       .then((res) => {
-        if (active) setUser(mapApiUser(res?.user));
+        if (!active) return;
+        if (res?.user) {
+          saveStoredSessionUser(res.user);
+          setUser(mapApiUser(res.user));
+        } else {
+          const fallbackUser = readStoredSessionUser();
+          setUser(mapApiUser(fallbackUser));
+        }
       })
       .catch((error) => {
-        console.error("Could not restore the server session:", error);
         console.warn("Could not restore the server session:", error);
+        if (active) {
+          setUser(mapApiUser(readStoredSessionUser()));
+        }
       })
       .finally(() => {
         if (active) setIsSessionReady(true);
@@ -56,6 +90,7 @@ export function AuthProvider({ children }) {
   const login = async (identifier, password) => {
     try {
       const { user: account } = await apiPost("/auth/login", { identifier, password });
+      saveStoredSessionUser(account);
       const mappedUser = mapApiUser(account);
       setUser(mappedUser);
       closeAuthModal();
@@ -81,6 +116,7 @@ export function AuthProvider({ children }) {
         password,
         phone: phone.trim(),
       });
+      saveStoredSessionUser(account);
       const mappedUser = mapApiUser(account);
       setUser(mappedUser);
       closeAuthModal();
@@ -134,15 +170,14 @@ export function AuthProvider({ children }) {
   };
 
   const logout = async () => {
+    saveStoredSessionUser(null);
     try {
       await apiPost("/auth/logout", {});
-      setUser(null);
-      window.dispatchEvent(new CustomEvent("platino_logged_out"));
     } catch (error) {
-      console.error("Could not close the server session:", error);
-      window.dispatchEvent(new CustomEvent("platino_api_error", { detail: { message: error.message } }));
-      throw error;
+      console.warn("Could not close the server session:", error);
     }
+    setUser(null);
+    window.dispatchEvent(new CustomEvent("platino_logged_out"));
   };
 
   const value = {

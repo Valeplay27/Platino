@@ -43,11 +43,32 @@ export default function GoogleReviewsToast() {
   const [isVisible, setIsVisible] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [isDismissed, setIsDismissed] = useState(false);
+  const checkIsMobileOrTouch = () => {
+    if (typeof window === "undefined") return false;
+    const isSmall = window.innerWidth <= 1024;
+    const isTouch = window.matchMedia("(pointer: coarse)").matches || "ontouchstart" in window;
+    const isMobileUA = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    return isSmall || isTouch || isMobileUA;
+  };
+
+  const [isMobile, setIsMobile] = useState(() => checkIsMobileOrTouch());
 
   const timerRef = useRef(null);
   const hideTimerRef = useRef(null);
 
-  const isExcluded = isDashboardRoute(location.pathname);
+  const isExcluded = isDashboardRoute(location.pathname) || isMobile;
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(checkIsMobileOrTouch());
+    };
+    window.addEventListener("resize", checkMobile);
+    window.addEventListener("orientationchange", checkMobile);
+    return () => {
+      window.removeEventListener("resize", checkMobile);
+      window.removeEventListener("orientationchange", checkMobile);
+    };
+  }, []);
 
   const clearTimers = () => {
     if (timerRef.current) clearTimeout(timerRef.current);
@@ -55,7 +76,7 @@ export default function GoogleReviewsToast() {
   };
 
   useEffect(() => {
-    // Si estamos en un dashboard de cliente o admin, NO mostrar
+    // Si es celular/móvil (<=768px) o dashboard, NUNCA mostrar
     if (isExcluded) {
       clearTimers();
       setIsVisible(false);
@@ -124,6 +145,8 @@ export default function GoogleReviewsToast() {
     }
     return stars;
   };
+
+  if (isMobile) return null;
 
   return (
     <aside

@@ -47,8 +47,19 @@ export default function Home() {
     const handleUpdate = () => {
       setHomeImages(getHomeImages());
     };
+    handleUpdate();
     window.addEventListener("home_images_updated", handleUpdate);
-    return () => window.removeEventListener("home_images_updated", handleUpdate);
+    window.addEventListener("platino_data_loaded", handleUpdate);
+    window.addEventListener("storage", handleUpdate);
+    window.addEventListener("focus", handleUpdate);
+    document.addEventListener("visibilitychange", handleUpdate);
+    return () => {
+      window.removeEventListener("home_images_updated", handleUpdate);
+      window.removeEventListener("platino_data_loaded", handleUpdate);
+      window.removeEventListener("storage", handleUpdate);
+      window.removeEventListener("focus", handleUpdate);
+      document.removeEventListener("visibilitychange", handleUpdate);
+    };
   }, []);
 
   const categories = [

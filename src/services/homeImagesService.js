@@ -92,7 +92,7 @@ export const DEFAULT_HOME_IMAGES = {
     name: "ANILLO DE PROMESA",
     label: "Categoría: Anillo de Promesa",
     section: "Comprar joyas por categoría",
-    image: "/images/cat-promesa.jpg",
+    image: "/images/anillo-9-promesas.jpg",
     path: "/categoria/anillos-promesa",
   },
   catAlianzas: {
@@ -100,7 +100,7 @@ export const DEFAULT_HOME_IMAGES = {
     name: "AROS DE ALIANZAS",
     label: "Categoría: Aros de Alianzas",
     section: "Comprar joyas por categoría",
-    image: "/images/cat-alianzas.jpg",
+    image: "/images/aros-trial.jpg",
     path: "/categoria/alianzas",
   },
   catPulseras: {
@@ -238,7 +238,7 @@ export const DEFAULT_HOME_IMAGES = {
     slotName: "PORTA AROS",
     colNumber: 3,
     description: "Tarjeta de imagen de la 3ra columna en el megamenú desplegable de AROS DE BODA.",
-    image: "",
+    image: "/images/cat-boda.jpg",
     link: "/categoria/regalos?tipo=porta-aros",
   },
   megamenuCopas: {
@@ -250,7 +250,7 @@ export const DEFAULT_HOME_IMAGES = {
     slotName: "COPAS DECORADAS",
     colNumber: 4,
     description: "Tarjeta de imagen de la 4ta columna en el megamenú desplegable de AROS DE BODA.",
-    image: "",
+    image: "/images/cat-boda.jpg",
     link: "/categoria/regalos?tipo=copas-decoradas",
   },
   megamenuCuadros: {
@@ -262,7 +262,7 @@ export const DEFAULT_HOME_IMAGES = {
     slotName: "CUADROS",
     colNumber: 5,
     description: "Tarjeta de imagen de la 5ta columna en el megamenú desplegable de AROS DE BODA.",
-    image: "",
+    image: "/images/cat-boda.jpg",
     link: "/categoria/regalos?tipo=cuadros",
   },
   megamenuPromesaAnillo: {
@@ -274,7 +274,7 @@ export const DEFAULT_HOME_IMAGES = {
     slotName: "ANILLO DE PROMESA",
     colNumber: 1,
     description: "Tarjeta de imagen de la 1ra columna en el megamenú desplegable de AMOR Y PROMESA.",
-    image: "",
+    image: "/images/anillo-9-promesas.jpg",
     link: "/categoria/amor-promesa?subcat=anillo-promesa",
   },
   megamenuAlianzasAros: {
@@ -286,7 +286,7 @@ export const DEFAULT_HOME_IMAGES = {
     slotName: "AROS DE ALIANZAS",
     colNumber: 4,
     description: "Tarjeta de imagen de la 4ta columna en el megamenú desplegable de AMOR Y PROMESA.",
-    image: "",
+    image: "/images/aros-trial.jpg",
     link: "/categoria/amor-promesa?subcat=aros-alianzas",
   },
 };
@@ -294,6 +294,20 @@ export const DEFAULT_HOME_IMAGES = {
 // Obtener la configuración actual de imágenes del Inicio
 export const getHomeImages = () => {
   const data = { ...DEFAULT_HOME_IMAGES, ...getRemoteData("home_images", DEFAULT_HOME_IMAGES) };
+
+  // Evitar que queden marcadores de posición antiguos tipo "COLOCAR IMAGEN"
+  if (data.megamenuPromesaAnillo?.image && data.megamenuPromesaAnillo.image.includes("cat-promesa.jpg")) {
+    data.megamenuPromesaAnillo.image = "/images/anillo-9-promesas.jpg";
+  }
+  if (data.megamenuAlianzasAros?.image && data.megamenuAlianzasAros.image.includes("cat-alianzas.jpg")) {
+    data.megamenuAlianzasAros.image = "/images/aros-trial.jpg";
+  }
+  if (data.catPromesa?.image && data.catPromesa.image.includes("cat-promesa.jpg")) {
+    data.catPromesa.image = "/images/anillo-9-promesas.jpg";
+  }
+  if (data.catAlianzas?.image && data.catAlianzas.image.includes("cat-alianzas.jpg")) {
+    data.catAlianzas.image = "/images/aros-trial.jpg";
+  }
 
   // Resolver rutas relativas para soportar GitHub Pages (BASE_URL)
   const resolved = {};

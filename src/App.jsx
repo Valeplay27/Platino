@@ -24,6 +24,7 @@ import GoogleReviewsToast from './components/GoogleReviewsToast'
 import CartDrawer from './components/CartDrawer'
 import ApiDataBootstrap from './components/ApiDataBootstrap'
 import MaintenanceNoticeModal from './components/MaintenanceNoticeModal'
+import LuxuryNotification from './components/LuxuryNotification'
 import './App.css'
 
 function App() {
@@ -91,7 +92,7 @@ function App() {
         {apiError && (
           <div className="api-error-banner" role="alert" style={{ background: "#8b1e1e", color: "white", padding: "12px 20px", display: "flex", justifyContent: "space-between", gap: "16px" }}>
             {apiError}
-            <button type="button" onClick={() => setApiError("")} aria-label="Cerrar aviso">×</button>
+            <button type="button" onClick={() => setApiError("")} aria-label="Cerrar aviso">Ã—</button>
           </div>
         )}
         <ScrollToTop />
@@ -162,6 +163,7 @@ function App() {
           lastAddedItem={lastAddedItem}
         />
         <GoogleReviewsToast />
+        <LuxuryNotification />
         </ApiDataBootstrap>
       </BrowserRouter>
     </AuthProvider>

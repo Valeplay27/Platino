@@ -157,12 +157,417 @@ const TodasIcon = () => (
   </svg>
 );
 
+const BebesKidsIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="8" />
+    <path d="M12 4c1.5 0 2.5 1 2.5 2s-1 2-2.5 2" />
+    <circle cx="9.5" cy="11.5" r="1" fill="currentColor" />
+    <circle cx="14.5" cy="11.5" r="1" fill="currentColor" />
+    <path d="M9.5 15a3.5 3.5 0 0 0 5 0" />
+  </svg>
+);
+
 const PRODUCT_CATEGORY_GROUPS = [
-  { id: "anillos", label: "Anillos", Icon: AnillosIcon },
-  { id: "collares", label: "Collares", Icon: CollaresIcon },
+  { id: "anillos", label: "Anillos & Boda", Icon: AnillosIcon },
   { id: "aretes", label: "Aretes", Icon: AretesIcon },
-  { id: "pulseras", label: "Pulseras", Icon: PulserasIcon },
-  { id: "otros", label: "Otros", Icon: OtrosIcon },
+  { id: "collares", label: "Collares & Cadenas", Icon: CollaresIcon },
+  { id: "pulseras", label: "Pulseras & Tobilleras", Icon: PulserasIcon },
+  { id: "bebes-kids", label: "Bebés & Kids", Icon: BebesKidsIcon },
+  { id: "otros", label: "Juegos, Relojes & Otros", Icon: OtrosIcon },
+];
+
+const CATALOG_SUBTYPE_OPTIONS_BY_GROUP = {
+  anillos: [
+    {
+      id: "anillo-compromiso",
+      label: "💍 Anillo de Compromiso",
+      category: "anillo-compromiso",
+      subtype: "anillo-compromiso",
+      type: "anillo",
+      gender: "mujer",
+      extraCats: ["anillo-compromiso", "anillos-compromiso"],
+      menuPath: "ANILLO DE COMPROMISO",
+    },
+    {
+      id: "aros-boda",
+      label: "💒 Aros de Boda / Matrimonio (Doble Talla)",
+      category: "aros-boda",
+      subtype: "aros-boda",
+      type: "aros",
+      gender: "unisex",
+      extraCats: ["aros-boda", "aros-matrimonio"],
+      menuPath: "AROS DE BODA",
+    },
+    {
+      id: "anillo-promesa",
+      label: "✨ Anillo de Promesa",
+      category: "anillo-promesa",
+      subtype: "anillo-promesa",
+      type: "anillo",
+      gender: "mujer",
+      extraCats: ["anillo-promesa", "anillos-promesa", "amor-promesa"],
+      menuPath: "ALIANZAS Y PROMESA → ANILLO DE PROMESA",
+    },
+    {
+      id: "aros-alianzas",
+      label: "🤝 Alianzas de Amor (Doble Talla)",
+      category: "aros-alianzas",
+      subtype: "alianzas-amor",
+      type: "aros",
+      gender: "unisex",
+      extraCats: ["aros-alianzas", "alianzas", "alianzas-amor", "amor-promesa"],
+      menuPath: "ALIANZAS Y PROMESA → ALIANZAS DE AMOR",
+    },
+    {
+      id: "anillos-joyeria-mujer",
+      label: "👩 Anillos de Joyería (Para Ella)",
+      category: "anillos",
+      subtype: "anillos",
+      type: "anillo",
+      gender: "mujer",
+      extraCats: ["joyeria", "anillos"],
+      menuPath: "JOYAS → PARA ELLA → ANILLOS",
+    },
+    {
+      id: "aros-casuales-hombre",
+      label: "👨 Aros Casuales (Para Él)",
+      category: "aros-casuales",
+      subtype: "aros-casuales",
+      type: "anillo",
+      gender: "hombre",
+      extraCats: ["joyeria", "aros-casuales", "hombre"],
+      menuPath: "JOYAS → PARA ÉL → AROS CASUALES",
+    },
+  ],
+  aretes: [
+    {
+      id: "aretes-bebes",
+      label: "👶 Aretes para Bebés",
+      category: "aretes",
+      subtype: "aretes-bebes",
+      type: "accesorio",
+      gender: "mujer",
+      extraCats: ["joyeria", "aretes", "aretes-bebes", "kids", "bebes-kids"],
+      menuPath: "JOYAS → PARA ELLA → ARETES → ARETES PARA BEBÉS (y KIDS)",
+    },
+    {
+      id: "aretes-pegados",
+      label: "✨ Aretes Pegados (Para Ella)",
+      category: "aretes",
+      subtype: "aretes-pegados",
+      type: "accesorio",
+      gender: "mujer",
+      extraCats: ["joyeria", "aretes", "aretes-pegados"],
+      menuPath: "JOYAS → PARA ELLA → ARETES → ARETES PEGADOS",
+    },
+    {
+      id: "aretes-colgantes",
+      label: "💧 Aretes Colgantes (Para Ella)",
+      category: "aretes",
+      subtype: "aretes-colgantes",
+      type: "accesorio",
+      gender: "mujer",
+      extraCats: ["joyeria", "aretes", "aretes-colgantes"],
+      menuPath: "JOYAS → PARA ELLA → ARETES → ARETES COLGANTES",
+    },
+    {
+      id: "aretes-nina",
+      label: "👧 Aretes para Niña (Kids)",
+      category: "aretes",
+      subtype: "aretes-nina",
+      type: "accesorio",
+      gender: "kids",
+      extraCats: ["joyeria", "aretes", "aretes-nina", "kids", "bebes-kids"],
+      menuPath: "JOYAS → KIDS → ARETES PARA NIÑA",
+    },
+  ],
+  collares: [
+    {
+      id: "collares-vestir",
+      label: "👗 Collares De Vestir (Para Ella)",
+      category: "collares",
+      subtype: "collares-vestir",
+      type: "accesorio",
+      gender: "mujer",
+      extraCats: ["joyeria", "collares", "collares-vestir"],
+      menuPath: "JOYAS → PARA ELLA → COLLARES → DE VESTIR",
+    },
+    {
+      id: "collares-gemas",
+      label: "💎 Collares Gemas Naturales (Para Ella)",
+      category: "collares",
+      subtype: "collares-gemas",
+      type: "accesorio",
+      gender: "mujer",
+      extraCats: ["joyeria", "collares", "collares-gemas"],
+      menuPath: "JOYAS → PARA ELLA → COLLARES → GEMAS NATURALES",
+    },
+    {
+      id: "collares-relicarios",
+      label: "❤️ Relicarios (Para Ella)",
+      category: "collares",
+      subtype: "collares-relicarios",
+      type: "accesorio",
+      gender: "mujer",
+      extraCats: ["joyeria", "collares", "collares-relicarios"],
+      menuPath: "JOYAS → PARA ELLA → COLLARES → RELICARIOS",
+    },
+    {
+      id: "collares-religiosos",
+      label: "✝️ Collares Religiosos (Para Ella)",
+      category: "collares",
+      subtype: "collares-religiosos",
+      type: "accesorio",
+      gender: "mujer",
+      extraCats: ["joyeria", "collares", "collares-religiosos"],
+      menuPath: "JOYAS → PARA ELLA → COLLARES → RELIGIOSOS",
+    },
+    {
+      id: "collares-personalizados",
+      label: "🔤 Collares Personalizados (Para Ella)",
+      category: "collares",
+      subtype: "collares-personalizados",
+      type: "accesorio",
+      gender: "mujer",
+      extraCats: ["joyeria", "collares", "collares-personalizados"],
+      menuPath: "JOYAS → PARA ELLA → COLLARES → PERSONALIZADOS",
+    },
+    {
+      id: "cadenas-mujer",
+      label: "⛓️ Cadenas (Para Ella)",
+      category: "cadenas",
+      subtype: "cadenas",
+      type: "accesorio",
+      gender: "mujer",
+      extraCats: ["joyeria", "cadenas", "collares"],
+      menuPath: "JOYAS → PARA ELLA → CADENAS",
+    },
+    {
+      id: "cadenas-hombre",
+      label: "⛓️ Cadenas (Para Él)",
+      category: "cadenas",
+      subtype: "cadenas",
+      type: "accesorio",
+      gender: "hombre",
+      extraCats: ["joyeria", "cadenas", "hombre"],
+      menuPath: "JOYAS → PARA ÉL → CADENAS",
+    },
+    {
+      id: "cadenas-kids",
+      label: "⛓️ Cadenas (Kids / Bebés)",
+      category: "cadenas",
+      subtype: "cadenas",
+      type: "accesorio",
+      gender: "kids",
+      extraCats: ["joyeria", "cadenas", "kids", "bebes-kids"],
+      menuPath: "JOYAS → KIDS → CADENAS",
+    },
+  ],
+  pulseras: [
+    {
+      id: "pulseras-mujer",
+      label: "💫 Pulseras (Para Ella)",
+      category: "pulseras",
+      subtype: "pulseras",
+      type: "accesorio",
+      gender: "mujer",
+      extraCats: ["joyeria", "pulseras"],
+      menuPath: "JOYAS → PARA ELLA → PULSERAS",
+    },
+    {
+      id: "tobilleras",
+      label: "🦶 Tobilleras (Para Ella)",
+      category: "tobilleras",
+      subtype: "tobilleras",
+      type: "accesorio",
+      gender: "mujer",
+      extraCats: ["joyeria", "tobilleras", "pulseras"],
+      menuPath: "JOYAS → PARA ELLA → TOBILLERAS",
+    },
+    {
+      id: "pulseras-hombre",
+      label: "💫 Pulseras (Para Él)",
+      category: "pulseras",
+      subtype: "pulseras",
+      type: "accesorio",
+      gender: "hombre",
+      extraCats: ["joyeria", "pulseras", "hombre"],
+      menuPath: "JOYAS → PARA ÉL → PULSERAS",
+    },
+    {
+      id: "pulseras-kids",
+      label: "👶 Pulseras / Esclavas (Kids & Bebés)",
+      category: "pulseras",
+      subtype: "pulseras",
+      type: "accesorio",
+      gender: "kids",
+      extraCats: ["joyeria", "pulseras", "kids", "bebes-kids"],
+      menuPath: "JOYAS → KIDS → PULSERAS",
+    },
+  ],
+  "bebes-kids": [
+    {
+      id: "aretes-bebes",
+      label: "👶 Aretes para Bebés",
+      category: "aretes",
+      subtype: "aretes-bebes",
+      type: "accesorio",
+      gender: "mujer",
+      extraCats: ["joyeria", "aretes", "aretes-bebes", "kids", "bebes-kids"],
+      menuPath: "JOYAS → PARA ELLA → ARETES → ARETES PARA BEBÉS (y KIDS)",
+    },
+    {
+      id: "aretes-nina",
+      label: "👧 Aretes para Niña (Kids)",
+      category: "aretes",
+      subtype: "aretes-nina",
+      type: "accesorio",
+      gender: "kids",
+      extraCats: ["joyeria", "aretes", "aretes-nina", "kids", "bebes-kids"],
+      menuPath: "JOYAS → KIDS → ARETES PARA NIÑA",
+    },
+    {
+      id: "cadenas-kids",
+      label: "⛓️ Cadenas para Bebé y Kids",
+      category: "cadenas",
+      subtype: "cadenas",
+      type: "accesorio",
+      gender: "kids",
+      extraCats: ["joyeria", "cadenas", "kids", "bebes-kids"],
+      menuPath: "JOYAS → KIDS → CADENAS",
+    },
+    {
+      id: "pulseras-kids",
+      label: "💫 Pulseras / Esclavas para Bebé y Kids",
+      category: "pulseras",
+      subtype: "pulseras",
+      type: "accesorio",
+      gender: "kids",
+      extraCats: ["joyeria", "pulseras", "kids", "bebes-kids"],
+      menuPath: "JOYAS → KIDS → PULSERAS",
+    },
+  ],
+  otros: [
+    {
+      id: "juegos",
+      label: "👑 Juegos de Joyería (Para Ella)",
+      category: "juegos",
+      subtype: "juegos",
+      type: "accesorio",
+      gender: "mujer",
+      extraCats: ["joyeria", "juegos"],
+      menuPath: "JOYAS → PARA ELLA → JUEGOS",
+    },
+    {
+      id: "relojes",
+      label: "⌚ Relojes (Para Él)",
+      category: "relojes",
+      subtype: "relojes",
+      type: "accesorio",
+      gender: "hombre",
+      extraCats: ["joyeria", "relojes", "hombre"],
+      menuPath: "JOYAS → PARA ÉL → RELOJES",
+    },
+    {
+      id: "aros-casuales-hombre",
+      label: "👨 Aros Casuales (Para Él)",
+      category: "aros-casuales",
+      subtype: "aros-casuales",
+      type: "anillo",
+      gender: "hombre",
+      extraCats: ["joyeria", "aros-casuales", "hombre"],
+      menuPath: "JOYAS → PARA ÉL → AROS CASUALES",
+    },
+    {
+      id: "porta-aros",
+      label: "💍 Porta Aros (Accesorios Aros de Boda)",
+      category: "regalos",
+      subtype: "porta-aros",
+      type: "accesorio",
+      gender: "unisex",
+      extraCats: ["regalos", "porta-aros"],
+      menuPath: "AROS DE BODA → PORTA AROS",
+    },
+    {
+      id: "copas-decoradas",
+      label: "🥂 Copas Decoradas (Accesorios Aros de Boda)",
+      category: "regalos",
+      subtype: "copas-decoradas",
+      type: "accesorio",
+      gender: "unisex",
+      extraCats: ["regalos", "copas-decoradas"],
+      menuPath: "AROS DE BODA → COPAS DECORADAS",
+    },
+    {
+      id: "cuadros",
+      label: "🖼️ Cuadros Conmemorativos (Accesorios Aros de Boda)",
+      category: "regalos",
+      subtype: "cuadros",
+      type: "accesorio",
+      gender: "unisex",
+      extraCats: ["regalos", "cuadros"],
+      menuPath: "AROS DE BODA → CUADROS",
+    },
+    {
+      id: "regalos",
+      label: "🎁 Regalos y Presentación General",
+      category: "regalos",
+      subtype: "regalos",
+      type: "accesorio",
+      gender: "unisex",
+      extraCats: ["regalos"],
+      menuPath: "CATÁLOGO DE REGALOS",
+    },
+  ],
+};
+
+const RING_STYLE_OPTIONS_BY_SUBTYPE = {
+  "anillo-compromiso": [
+    { id: "solitario", label: "Solitario" },
+    { id: "3-piedras", label: "3 Piedras" },
+    { id: "con-pave", label: "Con Pavé" },
+    { id: "moderno", label: "Moderno / Bisel" },
+    { id: "vintage", label: "Vintage" },
+    { id: "con-gemas", label: "Con Gemas" },
+    { id: "naturaleza", label: "Inspirado en la Naturaleza" },
+    { id: "conjunto-nupcial", label: "Conjunto Nupcial" },
+  ],
+  "aros-boda": [
+    { id: "clasicos", label: "Clásicos" },
+    { id: "con-pedreria", label: "Con Pedrería" },
+    { id: "con-textura", label: "Con Textura" },
+    { id: "moderno", label: "Moderno" },
+    { id: "vintage", label: "Vintage" },
+  ],
+  "anillo-promesa": [
+    { id: "clasicos", label: "Clásicos" },
+    { id: "con-pedreria", label: "Con Pedrería" },
+    { id: "sin-pedreria", label: "Sin Pedrería" },
+    { id: "moderno", label: "Moderno" },
+    { id: "gemas-naturales", label: "Gemas Naturales" },
+  ],
+  "aros-alianzas": [
+    { id: "clasicos", label: "Clásicos" },
+    { id: "con-pedreria", label: "Con Pedrería" },
+    { id: "sin-pedreria", label: "Sin Pedrería" },
+    { id: "moderno", label: "Moderno" },
+    { id: "vintage", label: "Vintage" },
+  ],
+  "alianzas-amor": [
+    { id: "clasicos", label: "Clásicos" },
+    { id: "con-pedreria", label: "Con Pedrería" },
+    { id: "sin-pedreria", label: "Sin Pedrería" },
+    { id: "moderno", label: "Moderno" },
+    { id: "vintage", label: "Vintage" },
+  ],
+};
+
+const GEM_COLLECTION_OPTIONS = [
+  { id: "", label: "Todas / Sin filtro de gema específica" },
+  { id: "diamante", label: "💎 Diamante (Natural / Lab Grown)" },
+  { id: "esmeralda", label: "💚 Esmeralda" },
+  { id: "rubi", label: "❤️ Rubí" },
+  { id: "zafiro", label: "💙 Zafiro" },
 ];
 
 const getProductCategoryGroup = (prod) => {
@@ -170,13 +575,27 @@ const getProductCategoryGroup = (prod) => {
   const cat = (prod.category || "").toLowerCase();
   const cats = Array.isArray(prod.categories) ? prod.categories.map((c) => String(c).toLowerCase()) : [];
   const type = (prod.type || "").toLowerCase();
+  const subtype = (prod.subtype || "").toLowerCase();
+  const gender = (prod.gender || "").toLowerCase();
   const name = (prod.name || "").toLowerCase();
 
-  const all = [cat, ...cats, type, name].join(" ");
+  const all = [cat, ...cats, type, subtype, name].join(" ");
 
   if (
+    cats.includes("bebes-kids") ||
+    cat === "bebes-kids" ||
+    gender === "kids" ||
+    subtype === "aretes-bebes" ||
+    subtype === "aretes-nina" ||
+    all.includes("bebé") ||
+    all.includes("bebe") ||
+    all.includes("niña")
+  ) {
+    return "bebes-kids";
+  }
+  if (
     all.includes("anillo") ||
-    all.includes("aro") ||
+    (all.includes("aro") && !all.includes("porta")) ||
     all.includes("boda") ||
     all.includes("matrimonio") ||
     all.includes("alianza") ||
@@ -185,13 +604,13 @@ const getProductCategoryGroup = (prod) => {
   ) {
     return "anillos";
   }
-  if (all.includes("collar") || all.includes("dije") || all.includes("gargantilla")) {
+  if (all.includes("collar") || all.includes("dije") || all.includes("gargantilla") || all.includes("cadena") || all.includes("relicario")) {
     return "collares";
   }
   if (all.includes("arete") || all.includes("pendiente") || all.includes("dormilona")) {
     return "aretes";
   }
-  if (all.includes("pulsera") || all.includes("brazalete") || all.includes("esclava")) {
+  if (all.includes("pulsera") || all.includes("brazalete") || all.includes("esclava") || all.includes("tobillera")) {
     return "pulseras";
   }
   return "otros";
@@ -445,7 +864,12 @@ export default function AdminCitas() {
   // Campos del modal de producto / imagen
   const [formName, setFormName] = useState("");
   const [formCategoryGroup, setFormCategoryGroup] = useState("anillos");
-  const [formCategory, setFormCategory] = useState("aros-boda");
+  const [formCategory, setFormCategory] = useState("anillo-compromiso");
+  const [formSubtypeOptionId, setFormSubtypeOptionId] = useState("anillo-compromiso");
+  const [formSubtype, setFormSubtype] = useState("anillo-compromiso");
+  const [formGender, setFormGender] = useState("mujer");
+  const [formStyle, setFormStyle] = useState("solitario");
+  const [formGem, setFormGem] = useState("diamante");
   const [formPrice, setFormPrice] = useState("");
   const [formType, setFormType] = useState("anillo");
   const [formBadge, setFormBadge] = useState("");
@@ -1586,22 +2010,14 @@ export default function AdminCitas() {
         : (catalogFilterCategory !== "todas" && PRODUCT_CATEGORY_GROUPS.some((g) => g.id === catalogFilterCategory) ? catalogFilterCategory : "anillos");
 
     setFormCategoryGroup(initialGroup);
-    if (initialGroup === "anillos") {
-      setFormCategory("anillo-compromiso");
-      setFormType("anillo");
-    } else if (initialGroup === "collares") {
-      setFormCategory("collares");
-      setFormType("accesorio");
-    } else if (initialGroup === "aretes") {
-      setFormCategory("aretes");
-      setFormType("accesorio");
-    } else if (initialGroup === "pulseras") {
-      setFormCategory("pulseras");
-      setFormType("accesorio");
-    } else {
-      setFormCategory("joyeria");
-      setFormType("accesorio");
-    }
+    const defaultSubOpt = (CATALOG_SUBTYPE_OPTIONS_BY_GROUP[initialGroup] || CATALOG_SUBTYPE_OPTIONS_BY_GROUP.anillos)[0];
+    setFormSubtypeOptionId(defaultSubOpt.id);
+    setFormCategory(defaultSubOpt.category);
+    setFormSubtype(defaultSubOpt.subtype);
+    setFormType(defaultSubOpt.type);
+    setFormGender(defaultSubOpt.gender);
+    setFormStyle(initialGroup === "anillos" ? "solitario" : "");
+    setFormGem(initialGroup === "anillos" ? "diamante" : "");
 
     setFormPrice("");
     setFormBadge("Nuevo");
@@ -1648,9 +2064,20 @@ export default function AdminCitas() {
     setFormName(prod.name || "");
     const group = getProductCategoryGroup(prod);
     setFormCategoryGroup(group);
-    setFormCategory(prod.categories?.[0] || prod.category || (group === "anillos" ? "anillo-compromiso" : group));
+    const groupOpts = CATALOG_SUBTYPE_OPTIONS_BY_GROUP[group] || CATALOG_SUBTYPE_OPTIONS_BY_GROUP.anillos;
+    const matchedSubOpt =
+      groupOpts.find((o) => o.id === prod.subtypeOptionId) ||
+      groupOpts.find((o) => o.subtype === prod.subtype && (!prod.gender || o.gender === prod.gender)) ||
+      groupOpts.find((o) => o.subtype === prod.subtype || o.category === prod.category) ||
+      groupOpts[0];
+    setFormSubtypeOptionId(matchedSubOpt?.id || "anillo-compromiso");
+    setFormCategory(prod.category || matchedSubOpt?.category || (group === "anillos" ? "anillo-compromiso" : group));
+    setFormSubtype(prod.subtype || matchedSubOpt?.subtype || "");
+    setFormGender(prod.gender || matchedSubOpt?.gender || "mujer");
+    setFormStyle(prod.style || "");
+    setFormGem(prod.gem || "");
     setFormPrice(prod.price || "");
-    setFormType(prod.type || (group === "anillos" ? "anillo" : "accesorio"));
+    setFormType(prod.type || matchedSubOpt?.type || (group === "anillos" ? "anillo" : "accesorio"));
     setFormBadge(prod.badge || "");
     setFormDesc(prod.description || "");
     setFormSubtitle(prod.subtitle || "");
@@ -1738,24 +2165,32 @@ export default function AdminCitas() {
     setProductModalOpen(true);
   };
 
+  const handleSelectFormSubtypeOption = (subOpt, groupOverride = null) => {
+    if (!subOpt) return;
+    const activeGrp = groupOverride || formCategoryGroup;
+    setFormSubtypeOptionId(subOpt.id);
+    setFormCategory(subOpt.category);
+    setFormSubtype(subOpt.subtype);
+    setFormType(subOpt.type);
+    setFormGender(subOpt.gender);
+    if (activeGrp === "anillos") {
+      const styleOpts = RING_STYLE_OPTIONS_BY_SUBTYPE[subOpt.id] || RING_STYLE_OPTIONS_BY_SUBTYPE[subOpt.subtype] || [];
+      setFormStyle(styleOpts[0]?.id || "");
+      setFormGem(subOpt.id === "anillo-compromiso" ? "diamante" : "");
+      setFormHasGemSelection(subOpt.type === "anillo");
+      setFormShowDeliveryEstimate(false);
+    } else {
+      setFormStyle("");
+      setFormGem("");
+      setFormHasGemSelection(false);
+      setFormShowDeliveryEstimate(true);
+    }
+  };
+
   const handleSelectFormCategoryGroup = (groupId) => {
     setFormCategoryGroup(groupId);
-    if (groupId === "anillos") {
-      setFormCategory("anillo-compromiso");
-      setFormType("anillo");
-    } else if (groupId === "collares") {
-      setFormCategory("collares");
-      setFormType("accesorio");
-    } else if (groupId === "aretes") {
-      setFormCategory("aretes");
-      setFormType("accesorio");
-    } else if (groupId === "pulseras") {
-      setFormCategory("pulseras");
-      setFormType("accesorio");
-    } else {
-      setFormCategory("joyeria");
-      setFormType("accesorio");
-    }
+    const groupOpts = CATALOG_SUBTYPE_OPTIONS_BY_GROUP[groupId] || CATALOG_SUBTYPE_OPTIONS_BY_GROUP.anillos;
+    handleSelectFormSubtypeOption(groupOpts[0], groupId);
   };
 
   const handleToggleMetal = (metalId) => {
@@ -2098,11 +2533,49 @@ export default function AdminCitas() {
     ].filter(Boolean);
     const baseGallery = Array.from(new Set(allImagesToInclude));
 
+    const activeGroupOpts = CATALOG_SUBTYPE_OPTIONS_BY_GROUP[formCategoryGroup] || [];
+    const activeSubOpt = activeGroupOpts.find((o) => o.id === formSubtypeOptionId);
+    const styleSlugMap = {
+      solitario: "anillos-solitarios",
+      "3-piedras": "anillos-tres-piedras",
+      "con-pave": "anillos-pave",
+      vintage: "anillos-vintage",
+      "con-gemas": "anillos-con-gemas",
+      moderno: "anillos-bisel",
+      clasicos: "anillos-clasicos",
+      "con-pedreria": "anillos-pedreria",
+      "sin-pedreria": "anillos-sin-pedreria",
+      naturaleza: "anillos-naturaleza",
+      "conjunto-nupcial": "conjuntos-nupciales",
+    };
+    const computedCategories = Array.from(
+      new Set(
+        [
+          formCategory,
+          formSubtype,
+          formCategoryGroup,
+          ...(activeSubOpt?.extraCats || []),
+          formGender === "kids" ? "kids" : "",
+          formGender === "kids" ? "bebes-kids" : "",
+          formStyle && styleSlugMap[formStyle] ? styleSlugMap[formStyle] : "",
+          formStyle ? `estilo-${formStyle}` : "",
+          formGem ? `gema-${formGem}` : "",
+          formDefaultGemShape ? `forma-${formDefaultGemShape}` : "",
+          formDefaultGemShape ? formDefaultGemShape : "",
+        ].filter(Boolean)
+      )
+    );
+
     const payload = {
       name: formName.trim(),
       subtitle: formSubtitle.trim() || "Platino Perú Colección Exclusiva",
-      categories: Array.from(new Set([formCategory, formCategoryGroup, ...(editingProduct?.categories || [])])),
+      categories: computedCategories,
       category: formCategory,
+      subtype: formSubtype,
+      subtypeOptionId: formSubtypeOptionId,
+      gender: formGender,
+      style: formStyle,
+      gem: formGem,
       price: mainPrice,
       metalPrices: metalPricesMap,
       type: formType,
@@ -2381,8 +2854,10 @@ export default function AdminCitas() {
           pName.includes("promesa");
         if (!isPromesa) return false;
       } else {
+        const pSubtype = (p.subtype || "").toLowerCase();
         const matchCat =
           pCat === catalogFilterCategory ||
+          pSubtype === catalogFilterCategory ||
           pCats.includes(catalogFilterCategory) ||
           group === catalogFilterCategory;
         if (!matchCat) return false;
@@ -5665,15 +6140,34 @@ export default function AdminCitas() {
                 onChange={(e) => setCatalogFilterCategory(e.target.value)}
                 className="filter-select"
               >
-                <option value="todas">Todas las Subcategorías</option>
-                <option value="aros-boda">💍 Aros de Boda y Matrimonio</option>
-                <option value="anillo-compromiso">💎 Anillos de Compromiso</option>
-                <option value="anillo-promesa">✨ Anillos de Promesa</option>
-                <option value="aros-alianzas">🤝 Aros de Alianzas</option>
-                <option value="joyeria">⭐ Joyería y Accesorios</option>
-                <option value="collares">📿 Collares</option>
-                <option value="pulseras">💫 Pulseras</option>
-                <option value="regalos">🎁 Regalos</option>
+                <option value="todas">Todas las Categorías y Subcategorías</option>
+                <optgroup label="Compromiso, Boda y Alianzas">
+                  <option value="anillo-compromiso">💍 Anillos de Compromiso</option>
+                  <option value="aros-boda">💒 Aros de Boda y Matrimonio</option>
+                  <option value="anillo-promesa">✨ Anillos de Promesa</option>
+                  <option value="aros-alianzas">🤝 Alianzas de Amor</option>
+                </optgroup>
+                <optgroup label="Bebés & Kids">
+                  <option value="bebes-kids">👶 Todo Bebés & Kids</option>
+                  <option value="aretes-bebes">👶 Aretes para Bebés</option>
+                  <option value="aretes-nina">👧 Aretes para Niña (Kids)</option>
+                </optgroup>
+                <optgroup label="Joyas Para Ella & Para Él">
+                  <option value="aretes">✨ Aretes (Pegados, Colgantes, Bebés)</option>
+                  <option value="collares">📿 Collares (De Vestir, Gemas, Relicarios, Religiosos, Personalizados)</option>
+                  <option value="cadenas">⛓️ Cadenas (Para Ella, Para Él, Kids)</option>
+                  <option value="pulseras">💫 Pulseras y Esclavas</option>
+                  <option value="tobilleras">🦶 Tobilleras</option>
+                  <option value="juegos">👑 Juegos de Joyería</option>
+                  <option value="aros-casuales">👨 Aros Casuales (Para Él)</option>
+                  <option value="relojes">⌚ Relojes (Para Él)</option>
+                </optgroup>
+                <optgroup label="Accesorios de Boda y Regalos">
+                  <option value="porta-aros">💍 Porta Aros</option>
+                  <option value="copas-decoradas">🥂 Copas Decoradas</option>
+                  <option value="cuadros">🖼️ Cuadros Conmemorativos</option>
+                  <option value="regalos">🎁 Regalos Generales</option>
+                </optgroup>
               </select>
             </div>
 
@@ -10719,58 +11213,150 @@ export default function AdminCitas() {
                     })}
                   </div>
 
-                  {/* Subcategorías si es Anillos */}
-                  {formCategoryGroup === "anillos" && (
-                    <div className="category-subtypes-chips">
-                      <span style={{ fontSize: "11.5px", color: "#5d6d65", alignSelf: "center", marginRight: "4px" }}>
-                        Subtipo de Anillo:
-                      </span>
-                      {[
-                        { id: "anillo-compromiso", label: "💍 Anillo de Compromiso", type: "anillo" },
-                        { id: "aros-boda", label: "💒 Aros de Boda (Doble Talla)", type: "aros" },
-                        { id: "anillo-promesa", label: "✨ Anillo de Promesa", type: "anillo" },
-                        { id: "aros-alianzas", label: "🤝 Alianzas (Doble Talla)", type: "aros" },
-                      ].map((sub) => (
+                  {/* Subcategorías específicas según el grupo elegido (incluye Bebés, Kids, Para Ella, Para Él, Bodas, etc.) */}
+                  <div className="category-subtypes-chips" style={{ marginTop: "10px", display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                    <span style={{ fontSize: "11.5px", color: "#162e24", fontWeight: "700", alignSelf: "center", width: "100%", marginBottom: "2px" }}>
+                      Subcategoría específica en el menú de la tienda *:
+                    </span>
+                    {(CATALOG_SUBTYPE_OPTIONS_BY_GROUP[formCategoryGroup] || []).map((sub) => {
+                      const isSubActive = formSubtypeOptionId === sub.id;
+                      return (
                         <button
                           key={sub.id}
                           type="button"
-                          className={`category-subtype-btn ${formCategory === sub.id ? "active" : ""}`}
-                          onClick={() => {
-                            setFormCategory(sub.id);
-                            setFormType(sub.type);
-                          }}
+                          className={`category-subtype-btn ${isSubActive ? "active" : ""}`}
+                          onClick={() => handleSelectFormSubtypeOption(sub)}
                         >
                           {sub.label}
                         </button>
-                      ))}
-                    </div>
-                  )}
+                      );
+                    })}
+                  </div>
 
-                  {/* Subcategorías si es Otros */}
-                  {formCategoryGroup === "otros" && (
-                    <div className="category-subtypes-chips">
-                      <span style={{ fontSize: "11.5px", color: "#5d6d65", alignSelf: "center", marginRight: "4px" }}>
-                        Subtipo:
-                      </span>
-                      {[
-                        { id: "joyeria", label: "⭐ Joyería General", type: "accesorio" },
-                        { id: "regalos", label: "🎁 Regalos", type: "accesorio" },
-                        { id: "gemas", label: "💎 Gemas Sueltas", type: "accesorio" },
-                      ].map((sub) => (
-                        <button
-                          key={sub.id}
-                          type="button"
-                          className={`category-subtype-btn ${formCategory === sub.id ? "active" : ""}`}
-                          onClick={() => {
-                            setFormCategory(sub.id);
-                            setFormType(sub.type);
-                          }}
-                        >
-                          {sub.label}
-                        </button>
-                      ))}
-                    </div>
-                  )}
+                  {/* Indicador en vivo de dónde aparecerá la joya en el megamenú */}
+                  {(() => {
+                    const currentSubOpt = (CATALOG_SUBTYPE_OPTIONS_BY_GROUP[formCategoryGroup] || []).find(
+                      (o) => o.id === formSubtypeOptionId
+                    );
+                    const styleOpts =
+                      RING_STYLE_OPTIONS_BY_SUBTYPE[formSubtypeOptionId] ||
+                      RING_STYLE_OPTIONS_BY_SUBTYPE[formSubtype] ||
+                      [];
+                    const showGemSelector = formCategory === "anillo-compromiso" || formSubtype === "collares-gemas" || formStyle === "con-gemas" || formStyle === "gemas-naturales";
+                    const showShapeSelector = formCategory === "anillo-compromiso" || formCategoryGroup === "anillos" || formType === "anillo";
+
+                    return (
+                      <div
+                        style={{
+                          marginTop: "12px",
+                          padding: "12px 14px",
+                          background: "#f4f9f6",
+                          border: "1px solid #c5dfd0",
+                          borderRadius: "10px",
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: "10px",
+                        }}
+                      >
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "6px" }}>
+                          <span style={{ fontSize: "12px", color: "#113B3A", fontWeight: "700" }}>
+                            <i className="bi bi-diagram-3-fill" style={{ marginRight: "6px", color: "#137748" }}></i>
+                            Ubicación en el Menú:{" "}
+                            <strong style={{ color: "#0d5c36" }}>
+                              {currentSubOpt?.menuPath || "CATÁLOGO GENERAL"}
+                            </strong>
+                          </span>
+
+                          <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                            <span style={{ fontSize: "11.5px", color: "#4a5d53", fontWeight: "600" }}>Sección / Público:</span>
+                            <select
+                              value={formGender}
+                              onChange={(e) => setFormGender(e.target.value)}
+                              style={{
+                                padding: "4px 8px",
+                                borderRadius: "6px",
+                                border: "1px solid #9fc5b0",
+                                fontSize: "11.5px",
+                                fontWeight: "700",
+                                color: "#113B3A",
+                                background: "#ffffff",
+                              }}
+                            >
+                              <option value="mujer">👩 Para Ella (Mujer)</option>
+                              <option value="hombre">👨 Para Él (Hombre)</option>
+                              <option value="kids">👶 Kids / Bebés y Niñas</option>
+                              <option value="unisex">💍 Nupcial / Ambos</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {(styleOpts.length > 0 || showGemSelector || showShapeSelector) && (
+                          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(210px, 1fr))", gap: "10px", paddingTop: "8px", borderTop: "1px dashed #c5dfd0" }}>
+                            {showShapeSelector && (
+                              <div>
+                                <label style={{ display: "block", fontSize: "11.5px", fontWeight: "700", color: "#162e24", marginBottom: "4px" }}>
+                                  Forma de la Gema (Megamenú):
+                                </label>
+                                <select
+                                  className="catalog-form-select"
+                                  value={formDefaultGemShape}
+                                  onChange={(e) => handleSelectDefaultGemShape(e.target.value)}
+                                  style={{ height: "36px", fontSize: "12.5px" }}
+                                >
+                                  {MASTER_GEM_SHAPES.map((shape) => (
+                                    <option key={shape.id} value={shape.id}>
+                                      {shape.name}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+
+                            {styleOpts.length > 0 && (
+                              <div>
+                                <label style={{ display: "block", fontSize: "11.5px", fontWeight: "700", color: "#162e24", marginBottom: "4px" }}>
+                                  Estilo en Megamenú (Según Estilo):
+                                </label>
+                                <select
+                                  className="catalog-form-select"
+                                  value={formStyle}
+                                  onChange={(e) => setFormStyle(e.target.value)}
+                                  style={{ height: "36px", fontSize: "12.5px" }}
+                                >
+                                  <option value="">Todos los estilos / General</option>
+                                  {styleOpts.map((st) => (
+                                    <option key={st.id} value={st.id}>
+                                      {st.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+
+                            {showGemSelector && (
+                              <div>
+                                <label style={{ display: "block", fontSize: "11.5px", fontWeight: "700", color: "#162e24", marginBottom: "4px" }}>
+                                  Colección Gema Selecta:
+                                </label>
+                                <select
+                                  className="catalog-form-select"
+                                  value={formGem}
+                                  onChange={(e) => setFormGem(e.target.value)}
+                                  style={{ height: "36px", fontSize: "12.5px" }}
+                                >
+                                  {GEM_COLLECTION_OPTIONS.map((gm) => (
+                                    <option key={gm.id} value={gm.id}>
+                                      {gm.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* 2. DATOS BÁSICOS DE LA JOYA */}
