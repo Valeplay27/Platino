@@ -706,6 +706,16 @@ export default function AdminCitas() {
     setActiveTab(getTabFromLocation());
   }, [getTabFromLocation]);
 
+  const handleSwitchTab = (tabName, routePath) => {
+    setActiveTab(tabName);
+    try {
+      navigate(routePath, { replace: false });
+    } catch {
+      // fallback
+    }
+    window.scrollTo({ top: 120, behavior: "smooth" });
+  };
+
   // Estados de Permisos & Sedes para Vladimir y los Administradores de Lima y Miraflores
   const [permissionsMatrix, setPermissionsMatrix] = useState(() => getPermissionsMatrix());
   const [permissionRequests, setPermissionRequests] = useState(() => getPermissionRequests());
@@ -5123,6 +5133,116 @@ export default function AdminCitas() {
             </p>
           </div>
         </div>
+
+        {/* ========================================================
+            BARRA DE PESTAÑAS Y MÓDULOS DEL DASHBOARD ADMINISTRATIVO
+            ======================================================== */}
+        <nav className="admin-nav-tabs-bar" aria-label="Módulos del Administrador">
+          <button
+            type="button"
+            className={`admin-nav-tab-item ${activeTab === "citas" ? "active" : ""}`}
+            onClick={() => handleSwitchTab("citas", "/admin/citas")}
+          >
+            <i className="bi bi-calendar2-check"></i>
+            <span>Citas & Horarios</span>
+          </button>
+
+          <button
+            type="button"
+            className={`admin-nav-tab-item ${activeTab === "finanzas" ? "active" : ""}`}
+            onClick={() => handleSwitchTab("finanzas", "/admin/pagos")}
+          >
+            <i className="bi bi-wallet2"></i>
+            <span>Control de Pagos</span>
+          </button>
+
+          <button
+            type="button"
+            className={`admin-nav-tab-item ${activeTab === "pedidos" ? "active" : ""}`}
+            onClick={() => handleSwitchTab("pedidos", "/admin/pedidos")}
+          >
+            <i className="bi bi-box-seam"></i>
+            <span>Pedidos en Taller</span>
+          </button>
+
+          <button
+            type="button"
+            className={`admin-nav-tab-item ${activeTab === "catalogo" ? "active" : ""}`}
+            onClick={() => handleSwitchTab("catalogo", "/admin/catalogo")}
+          >
+            <i className="bi bi-gem"></i>
+            <span>Catálogo de Joyas</span>
+          </button>
+
+          {/* PORTAFOLIO DE GEMAS & DIAMANTES CERTIFICADOS */}
+          <button
+            type="button"
+            className={`admin-nav-tab-item highlighted-gem-tab ${activeTab === "gemas" ? "active" : ""}`}
+            onClick={() => handleSwitchTab("gemas", "/admin/gemas")}
+            title="Gestión y Creación de Diamantes & Gemas Certificadas GIA / IGI / GRA"
+          >
+            <i className="bi bi-diamond-half" style={{ color: "#c5a059" }}></i>
+            <span>Portafolio de Gemas</span>
+            <span className="gem-tab-badge">GIA / IGI</span>
+          </button>
+
+          <button
+            type="button"
+            className={`admin-nav-tab-item ${activeTab === "inventario" ? "active" : ""}`}
+            onClick={() => handleSwitchTab("inventario", "/admin/inventario")}
+          >
+            <i className="bi bi-boxes"></i>
+            <span>Inventario & Stock</span>
+          </button>
+
+          <button
+            type="button"
+            className={`admin-nav-tab-item ${activeTab === "home_images" ? "active" : ""}`}
+            onClick={() => handleSwitchTab("home_images", "/admin/imagenes")}
+          >
+            <i className="bi bi-images"></i>
+            <span>Imágenes Inicio</span>
+          </button>
+
+          <button
+            type="button"
+            className={`admin-nav-tab-item ${activeTab === "claves" ? "active" : ""}`}
+            onClick={() => handleSwitchTab("claves", "/admin/claves")}
+          >
+            <i className="bi bi-key-fill"></i>
+            <span>Clave Diaria</span>
+          </button>
+
+          <button
+            type="button"
+            className={`admin-nav-tab-item ${activeTab === "platino_care" ? "active" : ""}`}
+            onClick={() => handleSwitchTab("platino_care", "/admin/platino-care")}
+          >
+            <i className="bi bi-shield-fill-check"></i>
+            <span>Platino Care</span>
+          </button>
+
+          <button
+            type="button"
+            className={`admin-nav-tab-item ${activeTab === "reclamaciones" ? "active" : ""}`}
+            onClick={() => handleSwitchTab("reclamaciones", "/admin/reclamaciones")}
+          >
+            <i className="bi bi-book-half"></i>
+            <span>Reclamaciones</span>
+          </button>
+
+          <button
+            type="button"
+            className={`admin-nav-tab-item ${activeTab === "permisos" ? "active" : ""}`}
+            onClick={() => handleSwitchTab("permisos", "/admin/permisos")}
+          >
+            <i className="bi bi-shield-shaded"></i>
+            <span>{isEffectiveMaster ? "Permisos & Sedes" : "Solicitar Permisos"}</span>
+            {pendingRequestsCount > 0 && isEffectiveMaster && (
+              <span className="admin-tab-count-pill">{pendingRequestsCount}</span>
+            )}
+          </button>
+        </nav>
 
         {/* Feedback Alert si hubo cambios */}
         {feedbackMsg && (
@@ -11153,7 +11273,15 @@ export default function AdminCitas() {
             TAB 9: GESTIÓN DE GEMAS & DIAMANTES CERTIFICADOS
             ======================================================== */}
         {activeTab === "gemas" && (
-          <AdminGemstonesTab isMaster={isEffectiveMaster} />
+          !userHasPermission("gemas") && !userHasPermission("catalogo") && !isEffectiveMaster ? (
+            renderAccessGuard(
+              "gemas",
+              "Portafolio de Gemas & Diamantes",
+              "Gestiona el catálogo de diamantes naturales, lab grown y gemas certificadas GIA, IGI y GRA."
+            )
+          ) : (
+            <AdminGemstonesTab isMaster={isEffectiveMaster || userHasPermission("gemas") || userHasPermission("catalogo")} />
+          )
         )}
 
         {/* Modal de Crear / Modificar Joya e Imagen */}

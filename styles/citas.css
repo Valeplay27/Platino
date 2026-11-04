@@ -4914,3 +4914,97 @@
 
 
 
+
+
+/* ==========================================================================
+   BARRA DE PESTAÑAS Y MÓDULOS DEL DASHBOARD ADMINISTRATIVO
+   ========================================================================== */
+.admin-nav-tabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 6px 2px 16px 2px;
+  margin-bottom: 22px;
+  border-bottom: 1.5px solid #e2e8f0;
+  scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
+}
+.admin-nav-tabs-bar::-webkit-scrollbar {
+  height: 5px;
+}
+.admin-nav-tabs-bar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+.admin-nav-tab-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border-radius: 9999px;
+  background: #ffffff;
+  border: 1.5px solid #dbe2ea;
+  color: #475569;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  font-family: inherit;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+.admin-nav-tab-item:hover {
+  border-color: #113B3A;
+  color: #113B3A;
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+.admin-nav-tab-item.active {
+  background: #113B3A !important;
+  border-color: #113B3A !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(17, 59, 58, 0.22) !important;
+}
+.admin-nav-tab-item.active i {
+  color: #C6AC7F !important;
+}
+
+.admin-nav-tab-item.highlighted-gem-tab {
+  border-color: #e2c892;
+  background: linear-gradient(180deg, #fffdf8 0%, #ffffff 100%);
+}
+.admin-nav-tab-item.highlighted-gem-tab:hover {
+  border-color: #c5a059;
+  box-shadow: 0 4px 14px rgba(197, 160, 89, 0.25);
+}
+.admin-nav-tab-item.highlighted-gem-tab.active {
+  background: linear-gradient(135deg, #113B3A 0%, #174e4c 100%) !important;
+  border-color: #c5a059 !important;
+}
+.gem-tab-badge {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  background: #fef3c7;
+  color: #92400e;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid #fde68a;
+  text-transform: uppercase;
+}
+.admin-nav-tab-item.active .gem-tab-badge {
+  background: #C6AC7F;
+  color: #113B3A;
+  border-color: #e6cfa8;
+}
+
+.admin-tab-count-pill {
+  font-size: 10.5px;
+  font-weight: 800;
+  background: #ef4444;
+  color: #ffffff;
+  padding: 1px 7px;
+  border-radius: 999px;
+}

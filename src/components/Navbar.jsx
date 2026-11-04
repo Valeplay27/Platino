@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+﻿import { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import {
@@ -185,17 +185,13 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
             </div>
           </div>
 
-          {/* Logo Center (Estilo vector exacto BOCETO 1: PLATINO 💎 PERÚ) */}
+          {/* Logo Center Oficial Platino Perú */}
           <Link to="/" className="brand-logo" aria-label="Platino Perú Inicio">
-            <span className="brand-logo-custom">
-              <span className="brand-word">PLATINO</span>
-              <svg className="brand-diamond-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M6 3h12l4 7-10 11L2 10l4-7z" />
-                <path d="M2 10h20" />
-                <path d="M10 3l-2 7 4 11 4-11-2-7" />
-              </svg>
-              <span className="brand-word">PERÚ</span>
-            </span>
+            <img
+              src={platinoLogoWordmark}
+              alt="Platino Perú"
+              className="brand-logo-wordmark"
+            />
           </Link>
 
           {/* Línea vertical divisora para móvil según BOCETO 1 */}

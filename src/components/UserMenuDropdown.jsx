@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+﻿import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { hasPermission, isMasterAdmin } from "../services/permissionsService";
@@ -70,6 +70,7 @@ export default function UserMenuDropdown() {
   const isMaster = isMasterAdmin(user);
   const canSeeCitas = isMaster || hasPermission(user, "citas") || hasPermission(user, "citas_global");
   const canSeeCatalogo = isMaster || hasPermission(user, "catalogo");
+  const canSeeGemas = isMaster || hasPermission(user, "gemas") || hasPermission(user, "catalogo");
   const canSeeInventario = isMaster || hasPermission(user, "inventario") || hasPermission(user, "inventario_global");
   const canSeePedidos = isMaster || hasPermission(user, "pedidos") || hasPermission(user, "pedidos_global");
   const canSeeImagenes = isMaster || hasPermission(user, "home_images");
@@ -166,7 +167,7 @@ export default function UserMenuDropdown() {
                 )}
 
                 {/* 2. CATÃLOGO & INVENTARIO */}
-                {(canSeeCatalogo || canSeeInventario) && (
+                {(canSeeCatalogo || canSeeGemas || canSeeInventario) && (
                   <>
                     <li className="user-dropdown-divider"></li>
                     <li className="user-dropdown-section-title">
@@ -180,7 +181,19 @@ export default function UserMenuDropdown() {
                           onClick={() => setDropdownOpen(false)}
                         >
                           <i className="bi bi-gem"></i>
-                          <span>Crear Portafolio / CatÃ¡logo</span>
+                          <span>Crear Portafolio / Catálogo</span>
+                        </Link>
+                      </li>
+                    )}
+                    {canSeeGemas && (
+                      <li>
+                        <Link
+                          to="/admin/gemas"
+                          className="user-dropdown-item"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          <i className="bi bi-diamond-half" style={{ color: "#c5a059" }}></i>
+                          <span>Portafolio de Gemas & Diamantes</span>
                         </Link>
                       </li>
                     )}
@@ -291,6 +304,16 @@ export default function UserMenuDropdown() {
                       >
                         <i className="bi bi-shield-fill-check"></i>
                         <span>Platino Care & GarantÃ­as</span>
+                      </Link>
+                    </li>
+                    <li>
+                      <Link
+                        to="/admin/gemas"
+                        className="user-dropdown-item master-item"
+                        onClick={() => setDropdownOpen(false)}
+                      >
+                        <i className="bi bi-diamond-half" style={{ color: "#c5a059" }}></i>
+                        <span>Portafolio de Gemas & Diamantes</span>
                       </Link>
                     </li>
                   </>

@@ -141,9 +141,9 @@
 }
 
 .brand-logo-wordmark {
-  height: 27px;
+  height: 28px;
   width: auto;
-  max-width: 280px;
+  max-width: 310px;
   object-fit: contain;
   display: block;
 }
@@ -2198,7 +2198,7 @@
 
   .mobile-menu-btn {
     min-width: 27px;
-    height: 27px;
+    height: 28px;
     font-size: 20px;
   }
 }

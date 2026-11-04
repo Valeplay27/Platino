@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+﻿import { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   formatPrice,
@@ -18,14 +18,15 @@ import { useAuth } from "../context/useAuth";
 import { isUserFavorite, toggleUserFavorite } from "../services/favoritesService";
 import { getPlatinoCareConfig } from "../services/platinoCareService";
 import { DiamondCutIcon } from "../components/GemstoneIcons";
+import CompromisoConfigurator, { COMPROMISO_GEM_TYPES } from "../components/CompromisoConfigurator";
 import { getAssetUrl } from "../utils/assetHelper";
 import { setLastViewedProduct } from "../services/recentProducts";
 import "../../styles/product.css";
 
 const EMPTY_PRODUCT_PLACEHOLDER = {
   id: "sin-producto",
-  name: "Catálogo en actualización",
-  subtitle: "Platino Perú Joyería Fina",
+  name: "Cat├ílogo en actualizaci├│n",
+  subtitle: "Platino Per├║ Joyer├¡a Fina",
   category: "todas",
   categories: ["todas"],
   type: "anillo",
@@ -36,7 +37,7 @@ const EMPTY_PRODUCT_PLACEHOLDER = {
   availableMetals: [],
   availableGemShapes: ["redondo"],
   defaultGemShape: "redondo",
-  description: "Actualmente no hay productos publicados en esta sección.",
+  description: "Actualmente no hay productos publicados en esta secci├│n.",
 };
 
 export default function Product({ addToCart }) {
@@ -111,7 +112,7 @@ export default function Product({ addToCart }) {
     }
   }, [product.id, product.availableMetals, product.selectedMetal]);
 
-  // Galería de imágenes (respeta la secuencia exacta configurada por material + estuche)
+  // Galer├¡a de im├ígenes (respeta la secuencia exacta configurada por material + estuche)
   const galleryImages = useMemo(() => {
     const orderedList = [];
     const pushUnique = (img) => {
@@ -161,7 +162,7 @@ export default function Product({ addToCart }) {
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [zoomOpen, setZoomOpen] = useState(false);
 
-  // Configuración de la joya
+  // Configuraci├│n de la joya
   const [isFavorite, setIsFavorite] = useState(() => (user?.email ? isUserFavorite(user.email, product.id) : false));
 
   useEffect(() => {
@@ -177,7 +178,7 @@ export default function Product({ addToCart }) {
     return () => window.removeEventListener("platino_favorites_updated", handleFavUpdate);
   }, [user?.email, product.id]);
 
-  // Precio dinámico del producto según el material seleccionado (cada material tiene su propio valor)
+  // Precio din├ímico del producto seg├║n el material seleccionado (cada material tiene su propio valor)
   const currentMetalPrice = useMemo(() => {
     if (selectedMetal?.id && product.metalPrices && product.metalPrices[selectedMetal.id] !== undefined) {
       const p = Number(product.metalPrices[selectedMetal.id]);
@@ -205,14 +206,14 @@ export default function Product({ addToCart }) {
     setIsFavorite(nextState);
   };
 
-  // Guardar última joya vista para sincronización automática con el panel de administración
+  // Guardar ├║ltima joya vista para sincronizaci├│n autom├ítica con el panel de administraci├│n
   useEffect(() => {
     if (product?.id) {
       setLastViewedProduct(product.id);
     }
   }, [product?.id]);
 
-  // Inventario y Stock con reactividad en tiempo real (mismo tab, pestañas alternas, y foco)
+  // Inventario y Stock con reactividad en tiempo real (mismo tab, pesta├▒as alternas, y foco)
   const [productStock, setProductStock] = useState(() =>
     getProductStock(product?.id, product?.hasDoubleSizes)
   );
@@ -281,8 +282,28 @@ export default function Product({ addToCart }) {
     prodSubtype.startsWith("collares") ||
     ["cadenas", "pulseras", "tobilleras", "juegos", "relojes", "porta-aros", "copas-decoradas", "cuadros"].includes(prodSubtype);
   const isAnillo = (prodType === "anillo" || (!isAros && !isAccesorio)) && !isAccesorio;
+  const isCompromisoOrPromesa =
+    !isAros &&
+    !isAccesorio &&
+    (cat.includes("compromiso") ||
+      cat.includes("promesa") ||
+      prodSubtype.includes("compromiso") ||
+      prodSubtype.includes("promesa") ||
+      prodName.includes("compromiso") ||
+      prodName.includes("promesa") ||
+      isAnillo);
 
-  // Tallas: Para aros de matrimonio y alianzas -> ambos (dama y varón); para aros casuales de varón -> varón; para anillos de dama -> dama
+  const [selectedGemType, setSelectedGemType] = useState(() => COMPROMISO_GEM_TYPES[0]);
+  const [engravingText, setEngravingText] = useState("");
+
+  useEffect(() => {
+    setSelectedGemType(COMPROMISO_GEM_TYPES[0]);
+    setEngravingText("");
+  }, [product?.id]);
+
+
+
+  // Tallas: Para aros de matrimonio y alianzas -> ambos (dama y var├│n); para aros casuales de var├│n -> var├│n; para anillos de dama -> dama
   const isVaronSingleRing = isAnillo && (product?.gender === "hombre" || prodSubtype === "aros-casuales" || cat === "aros-casuales");
   const defaultTargetGender = isAros ? "ambos" : isVaronSingleRing ? "varon" : "dama";
   const [targetGender, setTargetGender] = useState(defaultTargetGender);
@@ -296,7 +317,7 @@ export default function Product({ addToCart }) {
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [sizeGuideTab, setSizeGuideTab] = useState(isAros ? "ambos" : "dama");
 
-  // Gemas configuradas por el modelo y administradas dinámicamente
+  // Gemas configuradas por el modelo y administradas din├ímicamente
   const configuredGemShapes = useMemo(() => {
     const masterList = Array.isArray(MASTER_GEM_SHAPES) && MASTER_GEM_SHAPES.length > 0 
       ? MASTER_GEM_SHAPES 
@@ -343,7 +364,7 @@ export default function Product({ addToCart }) {
     }
   }, [product.id, product.defaultGemShape, configuredGemShapes]);
 
-  // Presentación / Opciones de Estuches con fotos y detalles
+  // Presentaci├│n / Opciones de Estuches con fotos y detalles
   const presentationOptionsList = useMemo(() => {
     if (product.presentationOptions && product.presentationOptions.length > 0) {
       return product.presentationOptions.map((opt) => ({
@@ -356,8 +377,8 @@ export default function Product({ addToCart }) {
         description: opt.description || (opt.id === "estuche-terciopelo"
           ? "Estuche premium de terciopelo negro mate tacto suave, ideal para pedida de mano y bodas."
           : opt.id === "caja-madera"
-          ? "Caja de madera noble con acabado piano brillante e iluminación LED focalizada al abrir para máxima sorpresa."
-          : "Estuche rígido icónico verde esmeralda Platino con interior de gamuza aterciopelada y detalles dorados.")
+          ? "Caja de madera noble con acabado piano brillante e iluminaci├│n LED focalizada al abrir para m├íxima sorpresa."
+          : "Estuche r├¡gido ic├│nico verde esmeralda Platino con interior de gamuza aterciopelada y detalles dorados.")
       }));
     }
     return [
@@ -366,7 +387,7 @@ export default function Product({ addToCart }) {
         name: "Caja de Lujo Esmeralda Platino (Recomendado)",
         price: 0,
         image: product.boxImage || "/images/detail-box-green.jpg",
-        description: "Estuche rígido icónico verde esmeralda Platino con interior de gamuza aterciopelada y detalles dorados."
+        description: "Estuche r├¡gido ic├│nico verde esmeralda Platino con interior de gamuza aterciopelada y detalles dorados."
       },
       {
         id: "estuche-terciopelo",
@@ -380,7 +401,7 @@ export default function Product({ addToCart }) {
         name: "Caja de Madera Laqueada con Luz LED Nupcial",
         price: 60,
         image: "/images/detail-packaging.jpg",
-        description: "Caja de madera noble con acabado piano brillante e iluminación LED focalizada al abrir para máxima sorpresa."
+        description: "Caja de madera noble con acabado piano brillante e iluminaci├│n LED focalizada al abrir para m├íxima sorpresa."
       }
     ];
   }, [product.presentationOptions, product.boxImage]);
@@ -392,6 +413,10 @@ export default function Product({ addToCart }) {
   const selectedPresentationObj = useMemo(() => {
     return presentationOptionsList.find((p) => p.id === selectedPresentation) || presentationOptionsList[0];
   }, [presentationOptionsList, selectedPresentation]);
+
+  const totalCompromisoPrice = useMemo(() => {
+    return currentMetalPrice + (selectedPresentationObj?.price || 0) + (selectedGemType?.priceDelta || 0);
+  }, [currentMetalPrice, selectedPresentationObj?.price, selectedGemType?.priceDelta]);
 
   const [platinoCarePlan, setPlatinoCarePlan] = useState("cortesia"); // 'cortesia' o 'plus'
   const [platinoCareConfig, setPlatinoCareConfig] = useState(() => getPlatinoCareConfig());
@@ -407,13 +432,13 @@ export default function Product({ addToCart }) {
 
   const carePlusPrice = platinoCareConfig?.plus?.price ?? 90;
 
-  // Acordeón de FAQs
+  // Acorde├│n de FAQs
   const [openFaqIndex, setOpenFaqIndex] = useState(null);
 
-  // Modal de resumen / confirmación
+  // Modal de resumen / confirmaci├│n
   const [summaryModalOpen, setSummaryModalOpen] = useState(false);
 
-  // Grabado Personalizado en la Joya (SÍ / NO)
+  // Grabado Personalizado en la Joya (S├ì / NO)
   const [hasEngraving, setHasEngraving] = useState(false);
 
   // Modal de Asesoramiento de Medida de Talla
@@ -421,7 +446,7 @@ export default function Product({ addToCart }) {
 
 
 
-  // Stock Total Disponible según la combinación elegida
+  // Stock Total Disponible seg├║n la combinaci├│n elegida
   const currentTotalStock = useMemo(() => {
     if (isAccesorio) return 4;
     if (isAros && targetGender === "ambos") {
@@ -438,7 +463,7 @@ export default function Product({ addToCart }) {
     return getSizeAvailability(productStock, "dama", selectedSizeDama).total;
   }, [isAros, isAccesorio, productStock, targetGender, selectedSizeDama, selectedSizeVaron]);
 
-  // Regla del usuario: Si en el stock hay 2 unidades disponibles (o <= 2), esperar 7 días para entrega; de lo contrario, solo 2 días.
+  // Regla del usuario: Si en el stock hay 2 unidades disponibles (o <= 2), esperar 7 d├¡as para entrega; de lo contrario, solo 2 d├¡as.
   const deliveryDays = currentTotalStock === 2 || currentTotalStock <= 2 ? 7 : 2;
 
   const deliveryDateFormatted = useMemo(() => {
@@ -456,11 +481,11 @@ export default function Product({ addToCart }) {
     return formatted.charAt(0).toUpperCase() + formatted.slice(1);
   }, [deliveryDays]);
 
-  // Regla del usuario: Solo mostrar tiempo de entrega rápida (2 o 7 días) en accesorios (opcional según configuración).
+  // Regla del usuario: Solo mostrar tiempo de entrega r├ípida (2 o 7 d├¡as) en accesorios (opcional seg├║n configuraci├│n).
   // En anillos de compromiso, aros de matrimonio, alianzas de amor y promesa, se elimina por completo.
   const shouldShowDelivery = isAccesorio && product.showDeliveryEstimate !== false;
 
-  // Función para resolver la URL de la imagen según el material seleccionado
+  // Funci├│n para resolver la URL de la imagen seg├║n el material seleccionado
   const getImageUrlForMetal = (metalId) => {
     if (
       product.metalGalleries &&
@@ -482,7 +507,7 @@ export default function Product({ addToCart }) {
     return getAssetUrl(product.image || galleryImages[0]);
   };
 
-  // 1. Estado en React usando useState para almacenar y mostrar la fotografía principal del anillo
+  // 1. Estado en React usando useState para almacenar y mostrar la fotograf├¡a principal del anillo
   const [mainImage, setMainImage] = useState(() => {
     return getImageUrlForMetal(selectedMetal?.id);
   });
@@ -493,7 +518,7 @@ export default function Product({ addToCart }) {
     setActiveImageIdx(0);
   }, [product.id, selectedMetal?.id]);
 
-  // Al cambiar de paso: si entra al paso de Complementos & Estuche (Paso 2 o 3 según gemas), mostrar la caja en el visor principal
+  // Al cambiar de paso: si entra al paso de Complementos & Estuche (Paso 2 o 3 seg├║n gemas), mostrar la caja en el visor principal
   const isPresentationStep = (!product.hasGemSelection || isAccesorio) ? currentStep === 2 : currentStep === 3;
   useEffect(() => {
     if (isPresentationStep) {
@@ -505,7 +530,7 @@ export default function Product({ addToCart }) {
     }
   }, [currentStep, isPresentationStep, selectedPresentationObj?.image]);
 
-  // 2. Función que actualiza el estado con la URL de la imagen correspondiente al presionar un botón de material
+  // 2. Funci├│n que actualiza el estado con la URL de la imagen correspondiente al presionar un bot├│n de material
   const handleSelectMetal = (metal) => {
     setSelectedMetal(metal);
     const newImageUrl = getImageUrlForMetal(metal.id);
@@ -513,13 +538,13 @@ export default function Product({ addToCart }) {
     setActiveImageIdx(0);
   };
 
-  // Selección de miniaturas (portafolio de fotos en secuencia)
+  // Selecci├│n de miniaturas (portafolio de fotos en secuencia)
   const handleSelectThumbnail = (imgUrl, idx) => {
     setActiveImageIdx(idx);
     setMainImage(getAssetUrl(imgUrl));
   };
 
-  // Navegación del slider
+  // Navegaci├│n del slider
   const handlePrevImg = () => {
     const newIdx = activeImageIdx === 0 ? galleryImages.length - 1 : activeImageIdx - 1;
     setActiveImageIdx(newIdx);
@@ -545,26 +570,45 @@ export default function Product({ addToCart }) {
 
   const handleAddToCartDirect = () => {
     if (!addToCart) return;
+    if (isCompromisoOrPromesa) {
+      const customProduct = {
+        ...product,
+        selectedMetal: selectedMetal.name,
+        metal: selectedMetal.name,
+        selectedSize: selectedSizeDama === "asesor" ? "AsesorÃ­a de medida" : `Talla ${selectedSizeDama} Nacional`,
+        size: selectedSizeDama === "asesor" ? "AsesorÃ­a de medida" : `Talla ${selectedSizeDama} Nacional`,
+        selectedGemstone: selectedGemType.name,
+        gemstone: selectedGemType.name,
+        selectedPresentation: selectedPresentationObj?.name,
+        hasEngraving,
+        engraving: hasEngraving ? (engravingText ? `SÃ­: "${engravingText}"` : "SÃ­ (A coordinar)") : null,
+        needsSizeAdvice: selectedSizeDama === "asesor",
+        price: totalCompromisoPrice,
+        image: mainImage || product.image,
+      };
+      addToCart(customProduct);
+      return;
+    }
     const customProduct = {
       ...product,
       selectedMetal: selectedMetal.name,
       metal: selectedMetal.name,
       selectedSize:
         isAros && targetGender === "ambos"
-          ? `Dama: ${selectedSizeDama === "asesor" ? "Asesoría" : selectedSizeDama} / Varón: ${selectedSizeVaron === "asesor" ? "Asesoría" : selectedSizeVaron}`
+          ? `Dama: ${selectedSizeDama === "asesor" ? "Asesor├¡a" : selectedSizeDama} / Var├│n: ${selectedSizeVaron === "asesor" ? "Asesor├¡a" : selectedSizeVaron}`
           : targetGender === "varon"
-          ? `Varón: ${selectedSizeVaron === "asesor" ? "Asesoría de medida" : selectedSizeVaron}`
-          : `Mujer: ${selectedSizeDama === "asesor" ? "Asesoría de medida" : selectedSizeDama}`,
+          ? `Var├│n: ${selectedSizeVaron === "asesor" ? "Asesor├¡a de medida" : selectedSizeVaron}`
+          : `Mujer: ${selectedSizeDama === "asesor" ? "Asesor├¡a de medida" : selectedSizeDama}`,
       size:
         isAros && targetGender === "ambos"
-          ? `Dama: ${selectedSizeDama === "asesor" ? "Asesoría" : selectedSizeDama} / Varón: ${selectedSizeVaron === "asesor" ? "Asesoría" : selectedSizeVaron}`
+          ? `Dama: ${selectedSizeDama === "asesor" ? "Asesor├¡a" : selectedSizeDama} / Var├│n: ${selectedSizeVaron === "asesor" ? "Asesor├¡a" : selectedSizeVaron}`
           : targetGender === "varon"
-          ? `Varón: ${selectedSizeVaron === "asesor" ? "Asesoría de medida" : selectedSizeVaron}`
-          : `Mujer: ${selectedSizeDama === "asesor" ? "Asesoría de medida" : selectedSizeDama}`,
+          ? `Var├│n: ${selectedSizeVaron === "asesor" ? "Asesor├¡a de medida" : selectedSizeVaron}`
+          : `Mujer: ${selectedSizeDama === "asesor" ? "Asesor├¡a de medida" : selectedSizeDama}`,
       selectedGemstone: product.hasGemSelection ? selectedGemShape.name : undefined,
       gemstone: product.hasGemSelection ? selectedGemShape.name : undefined,
       hasEngraving,
-      engraving: hasEngraving ? "Sí solicita (Personalización por WhatsApp)" : null,
+      engraving: hasEngraving ? "S├¡ solicita (Personalizaci├│n por WhatsApp)" : null,
       needsSizeAdvice:
         (isAros && targetGender === "ambos" && (selectedSizeDama === "asesor" || selectedSizeVaron === "asesor")) ||
         (targetGender === "varon" ? selectedSizeVaron === "asesor" : selectedSizeDama === "asesor"),
@@ -572,7 +616,7 @@ export default function Product({ addToCart }) {
       deliveryDays: shouldShowDelivery ? deliveryDays : undefined,
       estimatedDeliveryDate: shouldShowDelivery ? deliveryDateFormatted : undefined,
       platinoCarePlan: platinoCarePlan,
-      platinoCareTitle: platinoCarePlan === "plus" ? "Platino Care + (Premium)" : "Platino Care Cortesía",
+      platinoCareTitle: platinoCarePlan === "plus" ? "Platino Care + (Premium)" : "Platino Care Cortes├¡a",
       price: currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0),
       image: mainImage || product.image,
     };
@@ -584,21 +628,21 @@ export default function Product({ addToCart }) {
     if (isAros && targetGender === "ambos") {
       const needsAdvice = selectedSizeDama === "asesor" || selectedSizeVaron === "asesor";
       if (needsAdvice) {
-        sizeDetails = `*Tallas (Par de Aros):* SOLICITA ASESORAMIENTO DE MEDIDA (Dama: ${selectedSizeDama === "asesor" ? "Asesoría" : selectedSizeDama}, Varón: ${selectedSizeVaron === "asesor" ? "Asesoría" : selectedSizeVaron})%0A`;
+        sizeDetails = `*Tallas (Par de Aros):* SOLICITA ASESORAMIENTO DE MEDIDA (Dama: ${selectedSizeDama === "asesor" ? "Asesor├¡a" : selectedSizeDama}, Var├│n: ${selectedSizeVaron === "asesor" ? "Asesor├¡a" : selectedSizeVaron})%0A`;
       } else {
         const damaAvail = getSizeAvailability(productStock, "dama", selectedSizeDama);
         const varonAvail = getSizeAvailability(productStock, "varon", selectedSizeVaron);
         const damaStockText = isAdmin ? `${damaAvail.total} unids en stock` : (damaAvail.total > 0 ? "Disponible en stock" : "A pedido");
         const varonStockText = isAdmin ? `${varonAvail.total} unids en stock` : (varonAvail.total > 0 ? "Disponible en stock" : "A pedido");
-        sizeDetails = `*Tallas (Par de Aros):*%0A- Talla Dama: ${selectedSizeDama} (${damaStockText})%0A- Talla Varón: ${selectedSizeVaron} (${varonStockText})%0A`;
+        sizeDetails = `*Tallas (Par de Aros):*%0A- Talla Dama: ${selectedSizeDama} (${damaStockText})%0A- Talla Var├│n: ${selectedSizeVaron} (${varonStockText})%0A`;
       }
     } else if (targetGender === "varon") {
       if (selectedSizeVaron === "asesor") {
-        sizeDetails = `*Talla Varón:* EL CLIENTE SOLICITA ASESORAMIENTO DE MEDIDA%0A`;
+        sizeDetails = `*Talla Var├│n:* EL CLIENTE SOLICITA ASESORAMIENTO DE MEDIDA%0A`;
       } else {
         const varonAvail = getSizeAvailability(productStock, "varon", selectedSizeVaron);
         const varonStockText = isAdmin ? `${varonAvail.total} unids en stock` : (varonAvail.total > 0 ? "Disponible en stock" : "A pedido");
-        sizeDetails = `*Para:* Varón / Caballero%0A*Talla:* Talla ${selectedSizeVaron} (${varonStockText})%0A`;
+        sizeDetails = `*Para:* Var├│n / Caballero%0A*Talla:* Talla ${selectedSizeVaron} (${varonStockText})%0A`;
       }
     } else if (!isAccesorio) {
       if (selectedSizeDama === "asesor") {
@@ -610,25 +654,25 @@ export default function Product({ addToCart }) {
       }
     }
 
-    // Información de Grabado
+    // Informaci├│n de Grabado
     const engravingDetails = hasEngraving
-      ? `*Grabado personalizado:* SÍ SOLICITA (Personalización a coordinar por WhatsApp)%0A`
+      ? `*Grabado personalizado:* S├ì SOLICITA (Personalizaci├│n a coordinar por WhatsApp)%0A`
       : `*Grabado personalizado:* No solicitado%0A`;
 
-    // Stock y Tiempo de Entrega (solo en accesorios si está activo)
+    // Stock y Tiempo de Entrega (solo en accesorios si est├í activo)
     const stockDetails = isAdmin
       ? (shouldShowDelivery
-          ? `*Stock disponible:* ${currentTotalStock} unidades disponibles%0A*Tiempo de entrega:* ${deliveryDays} días hábiles (Listo aprox: ${deliveryDateFormatted})%0A`
+          ? `*Stock disponible:* ${currentTotalStock} unidades disponibles%0A*Tiempo de entrega:* ${deliveryDays} d├¡as h├íbiles (Listo aprox: ${deliveryDateFormatted})%0A`
           : `*Stock disponible:* ${currentTotalStock} unidades disponibles%0A`)
       : (shouldShowDelivery
-          ? `*Disponibilidad:* ${currentTotalStock > 0 ? "Disponible en stock" : "A pedido"}%0A*Tiempo de entrega:* ${deliveryDays} días hábiles (Listo aprox: ${deliveryDateFormatted})%0A`
+          ? `*Disponibilidad:* ${currentTotalStock > 0 ? "Disponible en stock" : "A pedido"}%0A*Tiempo de entrega:* ${deliveryDays} d├¡as h├íbiles (Listo aprox: ${deliveryDateFormatted})%0A`
           : `*Disponibilidad:* ${currentTotalStock > 0 ? "Disponible en stock" : "A pedido"}%0A`);
 
-    const text = `¡Hola Platino Perú! Estoy interesado en ordenar esta joya personalizada:%0A%0A*Producto:* ${product.name}%0A*Metal seleccionado:* ${selectedMetal.name}%0A${sizeDetails}${
+    const text = `┬íHola Platino Per├║! Estoy interesado en ordenar esta joya personalizada:%0A%0A*Producto:* ${product.name}%0A*Metal seleccionado:* ${selectedMetal.name}%0A${sizeDetails}${
       product.hasGemSelection
         ? `*Forma de la Piedra/Gema:* ${selectedGemShape.name}%0A`
         : ""
-    }${engravingDetails}${stockDetails}*Precio:* ${formatPrice(currentMetalPrice)}%0A%0A¿Podrían confirmarme la disponibilidad y cómo procedemos con la orden?`;
+    }${engravingDetails}${stockDetails}*Precio:* ${formatPrice(isCompromisoOrPromesa ? totalCompromisoPrice : currentMetalPrice)}%0A%0A┬┐Podr├¡an confirmarme la disponibilidad y c├│mo procedemos con la orden?`;
 
     return `https://wa.me/51927357217?text=${text}`;
   };
@@ -638,11 +682,12 @@ export default function Product({ addToCart }) {
       {/* ========================================================
           1. BARRA DE PASOS SUPERIOR (CONFIGURATOR HEADER)
           ======================================================== */}
-      <nav className="configurator-steps-header" aria-label="Progreso de configuración">
+      {!isCompromisoOrPromesa && (
+      <nav className="configurator-steps-header" aria-label="Progreso de configuraci├│n">
         <div className="configurator-steps-container">
           <div className="configurator-brand-tag">
             <i className="bi bi-gem"></i>
-            <span>{isAccesorio ? "Elige tu modelo" : "Diseña tu anillo"}</span>
+            <span>{isAccesorio ? "Elige tu modelo" : "Dise├▒a tu anillo"}</span>
           </div>
 
           <div className="configurator-steps-list">
@@ -658,7 +703,7 @@ export default function Product({ addToCart }) {
                 >
                   <span className="config-step-number">1</span>
                   <div className="config-step-info">
-                    <span className="config-step-title">SELECCIÓN DE DISEÑO</span>
+                    <span className="config-step-title">SELECCI├ôN DE DISE├æO</span>
                     <span className="config-step-sub">{product.name}</span>
                   </div>
                 </button>
@@ -673,7 +718,7 @@ export default function Product({ addToCart }) {
                 >
                   <span className="config-step-number">2</span>
                   <div className="config-step-info">
-                    <span className="config-step-title">ELIGE LA PRESENTACIÓN</span>
+                    <span className="config-step-title">ELIGE LA PRESENTACI├ôN</span>
                     <span className="config-step-sub">Estuche y Empaque</span>
                   </div>
                 </button>
@@ -690,7 +735,7 @@ export default function Product({ addToCart }) {
                 >
                   <span className="config-step-number">1</span>
                   <div className="config-step-info">
-                    <span className="config-step-title">Características</span>
+                    <span className="config-step-title">Caracter├¡sticas</span>
                     <span className="config-step-sub">{selectedMetal?.name || product.name}</span>
                   </div>
                   <i className="bi bi-circle config-step-icon"></i>
@@ -724,7 +769,7 @@ export default function Product({ addToCart }) {
                 >
                   <span className="config-step-number">1</span>
                   <div className="config-step-info">
-                    <span className="config-step-title">Características</span>
+                    <span className="config-step-title">Caracter├¡sticas</span>
                     <span className="config-step-sub">{selectedMetal?.name || product.name}</span>
                   </div>
                   <i className="bi bi-circle config-step-icon"></i>
@@ -766,6 +811,7 @@ export default function Product({ addToCart }) {
           </div>
         </div>
       </nav>
+      )}
 
       {/* ========================================================
           2. DETALLE PRINCIPAL DEL PRODUCTO (2 COLUMNAS)
@@ -776,14 +822,14 @@ export default function Product({ addToCart }) {
           type="button"
           onClick={handleGoBack}
           className="btn-back-breadcrumb"
-          title="Volver a la página anterior o catálogo"
+          title="Volver a la p├ígina anterior o cat├ílogo"
         >
           <i className="bi bi-arrow-left"></i>
-          <span>Volver Atrás</span>
+          <span>Volver Atr├ís</span>
         </button>
         <span className="product-breadcrumb-sep">/</span>
         <Link to="/catalogo" className="breadcrumb-catalog-link">
-          Catálogo
+          Cat├ílogo
         </Link>
         {product.category && (
           <>
@@ -798,7 +844,7 @@ export default function Product({ addToCart }) {
       </div>
 
       <section className="product-main-container">
-        {/* Columna Izquierda: Galería */}
+        {/* Columna Izquierda: Galer├¡a */}
         <div className="product-gallery-side">
           {/* Miniaturas verticales (Portafolio de la Joya) */}
           <div className="product-thumbnails-col">
@@ -809,7 +855,7 @@ export default function Product({ addToCart }) {
                 className={`thumb-btn ${activeImageIdx === idx ? "active" : ""}`}
                 onClick={() => handleSelectThumbnail(img, idx)}
                 aria-label={`Ver vista ${idx + 1}`}
-                title={img === product.boxImage ? "Caja de presentación" : `Vista ${idx + 1}`}
+                title={img === product.boxImage ? "Caja de presentaci├│n" : `Vista ${idx + 1}`}
               >
                 <img
                   src={getAssetUrl(img)}
@@ -835,7 +881,7 @@ export default function Product({ addToCart }) {
               }}
             />
 
-            {/* Botón Zoom */}
+            {/* Bot├│n Zoom */}
             <button
               type="button"
               className="gallery-zoom-btn"
@@ -845,12 +891,12 @@ export default function Product({ addToCart }) {
               <i className="bi bi-arrows-angle-expand"></i>
             </button>
 
-            {/* Sello Platino Perú */}
+            {/* Sello Platino Per├║ */}
             <div className="gallery-brand-stamp">
-              <span>Platino Perú</span>
+              <span>Platino Per├║</span>
             </div>
 
-            {/* Flechas de navegación */}
+            {/* Flechas de navegaci├│n */}
             {galleryImages.length > 1 && (
               <>
                 <button
@@ -883,7 +929,7 @@ export default function Product({ addToCart }) {
               />
               <span>{selectedMetal.name}</span>
               {product.badge && (
-                <span style={{ opacity: 0.75, marginLeft: "4px" }}>• {product.badge}</span>
+                <span style={{ opacity: 0.75, marginLeft: "4px" }}>ÔÇó {product.badge}</span>
               )}
             </div>
 
@@ -913,29 +959,58 @@ export default function Product({ addToCart }) {
                 type="button"
                 className={`btn-favoritos ${isFavorite ? "active" : ""}`}
                 onClick={handleToggleFavorite}
-                title={!user ? "Inicia sesión o regístrate para guardar en favoritos" : (isFavorite ? "Quitar de favoritos" : "Guardar en favoritos")}
+                title={!user ? "Inicia sesi├│n o reg├¡strate para guardar en favoritos" : (isFavorite ? "Quitar de favoritos" : "Guardar en favoritos")}
               >
                 <i className={isFavorite ? "bi bi-heart-fill" : "bi bi-heart"}></i>
-                {isFavorite ? "EN FAVORITOS" : "FAVORITOS ★"}
+                {isFavorite ? "EN FAVORITOS" : "FAVORITOS Ôÿà"}
               </button>
             </div>
+            {isCompromisoOrPromesa && (
+              <p className="config-product-description">
+                {product.description || "Breve descripcion del producto. Breve descripciÃ³n. Breve descripcion del producto. Breve descripciÃ³n. Breve descripcion del producto."}
+              </p>
+            )}
           </div>
 
-          {/* ========================================================
-              PASO 1: CARACTERÍSTICAS
+                    {isCompromisoOrPromesa ? (
+            <CompromisoConfigurator
+              product={product}
+              selectedMetal={selectedMetal}
+              handleSelectMetal={handleSelectMetal}
+              selectedSizeDama={selectedSizeDama}
+              setSelectedSizeDama={setSelectedSizeDama}
+              hasEngraving={hasEngraving}
+              setHasEngraving={setHasEngraving}
+              engravingText={engravingText}
+              setEngravingText={setEngravingText}
+              selectedGemType={selectedGemType}
+              setSelectedGemType={setSelectedGemType}
+              selectedPresentation={selectedPresentation}
+              setSelectedPresentation={setSelectedPresentation}
+              selectedPresentationObj={selectedPresentationObj}
+              presentationOptionsList={presentationOptionsList}
+              setMainImage={setMainImage}
+              handleGoBack={handleGoBack}
+              totalPrice={totalCompromisoPrice}
+              onAddToCart={handleAddToCartDirect}
+            />
+          ) : (
+            <>
+{/* ========================================================
+              PASO 1: CARACTER├ìSTICAS
               ======================================================== */}
           {currentStep === 1 && (
             <div className="step-pane step-pane-1">
               <div className="step-mini-header">
                 <span className="step-tag-pill">Paso 1 de {isAccesorio ? "2" : "3"}</span>
-                <h3 className="step-heading-text">Personaliza las Características</h3>
+                <h3 className="step-heading-text">Personaliza las Caracter├¡sticas</h3>
               </div>
 
-              {/* 1. SELECCIÓN DE METAL */}
+              {/* 1. SELECCI├ôN DE METAL */}
               {product.availableMetals && (
                 <div className="config-block">
                   <div className="config-block-header">
-                    <span className="config-block-title">Selección de Metal</span>
+                    <span className="config-block-title">Selecci├│n de Metal</span>
                     <i className="bi bi-chevron-down" style={{ fontSize: "11px" }}></i>
                   </div>
 
@@ -966,14 +1041,14 @@ export default function Product({ addToCart }) {
               {!isAccesorio && (
                 <div className="config-block size-config-container">
                   {isAros ? (
-                    /* Para Aros de Matrimonio y Alianzas: Ambas Tallas (Dama y Varón) */
+                    /* Para Aros de Matrimonio y Alianzas: Ambas Tallas (Dama y Var├│n) */
                     <div className="double-sizes-block">
                       {/* Cabecera unificada y despejada */}
                       <div className="config-block-header double-sizes-header-bar">
                         <div className="double-sizes-header-title-box">
                           <i className="bi bi-hearts" style={{ color: "#c5a059", fontSize: "16px" }}></i>
                           <span className="config-block-title">Tallas del Par de Aros</span>
-                          <span className="double-sizes-header-badge">Dama & Varón</span>
+                          <span className="double-sizes-header-badge">Dama & Var├│n</span>
                         </div>
                         <div className="double-sizes-header-actions">
                           <button
@@ -984,12 +1059,12 @@ export default function Product({ addToCart }) {
                               setSizeGuideOpen(true);
                             }}
                           >
-                            <i className="bi bi-rulers"></i> Guía de Tallas
+                            <i className="bi bi-rulers"></i> Gu├¡a de Tallas
                           </button>
                         </div>
                       </div>
 
-                      {/* Selectores lado a lado con diseño aireado */}
+                      {/* Selectores lado a lado con dise├▒o aireado */}
                       <div className="double-selects-grid">
                         <div className="double-select-col">
                           <label className="double-select-label">
@@ -1003,7 +1078,7 @@ export default function Product({ addToCart }) {
                             onChange={(e) => setSelectedSizeDama(e.target.value)}
                             className="select-talla-dropdown"
                           >
-                            <option value="asesor">¿No sabes tu talla? Asesoramiento</option>
+                            <option value="asesor">┬┐No sabes tu talla? Asesoramiento</option>
                             {DAMA_SIZES.map((sz) => {
                               const avail = getSizeAvailability(productStock, "dama", sz.number);
                               return (
@@ -1018,7 +1093,7 @@ export default function Product({ addToCart }) {
                         <div className="double-select-col">
                           <label className="double-select-label">
                             <span className="double-select-gender-pill varon">
-                              <i className="bi bi-gender-male"></i> Varón
+                              <i className="bi bi-gender-male"></i> Var├│n
                             </span>
                             <span className="double-select-range-hint">Medida 10 al 37</span>
                           </label>
@@ -1027,7 +1102,7 @@ export default function Product({ addToCart }) {
                             onChange={(e) => setSelectedSizeVaron(e.target.value)}
                             className="select-talla-dropdown"
                           >
-                            <option value="asesor">¿No sabes tu talla? Asesoramiento</option>
+                            <option value="asesor">┬┐No sabes tu talla? Asesoramiento</option>
                             {VARON_SIZES.map((sz) => {
                               const avail = getSizeAvailability(productStock, "varon", sz.number);
                               return (
@@ -1040,18 +1115,18 @@ export default function Product({ addToCart }) {
                         </div>
                       </div>
 
-                      {/* Banner de Asesoría de Medida Unificado a todo el ancho */}
+                      {/* Banner de Asesor├¡a de Medida Unificado a todo el ancho */}
                       <div className="size-advice-banner double-advice-banner">
                         <div className="size-advice-text">
                           <i className="bi bi-question-circle"></i>
-                          <span>¿No están seguros de la medida exacta de dama o varón?</span>
+                          <span>┬┐No est├ín seguros de la medida exacta de dama o var├│n?</span>
                         </div>
                         <button
                           type="button"
                           className="btn-open-size-advice"
                           onClick={() => setSizeAdviceModalOpen(true)}
                         >
-                          Asesoría de Medida
+                          Asesor├¡a de Medida
                         </button>
                       </div>
 
@@ -1064,24 +1139,24 @@ export default function Product({ addToCart }) {
                           </div>
                           {selectedSizeDama === "asesor" ? (
                             <span className="double-stock-badge-text advisor">
-                              <i className="bi bi-info-circle"></i> Asesoría de medida solicitada
+                              <i className="bi bi-info-circle"></i> Asesor├¡a de medida solicitada
                             </span>
                           ) : (() => {
                             const av = getSizeAvailability(productStock, "dama", selectedSizeDama);
                             return av.total > 0 ? (
                               <div className="double-stock-info-wrap">
                                 <span className={`double-stock-status-pill ${isAdmin && av.total <= 2 ? "low" : "ok"}`}>
-                                  <i className="bi bi-check2-circle"></i> {isAdmin ? `${av.total} unids disponibles ${av.total <= 2 ? "(Últimas)" : ""}` : "Disponible en stock"}
+                                  <i className="bi bi-check2-circle"></i> {isAdmin ? `${av.total} unids disponibles ${av.total <= 2 ? "(├Ültimas)" : ""}` : "Disponible en stock"}
                                 </span>
                                 {isAdmin && (
                                   <span className="double-stock-breakdown">
-                                    Centro: {(av.bodega || 0) + (av.limaCentro || 0)} • Miraflores: {av.miraflores}
+                                    Centro: {(av.bodega || 0) + (av.limaCentro || 0)} ÔÇó Miraflores: {av.miraflores}
                                   </span>
                                 )}
                               </div>
                             ) : (
                               <span className="double-stock-badge-text order">
-                                <i className="bi bi-clock-history"></i> Fabricación a pedido en taller
+                                <i className="bi bi-clock-history"></i> Fabricaci├│n a pedido en taller
                               </span>
                             );
                           })()}
@@ -1090,28 +1165,28 @@ export default function Product({ addToCart }) {
                         <div className="double-stock-single-card">
                           <div className="double-stock-pill-row">
                             <span className="double-stock-dot varon"></span>
-                            <span className="double-stock-item-title">Aro Varón (Talla {selectedSizeVaron})</span>
+                            <span className="double-stock-item-title">Aro Var├│n (Talla {selectedSizeVaron})</span>
                           </div>
                           {selectedSizeVaron === "asesor" ? (
                             <span className="double-stock-badge-text advisor">
-                              <i className="bi bi-info-circle"></i> Asesoría de medida solicitada
+                              <i className="bi bi-info-circle"></i> Asesor├¡a de medida solicitada
                             </span>
                           ) : (() => {
                             const av = getSizeAvailability(productStock, "varon", selectedSizeVaron);
                             return av.total > 0 ? (
                               <div className="double-stock-info-wrap">
                                 <span className={`double-stock-status-pill ${isAdmin && av.total <= 2 ? "low" : "ok"}`}>
-                                  <i className="bi bi-check2-circle"></i> {isAdmin ? `${av.total} unids disponibles ${av.total <= 2 ? "(Últimas)" : ""}` : "Disponible en stock"}
+                                  <i className="bi bi-check2-circle"></i> {isAdmin ? `${av.total} unids disponibles ${av.total <= 2 ? "(├Ültimas)" : ""}` : "Disponible en stock"}
                                 </span>
                                 {isAdmin && (
                                   <span className="double-stock-breakdown">
-                                    Centro: {(av.bodega || 0) + (av.limaCentro || 0)} • Miraflores: {av.miraflores}
+                                    Centro: {(av.bodega || 0) + (av.limaCentro || 0)} ÔÇó Miraflores: {av.miraflores}
                                   </span>
                                 )}
                               </div>
                             ) : (
                               <span className="double-stock-badge-text order">
-                                <i className="bi bi-clock-history"></i> Fabricación a pedido en taller
+                                <i className="bi bi-clock-history"></i> Fabricaci├│n a pedido en taller
                               </span>
                             );
                           })()}
@@ -1131,7 +1206,7 @@ export default function Product({ addToCart }) {
                             setSizeGuideOpen(true);
                           }}
                         >
-                          <i className="bi bi-rulers"></i> Guía de Tallas
+                          <i className="bi bi-rulers"></i> Gu├¡a de Tallas
                         </button>
                       </div>
                       <select
@@ -1139,7 +1214,7 @@ export default function Product({ addToCart }) {
                         onChange={(e) => setSelectedSizeDama(e.target.value)}
                         className="select-talla-dropdown"
                       >
-                        <option value="asesor">¿No sabes tu talla? Solicitar asesoramiento de medida</option>
+                        <option value="asesor">┬┐No sabes tu talla? Solicitar asesoramiento de medida</option>
                         {DAMA_SIZES.map((sz) => {
                           const avail = getSizeAvailability(productStock, "dama", sz.number);
                           return (
@@ -1153,14 +1228,14 @@ export default function Product({ addToCart }) {
                       <div className="size-advice-banner">
                         <div className="size-advice-text">
                           <i className="bi bi-question-circle"></i>
-                          <span>¿No estás seguro de la talla?</span>
+                          <span>┬┐No est├ís seguro de la talla?</span>
                         </div>
                         <button
                           type="button"
                           className="btn-open-size-advice"
                           onClick={() => setSizeAdviceModalOpen(true)}
                         >
-                          Asesoría de Medida
+                          Asesor├¡a de Medida
                         </button>
                       </div>
 
@@ -1176,10 +1251,10 @@ export default function Product({ addToCart }) {
                                   <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
                                     <span>
                                       Stock disponible: <strong>{av.total} {av.total === 1 ? "unidad" : "unidades"}</strong>
-                                      {av.total <= 2 ? " (Últimas unidades)" : ""}
+                                      {av.total <= 2 ? " (├Ültimas unidades)" : ""}
                                     </span>
                                     <span style={{ fontSize: "11px", opacity: 0.85 }}>
-                                      Centro: <strong>{(av.bodega || 0) + (av.limaCentro || 0)}</strong> • Miraflores: <strong>{av.miraflores}</strong>
+                                      Centro: <strong>{(av.bodega || 0) + (av.limaCentro || 0)}</strong> ÔÇó Miraflores: <strong>{av.miraflores}</strong>
                                     </span>
                                   </div>
                                 ) : (
@@ -1191,7 +1266,7 @@ export default function Product({ addToCart }) {
                             ) : (
                               <div className="stock-general-badge out-of-stock">
                                 <i className="bi bi-clock-history"></i>
-                                <span>Disponible a pedido (Fabricación en taller)</span>
+                                <span>Disponible a pedido (Fabricaci├│n en taller)</span>
                               </div>
                             );
                           })()}
@@ -1208,7 +1283,7 @@ export default function Product({ addToCart }) {
                   <div className="engraving-toggle-row">
                     <span className="engraving-toggle-label">
                       <i className="bi bi-pencil-square" style={{ color: "#c5a059", fontSize: "17px" }}></i>
-                      <span>¿Deseas agregar grabado personalizado a tu joya?</span>
+                      <span>┬┐Deseas agregar grabado personalizado a tu joya?</span>
                     </span>
                     <div className="engraving-yes-no-switch">
                       <button
@@ -1216,7 +1291,7 @@ export default function Product({ addToCart }) {
                         className={`btn-yes-no ${hasEngraving ? "active" : ""}`}
                         onClick={() => setHasEngraving(true)}
                       >
-                        SÍ
+                        S├ì
                       </button>
                       <button
                         type="button"
@@ -1231,13 +1306,13 @@ export default function Product({ addToCart }) {
                   {hasEngraving && (
                     <div className="engraving-whatsapp-notice">
                       <i className="bi bi-whatsapp"></i>
-                      <span>¡Excelente elección! La personalización del texto y estilo se coordinará directamente por WhatsApp.</span>
+                      <span>┬íExcelente elecci├│n! La personalizaci├│n del texto y estilo se coordinar├í directamente por WhatsApp.</span>
                     </div>
                   )}
                 </div>
               )}
 
-              {/* 4. APARTADO: TIEMPO DE ENTREGA (SOLO ACCESORIOS SI ESTÁ ACTIVO) */}
+              {/* 4. APARTADO: TIEMPO DE ENTREGA (SOLO ACCESORIOS SI EST├ü ACTIVO) */}
               {shouldShowDelivery && (
                 <div className={`delivery-estimate-card ${deliveryDays === 7 ? "slow-7days" : "fast-2days"}`}>
                   <i className={`bi ${deliveryDays === 7 ? "bi-clock-history" : "bi-lightning-charge-fill"} delivery-estimate-icon`}></i>
@@ -1245,14 +1320,14 @@ export default function Product({ addToCart }) {
                     <div className="delivery-estimate-title">
                       {deliveryDays === 7 ? (
                         <>
-                          <span>Tiempo de Entrega: 7 Días Hábiles</span>
+                          <span>Tiempo de Entrega: 7 D├¡as H├íbiles</span>
                           <span style={{ fontSize: "11px", background: "#fef3c7", color: "#92400e", padding: "1px 8px", borderRadius: "10px", fontWeight: "700" }}>
                             Stock de 2 Unidades
                           </span>
                         </>
                       ) : (
                         <>
-                          <span>Entrega Rápida en solo 2 Días Hábiles</span>
+                          <span>Entrega R├ípida en solo 2 D├¡as H├íbiles</span>
                           <span style={{ fontSize: "11px", background: "#d1fae5", color: "#065f46", padding: "1px 8px", borderRadius: "10px", fontWeight: "700" }}>
                             Despacho Inmediato
                           </span>
@@ -1262,8 +1337,8 @@ export default function Product({ addToCart }) {
                     <p style={{ margin: "2px 0 0", fontSize: "12.5px" }}>
                       {deliveryDays === 7
                         ? (isAdmin
-                            ? `Al registrarse ${currentTotalStock} unidades en almacén, tu joya pasa por ajuste y preparación en taller. Lista para entrega el ${deliveryDateFormatted}.`
-                            : `Tu joya pasa por ajuste y preparación en taller. Lista para entrega el ${deliveryDateFormatted}.`)
+                            ? `Al registrarse ${currentTotalStock} unidades en almac├®n, tu joya pasa por ajuste y preparaci├│n en taller. Lista para entrega el ${deliveryDateFormatted}.`
+                            : `Tu joya pasa por ajuste y preparaci├│n en taller. Lista para entrega el ${deliveryDateFormatted}.`)
                         : (isAdmin
                             ? `Disponibilidad inmediata en stock (${currentTotalStock} unidades disponibles). Lista para entrega o despacho el ${deliveryDateFormatted}.`
                             : `Disponibilidad inmediata en stock. Lista para entrega o despacho el ${deliveryDateFormatted}.`)}
@@ -1272,16 +1347,16 @@ export default function Product({ addToCart }) {
                 </div>
               )}
 
-              {/* BOTONES DE NAVEGACIÓN DEL PASO 1 */}
+              {/* BOTONES DE NAVEGACI├ôN DEL PASO 1 */}
               <div className="wizard-step-dual-actions">
                 <button
                   type="button"
                   className="btn-wizard-prev-step"
                   onClick={handleGoBack}
-                  title="Volver al catálogo o página anterior"
+                  title="Volver al cat├ílogo o p├ígina anterior"
                 >
                   <i className="bi bi-arrow-left"></i>
-                  <span>Volver Atrás</span>
+                  <span>Volver Atr├ís</span>
                 </button>
 
                 <button
@@ -1294,7 +1369,7 @@ export default function Product({ addToCart }) {
                 >
                   <span>
                     {isAccesorio
-                      ? "CONTINUAR A PASO 2: PRESENTACIÓN"
+                      ? "CONTINUAR A PASO 2: PRESENTACI├ôN"
                       : product.hasGemSelection
                       ? "CONTINUAR A PASO 2: ELIGE TU GEMA"
                       : "CONTINUAR A PASO 2: COMPLEMENTOS Y ESTUCHE"}
@@ -1306,7 +1381,7 @@ export default function Product({ addToCart }) {
           )}
 
           {/* ========================================================
-              PASO 2: ELIGE TU GEMA (SOLO PRODUCTOS CON ELECCIÓN DE GEMAS)
+              PASO 2: ELIGE TU GEMA (SOLO PRODUCTOS CON ELECCI├ôN DE GEMAS)
               ======================================================== */}
           {currentStep === 2 && !isAccesorio && product.hasGemSelection && (
             <div className="step-pane step-pane-2">
@@ -1345,7 +1420,7 @@ export default function Product({ addToCart }) {
                   <Link
                     to="/catalogo-gemas"
                     className="gem-shape-btn more-btn"
-                    title="Ver catálogo completo de gemas y diamantes certificados"
+                    title="Ver cat├ílogo completo de gemas y diamantes certificados"
                     style={{ textDecoration: "none", color: "inherit" }}
                   >
                     <i className="bi bi-arrow-up-right" style={{ fontSize: "18px" }}></i>
@@ -1375,7 +1450,7 @@ export default function Product({ addToCart }) {
                           )}
                         </div>
                         <div style={{ fontSize: "12px", color: "#617169", marginTop: "2px" }}>
-                          {selectedGemShape.subtitle || (isAros ? "Zirconita Incolora Suiza 2.0mm / Opción Diamante Natural" : "Diamante Fino Platino (Corte Brillante Certificado)")}
+                          {selectedGemShape.subtitle || (isAros ? "Zirconita Incolora Suiza 2.0mm / Opci├│n Diamante Natural" : "Diamante Fino Platino (Corte Brillante Certificado)")}
                         </div>
                       </div>
                     </div>
@@ -1386,11 +1461,11 @@ export default function Product({ addToCart }) {
                     )}
                     {selectedGemShape.ratio && (
                       <div className="gem-detail-ratio-tag">
-                        <span>Proporción recomendada: <strong>{selectedGemShape.ratio}</strong></span>
+                        <span>Proporci├│n recomendada: <strong>{selectedGemShape.ratio}</strong></span>
                       </div>
                     )}
                     <p style={{ margin: "8px 0 0", fontSize: "11.5px", color: "#6d7a74", lineHeight: "1.45" }}>
-                      {selectedGemShape.extraNote || "Montado bajo microscopio por nuestros maestros orfebres para garantizar el máximo reflejo de luz y seguridad de engaste de por vida."}
+                      {selectedGemShape.extraNote || "Montado bajo microscopio por nuestros maestros orfebres para garantizar el m├íximo reflejo de luz y seguridad de engaste de por vida."}
                     </p>
                   </div>
                 )}
@@ -1405,18 +1480,18 @@ export default function Product({ addToCart }) {
                 <div className="step-review-line">
                   <i className="bi bi-check-circle-fill" style={{ color: "#15803d" }}></i>
                   <span>
-                    <strong>Medida:</strong> {targetGender === "ambos" && isAros ? `Dama ${selectedSizeDama} / Varón ${selectedSizeVaron}` : (targetGender === "varon" ? `Varón ${selectedSizeVaron}` : `Dama ${selectedSizeDama}`)}
+                    <strong>Medida:</strong> {targetGender === "ambos" && isAros ? `Dama ${selectedSizeDama} / Var├│n ${selectedSizeVaron}` : (targetGender === "varon" ? `Var├│n ${selectedSizeVaron}` : `Dama ${selectedSizeDama}`)}
                   </span>
                 </div>
                 {hasEngraving && (
                   <div className="step-review-line">
                     <i className="bi bi-check-circle-fill" style={{ color: "#15803d" }}></i>
-                    <span><strong>Grabado:</strong> Sí solicita (Personalización por WhatsApp)</span>
+                    <span><strong>Grabado:</strong> S├¡ solicita (Personalizaci├│n por WhatsApp)</span>
                   </div>
                 )}
               </div>
 
-              {/* Botones de navegación del Paso 2 */}
+              {/* Botones de navegaci├│n del Paso 2 */}
               <div className="wizard-step-dual-actions">
                 <button
                   type="button"
@@ -1427,7 +1502,7 @@ export default function Product({ addToCart }) {
                   }}
                 >
                   <i className="bi bi-arrow-left"></i>
-                  <span>Volver a Características</span>
+                  <span>Volver a Caracter├¡sticas</span>
                 </button>
 
                 <button
@@ -1455,7 +1530,7 @@ export default function Product({ addToCart }) {
                 <span className="step-tag-pill">
                   Paso {!product.hasGemSelection || isAccesorio ? "2 de 2" : "3 de 3"}
                 </span>
-                <h3 className="step-heading-text">Complementos, Garantía y Estuche</h3>
+                <h3 className="step-heading-text">Complementos, Garant├¡a y Estuche</h3>
               </div>
 
               {!isAccesorio && (
@@ -1510,9 +1585,9 @@ export default function Product({ addToCart }) {
                       className={`btn-care-plus ${platinoCarePlan === "plus" ? "active" : ""}`}
                       onClick={() => setPlatinoCarePlan("plus")}
                     >
-                      <span>{platinoCareConfig?.plus?.title || "AÑADIR PLATINO CARE +"}</span>
+                      <span>{platinoCareConfig?.plus?.title || "A├æADIR PLATINO CARE +"}</span>
                       <span className="care-price-sub">
-                        {platinoCareConfig?.plus?.subtitle || `PAGO ÚNICO S/. ${carePlusPrice}`}
+                        {platinoCareConfig?.plus?.subtitle || `PAGO ├ÜNICO S/. ${carePlusPrice}`}
                       </span>
                     </button>
 
@@ -1521,19 +1596,19 @@ export default function Product({ addToCart }) {
                       className={`btn-care-courtesy ${platinoCarePlan === "cortesia" ? "active" : ""}`}
                       onClick={() => setPlatinoCarePlan("cortesia")}
                     >
-                      <span>{platinoCareConfig?.cortesia?.title || "AÑADIR PLATINO CARE"}</span>
+                      <span>{platinoCareConfig?.cortesia?.title || "A├æADIR PLATINO CARE"}</span>
                       <span className="care-price-sub">
-                        {platinoCareConfig?.cortesia?.subtitle || "CORTESÍA CON TU COMPRA S/. 0"}
+                        {platinoCareConfig?.cortesia?.subtitle || "CORTES├ìA CON TU COMPRA S/. 0"}
                       </span>
                     </button>
                   </div>
                 </div>
               )}
 
-              {/* ESTUCHE / PRESENTACIÓN */}
+              {/* ESTUCHE / PRESENTACI├ôN */}
               <div className="config-block presentation-config-block" style={{ marginTop: "16px" }}>
                 <div className="config-block-header">
-                  <span className="config-block-title">Elige tu Presentación y Estuche</span>
+                  <span className="config-block-title">Elige tu Presentaci├│n y Estuche</span>
                 </div>
                 <select
                   value={selectedPresentation}
@@ -1549,7 +1624,7 @@ export default function Product({ addToCart }) {
                 >
                   {presentationOptionsList.map((opt) => (
                     <option key={opt.id} value={opt.id}>
-                      {opt.name} {opt.price > 0 ? `(+S/. ${opt.price})` : "(Incluido de Cortesía)"}
+                      {opt.name} {opt.price > 0 ? `(+S/. ${opt.price})` : "(Incluido de Cortes├¡a)"}
                     </option>
                   ))}
                 </select>
@@ -1563,7 +1638,7 @@ export default function Product({ addToCart }) {
                       className="presentation-ref-img"
                     />
                     <span className={`presentation-ref-badge ${selectedPresentationObj.price > 0 ? "extra" : "free"}`}>
-                      {selectedPresentationObj.price > 0 ? `+S/. ${selectedPresentationObj.price}` : "Incluido de Cortesía"}
+                      {selectedPresentationObj.price > 0 ? `+S/. ${selectedPresentationObj.price}` : "Incluido de Cortes├¡a"}
                     </span>
                   </div>
                   <div className="presentation-ref-info">
@@ -1578,7 +1653,7 @@ export default function Product({ addToCart }) {
                       type="button"
                       className="btn-view-box-main"
                       onClick={() => setMainImage(getAssetUrl(selectedPresentationObj.image))}
-                      title="Ver fotografía de la caja en el visor principal de la izquierda"
+                      title="Ver fotograf├¡a de la caja en el visor principal de la izquierda"
                     >
                       <i className="bi bi-eye"></i>
                       <span>Ver en visor principal</span>
@@ -1587,7 +1662,7 @@ export default function Product({ addToCart }) {
                 </div>
               </div>
 
-              {/* Resumen Final de Personalización */}
+              {/* Resumen Final de Personalizaci├│n */}
               <div className="step-review-capsule">
                 <div className="step-review-line">
                   <i className="bi bi-gem" style={{ color: "#c5a059" }}></i>
@@ -1597,7 +1672,7 @@ export default function Product({ addToCart }) {
                   <>
                     <div className="step-review-line">
                       <i className="bi bi-rulers" style={{ color: "#c5a059" }}></i>
-                      <span><strong>Medida:</strong> {targetGender === "ambos" && isAros ? `Dama ${selectedSizeDama} / Varón ${selectedSizeVaron}` : (targetGender === "varon" ? `Varón ${selectedSizeVaron}` : `Dama ${selectedSizeDama}`)}</span>
+                      <span><strong>Medida:</strong> {targetGender === "ambos" && isAros ? `Dama ${selectedSizeDama} / Var├│n ${selectedSizeVaron}` : (targetGender === "varon" ? `Var├│n ${selectedSizeVaron}` : `Dama ${selectedSizeDama}`)}</span>
                     </div>
                     <div className="step-review-line">
                       <i className="bi bi-stars" style={{ color: "#c5a059" }}></i>
@@ -1608,12 +1683,12 @@ export default function Product({ addToCart }) {
                 {shouldShowDelivery && (
                   <div className="step-review-line" style={{ fontWeight: "700", color: "#0f2a24" }}>
                     <i className="bi bi-truck" style={{ color: deliveryDays === 7 ? "#b45309" : "#15803d" }}></i>
-                    <span>Entrega estimada: {deliveryDays} días hábiles ({deliveryDateFormatted})</span>
+                    <span>Entrega estimada: {deliveryDays} d├¡as h├íbiles ({deliveryDateFormatted})</span>
                   </div>
                 )}
               </div>
 
-              {/* Botones de navegación del Paso 3 / Final */}
+              {/* Botones de navegaci├│n del Paso 3 / Final */}
               <div className="wizard-step-dual-actions">
                 <button
                   type="button"
@@ -1626,10 +1701,10 @@ export default function Product({ addToCart }) {
                   <i className="bi bi-arrow-left"></i>
                   <span>
                     {isAccesorio
-                      ? "Volver a Diseño"
+                      ? "Volver a Dise├▒o"
                       : product.hasGemSelection
                       ? "Volver a Gema"
-                      : "Volver a Características"}
+                      : "Volver a Caracter├¡sticas"}
                   </span>
                 </button>
 
@@ -1637,7 +1712,7 @@ export default function Product({ addToCart }) {
                   type="button"
                   className="btn-wizard-finish-step"
                   onClick={handleChooseFeatures}
-                  title="Ver resumen de características"
+                  title="Ver resumen de caracter├¡sticas"
                 >
                   <i className="bi bi-file-earmark-text"></i>
                   <span>VER RESUMEN</span>
@@ -1654,20 +1729,22 @@ export default function Product({ addToCart }) {
                       boxShadow: "0 4px 15px rgba(14, 41, 32, 0.28)",
                     }}
                     onClick={handleAddToCartDirect}
-                    title="Añadir esta joya personalizada a la bolsa de compras"
+                    title="A├▒adir esta joya personalizada a la bolsa de compras"
                   >
                     <i className="bi bi-bag-plus-fill" style={{ color: "#c5a059" }}></i>
-                    <span>AÑADIR AL CARRITO</span>
+                    <span>A├æADIR AL CARRITO</span>
                   </button>
                 )}
               </div>
             </div>
           )}
+            </>
+          )}
         </div>
       </section>
 
       {/* ========================================================
-          4. SECCIÓN 3: PREGUNTAS FRECUENTES (FAQS)
+          4. SECCI├ôN 3: PREGUNTAS FRECUENTES (FAQS)
           ======================================================== */}
       <section className="faqs-section-card">
         <h2 className="faqs-heading">Preguntas Frecuentes</h2>
@@ -1693,7 +1770,7 @@ export default function Product({ addToCart }) {
       </section>
 
       {/* ========================================================
-          MODAL: RESUMEN DE ELECCIÓN / CONSULTA
+          MODAL: RESUMEN DE ELECCI├ôN / CONSULTA
           ======================================================== */}
       {summaryModalOpen && (
         <div
@@ -1746,7 +1823,7 @@ export default function Product({ addToCart }) {
             </button>
 
             <span style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--platino-gold)" }}>
-              Resumen de Personalización
+              Resumen de Personalizaci├│n
             </span>
             <h3 style={{ fontFamily: "var(--font-serif)", fontSize: "26px", color: "var(--platino-green-dark)", margin: "4px 0 16px" }}>
               {product.name}
@@ -1757,13 +1834,13 @@ export default function Product({ addToCart }) {
               {!isAccesorio && (
                 isAros && targetGender === "ambos" ? (
                   <>
-                    <div><strong>Talla Dama:</strong> {selectedSizeDama === "asesor" ? "Asesoría de Cortesía" : `Talla ${selectedSizeDama} (${DAMA_SIZES.find(s => s.number === selectedSizeDama)?.diameter || ""})`}</div>
-                    <div><strong>Talla Varón:</strong> {selectedSizeVaron === "asesor" ? "Asesoría de Cortesía" : `Talla ${selectedSizeVaron} (${VARON_SIZES.find(s => s.number === selectedSizeVaron)?.diameter || ""})`}</div>
+                    <div><strong>Talla Dama:</strong> {selectedSizeDama === "asesor" ? "Asesor├¡a de Cortes├¡a" : `Talla ${selectedSizeDama} (${DAMA_SIZES.find(s => s.number === selectedSizeDama)?.diameter || ""})`}</div>
+                    <div><strong>Talla Var├│n:</strong> {selectedSizeVaron === "asesor" ? "Asesor├¡a de Cortes├¡a" : `Talla ${selectedSizeVaron} (${VARON_SIZES.find(s => s.number === selectedSizeVaron)?.diameter || ""})`}</div>
                   </>
                 ) : targetGender === "varon" ? (
-                  <div><strong>Talla Varón:</strong> {selectedSizeVaron === "asesor" ? "Asesoría de Cortesía" : `Talla ${selectedSizeVaron} (${VARON_SIZES.find(s => s.number === selectedSizeVaron)?.diameter || ""})`}</div>
+                  <div><strong>Talla Var├│n:</strong> {selectedSizeVaron === "asesor" ? "Asesor├¡a de Cortes├¡a" : `Talla ${selectedSizeVaron} (${VARON_SIZES.find(s => s.number === selectedSizeVaron)?.diameter || ""})`}</div>
                 ) : (
-                  <div><strong>Talla Dama:</strong> {selectedSizeDama === "asesor" ? "Asesoría de Cortesía" : `Talla ${selectedSizeDama} (${DAMA_SIZES.find(s => s.number === selectedSizeDama)?.diameter || ""})`}</div>
+                  <div><strong>Talla Dama:</strong> {selectedSizeDama === "asesor" ? "Asesor├¡a de Cortes├¡a" : `Talla ${selectedSizeDama} (${DAMA_SIZES.find(s => s.number === selectedSizeDama)?.diameter || ""})`}</div>
                 )
               )}
               {product.hasGemSelection && (
@@ -1771,7 +1848,7 @@ export default function Product({ addToCart }) {
               )}
               {hasEngraving && (
                 <div>
-                  <strong>Grabado:</strong> Sí solicita (Personalización por WhatsApp)
+                  <strong>Grabado:</strong> S├¡ solicita (Personalizaci├│n por WhatsApp)
                 </div>
               )}
               <div>
@@ -1781,15 +1858,15 @@ export default function Product({ addToCart }) {
                 <div>
                   <strong>Plazo de Entrega:</strong>{" "}
                   <span style={{ color: deliveryDays === 7 ? "#9a3412" : "#166534", fontWeight: "600" }}>
-                    {deliveryDays === 7 ? "7 días hábiles (Ajuste en taller por stock reducido)" : "2 días hábiles (Despacho exprés)"}
+                    {deliveryDays === 7 ? "7 d├¡as h├íbiles (Ajuste en taller por stock reducido)" : "2 d├¡as h├íbiles (Despacho expr├®s)"}
                   </span>{" "}
-                  — {deliveryDateFormatted}
+                  ÔÇö {deliveryDateFormatted}
                 </div>
               )}
               {isAccesorio ? (
-                <div><strong>Presentación:</strong> {product.presentationOptions?.find((o) => o.id === selectedPresentation)?.name}</div>
+                <div><strong>Presentaci├│n:</strong> {product.presentationOptions?.find((o) => o.id === selectedPresentation)?.name}</div>
               ) : (
-                <div><strong>Garantía:</strong> Platino Care {platinoCarePlan === "plus" ? `+ (S/. ${carePlusPrice})` : "Cortesía (S/. 0)"}</div>
+                <div><strong>Garant├¡a:</strong> Platino Care {platinoCarePlan === "plus" ? `+ (S/. ${carePlusPrice})` : "Cortes├¡a (S/. 0)"}</div>
               )}
               <div style={{ borderTop: "1px solid #e8e4db", paddingTop: "10px", marginTop: "10px", fontSize: "17px", fontWeight: "700", color: "#17241e" }}>
                 Total: {formatPrice(currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0))}
@@ -1825,25 +1902,25 @@ export default function Product({ addToCart }) {
                       selectedMetal: selectedMetal.name,
                       metal: selectedMetal.name,
                       selectedSize: isAros && targetGender === "ambos"
-                        ? `Dama: ${selectedSizeDama === "asesor" ? "Asesoría" : selectedSizeDama} / Varón: ${selectedSizeVaron === "asesor" ? "Asesoría" : selectedSizeVaron}`
+                        ? `Dama: ${selectedSizeDama === "asesor" ? "Asesor├¡a" : selectedSizeDama} / Var├│n: ${selectedSizeVaron === "asesor" ? "Asesor├¡a" : selectedSizeVaron}`
                         : (targetGender === "varon"
-                            ? `Varón: ${selectedSizeVaron === "asesor" ? "Asesoría de medida" : selectedSizeVaron}`
-                            : `Mujer: ${selectedSizeDama === "asesor" ? "Asesoría de medida" : selectedSizeDama}`),
+                            ? `Var├│n: ${selectedSizeVaron === "asesor" ? "Asesor├¡a de medida" : selectedSizeVaron}`
+                            : `Mujer: ${selectedSizeDama === "asesor" ? "Asesor├¡a de medida" : selectedSizeDama}`),
                       size: isAros && targetGender === "ambos"
-                        ? `Dama: ${selectedSizeDama === "asesor" ? "Asesoría" : selectedSizeDama} / Varón: ${selectedSizeVaron === "asesor" ? "Asesoría" : selectedSizeVaron}`
+                        ? `Dama: ${selectedSizeDama === "asesor" ? "Asesor├¡a" : selectedSizeDama} / Var├│n: ${selectedSizeVaron === "asesor" ? "Asesor├¡a" : selectedSizeVaron}`
                         : (targetGender === "varon"
-                            ? `Varón: ${selectedSizeVaron === "asesor" ? "Asesoría de medida" : selectedSizeVaron}`
-                            : `Mujer: ${selectedSizeDama === "asesor" ? "Asesoría de medida" : selectedSizeDama}`),
+                            ? `Var├│n: ${selectedSizeVaron === "asesor" ? "Asesor├¡a de medida" : selectedSizeVaron}`
+                            : `Mujer: ${selectedSizeDama === "asesor" ? "Asesor├¡a de medida" : selectedSizeDama}`),
                       selectedGemstone: product.hasGemSelection ? selectedGemShape.name : undefined,
                       gemstone: product.hasGemSelection ? selectedGemShape.name : undefined,
                       hasEngraving,
-                      engraving: hasEngraving ? "Sí solicita (Personalización por WhatsApp)" : null,
+                      engraving: hasEngraving ? "S├¡ solicita (Personalizaci├│n por WhatsApp)" : null,
                       needsSizeAdvice: (isAros && targetGender === "ambos" && (selectedSizeDama === "asesor" || selectedSizeVaron === "asesor")) || (targetGender === "varon" ? selectedSizeVaron === "asesor" : selectedSizeDama === "asesor"),
                       stockUnits: currentTotalStock,
                       deliveryDays,
                       estimatedDeliveryDate: deliveryDateFormatted,
                       platinoCarePlan: platinoCarePlan,
-                      platinoCareTitle: platinoCarePlan === "plus" ? "Platino Care + (Premium)" : "Platino Care Cortesía",
+                      platinoCareTitle: platinoCarePlan === "plus" ? "Platino Care + (Premium)" : "Platino Care Cortes├¡a",
                       price: currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0),
                       image: mainImage || product.image,
                     };
@@ -1853,7 +1930,7 @@ export default function Product({ addToCart }) {
                   className="showroom-btn filled"
                   style={{ borderRadius: "9999px", padding: "14px 20px" }}
                 >
-                  Añadir al Carrito
+                  A├▒adir al Carrito
                 </button>
               )}
             </div>
@@ -1862,7 +1939,7 @@ export default function Product({ addToCart }) {
       )}
 
       {/* ========================================================
-          MODAL: GUÍA DE TALLAS OFICIAL (DAMA 05-27 | VARÓN 10-37)
+          MODAL: GU├ìA DE TALLAS OFICIAL (DAMA 05-27 | VAR├ôN 10-37)
           ======================================================== */}
       {sizeGuideOpen && (
         <div
@@ -1918,13 +1995,13 @@ export default function Product({ addToCart }) {
             </button>
 
             <h3 style={{ fontFamily: "var(--font-serif)", fontSize: "24px", color: "var(--platino-green-dark)", margin: "0 0 8px" }}>
-              Guía Oficial de Tallas Platino Perú
+              Gu├¡a Oficial de Tallas Platino Per├║
             </h3>
             <p style={{ fontSize: "12.5px", color: "#66726c", lineHeight: "1.5", margin: "0 0 16px 0" }}>
-              Tallas calibradas en escala nacional milimétrica. Si tienes dudas, puedes seleccionar <em>«Necesito ayuda de un asesor»</em> o visitarnos en nuestras boutiques de Lima Centro y Miraflores para una medición gratuita con anillero profesional.
+              Tallas calibradas en escala nacional milim├®trica. Si tienes dudas, puedes seleccionar <em>┬½Necesito ayuda de un asesor┬╗</em> o visitarnos en nuestras boutiques de Lima Centro y Miraflores para una medici├│n gratuita con anillero profesional.
             </p>
 
-            {/* Pestañas Dama / Varón */}
+            {/* Pesta├▒as Dama / Var├│n */}
             <div style={{ display: "flex", gap: "8px", marginBottom: "16px", borderBottom: "1px solid #e0ded7", paddingBottom: "10px" }}>
               <button
                 type="button"
@@ -1961,7 +2038,7 @@ export default function Product({ addToCart }) {
                   transition: "all 0.2s ease",
                 }}
               >
-                <i className="bi bi-gender-male"></i> Tallas de Varón (10 al 37)
+                <i className="bi bi-gender-male"></i> Tallas de Var├│n (10 al 37)
               </button>
             </div>
 
@@ -1971,7 +2048,7 @@ export default function Product({ addToCart }) {
                 <thead>
                   <tr style={{ background: "#f5f3ec", textAlign: "left", position: "sticky", top: 0, zIndex: 1 }}>
                     <th style={{ padding: "10px 12px", fontWeight: "700" }}>Talla Oficial</th>
-                    <th style={{ padding: "10px 12px", fontWeight: "700" }}>Diámetro Interior</th>
+                    <th style={{ padding: "10px 12px", fontWeight: "700" }}>Di├ímetro Interior</th>
                     <th style={{ padding: "10px 12px", fontWeight: "700" }}>Circunferencia</th>
                     <th style={{ padding: "10px 12px", fontWeight: "700" }}>Disponibilidad en Stock</th>
                   </tr>
@@ -1997,7 +2074,7 @@ export default function Product({ addToCart }) {
                             </span>
                           ) : (
                             <span style={{ color: "#8a9690", fontSize: "11px" }}>
-                              A pedido (Fabricación)
+                              A pedido (Fabricaci├│n)
                             </span>
                           )}
                         </td>
@@ -2116,57 +2193,57 @@ export default function Product({ addToCart }) {
             </button>
 
             <span style={{ fontSize: "11px", fontWeight: "700", letterSpacing: "0.14em", textTransform: "uppercase", color: "var(--platino-gold)" }}>
-              Asesoría de Medida Personalizada
+              Asesor├¡a de Medida Personalizada
             </span>
             <h3 style={{ fontFamily: "var(--font-serif)", fontSize: "24px", color: "var(--platino-green-dark)", margin: "6px 0 12px" }}>
-              ¿No conoces la talla exacta del anillo?
+              ┬┐No conoces la talla exacta del anillo?
             </h3>
             <p style={{ fontSize: "13px", color: "#55645c", lineHeight: "1.6", margin: "0 0 20px" }}>
-              En <strong>Platino Perú</strong> sabemos que una joya debe calzar con total perfección y confort. Por eso ponemos a tu disposición 3 facilidades sin costo adicional:
+              En <strong>Platino Per├║</strong> sabemos que una joya debe calzar con total perfecci├│n y confort. Por eso ponemos a tu disposici├│n 3 facilidades sin costo adicional:
             </p>
 
             <div style={{ display: "flex", flexDirection: "column", gap: "14px", marginBottom: "24px" }}>
-              {/* Opción 1: Kit Anillero */}
+              {/* Opci├│n 1: Kit Anillero */}
               <div style={{ display: "flex", gap: "14px", padding: "14px 16px", borderRadius: "12px", background: "#fcfbfa", border: "1px solid #eee8df" }}>
                 <div style={{ width: "38px", height: "38px", borderRadius: "50%", background: "#f5eee2", color: "#997328", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 0 }}>
                   <i className="bi bi-box-seam"></i>
                 </div>
                 <div>
                   <h4 style={{ margin: "0 0 3px", fontSize: "14px", color: "#17241e", fontWeight: "700" }}>
-                    1. Envío de Kit Anillero Platino a Domicilio
+                    1. Env├¡o de Kit Anillero Platino a Domicilio
                   </h4>
                   <p style={{ margin: 0, fontSize: "12px", color: "#55645c", lineHeight: "1.5" }}>
-                    Te enviamos nuestro calibrador milimétrico oficial a tu domicilio en Lima o provincias para medir con calma y seguridad antes de la fundición final.
+                    Te enviamos nuestro calibrador milim├®trico oficial a tu domicilio en Lima o provincias para medir con calma y seguridad antes de la fundici├│n final.
                   </p>
                 </div>
               </div>
 
-              {/* Opción 2: Asesoría WhatsApp */}
+              {/* Opci├│n 2: Asesor├¡a WhatsApp */}
               <div style={{ display: "flex", gap: "14px", padding: "14px 16px", borderRadius: "12px", background: "#fcfbfa", border: "1px solid #eee8df" }}>
                 <div style={{ width: "38px", height: "38px", borderRadius: "50%", background: "#e8f8ed", color: "#15803d", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 0 }}>
                   <i className="bi bi-whatsapp"></i>
                 </div>
                 <div>
                   <h4 style={{ margin: "0 0 3px", fontSize: "14px", color: "#17241e", fontWeight: "700" }}>
-                    2. Asesoría Directa con Maestro Joyero por WhatsApp
+                    2. Asesor├¡a Directa con Maestro Joyero por WhatsApp
                   </h4>
                   <p style={{ margin: 0, fontSize: "12px", color: "#55645c", lineHeight: "1.5" }}>
-                    Envíanos una fotografía de un anillo que la persona use habitualmente junto a una regla milimétrica o una moneda, y calculamos la talla al instante.
+                    Env├¡anos una fotograf├¡a de un anillo que la persona use habitualmente junto a una regla milim├®trica o una moneda, y calculamos la talla al instante.
                   </p>
                 </div>
               </div>
 
-              {/* Opción 3: Boutique */}
+              {/* Opci├│n 3: Boutique */}
               <div style={{ display: "flex", gap: "14px", padding: "14px 16px", borderRadius: "12px", background: "#fcfbfa", border: "1px solid #eee8df" }}>
                 <div style={{ width: "38px", height: "38px", borderRadius: "50%", background: "#edf3f0", color: "#0f2a24", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 0 }}>
                   <i className="bi bi-geo-alt"></i>
                 </div>
                 <div>
                   <h4 style={{ margin: "0 0 3px", fontSize: "14px", color: "#17241e", fontWeight: "700" }}>
-                    3. Prueba y Medición en Boutique (Miraflores / Lima Centro)
+                    3. Prueba y Medici├│n en Boutique (Miraflores / Lima Centro)
                   </h4>
                   <p style={{ margin: 0, fontSize: "12px", color: "#55645c", lineHeight: "1.5" }}>
-                    Visítanos sin compromiso en nuestras salas de exhibición. Contamos con todas las tallas en metales reales y calibres profesionales.
+                    Vis├¡tanos sin compromiso en nuestras salas de exhibici├│n. Contamos con todas las tallas en metales reales y calibres profesionales.
                   </p>
                 </div>
               </div>
@@ -2190,12 +2267,12 @@ export default function Product({ addToCart }) {
                 }}
               >
                 <i className="bi bi-check2-circle" style={{ marginRight: "6px" }}></i>
-                Seleccionar «Asesoría de Medida» para este pedido
+                Seleccionar ┬½Asesor├¡a de Medida┬╗ para este pedido
               </button>
 
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                 <a
-                  href={`https://wa.me/51927357217?text=${encodeURIComponent(`Hola Platino Perú, necesito asesoramiento de medida para el anillo "${product.name}". ¿Podrían orientarme sobre cómo determinar la talla correcta?`)}`}
+                  href={`https://wa.me/51927357217?text=${encodeURIComponent(`Hola Platino Per├║, necesito asesoramiento de medida para el anillo "${product.name}". ┬┐Podr├¡an orientarme sobre c├│mo determinar la talla correcta?`)}`}
                   target="_blank"
                   rel="noreferrer"
                   className="btn-book-submit"
@@ -2215,7 +2292,7 @@ export default function Product({ addToCart }) {
                   }}
                 >
                   <i className="bi bi-table" style={{ marginRight: "6px" }}></i>
-                  Ver Tabla Milimétrica
+                  Ver Tabla Milim├®trica
                 </button>
               </div>
             </div>
