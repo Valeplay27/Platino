@@ -1,3 +1,5 @@
+import { attachImageFileName } from "./imageFileName";
+
 /**
  * Comprime y redimensiona una imagen en el navegador usando HTML5 Canvas.
  * Reduce el peso de imágenes pesadas de celular/cámara (de varios MB a ~60KB - 120KB)
@@ -12,6 +14,9 @@ export async function compressImageFile(file, maxWidth = 1000, maxHeight = 1000,
   }
 
   return new Promise((resolve, reject) => {
+    const resolveWithFileName = (imageData) => {
+      resolve(attachImageFileName(imageData, file.name));
+    };
     const reader = new FileReader();
     reader.onerror = () => reject(new Error("Error al leer el archivo de imagen."));
     reader.onload = (e) => {
@@ -39,7 +44,7 @@ export async function compressImageFile(file, maxWidth = 1000, maxHeight = 1000,
 
         const ctx = canvas.getContext("2d");
         if (!ctx) {
-          resolve(e.target.result);
+          resolveWithFileName(e.target.result);
           return;
         }
 
@@ -52,12 +57,12 @@ export async function compressImageFile(file, maxWidth = 1000, maxHeight = 1000,
           // Intentar WebP para máxima calidad y ligereza; si no, JPEG
           const webpData = canvas.toDataURL("image/webp", quality);
           if (webpData.startsWith("data:image/webp")) {
-            resolve(webpData);
+            resolveWithFileName(webpData);
           } else {
-            resolve(canvas.toDataURL("image/jpeg", quality));
+            resolveWithFileName(canvas.toDataURL("image/jpeg", quality));
           }
         } catch {
-          resolve(canvas.toDataURL("image/jpeg", quality));
+          resolveWithFileName(canvas.toDataURL("image/jpeg", quality));
         }
       };
       img.src = e.target.result;

@@ -91,6 +91,10 @@ import AdminReclamacionesTab from "../components/AdminReclamacionesTab";
 import AdminPlatinoCareTab from "../components/AdminPlatinoCareTab";
 import AdminGemstonesTab from "../components/AdminGemstonesTab";
 import { compressImageFile } from "../utils/imageCompressor";
+import {
+  getImageInputValue,
+  isEmbeddedImage,
+} from "../utils/imageFileName";
 import { getLastViewedProduct } from "../services/recentProducts";
 import "../../styles/citas.css";
 import "../../styles/orders.css";
@@ -11746,7 +11750,9 @@ export default function AdminCitas() {
                                     className="catalog-form-input"
                                     style={{ fontSize: "11px", padding: "5px 8px" }}
                                     placeholder={`/images/... o https:// (Foto #${slotIdx + 1} ${metal.name})`}
-                                    value={slotImg}
+                                    value={getImageInputValue(slotImg)}
+                                    readOnly={isEmbeddedImage(slotImg)}
+                                    title={isEmbeddedImage(slotImg) ? "Vuelve a subir una foto para reemplazarla" : undefined}
                                     onChange={(e) => handleMetalImageChange(metal.id, e.target.value, slotIdx)}
                                     required={slotIdx === 0}
                                   />
@@ -12286,7 +12292,9 @@ export default function AdminCitas() {
                           className="catalog-form-input"
                           style={{ fontSize: "12px", padding: "8px 12px", flex: 1 }}
                           placeholder="Ruta o URL de la caja (Ej. /images/detail-box-green.jpg)"
-                          value={formBoxImage}
+                          value={getImageInputValue(formBoxImage)}
+                          readOnly={isEmbeddedImage(formBoxImage)}
+                          title={isEmbeddedImage(formBoxImage) ? "Vuelve a subir una foto para reemplazarla" : undefined}
                           onChange={(e) => setFormBoxImage(e.target.value)}
                         />
                         <label className="btn-upload-box-file" style={{
@@ -12587,7 +12595,9 @@ export default function AdminCitas() {
                         className="catalog-form-input"
                         style={{ borderRadius: "8px", fontSize: "12.5px" }}
                         placeholder="https://... o /images/..."
-                        value={formHomeImageSrc}
+                        value={getImageInputValue(formHomeImageSrc)}
+                        readOnly={isEmbeddedImage(formHomeImageSrc)}
+                        title={isEmbeddedImage(formHomeImageSrc) ? "Vuelve a subir una foto para reemplazarla" : undefined}
                         onChange={(e) => setFormHomeImageSrc(e.target.value)}
                       />
                     </div>

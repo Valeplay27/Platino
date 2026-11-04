@@ -19,6 +19,11 @@ import {
   deleteLaboratory,
   updateGemstoneUnits,
 } from "../services/gemstonesService";
+import {
+  getImageInputValue,
+  isEmbeddedImage,
+} from "../utils/imageFileName";
+import { compressImageFile } from "../utils/imageCompressor";
 import { DiamondCutIcon } from "./GemstoneIcons";
 import GemstoneStoneVisual from "./GemstoneStoneVisual";
 
@@ -109,7 +114,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
   };
 
   // Cargar imagen mediante FileReader (Base64)
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -123,15 +128,18 @@ export default function AdminGemstonesTab({ isMaster = true }) {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
+    try {
+      const compressed = await compressImageFile(file);
       setFormData((prev) => ({
         ...prev,
-        image: event.target.result,
+        image: compressed,
       }));
       showFeedbackMsg("Fotografía de gema cargada con éxito");
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+      alert(error.message || "No se pudo procesar la fotografía de la gema.");
+    } finally {
+      e.target.value = "";
+    }
   };
 
   const handleEditClick = (gem) => {
@@ -810,12 +818,13 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                   <span className="or-divider">o ingresar URL:</span>
 
                   <input
-                    type="url"
-                    value={formData.image}
+                    type="text"
+                    value={getImageInputValue(formData.image)}
+                    readOnly={isEmbeddedImage(formData.image)}
                     onChange={(e) =>
                       setFormData({ ...formData, image: e.target.value })
                     }
-                    placeholder="https://ejemplo.com/diamante.jpg"
+                    placeholder="https://ejemplo.com/diamante.jpg o sube una foto"
                     className="admin-form-input photo-url-input"
                   />
 
@@ -835,7 +844,9 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                   <div className="photo-uploaded-preview-bar">
                     <img src={formData.image} alt="Vista previa cargada" className="photo-thumb-mini" />
                     <div className="photo-thumb-meta">
-                      <span className="photo-thumb-title">✓ Fotografía vinculada correctamente</span>
+                      <span className="photo-thumb-title">
+                        ✓ {getImageInputValue(formData.image)}
+                      </span>
                       <span className="photo-thumb-sub">Los clientes verán esta imagen real en la tarjeta y en la ficha técnica de la gema.</span>
                     </div>
                   </div>

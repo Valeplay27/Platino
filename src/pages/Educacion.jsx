@@ -11,6 +11,10 @@ import {
   resetEducacionPosts,
 } from "../services/educacionService";
 import { compressImageFile } from "../utils/imageCompressor";
+import {
+  getImageInputValue,
+  isEmbeddedImage,
+} from "../utils/imageFileName";
 import { getAssetUrl } from "../utils/assetHelper";
 
 const EMPTY_FORM = {
@@ -86,7 +90,7 @@ export default function Educacion() {
 
   const resolveImg = (src) => {
     if (!src) return getAssetUrl("/images/cat-compromiso.jpg");
-    if (src.startsWith("data:") || src.startsWith("http")) return src;
+    if (src.startsWith("data:") || src.startsWith("http") || src.startsWith("/api/")) return src;
     return getAssetUrl(src);
   };
 
@@ -1526,9 +1530,11 @@ export default function Educacion() {
                     </div>
                     <input
                       type="text"
-                      value={editorForm.coverImage}
+                      value={getImageInputValue(editorForm.coverImage)}
+                      readOnly={isEmbeddedImage(editorForm.coverImage)}
                       onChange={(e) => setEditorForm((prev) => ({ ...prev, coverImage: e.target.value }))}
                       placeholder="O pega la URL / ruta de la imagen..."
+                      title={isEmbeddedImage(editorForm.coverImage) ? "Vuelve a subir una foto para reemplazarla" : undefined}
                       style={{
                         width: "100%",
                         padding: "8px 12px",
@@ -1632,6 +1638,24 @@ export default function Educacion() {
                           alt={`Galería ${idx + 1}`}
                           style={{ width: "100%", height: "100%", objectFit: "cover" }}
                         />
+                        <span
+                          title={getImageInputValue(img)}
+                          style={{
+                            position: "absolute",
+                            left: 0,
+                            right: 0,
+                            bottom: 0,
+                            padding: "2px 4px",
+                            overflow: "hidden",
+                            background: "rgba(15, 23, 42, 0.78)",
+                            color: "#fff",
+                            fontSize: "9px",
+                            textOverflow: "ellipsis",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {getImageInputValue(img)}
+                        </span>
                         <button
                           type="button"
                           onClick={() => handleRemoveGalleryImage(idx)}
