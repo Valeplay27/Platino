@@ -92,6 +92,7 @@ export default function Product({ addToCart }) {
   useEffect(() => {
     setCurrentStep(1);
     setActiveImageIdx(0);
+    setSelectedSizeDama("asesor");
   }, [product.id]);
 
   const [selectedMetal, setSelectedMetal] = useState(() => {
@@ -162,6 +163,7 @@ export default function Product({ addToCart }) {
 
   const [activeImageIdx, setActiveImageIdx] = useState(0);
   const [zoomOpen, setZoomOpen] = useState(false);
+  const [copiedImgFeedback, setCopiedImgFeedback] = useState("");
 
   // Configuración de la joya
   const [isFavorite, setIsFavorite] = useState(() => (user?.email ? isUserFavorite(user.email, product.id) : false));
@@ -313,7 +315,7 @@ export default function Product({ addToCart }) {
     setTargetGender(isAros ? "ambos" : isVaronSingleRing ? "varon" : "dama");
   }, [product?.id, isAros, isVaronSingleRing]);
 
-  const [selectedSizeDama, setSelectedSizeDama] = useState("12");
+  const [selectedSizeDama, setSelectedSizeDama] = useState("asesor");
   const [selectedSizeVaron, setSelectedSizeVaron] = useState("20");
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [sizeGuideTab, setSizeGuideTab] = useState(isAros ? "ambos" : "dama");
@@ -415,15 +417,19 @@ export default function Product({ addToCart }) {
     return presentationOptionsList.find((p) => p.id === selectedPresentation) || presentationOptionsList[0];
   }, [presentationOptionsList, selectedPresentation]);
 
-  const totalCompromisoPrice = useMemo(() => {
-    return currentMetalPrice + (selectedPresentationObj?.price || 0) + (selectedGemType?.priceDelta || 0);
-  }, [currentMetalPrice, selectedPresentationObj?.price, selectedGemType?.priceDelta]);
-
   const selectedGemShapePriceDelta = useMemo(() => {
     if (!product?.hasGemSelection || !selectedGemShape) return 0;
     const shapePrices = product?.gemShapePrices || {};
     return Number(shapePrices[selectedGemShape.id] ?? selectedGemShape?.priceDelta ?? 0) || 0;
   }, [product?.hasGemSelection, product?.gemShapePrices, selectedGemShape]);
+
+  const totalCompromisoPrice = useMemo(() => {
+    return (
+      currentMetalPrice +
+      (selectedPresentationObj?.price || 0) +
+      (selectedGemType?.priceDelta || 0)
+    );
+  }, [currentMetalPrice, selectedPresentationObj?.price, selectedGemType?.priceDelta]);
 
   const currentGeneralPrice = useMemo(() => {
     return currentMetalPrice + selectedGemShapePriceDelta;
@@ -586,11 +592,17 @@ export default function Product({ addToCart }) {
         ...product,
         selectedMetal: selectedMetal.name,
         metal: selectedMetal.name,
+        metalPrice: currentMetalPrice,
+        selectedShape: selectedGemShape?.name,
+        selectedGemShape: selectedGemShape?.name,
+        shapePrice: selectedGemShapePriceDelta,
         selectedSize: selectedSizeDama === "asesor" ? "Asesoría de medida" : `Talla ${selectedSizeDama} Nacional`,
         size: selectedSizeDama === "asesor" ? "Asesoría de medida" : `Talla ${selectedSizeDama} Nacional`,
         selectedGemstone: selectedGemType.name,
         gemstone: selectedGemType.name,
+        gemPrice: selectedGemType?.priceDelta || 0,
         selectedPresentation: selectedPresentationObj?.name,
+        presentationPrice: selectedPresentationObj?.price || 0,
         hasEngraving,
         engraving: hasEngraving ? (engravingText ? `Sí: "${engravingText}"` : "Sí (A coordinar)") : null,
         needsSizeAdvice: selectedSizeDama === "asesor",
@@ -604,6 +616,10 @@ export default function Product({ addToCart }) {
       ...product,
       selectedMetal: selectedMetal.name,
       metal: selectedMetal.name,
+      metalPrice: currentMetalPrice,
+      selectedShape: product.hasGemSelection ? selectedGemShape?.name : undefined,
+      selectedGemShape: product.hasGemSelection ? selectedGemShape?.name : undefined,
+      shapePrice: selectedGemShapePriceDelta,
       selectedSize:
         isAros && targetGender === "ambos"
           ? `Dama: ${selectedSizeDama === "asesor" ? "Asesoría" : selectedSizeDama} / Varón: ${selectedSizeVaron === "asesor" ? "Asesoría" : selectedSizeVaron}`
@@ -882,10 +898,65 @@ export default function Product({ addToCart }) {
 
           {/* Imagen Grande Central */}
           <div className="product-main-img-box">
+            {copiedImgFeedback && (
+              <div
+                style={{
+                  position: "absolute",
+                  top: "16px",
+                  left: "50%",
+                  transform: "translateX(-50%)",
+                  background: "rgba(15, 42, 36, 0.92)",
+                  color: "#ffffff",
+                  padding: "6px 14px",
+                  borderRadius: "20px",
+                  fontSize: "12px",
+                  fontWeight: 600,
+                  zIndex: 30,
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.25)",
+                  pointerEvents: "none",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  whiteSpace: "nowrap",
+                }}
+              >
+                <i className="bi bi-check2-circle" style={{ color: "#4ade80" }}></i>
+                {copiedImgFeedback}
+              </div>
+            )}
+
             <img
               src={mainImage}
               alt={`${product.name} en ${selectedMetal.name}`}
               className="product-main-img"
+              title="Click para copiar nombre del archivo"
+              style={{ cursor: "pointer" }}
+              onClick={() => {
+                const defaultFallback = `${product?.name || "joya"}-${selectedMetal?.name || "metal"}.jpg`
+                  .toLowerCase()
+                  .replace(/\s+/g, "-");
+                const fileName = getFriendlyImageName(mainImage, defaultFallback);
+                if (navigator?.clipboard?.writeText) {
+                  navigator.clipboard.writeText(fileName);
+                  setCopiedImgFeedback(`✓ Nombre copiado: "${fileName}"`);
+                  setTimeout(() => setCopiedImgFeedback(""), 2500);
+                }
+              }}
+              onCopy={(e) => {
+                const defaultFallback = `${product?.name || "joya"}-${selectedMetal?.name || "metal"}.jpg`
+                  .toLowerCase()
+                  .replace(/\s+/g, "-");
+                const fileName = getFriendlyImageName(mainImage, defaultFallback);
+                if (e.clipboardData) {
+                  e.clipboardData.setData("text/plain", fileName);
+                  e.preventDefault();
+                }
+                if (navigator?.clipboard?.writeText) {
+                  navigator.clipboard.writeText(fileName);
+                }
+                setCopiedImgFeedback(`✓ Nombre copiado: "${fileName}"`);
+                setTimeout(() => setCopiedImgFeedback(""), 2500);
+              }}
               onError={(e) => {
                 e.currentTarget.onerror = null;
                 e.currentTarget.src = getAssetUrl("/images/aros-trial.jpg");
@@ -901,11 +972,6 @@ export default function Product({ addToCart }) {
             >
               <i className="bi bi-arrows-angle-expand"></i>
             </button>
-
-            {/* Sello Platino Perú */}
-            <div className="gallery-brand-stamp">
-              <span>Platino Perú</span>
-            </div>
 
             {/* Flechas de navegación */}
             {galleryImages.length > 1 && (
@@ -943,9 +1009,6 @@ export default function Product({ addToCart }) {
                 <span style={{ opacity: 0.75, marginLeft: "4px" }}>- {product.badge}</span>
               )}
             </div>
-
-            {/* Sello Dorado P */}
-            <div className="gallery-gold-p-stamp">P</div>
           </div>
         </div>
 
@@ -982,6 +1045,7 @@ export default function Product({ addToCart }) {
               product={product}
               selectedMetal={selectedMetal}
               handleSelectMetal={handleSelectMetal}
+              currentMetalPrice={currentMetalPrice}
               selectedSizeDama={selectedSizeDama}
               setSelectedSizeDama={setSelectedSizeDama}
               hasEngraving={hasEngraving}
@@ -1839,7 +1903,7 @@ export default function Product({ addToCart }) {
             </h3>
 
             <div style={{ background: "#fbfaf7", padding: "18px 20px", borderRadius: "14px", border: "1px solid #ebe6dc", fontSize: "13px", lineHeight: "1.8", marginBottom: "24px" }}>
-              <div><strong>Metal:</strong> {selectedMetal.name}</div>
+              <div><strong>Metal:</strong> {selectedMetal.name} ({formatPrice(currentMetalPrice)})</div>
               {!isAccesorio && (
                 isAros && targetGender === "ambos" ? (
                   <>
@@ -1853,7 +1917,7 @@ export default function Product({ addToCart }) {
                 )
               )}
               {product.hasGemSelection && (
-                <div><strong>Gema:</strong> {selectedGemShape.name}</div>
+                <div><strong>Silueta de Gema:</strong> Corte {selectedGemShape.name} {selectedGemShapePriceDelta > 0 ? `(+${formatPrice(selectedGemShapePriceDelta)})` : "(Incluida)"}</div>
               )}
               {hasEngraving && (
                 <div>

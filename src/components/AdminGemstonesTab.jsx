@@ -23,7 +23,7 @@ import {
   getImageInputValue,
   isEmbeddedImage,
 } from "../utils/imageFileName";
-import { compressImageFile } from "../utils/imageCompressor";
+import { uploadImageFile } from "../utils/imageUploadService";
 import { DiamondCutIcon } from "./GemstoneIcons";
 import GemstoneStoneVisual from "./GemstoneStoneVisual";
 
@@ -129,10 +129,10 @@ export default function AdminGemstonesTab({ isMaster = true }) {
     }
 
     try {
-      const compressed = await compressImageFile(file);
+      const imageUrl = await uploadImageFile(file);
       setFormData((prev) => ({
         ...prev,
-        image: compressed,
+        image: imageUrl,
       }));
       showFeedbackMsg("Fotografía de gema cargada con éxito");
     } catch (error) {
@@ -315,18 +315,28 @@ export default function AdminGemstonesTab({ isMaster = true }) {
         </div>
       )}
 
-      {/* Barra de Encabezado y Acciones Principales */}
-      <div className="admin-gem-header-bar">
-        <div>
-          <span className="admin-gem-eyebrow">
-            <i className="bi bi-gem"></i> GIA & IGI GEMOLOGICAL LAB MANAGEMENT
-          </span>
-          <h2 className="admin-gem-main-title">
-            Gestión y Creación de Diamantes & Gemas
-          </h2>
-          <p className="admin-gem-main-desc">
-            Registra nuevas gemas certificadas con especificaciones 4Cs completas, trazabilidad ética, stock de unidades y fotografías reales.
-          </p>
+            {/* Tarjeta Ejecutiva Hero: Encabezado y Acciones Principales */}
+      <div className="admin-gem-hero-card admin-gem-header-bar">
+        <div className="admin-gem-hero-content">
+          <div className="admin-gem-hero-icon-box">
+            <i className="bi bi-gem"></i>
+          </div>
+          <div className="admin-gem-hero-info">
+            <div className="admin-gem-hero-badges">
+              <span className="admin-gem-eyebrow">
+                <i className="bi bi-shield-check"></i> GIA & IGI GEMOLOGICAL LAB MANAGEMENT
+              </span>
+              <span className="admin-gem-status-badge">
+                <span className="admin-gem-pulse-dot"></span> Módulo Activo
+              </span>
+            </div>
+            <h2 className="admin-gem-main-title">
+              Gestión y Creación de Diamantes & Gemas
+            </h2>
+            <p className="admin-gem-main-desc">
+              Registra nuevas gemas certificadas con especificaciones 4Cs completas, trazabilidad ética, stock de unidades y fotografías reales de alta resolución.
+            </p>
+          </div>
         </div>
 
         <div className="admin-gem-header-actions">

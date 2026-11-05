@@ -45,6 +45,14 @@ export const COMPROMISO_GEM_TYPES = [
 export function getProductGemTypes(product) {
   const customPrices = product?.gemTypePrices || {};
   return COMPROMISO_GEM_TYPES.map((gem) => {
+    // La zirconita es la gema base estándar incluida en el precio base de la joya (siempre delta 0)
+    if (gem.id === "zirconita") {
+      return {
+        ...gem,
+        priceDelta: 0,
+        subtitle: "Sin Costo adicional",
+      };
+    }
     const custom = customPrices[gem.id];
     const priceDelta =
       custom !== undefined && custom !== "" && !isNaN(Number(custom))
@@ -62,7 +70,8 @@ export default function CompromisoConfigurator({
   product = {},
   selectedMetal = { name: "Plata 950", id: "plata-950" },
   handleSelectMetal = () => {},
-  selectedSizeDama = "12",
+  currentMetalPrice = 0,
+  selectedSizeDama = "asesor",
   setSelectedSizeDama = () => {},
   hasEngraving = false,
   setHasEngraving = () => {},
@@ -110,21 +119,18 @@ export default function CompromisoConfigurator({
   }, [product?.gemShape, product?.gemDimensions]);
 
   const productName = product?.name || "Anillo de Compromiso";
-  const metalName = selectedMetal?.name || "Plata 950";
+  const metalName = selectedMetal?.name || product?.availableMetals?.[0]?.name || "Plata 950";
   const gemName = selectedGemType?.name || "Zirconita";
 
   const getWhatsAppOrderUrl = () => {
     const sizeStr = selectedSizeDama === "asesor" ? "Solicita Asesoramiento de Medida" : `${selectedSizeDama} Nacional`;
     const cofreStr = selectedPresentationObj?.name?.replace(/ \(Recomendado\)/i, "")?.replace(/ \(Incluido de Cortesía\)/i, "") || "Classic";
     const engravingStr = hasEngraving ? (engravingText ? `Si (${engravingText})` : "Si") : "No";
-    const gemStr = (selectedGemType?.priceDelta || 0) > 0
-      ? `${gemName} (+S/. ${selectedGemType.priceDelta})`
-      : `${gemName} (Incluida)`;
 
     const text = `¡Hola Platino Perú! Deseo realizar el pedido de este anillo de compromiso personalizado:%0A%0A` +
       `*Producto:* ${productName}%0A` +
       `*Metal:* ${metalName}%0A` +
-      `*Pedrería:* ${gemStr}%0A` +
+      `*Pedrería:* ${gemName}%0A` +
       `*Talla:* ${sizeStr}%0A` +
       `*Cofre:* ${cofreStr}%0A` +
       `*Grabado interno:* ${engravingStr}%0A` +
@@ -160,7 +166,7 @@ export default function CompromisoConfigurator({
 
           {/* 1. SELECCIÓN DE METAL */}
           {(() => {
-            const metalsList = (product?.availableMetals && product.availableMetals.length > 1)
+            const metalsList = (Array.isArray(product?.availableMetals) && product.availableMetals.length > 0)
               ? product.availableMetals
               : [
                   { id: "plata-950", name: "Plata 950", color: "#e4e7e7", border: "#cfd3d3" },
@@ -169,7 +175,7 @@ export default function CompromisoConfigurator({
                   { id: "oro-18k-blanco", name: "Oro Blanco 18k", color: "#eb96c9", border: "#d475ad" },
                 ];
             return (
-              <div className="config-block-clean">
+              <div className="config-block-clean" style={{ marginBottom: "34px" }}>
                 <div className="config-block-header-inline">
                   <span className="config-block-title-bold">SELECCIÓN DE METAL</span>
                   <span className="config-block-value-text">{metalName}</span>
@@ -309,7 +315,7 @@ export default function CompromisoConfigurator({
       )}
 
       {/* ========================================================
-          PASO 2 DE 3: SELECCIÓN DE GEMA (5 OPCIONES CON CORTE Y CERTIFICADO)
+          PASO 2 DE 3: SELECCIÓN DE GEMA (SILUETA Y TIPO DE GEMA)
           ======================================================== */}
       {currentStep === 2 && (
         <div className="step-pane step-pane-2">
@@ -343,9 +349,11 @@ export default function CompromisoConfigurator({
                   {gem.certificateBadge && (
                     <span className="gem-type-cert-badge">{gem.certificateBadge}</span>
                   )}
-                  <div className={`gem-type-price-badge ${gem.priceDelta === 0 ? "included" : "extra"}`}>
-                    {gem.priceDelta === 0 ? "Incluido" : `+ S/. ${gem.priceDelta.toLocaleString("es-PE")}`}
-                  </div>
+                  {gem.priceDelta > 0 && (
+                    <div className="gem-type-price-badge extra">
+                      + S/. {gem.priceDelta.toLocaleString("es-PE")}
+                    </div>
+                  )}
                 </div>
               );
             })}
@@ -560,8 +568,7 @@ export default function CompromisoConfigurator({
               <div className="summary-total-row">
                 <span className="summary-total-lbl">Total:</span>
                 <span className="summary-total-val">{formatPrice(totalPrice)}</span>
-              </div>
-            </div>
+              </div></div>
 
             <div className="summary-modal-actions">
               <a

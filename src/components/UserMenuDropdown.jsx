@@ -306,16 +306,7 @@ export default function UserMenuDropdown() {
                         <span>Platino Care & Garantías</span>
                       </Link>
                     </li>
-                    <li>
-                      <Link
-                        to="/admin/gemas"
-                        className="user-dropdown-item master-item"
-                        onClick={() => setDropdownOpen(false)}
-                      >
-                        <i className="bi bi-diamond-half" style={{ color: "#c5a059" }}></i>
-                        <span>Portafolio de Gemas & Diamantes</span>
-                      </Link>
-                    </li>
+
                   </>
                 ) : (
                   <>

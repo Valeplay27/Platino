@@ -357,8 +357,8 @@
 }
 
 .config-header-row {
-  border-bottom: 1px solid #ebe6dc;
-  padding-bottom: 20px;
+  border-bottom: none;
+  padding-bottom: 6px;
 }
 
 .config-product-subtitle {

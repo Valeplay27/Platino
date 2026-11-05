@@ -90,7 +90,7 @@ import { getReclamaciones } from "../services/reclamacionesService";
 import AdminReclamacionesTab from "../components/AdminReclamacionesTab";
 import AdminPlatinoCareTab from "../components/AdminPlatinoCareTab";
 import AdminGemstonesTab from "../components/AdminGemstonesTab";
-import { compressImageFile } from "../utils/imageCompressor";
+import { uploadImageFile, convertBase64ToImageFile } from "../utils/imageUploadService";
 import {
   getImageInputValue,
   isEmbeddedImage,
@@ -2433,23 +2433,29 @@ export default function AdminCitas() {
     const files = Array.from(e.target.files || []);
     if (files.length === 0) return;
     try {
-      const compressedList = [];
+      const uploadedList = [];
       for (const file of files) {
-        const compressed = await compressImageFile(file);
-        compressedList.push(compressed);
+        const url = await uploadImageFile(file);
+        uploadedList.push(url);
       }
       const current = [...getMetalGalleryList(metalId)];
       if (slotIndex !== null && slotIndex >= 0) {
-        current.splice(slotIndex, 1, ...compressedList);
+        current.splice(slotIndex, 1, ...uploadedList);
       } else {
         // Si el primer espacio está vacío, reemplazarlo; si no, agregar al final respetando la secuencia
         if (current.length === 1 && (!current[0] || !current[0].trim())) {
-          current.splice(0, 1, ...compressedList);
+          current.splice(0, 1, ...uploadedList);
         } else {
-          current.push(...compressedList);
+          current.push(...uploadedList);
         }
       }
       updateMetalGalleryState(metalId, current);
+      if (uploadedList[0]?.startsWith("/images/")) {
+        setFeedbackMsg(`✓ Imagen guardada automáticamente como archivo SEO: ${uploadedList[0]}`);
+      } else {
+        setFeedbackMsg("✓ Imagen cargada con éxito");
+      }
+      setTimeout(() => setFeedbackMsg(""), 3500);
     } catch (err) {
       alert(err.message || "Error al procesar las imágenes del material.");
     } finally {
@@ -2461,8 +2467,8 @@ export default function AdminCitas() {
     const file = e.target.files?.[0];
     if (file) {
       try {
-        const compressed = await compressImageFile(file);
-        setFormBoxImage(compressed);
+        const url = await uploadImageFile(file, "caja-presentacion.jpg");
+        setFormBoxImage(url);
       } catch (err) {
         alert(err.message || "Error al procesar la imagen.");
       }
@@ -2779,10 +2785,12 @@ export default function AdminCitas() {
     const file = e.target.files?.[0];
     if (file) {
       try {
-        const compressed = await compressImageFile(file, 1600, 1200, 0.82);
-        setFormHomeImageSrc(compressed);
+        const imageUrl = await uploadImageFile(file);
+        setFormHomeImageSrc(imageUrl);
       } catch (err) {
         alert(err.message || "Error al procesar la imagen del inicio.");
+      } finally {
+        e.target.value = "";
       }
     }
   };
@@ -12237,11 +12245,37 @@ export default function AdminCitas() {
                                   </div>
 
                                   {/* Preview de la foto */}
-                                  <div className="metal-photo-preview" style={{ height: slotIdx === 0 ? "125px" : "95px" }}>
+                                  <div
+                                      className="metal-photo-preview"
+                                      style={{ height: slotIdx === 0 ? "125px" : "95px", cursor: slotImg ? "pointer" : "default" }}
+                                      title={slotImg ? "Click para copiar el nombre del archivo" : undefined}
+                                      onClick={() => {
+                                        if (slotImg) {
+                                          const fileName = getImageInputValue(slotImg);
+                                          if (navigator?.clipboard?.writeText) {
+                                            navigator.clipboard.writeText(fileName);
+                                            setFeedbackMsg(`✓ Nombre de archivo copiado: "${fileName}"`);
+                                            setTimeout(() => setFeedbackMsg(""), 2500);
+                                          }
+                                        }
+                                      }}
+                                    >
                                     {slotImg ? (
                                       <img
                                         src={slotImg}
                                         alt={`Foto #${slotIdx + 1} ${metal.name}`}
+                                        onCopy={(e) => {
+                                          const fileName = getImageInputValue(slotImg);
+                                          if (e.clipboardData) {
+                                            e.clipboardData.setData("text/plain", fileName);
+                                            e.preventDefault();
+                                          }
+                                          if (navigator?.clipboard?.writeText) {
+                                            navigator.clipboard.writeText(fileName);
+                                          }
+                                          setFeedbackMsg(`✓ Nombre de archivo copiado: "${fileName}"`);
+                                          setTimeout(() => setFeedbackMsg(""), 2500);
+                                        }}
                                         onError={(e) => {
                                           e.target.onerror = null;
                                           e.target.src = "/images/cat-compromiso.jpg";
@@ -12265,10 +12299,62 @@ export default function AdminCitas() {
                                     placeholder={`/images/... o https:// (Foto #${slotIdx + 1} ${metal.name})`}
                                     value={getImageInputValue(slotImg)}
                                     readOnly={isEmbeddedImage(slotImg)}
-                                    title={isEmbeddedImage(slotImg) ? "Vuelve a subir una foto para reemplazarla" : undefined}
+                                    title={isEmbeddedImage(slotImg) ? "Foto cargada en Base64. Puedes quitarla abajo para poner una ruta limpia como /images/..." : undefined}
                                     onChange={(e) => handleMetalImageChange(metal.id, e.target.value, slotIdx)}
                                     required={slotIdx === 0}
                                   />
+                                  {isEmbeddedImage(slotImg) && (
+                                    <div style={{ display: "flex", gap: "5px", marginTop: "4px", flexWrap: "wrap", alignItems: "center" }}>
+                                      <button
+                                        type="button"
+                                        onClick={async () => {
+                                          const converted = await convertBase64ToImageFile(slotImg, `${metal.name || "joya"}.jpg`);
+                                          if (converted && !converted.startsWith("data:")) {
+                                            handleMetalImageChange(metal.id, converted, slotIdx);
+                                            setFeedbackMsg(`✓ Convertido a archivo físico SEO: ${converted}`);
+                                            setTimeout(() => setFeedbackMsg(""), 3500);
+                                          }
+                                        }}
+                                        style={{
+                                          fontSize: "11px",
+                                          padding: "4px 8px",
+                                          background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                                          color: "#ffffff",
+                                          border: "none",
+                                          borderRadius: "4px",
+                                          cursor: "pointer",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: "4px",
+                                          fontWeight: "600",
+                                          boxShadow: "0 2px 6px rgba(17,59,58,0.2)",
+                                        }}
+                                        title="Guardar como archivo real con su nombre en /images/ para que Google lo indexe por SEO"
+                                      >
+                                        <i className="bi bi-cloud-arrow-up-fill" style={{ color: "#C6AC7F" }}></i> Guardar como /images/... (SEO)
+                                      </button>
+
+                                      <button
+                                        type="button"
+                                        onClick={() => handleMetalImageChange(metal.id, "", slotIdx)}
+                                        style={{
+                                          fontSize: "10.5px",
+                                          padding: "3px 6px",
+                                          background: "#fff5f5",
+                                          color: "#c0392b",
+                                          border: "1px solid #fca5a5",
+                                          borderRadius: "4px",
+                                          cursor: "pointer",
+                                          display: "inline-flex",
+                                          alignItems: "center",
+                                          gap: "3px",
+                                        }}
+                                        title="Quitar imagen"
+                                      >
+                                        <i className="bi bi-x-circle"></i> Quitar
+                                      </button>
+                                    </div>
+                                  )}
 
                                   {/* Subir archivo para este slot */}
                                   <label className="btn-upload-metal-file" style={{ padding: "5px 8px", fontSize: "11px" }}>
@@ -12579,6 +12665,32 @@ export default function AdminCitas() {
                                   }}
                                 />
                               </div>
+                              {Number(formGemTypePrices[item.id] || 0) === 0 ? (
+                                <div
+                                  style={{
+                                    fontSize: "10.5px",
+                                    fontWeight: "600",
+                                    color: "#166534",
+                                    marginTop: "5px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    gap: "3px",
+                                  }}
+                                >
+                                  ✓ Viene incluida
+                                </div>
+                              ) : (
+                                <div
+                                  style={{
+                                    fontSize: "10.5px",
+                                    fontWeight: "600",
+                                    color: "#b45309",
+                                    marginTop: "5px",
+                                  }}
+                                >
+                                  Suplemento: +S/. {formGemTypePrices[item.id]}
+                                </div>
+                              )}
                             </div>
                           ))}
                         </div>

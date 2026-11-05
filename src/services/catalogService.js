@@ -161,6 +161,7 @@ const normalizeProductMetals = (rawProd) => {
       : (defaultProdMatch?.availableGemShapes || MASTER_GEM_SHAPES.map((s) => s.id)),
     defaultGemShape: prod.defaultGemShape || defaultProdMatch?.defaultGemShape || "redondo",
     gemShapeConfigs: prod.gemShapeConfigs || defaultProdMatch?.gemShapeConfigs || {},
+    gemTypePrices: prod.gemTypePrices || defaultProdMatch?.gemTypePrices || null,
   };
 };
 

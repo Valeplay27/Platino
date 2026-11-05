@@ -110,11 +110,43 @@ function Checkout({ cart, clearCart }) {
               Resumen de Joyas ({cart.reduce((s, i) => s + i.quantity, 0)} piezas)
             </h4>
             {cart.map((item, idx) => (
-              <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13.5px', marginBottom: '6px' }}>
-                <span>
-                  <strong>{item.name}</strong> × {item.quantity} {item.selectedMetal ? `(${item.selectedMetal})` : ''}
+              <div
+                key={idx}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'flex-start',
+                  fontSize: '13.5px',
+                  marginBottom: '10px',
+                  paddingBottom: '8px',
+                  borderBottom: '1px dashed #e8e3d8'
+                }}
+              >
+                <div>
+                  <div>
+                    <strong>{item.name}</strong> × {item.quantity}
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#687771', marginTop: '3px', display: 'flex', flexWrap: 'wrap', gap: '6px' }}>
+                    {item.selectedMetal && (
+                      <span>{typeof item.selectedMetal === 'object' ? item.selectedMetal.name : item.selectedMetal} {item.metalPrice ? `(${formatPrice(item.metalPrice)})` : ''}</span>
+                    )}
+                    {(item.selectedShape || item.selectedGemShape) && (
+                      <span>· Corte {item.selectedShape || item.selectedGemShape} {item.shapePrice > 0 ? `(+${formatPrice(item.shapePrice)})` : ''}</span>
+                    )}
+                    {(item.selectedGemstone || item.gemstone) && (
+                      <span>· 💎 {item.selectedGemstone || item.gemstone} {item.gemPrice > 0 ? `(+${formatPrice(item.gemPrice)})` : ''}</span>
+                    )}
+                    {item.selectedPresentation && item.presentationPrice > 0 && (
+                      <span>· Cofre (+${formatPrice(item.presentationPrice)})</span>
+                    )}
+                    {(item.selectedSize || item.size) && (
+                      <span>· Talla: {item.selectedSize || item.size}</span>
+                    )}
+                  </div>
+                </div>
+                <span style={{ fontWeight: 600, color: '#0f2a24', whiteSpace: 'nowrap', marginLeft: '10px' }}>
+                  {formatPrice(item.price * item.quantity)}
                 </span>
-                <span style={{ fontWeight: 600 }}>{formatPrice(item.price * item.quantity)}</span>
               </div>
             ))}
             <div style={{ borderTop: '1px solid #e2ddd3', marginTop: '10px', paddingTop: '10px', display: 'flex', justifyContent: 'space-between', fontSize: '16px', fontWeight: 700, color: '#0f2a24' }}>

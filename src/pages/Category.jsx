@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import ProductCard from "../components/ProductCard";
 import { CATEGORY_INFO } from "../data/products";
@@ -81,6 +81,363 @@ const TIPO_LABELS = {
   "copas-decoradas": "Copas Decoradas",
   cuadros: "Cuadros",
 };
+
+
+// Opciones para la cápsula minimalista
+const FORMA_PILL_OPTIONS = [
+  { value: "redondo", label: "Redondo" },
+  { value: "oval", label: "Oval" },
+  { value: "marquesa", label: "Marquesa" },
+  { value: "esmeralda", label: "Esmeralda" },
+  { value: "corazon", label: "Corazón" },
+  { value: "otros", label: "Otros Cortes" },
+];
+
+const ESTILO_COMPROMISO_PILL_OPTIONS = [
+  { value: "solitario", label: "Solitarios" },
+  { value: "3-piedras", label: "3 Piedras" },
+  { value: "con-pave", label: "Con Pavé" },
+  { value: "moderno", label: "Modernos" },
+  { value: "vintage", label: "Vintage" },
+  { value: "con-gemas", label: "Con Gemas" },
+];
+
+const GEMA_PILL_OPTIONS = [
+  { value: "diamante", label: "Diamante" },
+  { value: "esmeralda", label: "Esmeralda" },
+  { value: "rubi", label: "Rubí" },
+  { value: "zafiro", label: "Zafiro" },
+];
+
+const ESTILO_BODA_PILL_OPTIONS = [
+  { value: "clasicos", label: "Clásicos" },
+  { value: "con-pedreria", label: "Con Pedrería" },
+  { value: "con-textura", label: "Con Textura" },
+  { value: "moderno", label: "Moderno" },
+  { value: "vintage", label: "Vintage" },
+];
+
+const SUBCAT_PROMESA_PILL_OPTIONS = [
+  { value: "anillo-promesa", label: "Anillos de Promesa" },
+  { value: "alianzas-amor", label: "Alianzas de Amor" },
+];
+
+const ESTILO_PROMESA_PILL_OPTIONS = [
+  { value: "clasicos", label: "Clásicos" },
+  { value: "con-pedreria", label: "Con Pedrería" },
+  { value: "sin-pedreria", label: "Sin Pedrería" },
+  { value: "moderno", label: "Moderno" },
+  { value: "vintage", label: "Vintage" },
+  { value: "gemas-naturales", label: "Gemas Naturales" },
+];
+
+const GENERO_PILL_OPTIONS = [
+  { value: "ella", label: "Ella" },
+  { value: "el", label: "Él" },
+  { value: "kids", label: "Kids" },
+];
+
+const TIPO_JOYERIA_PILL_OPTIONS = [
+  {
+    isGroup: true,
+    label: "Para Ella",
+    items: [
+      { value: "anillos", label: "Anillos" },
+      { value: "aretes", label: "Aretes" },
+      { value: "collares", label: "Collares" },
+      { value: "pulseras", label: "Pulseras" },
+      { value: "tobilleras", label: "Tobilleras" },
+    ],
+  },
+  {
+    isGroup: true,
+    label: "Para Él",
+    items: [
+      { value: "aros-casuales", label: "Aros" },
+      { value: "cadenas", label: "Cadenas" },
+      { value: "pulseras", label: "Pulseras" },
+      { value: "relojes", label: "Relojes" },
+    ],
+  },
+  {
+    isGroup: true,
+    label: "Kids / Bebés",
+    items: [
+      { value: "aretes-bebes", label: "Aretes Bebé" },
+      { value: "aretes-nina", label: "Aretes Niña" },
+      { value: "cadenas", label: "Cadenas" },
+      { value: "pulseras", label: "Pulseras" },
+    ],
+  },
+];
+
+const TIPO_REGALOS_PILL_OPTIONS = [
+  { value: "porta-aros", label: "Porta Aros" },
+  { value: "copas-decoradas", label: "Copas" },
+  { value: "cuadros", label: "Cuadros" },
+];
+
+const ESTILO_GENERAL_PILL_OPTIONS = [
+  { value: "solitario", label: "Solitarios" },
+  { value: "clasicos", label: "Clásicos" },
+  { value: "con-pedreria", label: "Con Pedrería" },
+  { value: "sin-pedreria", label: "Sin Pedrería" },
+  { value: "con-textura", label: "Con Textura" },
+  { value: "3-piedras", label: "3 Piedras" },
+  { value: "con-pave", label: "Con Pavé" },
+  { value: "moderno", label: "Modernos" },
+  { value: "vintage", label: "Vintage" },
+  { value: "con-gemas", label: "Con Gemas" },
+];
+
+const MATERIAL_PILL_OPTIONS = [
+  {
+    isGroup: true,
+    label: "Plata",
+    items: [{ value: "plata-950", label: "Plata 950" }],
+  },
+  {
+    isGroup: true,
+    label: "Plata con Oro 18k",
+    items: [{ value: "plata-oro-18k", label: "Plata con Oro" }],
+  },
+  {
+    isGroup: true,
+    label: "Oro 18 Quilates",
+    items: [
+      { value: "oro-natural-18k", label: "Oro 18k Natural" },
+      { value: "oro-amarillo-18k", label: "Oro 18k Amarillo" },
+      { value: "oro-rosado-18k", label: "Oro 18k Rosa" },
+      { value: "oro-blanco-18k", label: "Oro 18k Blanco" },
+    ],
+  },
+  {
+    isGroup: true,
+    label: "Platino",
+    items: [{ value: "platino", label: "Platino 950" }],
+  },
+];
+
+const FILTER_ALL_LABELS = {
+  Forma: "Todas las formas",
+  Estilo: "Todos los estilos",
+  Gema: "Todas las gemas",
+  Material: "Todos los materiales",
+  Colección: "Todas las colecciones",
+  Para: "Todos los destinatarios",
+  Tipo: "Todos los tipos",
+};
+
+function MinimalPillFilter({ label, value, onChange, options, isActive, alignRight = false }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  let displayLabel = label;
+  if (value) {
+    for (const opt of options) {
+      if (opt.isGroup && opt.items) {
+        const found = opt.items.find((item) => item.value === value);
+        if (found) {
+          displayLabel = found.label;
+          break;
+        }
+      } else if (opt.value === value) {
+        displayLabel = opt.label;
+        break;
+      }
+    }
+  }
+
+  const handleSelect = (val) => {
+    onChange(val);
+    setIsOpen(false);
+  };
+
+  const allLabel = FILTER_ALL_LABELS[label] || `Todos (${label})`;
+
+  return (
+    <div
+      ref={containerRef}
+      className={`minimal-select-wrap ${isActive ? "is-active" : ""} ${isOpen ? "is-open" : ""}`}
+    >
+      <button
+        type="button"
+        className="minimal-select-trigger"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+      >
+        <span className="minimal-display-text">{displayLabel}</span>
+        <svg
+          className={`minimal-display-chevron ${isOpen ? "rotate" : ""}`}
+          viewBox="0 0 10 6"
+          width="10"
+          height="6"
+          aria-hidden="true"
+        >
+          <path
+            d="M1 1L5 5L9 1"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className={`minimal-dropdown-menu ${alignRight ? "align-right" : ""}`}>
+          <button
+            type="button"
+            className={`minimal-dropdown-item ${!value ? "selected" : ""}`}
+            onClick={() => handleSelect("")}
+          >
+            <span>{allLabel}</span>
+            {!value && <i className="bi bi-check2"></i>}
+          </button>
+
+          {options.map((opt, i) =>
+            opt.isGroup ? (
+              <div key={i} className="minimal-dropdown-group">
+                <div className="minimal-dropdown-group-title">{opt.label}</div>
+                {opt.items.map((sub) => (
+                  <button
+                    key={sub.value}
+                    type="button"
+                    className={`minimal-dropdown-item ${value === sub.value ? "selected" : ""}`}
+                    onClick={() => handleSelect(sub.value)}
+                  >
+                    <span>{sub.label}</span>
+                    {value === sub.value && <i className="bi bi-check2"></i>}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <button
+                key={opt.value}
+                type="button"
+                className={`minimal-dropdown-item ${value === opt.value ? "selected" : ""}`}
+                onClick={() => handleSelect(opt.value)}
+              >
+                <span>{opt.label}</span>
+                {value === opt.value && <i className="bi bi-check2"></i>}
+              </button>
+            )
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function MinimalSortFilter({ sortBy, setSortBy }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef(null);
+
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsOpen(false);
+      }
+    };
+    if (isOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [isOpen]);
+
+  const sortLabel =
+    sortBy === "destacados"
+      ? "Ordenar"
+      : sortBy === "precio-menor"
+      ? "Menor Precio"
+      : "Mayor Precio";
+
+  const handleSelect = (val) => {
+    setSortBy(val);
+    setIsOpen(false);
+  };
+
+  return (
+    <div
+      ref={containerRef}
+      className={`minimal-sort-wrap ${sortBy !== "destacados" ? "is-active" : ""} ${isOpen ? "is-open" : ""}`}
+    >
+      <button
+        type="button"
+        className="minimal-select-trigger"
+        onClick={() => setIsOpen((prev) => !prev)}
+        aria-haspopup="listbox"
+        aria-expanded={isOpen}
+      >
+        <i className="bi bi-arrow-down-up minimal-sort-icon" aria-hidden="true"></i>
+        <span className="minimal-display-text">{sortLabel}</span>
+        <svg
+          className={`minimal-display-chevron ${isOpen ? "rotate" : ""}`}
+          viewBox="0 0 10 6"
+          width="10"
+          height="6"
+          aria-hidden="true"
+        >
+          <path
+            d="M1 1L5 5L9 1"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+
+      {isOpen && (
+        <div className="minimal-dropdown-menu align-right">
+          <button
+            type="button"
+            className={`minimal-dropdown-item ${sortBy === "destacados" ? "selected" : ""}`}
+            onClick={() => handleSelect("destacados")}
+          >
+            <span>Destacados</span>
+            {sortBy === "destacados" && <i className="bi bi-check2"></i>}
+          </button>
+          <button
+            type="button"
+            className={`minimal-dropdown-item ${sortBy === "precio-menor" ? "selected" : ""}`}
+            onClick={() => handleSelect("precio-menor")}
+          >
+            <span>Precio: Menor a Mayor</span>
+            {sortBy === "precio-menor" && <i className="bi bi-check2"></i>}
+          </button>
+          <button
+            type="button"
+            className={`minimal-dropdown-item ${sortBy === "precio-mayor" ? "selected" : ""}`}
+            onClick={() => handleSelect("precio-mayor")}
+          >
+            <span>Precio: Mayor a Menor</span>
+            {sortBy === "precio-mayor" && <i className="bi bi-check2"></i>}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function Category({ addToCart }) {
   const { category = "todas" } = useParams();
@@ -965,352 +1322,139 @@ function Category({ addToCart }) {
         <div className="catalog-filter-bar">
           <div className="catalog-count-text">
             Mostrando <strong>{filteredProducts.length}</strong> modelos en catálogo
-          </div>
-
-          <div className="catalog-filter-group">
-            {/* 1. Categoría: Anillos de Compromiso */}
-            {isCompromisoCategory && (
-              <>
-                <select
-                  value={formaParam}
-                  onChange={(e) => updateParam("forma", e.target.value)}
-                  className="catalog-filter-select"
-                  aria-label="Filtrar por forma de gema"
-                >
-                  <option value="">Forma: Todas</option>
-                  <option value="redondo">Redondo</option>
-                  <option value="oval">Oval</option>
-                  <option value="marquesa">Marquesa</option>
-                  <option value="esmeralda">Esmeralda</option>
-                  <option value="corazon">Corazón</option>
-                  <option value="otros">Otros Cortes</option>
-                </select>
-
-                <select
-                  value={estiloParam}
-                  onChange={(e) => updateParam("estilo", e.target.value)}
-                  className="catalog-filter-select"
-                  aria-label="Filtrar por estilo"
-                >
-                  <option value="">Estilo: Todos</option>
-                  <option value="solitario">Solitarios</option>
-                  <option value="3-piedras">3 Piedras</option>
-                  <option value="con-pave">Con Pavé</option>
-                  <option value="moderno">Modernos</option>
-                  <option value="vintage">Vintage</option>
-                  <option value="con-gemas">Con Gemas</option>
-                </select>
-
-                <select
-                  value={gemaParam}
-                  onChange={(e) => updateParam("gema", e.target.value)}
-                  className="catalog-filter-select"
-                  aria-label="Filtrar por gema"
-                >
-                  <option value="">Gema: Todas</option>
-                  <option value="diamante">Diamante</option>
-                  <option value="esmeralda">Esmeralda</option>
-                  <option value="rubi">Rubí</option>
-                  <option value="zafiro">Zafiro</option>
-                </select>
-              </>
-            )}
-
-            {/* 2. Categoría: Aros de Boda */}
-            {isBodaCategory && (
-              <select
-                value={estiloParam}
-                onChange={(e) => updateParam("estilo", e.target.value)}
-                className="catalog-filter-select"
-                aria-label="Filtrar por estilo de aros"
-              >
-                <option value="">Estilo: Todos</option>
-                <option value="clasicos">Clásicos</option>
-                <option value="con-pedreria">Con Pedrería</option>
-                <option value="con-textura">Con Textura</option>
-                <option value="moderno">Moderno</option>
-                <option value="vintage">Vintage</option>
-              </select>
-            )}
-
-            {/* 3. Categoría: Amor y Promesa */}
-            {isPromesaCategory && (
-              <>
-                <select
-                  value={subcatParam}
-                  onChange={(e) => updateParam("subcat", e.target.value)}
-                  className="catalog-filter-select"
-                  aria-label="Filtrar por colección"
-                >
-                  <option value="">Colección: Todas</option>
-                  <option value="anillo-promesa">Anillos de Promesa</option>
-                  <option value="alianzas-amor">Alianzas de Amor</option>
-                </select>
-
-                <select
-                  value={estiloParam}
-                  onChange={(e) => updateParam("estilo", e.target.value)}
-                  className="catalog-filter-select"
-                  aria-label="Filtrar por estilo"
-                >
-                  <option value="">Estilo: Todos</option>
-                  <option value="clasicos">Clásicos</option>
-                  <option value="con-pedreria">Con Pedrería</option>
-                  <option value="sin-pedreria">Sin Pedrería</option>
-                  <option value="moderno">Moderno</option>
-                  <option value="vintage">Vintage</option>
-                  <option value="gemas-naturales">Gemas Naturales</option>
-                </select>
-              </>
-            )}
-
-            {/* 4. Categoría: Joyería */}
-            {isJoyeriaCategory && (
-              <>
-                <select
-                  value={generoParam}
-                  onChange={(e) => updateParam("genero", e.target.value)}
-                  className="catalog-filter-select"
-                  aria-label="Filtrar por destinatario"
-                >
-                  <option value="">Para: Todos</option>
-                  <option value="mujer">Para Ella</option>
-                  <option value="hombre">Para Él</option>
-                  <option value="kids">Kids / Niños</option>
-                </select>
-
-                <select
-                  value={tipoParam}
-                  onChange={(e) => updateParam("tipo", e.target.value)}
-                  className="catalog-filter-select"
-                  aria-label="Filtrar por tipo de joya"
-                >
-                  <option value="">Tipo: Todos</option>
-                  <optgroup label="Para Ella">
-                    <option value="aretes">Aretes (Todos)</option>
-                    <option value="aretes-bebes">Aretes para Bebés</option>
-                    <option value="aretes-pegados">Aretes Pegados</option>
-                    <option value="aretes-colgantes">Aretes Colgantes</option>
-                    <option value="collares">Collares (Todos)</option>
-                    <option value="collares-vestir">Collares de Vestir</option>
-                    <option value="collares-gemas">Collares con Gemas Naturales</option>
-                    <option value="collares-relicarios">Relicarios</option>
-                    <option value="collares-religiosos">Collares Religiosos</option>
-                    <option value="collares-personalizados">Collares Personalizados</option>
-                    <option value="anillos">Anillos</option>
-                    <option value="cadenas">Cadenas</option>
-                    <option value="juegos">Juegos</option>
-                    <option value="pulseras">Pulseras</option>
-                    <option value="tobilleras">Tobilleras</option>
-                  </optgroup>
-                  <optgroup label="Para Él">
-                    <option value="aros-casuales">Aros Casuales</option>
-                    <option value="cadenas">Cadenas</option>
-                    <option value="pulseras">Pulseras</option>
-                    <option value="relojes">Relojes</option>
-                  </optgroup>
-                  <optgroup label="Kids / Bebés">
-                    <option value="aretes-bebes">Aretes para Bebés</option>
-                    <option value="aretes-nina">Aretes para Niña</option>
-                    <option value="cadenas">Cadenas</option>
-                    <option value="pulseras">Pulseras / Esclavas</option>
-                  </optgroup>
-                </select>
-              </>
-            )}
-
-            {/* 5. Categoría: Regalos */}
-            {isRegalosCategory && (
-              <select
-                value={tipoParam}
-                onChange={(e) => updateParam("tipo", e.target.value)}
-                className="catalog-filter-select"
-                aria-label="Filtrar por tipo de regalo"
-              >
-                <option value="">Tipo: Todos</option>
-                <option value="porta-aros">Porta Aros</option>
-                <option value="copas-decoradas">Copas Decoradas</option>
-                <option value="cuadros">Cuadros Conmemorativos</option>
-              </select>
-            )}
-
-            {/* 6. Catálogo General 'todas' */}
-            {isGeneralCategory && (
-              <select
-                value={estiloParam}
-                onChange={(e) => updateParam("estilo", e.target.value)}
-                className="catalog-filter-select"
-                aria-label="Filtrar por estilo"
-              >
-                <option value="">Estilo: Todos</option>
-                <option value="solitario">Solitarios</option>
-                <option value="clasicos">Clásicos</option>
-                <option value="con-pedreria">Con Pedrería</option>
-                <option value="sin-pedreria">Sin Pedrería</option>
-                <option value="con-textura">Con Textura</option>
-                <option value="3-piedras">3 Piedras</option>
-                <option value="con-pave">Con Pavé</option>
-                <option value="moderno">Modernos</option>
-                <option value="vintage">Vintage</option>
-                <option value="con-gemas">Con Gemas</option>
-              </select>
-            )}
-
-            {/* Filtro por Metal / Material (Visible salvo en Regalos puros) */}
-            {!isRegalosCategory && (
-              <select
-                value={metalParam}
-                onChange={(e) => updateParam("metal", e.target.value)}
-                className="catalog-filter-select"
-                aria-label="Filtrar por material"
-              >
-                <option value="">Material: Todos</option>
-                <optgroup label="Plata">
-                  <option value="plata-950">Plata Ley 950</option>
-                </optgroup>
-                <optgroup label="Plata con Oro 18k">
-                  <option value="plata-oro-18k">Plata 950 con Oro 18k</option>
-                </optgroup>
-                <optgroup label="Oro de 18 Quilates">
-                  <option value="oro-natural-18k">Oro 18k Natural</option>
-                  <option value="oro-amarillo-18k">Oro 18k Amarillo</option>
-                  <option value="oro-rosado-18k">Oro 18k Rosa</option>
-                  <option value="oro-blanco-18k">Oro 18k Blanco</option>
-                </optgroup>
-                <optgroup label="Platino">
-                  <option value="platino">Platino 950</option>
-                </optgroup>
-              </select>
-            )}
-
-            {/* Ordenar por */}
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              className="catalog-filter-select"
-              aria-label="Ordenar productos"
-            >
-              <option value="destacados">Ordenar: Destacados</option>
-              <option value="precio-menor">Precio: Menor a Mayor</option>
-              <option value="precio-mayor">Precio: Mayor a Menor</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Fila de Chips de Filtros Activos */}
-        {hasActiveFilters && (
-          <div className="active-filters-row">
-            <span className="active-filters-label">
-              <i className="bi bi-funnel"></i> Filtros activos:
-            </span>
-
-            <div className="active-filters-chips">
-              {subcatParam && (
-                <button
-                  type="button"
-                  className="active-filter-chip"
-                  onClick={() => clearParam("subcat")}
-                  title="Eliminar filtro de colección"
-                >
-                  <span>Colección: {SUBCAT_LABELS[subcatParam] || subcatParam}</span>
-                  <i className="bi bi-x-lg"></i>
-                </button>
-              )}
-
-              {generoParam && (
-                <button
-                  type="button"
-                  className="active-filter-chip"
-                  onClick={() => clearParam("genero")}
-                  title="Eliminar filtro de destinatario"
-                >
-                  <span>Para: {GENERO_LABELS[generoParam] || generoParam}</span>
-                  <i className="bi bi-x-lg"></i>
-                </button>
-              )}
-
-              {tipoParam && (
-                <button
-                  type="button"
-                  className="active-filter-chip"
-                  onClick={() => clearParam("tipo")}
-                  title="Eliminar filtro de tipo"
-                >
-                  <span>Tipo: {TIPO_LABELS[tipoParam] || tipoParam}</span>
-                  <i className="bi bi-x-lg"></i>
-                </button>
-              )}
-
-              {formaParam && (
-                <button
-                  type="button"
-                  className="active-filter-chip"
-                  onClick={() => clearParam("forma")}
-                  title="Eliminar filtro de corte"
-                >
-                  <span>Forma: {FORMA_LABELS[formaParam] || formaParam}</span>
-                  <i className="bi bi-x-lg"></i>
-                </button>
-              )}
-
-              {estiloParam && (
-                <button
-                  type="button"
-                  className="active-filter-chip"
-                  onClick={() => clearParam("estilo")}
-                  title="Eliminar filtro de estilo"
-                >
-                  <span>Estilo: {ESTILO_LABELS[estiloParam] || estiloParam}</span>
-                  <i className="bi bi-x-lg"></i>
-                </button>
-              )}
-
-              {metalParam && (
-                <button
-                  type="button"
-                  className="active-filter-chip"
-                  onClick={() => clearParam("metal")}
-                  title="Eliminar filtro de material"
-                >
-                  <span>Material: {METAL_LABELS[metalParam] || metalParam}</span>
-                  <i className="bi bi-x-lg"></i>
-                </button>
-              )}
-
-              {gemaParam && (
-                <button
-                  type="button"
-                  className="active-filter-chip"
-                  onClick={() => clearParam("gema")}
-                  title="Eliminar filtro de gema"
-                >
-                  <span>Gema: {GEMA_LABELS[gemaParam] || gemaParam}</span>
-                  <i className="bi bi-x-lg"></i>
-                </button>
-              )}
-
-              {qParam && (
-                <button
-                  type="button"
-                  className="active-filter-chip"
-                  onClick={() => clearParam("q")}
-                  title="Eliminar búsqueda"
-                >
-                  <span>Búsqueda: "{qParam}"</span>
-                  <i className="bi bi-x-lg"></i>
-                </button>
-              )}
-
+            {hasActiveFilters && (
               <button
                 type="button"
-                className="clear-all-filters-btn"
+                className="catalog-clear-inline-btn"
                 onClick={clearAllFilters}
+                title="Limpiar todos los filtros"
               >
-                Limpiar todo
+                <i className="bi bi-x-circle"></i> Limpiar filtros
               </button>
-            </div>
+            )}
           </div>
-        )}
+
+          {/* Barra de Filtros Minimalista Estilo Cápsula */}
+          <div className="catalog-minimal-pill-bar">
+            {/* 1. Anillos de Compromiso */}
+            {isCompromisoCategory && (
+              <>
+                <MinimalPillFilter
+                  label="Forma"
+                  value={formaParam}
+                  onChange={(val) => updateParam("forma", val)}
+                  options={FORMA_PILL_OPTIONS}
+                  isActive={Boolean(formaParam)}
+                />
+                <MinimalPillFilter
+                  label="Estilo"
+                  value={estiloParam}
+                  onChange={(val) => updateParam("estilo", val)}
+                  options={ESTILO_COMPROMISO_PILL_OPTIONS}
+                  isActive={Boolean(estiloParam)}
+                />
+                <MinimalPillFilter
+                  label="Gema"
+                  value={gemaParam}
+                  onChange={(val) => updateParam("gema", val)}
+                  options={GEMA_PILL_OPTIONS}
+                  isActive={Boolean(gemaParam)}
+                />
+              </>
+            )}
+
+            {/* 2. Aros de Boda */}
+            {isBodaCategory && (
+              <MinimalPillFilter
+                label="Estilo"
+                value={estiloParam}
+                onChange={(val) => updateParam("estilo", val)}
+                options={ESTILO_BODA_PILL_OPTIONS}
+                isActive={Boolean(estiloParam)}
+              />
+            )}
+
+            {/* 3. Amor y Promesa */}
+            {isPromesaCategory && (
+              <>
+                <MinimalPillFilter
+                  label="Colección"
+                  value={subcatParam}
+                  onChange={(val) => updateParam("subcat", val)}
+                  options={SUBCAT_PROMESA_PILL_OPTIONS}
+                  isActive={Boolean(subcatParam)}
+                />
+                <MinimalPillFilter
+                  label="Estilo"
+                  value={estiloParam}
+                  onChange={(val) => updateParam("estilo", val)}
+                  options={ESTILO_PROMESA_PILL_OPTIONS}
+                  isActive={Boolean(estiloParam)}
+                />
+              </>
+            )}
+
+            {/* 4. Joyería */}
+            {isJoyeriaCategory && (
+              <>
+                <MinimalPillFilter
+                  label="Para"
+                  value={generoParam}
+                  onChange={(val) => updateParam("genero", val)}
+                  options={GENERO_PILL_OPTIONS}
+                  isActive={Boolean(generoParam)}
+                />
+                <MinimalPillFilter
+                  label="Tipo"
+                  value={tipoParam}
+                  onChange={(val) => updateParam("tipo", val)}
+                  options={TIPO_JOYERIA_PILL_OPTIONS}
+                  isActive={Boolean(tipoParam)}
+                />
+              </>
+            )}
+
+            {/* 5. Regalos */}
+            {isRegalosCategory && (
+              <MinimalPillFilter
+                label="Tipo"
+                value={tipoParam}
+                onChange={(val) => updateParam("tipo", val)}
+                options={TIPO_REGALOS_PILL_OPTIONS}
+                isActive={Boolean(tipoParam)}
+              />
+            )}
+
+            {/* 6. Catálogo General */}
+            {isGeneralCategory && (
+              <MinimalPillFilter
+                label="Estilo"
+                value={estiloParam}
+                onChange={(val) => updateParam("estilo", val)}
+                options={ESTILO_GENERAL_PILL_OPTIONS}
+                isActive={Boolean(estiloParam)}
+              />
+            )}
+
+            {/* Material */}
+            {!isRegalosCategory && (
+              <MinimalPillFilter
+                label="Material"
+                value={metalParam}
+                onChange={(val) => updateParam("metal", val)}
+                options={MATERIAL_PILL_OPTIONS}
+                isActive={Boolean(metalParam)}
+                alignRight={true}
+              />
+            )}
+
+            {/* Separador vertical */}
+            <span className="minimal-pill-divider" aria-hidden="true"></span>
+
+            {/* Ordenar */}
+            <MinimalSortFilter sortBy={sortBy} setSortBy={setSortBy} />
+          </div>
+        </div>
 
         {/* Grilla Dinámica de Productos */}
         {filteredProducts.length === 0 ? (

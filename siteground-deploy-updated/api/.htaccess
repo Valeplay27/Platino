@@ -1,0 +1,9 @@
+Options -Indexes
+RewriteEngine On
+
+<FilesMatch "^(README\.md|env\.local\.php)$">
+  Require all denied
+</FilesMatch>
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteRule ^ index.php [QSA,L]

@@ -10,7 +10,7 @@ import {
   deleteEducacionPost,
   resetEducacionPosts,
 } from "../services/educacionService";
-import { compressImageFile } from "../utils/imageCompressor";
+import { uploadImageFile } from "../utils/imageUploadService";
 import {
   getImageInputValue,
   isEmbeddedImage,
@@ -160,9 +160,9 @@ export default function Educacion() {
     if (!file) return;
     setIsUploadingCover(true);
     try {
-      const compressed = await compressImageFile(file, 1200, 900, 0.84);
-      setEditorForm((prev) => ({ ...prev, coverImage: compressed }));
-      showToast("✓ Imagen de portada cargada y optimizada.");
+      const imageUrl = await uploadImageFile(file);
+      setEditorForm((prev) => ({ ...prev, coverImage: imageUrl }));
+      showToast("✓ Imagen de portada cargada con su nombre original.");
     } catch (err) {
       alert(err.message || "No se pudo procesar la imagen seleccionada.");
     } finally {
@@ -179,8 +179,8 @@ export default function Educacion() {
     try {
       const uploadedList = [];
       for (const file of files) {
-        const compressed = await compressImageFile(file, 1100, 850, 0.82);
-        if (compressed) uploadedList.push(compressed);
+        const imageUrl = await uploadImageFile(file);
+        if (imageUrl) uploadedList.push(imageUrl);
       }
       setEditorForm((prev) => ({
         ...prev,

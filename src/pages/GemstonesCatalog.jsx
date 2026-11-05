@@ -507,14 +507,14 @@ export default function GemstonesCatalog() {
               </select>
             </div>
 
-            {/* Banner de Asesoría Gemológica */}
+            {/* Banner de Asesoría Gemológica (Compacto) */}
             <div className="gem-advisor-card">
-              <div className="advisor-icon">
-                <i className="bi bi-award"></i>
+              <div className="advisor-header-inline">
+                <i className="bi bi-award advisor-icon"></i>
+                <h4>¿Dudas eligiendo la gema?</h4>
               </div>
-              <h4>¿Dudas eligiendo la gema?</h4>
               <p>
-                Agenda una sesión con nuestro asesor especialista para evaluar el corte, brillo y proporciones de tus gemas.
+                Agenda una sesión personalizada con nuestro gemólogo en sede.
               </p>
               <Link to="/agendar-cita" className="btn-advisor-link">
                 Agendar Asesoría en Sede <i className="bi bi-arrow-right"></i>

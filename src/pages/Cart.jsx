@@ -367,6 +367,37 @@ function Cart({ cart, updateQuantity }) {
                             }}
                           >
                             {typeof item.selectedMetal === "object" ? item.selectedMetal.name : item.selectedMetal}
+                            {item.metalPrice ? ` (${formatPrice(item.metalPrice)})` : ""}
+                          </span>
+                        )}
+                        {(item.selectedShape || item.selectedGemShape) && (
+                          <span
+                            style={{
+                              background: "#f4f1ea",
+                              color: "#46544d",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              padding: "2px 8px",
+                              borderRadius: "12px",
+                            }}
+                          >
+                            Corte {item.selectedShape || item.selectedGemShape}
+                            {item.shapePrice > 0 ? ` (+${formatPrice(item.shapePrice)})` : ""}
+                          </span>
+                        )}
+                        {(item.selectedGemstone || item.gemstone) && (
+                          <span
+                            style={{
+                              background: "#f4f1ea",
+                              color: "#46544d",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              padding: "2px 8px",
+                              borderRadius: "12px",
+                            }}
+                          >
+                            💎 {item.selectedGemstone || item.gemstone}
+                            {item.gemPrice > 0 ? ` (+${formatPrice(item.gemPrice)})` : ""}
                           </span>
                         )}
                         {(item.selectedSizeDama || item.selectedSizeVaron || item.size) && (
@@ -384,6 +415,20 @@ function Cart({ cart, updateQuantity }) {
                             {item.selectedSizeDama && item.selectedSizeVaron ? " / " : ""}
                             {item.selectedSizeVaron ? `Varón ${item.selectedSizeVaron}` : ""}
                             {!item.selectedSizeDama && !item.selectedSizeVaron && item.size ? item.size : ""}
+                          </span>
+                        )}
+                        {item.selectedPresentation && item.presentationPrice > 0 && (
+                          <span
+                            style={{
+                              background: "#f4f1ea",
+                              color: "#46544d",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              padding: "2px 8px",
+                              borderRadius: "12px",
+                            }}
+                          >
+                            Cofre (+{formatPrice(item.presentationPrice)})
                           </span>
                         )}
                         {item.hasEngraving && (

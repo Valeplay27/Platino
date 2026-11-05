@@ -255,7 +255,20 @@ export default function CartDrawer({
                       {(item.selectedMetal || item.metal) && (
                         <span className="cart-drawer-tag-pill metal">
                           <i className="bi bi-gem"></i>
-                          {item.selectedMetal || item.metal}
+                          {item.selectedMetal || item.metal} {item.metalPrice ? `(${formatPrice(item.metalPrice)})` : ""}
+                        </span>
+                      )}
+
+                      {(item.selectedShape || item.selectedGemShape) && (
+                        <span className="cart-drawer-tag-pill">
+                          <i className="bi bi-diamond"></i>
+                          Corte {item.selectedShape || item.selectedGemShape} {item.shapePrice > 0 ? `(+${formatPrice(item.shapePrice)})` : ""}
+                        </span>
+                      )}
+
+                      {(item.selectedGemstone || item.gemstone) && (
+                        <span className="cart-drawer-tag-pill">
+                          💎 {item.selectedGemstone || item.gemstone} {item.gemPrice > 0 ? `(+${formatPrice(item.gemPrice)})` : ""}
                         </span>
                       )}
 
@@ -263,12 +276,6 @@ export default function CartDrawer({
                         <span className="cart-drawer-tag-pill">
                           <i className="bi bi-rulers"></i>
                           {item.selectedSize || item.size}
-                        </span>
-                      )}
-
-                      {(item.selectedGemstone || item.gemstone) && (
-                        <span className="cart-drawer-tag-pill">
-                          💎 {item.selectedGemstone || item.gemstone}
                         </span>
                       )}
 

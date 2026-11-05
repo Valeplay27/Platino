@@ -457,6 +457,54 @@ function requestBody(): array
     return $body;
 }
 
+function storeUploadedImage(): never
+{
+    $image = $_FILES['image'] ?? null;
+    if (!is_array($image) || !isset($image['error'], $image['tmp_name'])) {
+        respond(400, ['error' => 'Falta el archivo de imagen.']);
+    }
+    if ((int) $image['error'] !== UPLOAD_ERR_OK) {
+        respond(400, ['error' => 'No se pudo recibir el archivo de imagen.']);
+    }
+    if ((int) ($image['size'] ?? 0) > MAX_REQUEST_BYTES) {
+        respond(413, ['error' => 'La imagen supera el límite permitido.']);
+    }
+
+    $fileName = (string) ($_POST['fileName'] ?? $image['name'] ?? '');
+    if ($fileName === '' || strlen($fileName) > 255 ||
+        preg_match('/[\/\\\\\x00-\x1F\x7F]/', $fileName) ||
+        str_ends_with($fileName, '.') || str_ends_with($fileName, ' ')) {
+        respond(422, ['error' => 'El nombre de archivo no es válido.']);
+    }
+    $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
+    $allowedTypes = [
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'webp' => 'image/webp',
+        'gif' => 'image/gif',
+    ];
+    if (!isset($allowedTypes[$extension])) {
+        respond(422, ['error' => 'El formato de imagen no es compatible.']);
+    }
+
+    $mime = (new finfo(FILEINFO_MIME_TYPE))->file((string) $image['tmp_name']);
+    if ($mime !== $allowedTypes[$extension]) {
+        respond(422, ['error' => 'El contenido de la imagen no coincide con su extensión.']);
+    }
+
+    $finalFileName = $fileName;
+    $targetDir = dirname(__DIR__) . '/images';
+    if (!is_dir($targetDir) && !mkdir($targetDir, 0755, true) && !is_dir($targetDir)) {
+        respond(500, ['error' => 'No se pudo preparar la carpeta de imágenes.']);
+    }
+    if (!move_uploaded_file((string) $image['tmp_name'], $targetDir . '/' . $finalFileName)) {
+        respond(500, ['error' => 'No se pudo guardar la imagen en el servidor.']);
+    }
+
+    respond(200, ['success' => true, 'url' => '/images/' . rawurlencode($finalFileName)]);
+}
+
 function encryptData(string $plaintext): array
 {
     $nonce = random_bytes(12);
@@ -743,6 +791,10 @@ function route(PDO $pdo): void
         enforceSameOrigin();
     }
 
+    if ($path === '/upload-image' && $method === 'POST') {
+        storeUploadedImage();
+    }
+
     if ($path === '/auth/login' && $method === 'POST') {
         $body = requestBody();
         $identifier = strtolower(trim((string) ($body['identifier'] ?? $body['email'] ?? '')));
@@ -857,6 +909,10 @@ function route(PDO $pdo): void
         }
         clearSessionCookie();
         respond(200, ['success' => true]);
+    }
+
+    if ($path === '/upload-image' && $method === 'POST') {
+        storeUploadedImage();
     }
 
     if ($path === '/auth/me' && $method === 'GET') {
