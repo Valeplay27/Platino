@@ -1,6 +1,6 @@
 // Servicio de gestión de productos favoritos por usuario para Platino Perú
 
-import { getRemoteData, loadRemoteData, setRemoteData } from "./remoteData";
+import { getRemoteData, setRemoteData } from "./remoteData";
 
 /**
  * Obtiene la lista de favoritos de un usuario según su correo
@@ -10,11 +10,29 @@ export const getUserFavorites = (userEmail) => {
   const cleanEmail = userEmail.trim().toLowerCase();
   const cacheKey = `favorites_${cleanEmail}`;
   const fallback = [];
-  loadRemoteData("favorites", fallback, cacheKey).catch((error) => {
-    console.error("Could not load favorites from API:", error);
-    window.dispatchEvent(new CustomEvent("platino_api_error", { detail: { namespace: "favorites", message: error.message } }));
-  });
-  return getRemoteData("favorites", fallback, cacheKey);
+  let res = getRemoteData("favorites", fallback, cacheKey);
+
+  // Verificación y respaldo por persistencia local directa (evita que un refresco limpie la lista)
+  if (!res || !Array.isArray(res) || res.length === 0) {
+    try {
+      const raw = localStorage.getItem(`platino_local_ns_${cacheKey}`) ||
+                  localStorage.getItem(`platino_favorites_${cleanEmail}`) ||
+                  localStorage.getItem(`favorites_${cleanEmail}`) ||
+                  localStorage.getItem("platino_favorites");
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const data = parsed && typeof parsed === "object" && "__ts" in parsed ? parsed.data : parsed;
+        if (Array.isArray(data) && data.length > 0) {
+          res = data;
+          setRemoteData("favorites", data, "platino_favorites_updated", { email: cleanEmail }, cacheKey);
+        }
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  return Array.isArray(res) ? res : [];
 };
 
 /**
@@ -51,6 +69,11 @@ export const addToFavorites = (userEmail, product) => {
       },
       ...list,
     ];
+    try {
+      localStorage.setItem(`platino_favorites_${cleanEmail}`, JSON.stringify(updated));
+    } catch {
+      // ignore
+    }
     setRemoteData("favorites", updated, "platino_favorites_updated", { email: cleanEmail }, cacheKey);
     return true;
   }
@@ -67,6 +90,11 @@ export const removeFromFavorites = (userEmail, productId) => {
   const list = getUserFavorites(userEmail);
 
   const updated = list.filter((item) => String(item.id) !== String(productId));
+  try {
+    localStorage.setItem(`platino_favorites_${cleanEmail}`, JSON.stringify(updated));
+  } catch {
+    // ignore
+  }
   setRemoteData("favorites", updated, "platino_favorites_updated", { email: cleanEmail }, cacheKey);
   return true;
 };

@@ -4,26 +4,33 @@ import { useAuth } from "../context/useAuth";
 import { getUserFavorites, removeFromFavorites } from "../services/favoritesService";
 import { formatPrice } from "../data/products";
 import { getAssetUrl } from "../utils/assetHelper";
+import ringArtImg from "../assets/favorites-ring-art.png";
 
 export default function Favorites({ addToCart }) {
   const { user, openAuthModal } = useAuth();
-  const [favorites, setFavorites] = useState(() => (user ? getUserFavorites(user.email) : []));
+  const [favorites, setFavorites] = useState(() => (user?.email ? getUserFavorites(user.email) : []));
   const [toastMsg, setToastMsg] = useState("");
 
   useEffect(() => {
-    if (user) {
-      setFavorites(getUserFavorites(user.email));
-    } else {
-      setFavorites([]);
-    }
-
-    const handleUpdate = () => {
-      if (user) setFavorites(getUserFavorites(user.email));
+    const syncFavs = () => {
+      if (user?.email) {
+        setFavorites(getUserFavorites(user.email));
+      } else {
+        setFavorites([]);
+      }
     };
 
-    window.addEventListener("platino_favorites_updated", handleUpdate);
-    return () => window.removeEventListener("platino_favorites_updated", handleUpdate);
-  }, [user]);
+    syncFavs();
+
+    window.addEventListener("platino_favorites_updated", syncFavs);
+    window.addEventListener("platino_data_loaded", syncFavs);
+    window.addEventListener("storage", syncFavs);
+    return () => {
+      window.removeEventListener("platino_favorites_updated", syncFavs);
+      window.removeEventListener("platino_data_loaded", syncFavs);
+      window.removeEventListener("storage", syncFavs);
+    };
+  }, [user?.email]);
 
   const handleRemove = (productId, productName) => {
     if (!user) return;
@@ -72,7 +79,7 @@ export default function Favorites({ addToCart }) {
       {/* Header Luxury cuando hay joyas favoritas guardadas */}
       {favorites.length > 0 && (
         <div style={{ maxWidth: "1060px", margin: "10px auto 32px" }}>
-          <div className="favorites-hero-banner" style={{ minHeight: "260px" }}>
+          <div className="favorites-hero-banner" style={{ minHeight: "290px" }}>
             <div className="favorites-hero-content" style={{ padding: "38px 42px", maxWidth: "620px" }}>
               <span
                 style={{
@@ -167,7 +174,14 @@ export default function Favorites({ addToCart }) {
             </div>
 
             <div className="favorites-hero-image-wrap">
-              <img src={getAssetUrl("/images/favorites-ring-art.png")} alt="Anillo de diamantes Platino Perú" />
+              <img
+                src={ringArtImg || getAssetUrl("/images/favorites-ring-art.png")}
+                alt="Anillo de diamantes Platino Perú"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = getAssetUrl("/images/favorites-ring-art.png");
+                }}
+              />
               <div className="gradient-overlay" />
             </div>
           </div>
@@ -225,7 +239,14 @@ export default function Favorites({ addToCart }) {
               </Link>
             </div>
             <div className="favorites-hero-image-wrap">
-              <img src={getAssetUrl("/images/favorites-ring-art.png")} alt="Anillo de diamantes Platino Perú" />
+              <img
+                src={ringArtImg || getAssetUrl("/images/favorites-ring-art.png")}
+                alt="Anillo de diamantes Platino Perú"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = getAssetUrl("/images/favorites-ring-art.png");
+                }}
+              />
               <div className="gradient-overlay" />
             </div>
           </div>
@@ -339,7 +360,14 @@ export default function Favorites({ addToCart }) {
               </Link>
             </div>
             <div className="favorites-hero-image-wrap">
-              <img src={getAssetUrl("/images/favorites-ring-art.png")} alt="Anillo de diamantes Platino Perú" />
+              <img
+                src={ringArtImg || getAssetUrl("/images/favorites-ring-art.png")}
+                alt="Anillo de diamantes Platino Perú"
+                onError={(e) => {
+                  e.currentTarget.onerror = null;
+                  e.currentTarget.src = getAssetUrl("/images/favorites-ring-art.png");
+                }}
+              />
               <div className="gradient-overlay" />
             </div>
           </div>

@@ -135,7 +135,7 @@
 .favorites-hero-image-wrap .gradient-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(90deg, #061914 0%, rgba(6, 25, 20, 0.7) 35%, transparent 75%);
+  background: linear-gradient(90deg, #061914 0%, #061914 25%, rgba(6, 25, 20, 0.6) 45%, transparent 75%);
 }
 
 @media (max-width: 768px) {
@@ -155,5 +155,28 @@
   }
   .favorites-hero-image-wrap .gradient-overlay {
     background: linear-gradient(180deg, transparent 40%, #061914 100%) !important;
+  }
+}
+
+/* ==========================================================================
+   ANIMACIONES PRELOADER PLATINO PERÚ
+   ========================================================================== */
+@keyframes platinoPulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.03);
+    opacity: 0.92;
+  }
+}
+
+@keyframes platinoShimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(250%);
   }
 }

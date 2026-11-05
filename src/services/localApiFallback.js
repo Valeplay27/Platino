@@ -59,6 +59,16 @@ function readNamespace(ns, fallback = null) {
   return readJson(`${LOCAL_NS_PREFIX}${ns}`, fallback);
 }
 
+function getLocalNamespaceKey(namespace) {
+  if (namespace !== "favorites") return namespace;
+  const user = readJson(LOCAL_SESSION_KEY, null);
+  const email = String(user?.email || "").trim().toLowerCase();
+  if (!email) {
+    throw new Error("Inicia sesión para acceder a tus favoritos.");
+  }
+  return `favorites_${email}`;
+}
+
 function writeNamespace(ns, data) {
   const envelope = { __ts: Date.now(), data };
   try {
@@ -188,7 +198,7 @@ export function handleLocalApiFallback(rawPath, { method = "GET", body } = {}) {
   if (path === "/data" && upperMethod === "GET") {
     const singleNs = params.get("namespace");
     if (singleNs) {
-      return { data: readNamespace(singleNs, null) };
+      return { data: readNamespace(getLocalNamespaceKey(singleNs), null) };
     }
     const list = (params.get("namespaces") || "")
       .split(",")
@@ -196,7 +206,7 @@ export function handleLocalApiFallback(rawPath, { method = "GET", body } = {}) {
       .filter(Boolean);
     const data = {};
     for (const ns of list) {
-      data[ns] = readNamespace(ns, null);
+      data[ns] = readNamespace(getLocalNamespaceKey(ns), null);
     }
     return { data };
   }
@@ -207,7 +217,7 @@ export function handleLocalApiFallback(rawPath, { method = "GET", body } = {}) {
     if (!ns) {
       throw new Error("Namespace requerido.");
     }
-    writeNamespace(ns, body?.data ?? null);
+    writeNamespace(getLocalNamespaceKey(ns), body?.data ?? null);
     return { success: true, data: body?.data ?? null };
   }
 
@@ -325,6 +335,12 @@ export function handleLocalApiFallback(rawPath, { method = "GET", body } = {}) {
   if (path === "/admin/care/mutate" && upperMethod === "POST") {
     const clients = readNamespace("care_clients", []) || [];
     return { data: clients };
+  }
+  if (path === "/migration/import" && upperMethod === "POST") {
+    const records = body?.records || {};
+    const discardKeys = body?.discardKeys || [];
+    const consumedKeys = [...Object.keys(records), ...discardKeys];
+    return { success: true, consumedKeys, pendingKeys: [] };
   }
 
   return { success: true, data: null };

@@ -11,6 +11,7 @@ import { DEFAULT_CATEGORY_MARGINS } from "../services/financeService";
 import { DEFAULT_PLATINO_CARE_CONFIG } from "../services/platinoCareService";
 import { getPermissionsMatrix, getPermissionRequests } from "../services/permissionsService";
 import { migrateLegacyBrowserData } from "../services/legacyMigration";
+import platinoLogoWordmark from "../assets/platino-peru-logo.png?inline";
 
 const publicDefaults = {
   catalog: getCatalogProducts(),
@@ -46,8 +47,7 @@ export default function ApiDataBootstrap({ children }) {
         try {
           await migrateLegacyBrowserData();
         } catch (error) {
-          console.error("Could not migrate browser data:", error);
-          window.dispatchEvent(new CustomEvent("platino_api_error", { detail: { message: error.message } }));
+          console.warn("Could not migrate browser data (non-fatal):", error);
         }
       }
       const defaults = { ...publicDefaults };
@@ -91,7 +91,91 @@ export default function ApiDataBootstrap({ children }) {
   }, [isSessionReady, userId, userEmail, userIsAdmin, isMaster, sessionKey]);
 
   if (!sessionKey || loadedSession !== sessionKey) {
-    return <div className="api-loading" role="status">Conectando con Platino…</div>;
+    return (
+      <div
+        className="platino-preloader-screen"
+        role="status"
+        aria-live="polite"
+        style={{
+          position: "fixed",
+          inset: 0,
+          zIndex: 999999,
+          background: "linear-gradient(180deg, #fdfbf7 0%, #f6f1e8 100%)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: "24px",
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            maxWidth: "360px",
+            textAlign: "center",
+          }}
+        >
+          {/* Logo Oficial de Platino Perú */}
+          <div
+            style={{
+              marginBottom: "26px",
+              animation: "platinoPulse 2s ease-in-out infinite",
+            }}
+          >
+            <img
+              src={platinoLogoWordmark}
+              alt="Platino Perú"
+              style={{
+                height: "44px",
+                width: "auto",
+                display: "block",
+                filter: "drop-shadow(0 2px 8px rgba(17, 59, 58, 0.08))",
+              }}
+            />
+          </div>
+
+          {/* Barra de progreso de lujo dorada/verde */}
+          <div
+            style={{
+              width: "160px",
+              height: "3px",
+              background: "rgba(198, 172, 127, 0.25)",
+              borderRadius: "999px",
+              overflow: "hidden",
+              marginBottom: "16px",
+              position: "relative",
+            }}
+          >
+            <div
+              style={{
+                width: "60%",
+                height: "100%",
+                background: "linear-gradient(90deg, #C6AC7F 0%, #113B3A 50%, #C6AC7F 100%)",
+                borderRadius: "999px",
+                animation: "platinoShimmer 1.4s ease-in-out infinite",
+              }}
+            />
+          </div>
+
+          {/* Texto de carga elegante */}
+          <span
+            style={{
+              fontFamily: "'Montserrat', sans-serif",
+              fontSize: "11.5px",
+              fontWeight: "600",
+              letterSpacing: "0.18em",
+              textTransform: "uppercase",
+              color: "#113B3A",
+              opacity: 0.85,
+            }}
+          >
+            Conectando con Platino Perú
+          </span>
+        </div>
+      </div>
+    );
   }
   return children;
 }

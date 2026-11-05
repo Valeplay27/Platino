@@ -90,9 +90,38 @@ function App() {
       <BrowserRouter basename={import.meta.env.BASE_URL}>
         <ApiDataBootstrap>
         {apiError && (
-          <div className="api-error-banner" role="alert" style={{ background: "#8b1e1e", color: "white", padding: "12px 20px", display: "flex", justifyContent: "space-between", gap: "16px" }}>
-            {apiError}
-            <button type="button" onClick={() => setApiError("")} aria-label="Cerrar aviso">Ã—</button>
+          <div
+            className="api-error-banner"
+            role="alert"
+            style={{
+              background: "#8b1e1e",
+              color: "white",
+              padding: "12px 20px",
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: "16px",
+              fontSize: "14px",
+              fontWeight: "500",
+            }}
+          >
+            <span>{apiError}</span>
+            <button
+              type="button"
+              onClick={() => setApiError("")}
+              aria-label="Cerrar aviso"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "#ffffff",
+                fontSize: "18px",
+                cursor: "pointer",
+                padding: "0 6px",
+                lineHeight: 1,
+              }}
+            >
+              ✕
+            </button>
           </div>
         )}
         <ScrollToTop />

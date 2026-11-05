@@ -197,9 +197,11 @@ export function getAllStoredInventory() {
             const tot = (Number(item?.bodega) || 0) + (Number(item?.["lima-centro"]) || 0) + (Number(item?.miraflores) || 0);
             if (tot > 0) {
               const norm = normalizeSizeKey("dama", sz);
-              const mItem = parsed["_master_"].dama[norm];
+              const mItem = parsed["_master_"]?.dama?.[norm];
               const mTot = (Number(mItem?.bodega) || 0) + (Number(mItem?.["lima-centro"]) || 0) + (Number(mItem?.miraflores) || 0);
               if (tot > mTot) {
+                if (!parsed["_master_"]) parsed["_master_"] = { dama: {}, varon: {} };
+                if (!parsed["_master_"].dama) parsed["_master_"].dama = {};
                 parsed["_master_"].dama[norm] = { ...item };
                 needsSave = true;
               }
@@ -209,10 +211,10 @@ export function getAllStoredInventory() {
       });
 
       // Propagar cualquier talla configurada en _master_ a todas las joyas del catálogo
-      if (parsed["_master_"]) {
+      if (parsed["_master_"]?.dama) {
         Object.keys(parsed).forEach((k) => {
           if (k !== "_master_" && parsed[k]?.dama) {
-            Object.keys(parsed["_master_"].dama).forEach((sz) => {
+            Object.keys(parsed["_master_"].dama || {}).forEach((sz) => {
               const mItem = parsed["_master_"].dama[sz];
               const mTot = (Number(mItem?.bodega) || 0) + (Number(mItem?.["lima-centro"]) || 0) + (Number(mItem?.miraflores) || 0);
               if (mTot > 0) {

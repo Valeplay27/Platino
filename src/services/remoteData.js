@@ -22,6 +22,7 @@ const NAMESPACE_EVENTS = {
   nosotros: "platino_nosotros_updated",
   gemstones: "gemstones_updated",
   laboratories: "gemstones_updated",
+  favorites: "platino_favorites_updated",
 };
 
 // ========================================================
@@ -296,13 +297,15 @@ export const loadRemoteData = async (namespace, fallback, cacheKey = namespace) 
     finalValue = localVal;
     persistNamespace(namespace, localVal, cacheKey).catch(() => {});
   } else if (remoteVal !== null && remoteVal !== undefined) {
-    // Si el servidor devolvió un catálogo o imágenes vacías pero localmente hay guardados recientes, preservar los locales
+    // Si el servidor devolvió un catálogo, imágenes o favoritos vacíos pero localmente hay guardados recientes, preservar los locales
     const isRemoteCatalogEmpty =
       namespace === "catalog" && Array.isArray(remoteVal) && remoteVal.length === 0 && Array.isArray(localVal) && localVal.length > 0;
     const isRemoteHomeEmpty =
       namespace === "home_images" && (!remoteVal || Object.keys(remoteVal).length === 0) && localVal && Object.keys(localVal).length > 0;
+    const isRemoteFavoritesEmpty =
+      namespace === "favorites" && Array.isArray(remoteVal) && remoteVal.length === 0 && Array.isArray(localVal) && localVal.length > 0;
 
-    if (isRemoteCatalogEmpty || isRemoteHomeEmpty) {
+    if (isRemoteCatalogEmpty || isRemoteHomeEmpty || isRemoteFavoritesEmpty) {
       finalValue = localVal;
       persistNamespace(namespace, localVal, cacheKey).catch(() => {});
     } else {

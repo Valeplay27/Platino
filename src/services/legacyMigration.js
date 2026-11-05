@@ -51,7 +51,7 @@ export async function migrateLegacyBrowserData() {
       try {
         records[key] = JSON.parse(value);
       } catch {
-        throw new Error(`No se pudo interpretar la información guardada en ${key}.`);
+        // Ignorar datos no parseables de favoritos locales antiguos
       }
     } else {
       discardKeys.push(key);
@@ -59,9 +59,22 @@ export async function migrateLegacyBrowserData() {
   });
 
   if (Object.keys(records).length === 0 && discardKeys.length === 0) return;
-  const { consumedKeys, pendingKeys } = await apiPost("/migration/import", { records, discardKeys });
-  consumedKeys.forEach((key) => localStorage.removeItem(key));
-  if (pendingKeys?.length) {
-    throw new Error("Algunos usuarios o favoritos antiguos no pudieron vincularse; sus datos permanecen en este dispositivo.");
+  try {
+    const result = await apiPost("/migration/import", { records, discardKeys }).catch(() => null);
+    const consumedKeys = Array.isArray(result?.consumedKeys)
+      ? result.consumedKeys
+      : (result?.success ? [...Object.keys(records), ...discardKeys] : []);
+    (consumedKeys || []).forEach((key) => {
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        // ignore
+      }
+    });
+    if (result?.pendingKeys?.length) {
+      console.warn("Algunos registros antiguos no pudieron vincularse:", result.pendingKeys);
+    }
+  } catch (err) {
+    console.warn("Error no fatal en migración de datos locales:", err);
   }
 }

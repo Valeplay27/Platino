@@ -870,7 +870,7 @@ export default function AdminCitas() {
 
   const handleExpandAllOrders = () => {
     const all = {};
-    ordersList.forEach((o) => {
+    (ordersList || []).forEach((o) => {
       all[o.id] = true;
     });
     setExpandedOrders(all);
@@ -1156,7 +1156,7 @@ export default function AdminCitas() {
   // Obtener la lista dinámica de materiales únicos presentes en los pedidos
   const availableOrderMaterials = useMemo(() => {
     const set = new Set();
-    effectiveSedeOrders.forEach((order) => {
+    (effectiveSedeOrders || []).forEach((order) => {
       (order.items || []).forEach((it) => {
         const matName = it.metal || it.metalId;
         if (matName && typeof matName === "string" && matName.trim()) {
@@ -1273,7 +1273,7 @@ export default function AdminCitas() {
     let miraflores = 0;
     let totalPieces = 0;
 
-    catalogList.forEach((prod) => {
+    (catalogList || []).forEach((prod) => {
       const stock = allInventoryMap[prod.id] || getProductStock(prod.id, prod.hasDoubleSizes);
       const stats = getProductTotalStockStats(stock);
       bodega += stats.totalBodega;
@@ -1890,7 +1890,7 @@ export default function AdminCitas() {
     let countPagados = 0;
     let countPendientes = 0;
 
-    effectiveSedeOrders.forEach((order) => {
+    (effectiveSedeOrders || []).forEach((order) => {
       const orderTotal = Number(order.total) || 0;
       totalFacturado += orderTotal;
       if (order.paymentStatus === "Pagado (100%)") {

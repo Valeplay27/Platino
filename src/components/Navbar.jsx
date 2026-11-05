@@ -121,7 +121,13 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
       if (user?.email) setFavCount(getFavoriteCount(user.email));
     };
     window.addEventListener("platino_favorites_updated", handleFavUpdate);
-    return () => window.removeEventListener("platino_favorites_updated", handleFavUpdate);
+    window.addEventListener("platino_data_loaded", handleFavUpdate);
+    window.addEventListener("storage", handleFavUpdate);
+    return () => {
+      window.removeEventListener("platino_favorites_updated", handleFavUpdate);
+      window.removeEventListener("platino_data_loaded", handleFavUpdate);
+      window.removeEventListener("storage", handleFavUpdate);
+    };
   }, [user?.email]);
 
   useEffect(() => {
