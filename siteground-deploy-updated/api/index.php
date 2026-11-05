@@ -460,47 +460,38 @@ function requestBody(): array
 function storeUploadedImage(): never
 {
     $image = $_FILES['image'] ?? null;
-    if (!is_array($image) || !isset($image['error'], $image['tmp_name'])) {
-        respond(400, ['error' => 'Falta el archivo de imagen.']);
-    }
-    if ((int) $image['error'] !== UPLOAD_ERR_OK) {
-        respond(400, ['error' => 'No se pudo recibir el archivo de imagen.']);
-    }
-    if ((int) ($image['size'] ?? 0) > MAX_REQUEST_BYTES) {
-        respond(413, ['error' => 'La imagen supera el límite permitido.']);
+    $body = is_array($image) ? [] : requestBody();
+
+    $binary = null;
+    $fileName = '';
+
+    if (is_array($image) && isset($image['error'], $image['tmp_name']) && (int) $image['error'] === UPLOAD_ERR_OK) {
+        $fileName = (string) ($_POST['fileName'] ?? $image['name'] ?? 'joya.jpg');
+        $binary = file_get_contents((string) $image['tmp_name']);
+    } elseif (!empty($body['dataUrl'])) {
+        $fileName = (string) ($body['fileName'] ?? 'joya.jpg');
+        $raw = preg_replace('#^data:image/\w+;base64,#i', '', explode('#', $body['dataUrl'])[0]);
+        $binary = base64_decode($raw, true);
     }
 
-    $fileName = (string) ($_POST['fileName'] ?? $image['name'] ?? '');
-    if ($fileName === '' || strlen($fileName) > 255 ||
-        preg_match('/[\/\\\\\x00-\x1F\x7F]/', $fileName) ||
-        str_ends_with($fileName, '.') || str_ends_with($fileName, ' ')) {
-        respond(422, ['error' => 'El nombre de archivo no es válido.']);
-    }
-    $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-    $allowedTypes = [
-        'jpg' => 'image/jpeg',
-        'jpeg' => 'image/jpeg',
-        'png' => 'image/png',
-        'webp' => 'image/webp',
-        'gif' => 'image/gif',
-    ];
-    if (!isset($allowedTypes[$extension])) {
-        respond(422, ['error' => 'El formato de imagen no es compatible.']);
+    if (!$binary) {
+        respond(400, ['error' => 'Falta el archivo o los datos de la imagen.']);
     }
 
-    $mime = (new finfo(FILEINFO_MIME_TYPE))->file((string) $image['tmp_name']);
-    if ($mime !== $allowedTypes[$extension]) {
-        respond(422, ['error' => 'El contenido de la imagen no coincide con su extensión.']);
-    }
+    $cleanRaw = preg_replace('/#.*$/', '', trim($fileName));
+    $cleanRaw = preg_replace('/\.(jpe?g|png|webp|gif)\.(jpe?g|png|webp|gif)$/i', '.$2', $cleanRaw);
+    $ext = strtolower(pathinfo($cleanRaw, PATHINFO_EXTENSION) ?: 'jpg');
+    if ($ext === 'jpeg') $ext = 'jpg';
+    $baseName = preg_replace('/\.(jpe?g|png|webp|gif)$/i', '', pathinfo($cleanRaw, PATHINFO_FILENAME));
+    $safeSlug = preg_replace('/[^a-zA-Z0-9_-]/', '-', $baseName);
+    $safeSlug = trim(preg_replace('/-+/', '-', $safeSlug ?: 'joya'), '-');
+    $finalFileName = $safeSlug . '.' . $ext;
 
-    $finalFileName = $fileName;
     $targetDir = dirname(__DIR__) . '/images';
-    if (!is_dir($targetDir) && !mkdir($targetDir, 0755, true) && !is_dir($targetDir)) {
-        respond(500, ['error' => 'No se pudo preparar la carpeta de imágenes.']);
+    if (!is_dir($targetDir)) {
+        @mkdir($targetDir, 0755, true);
     }
-    if (!move_uploaded_file((string) $image['tmp_name'], $targetDir . '/' . $finalFileName)) {
-        respond(500, ['error' => 'No se pudo guardar la imagen en el servidor.']);
-    }
+    file_put_contents($targetDir . '/' . $finalFileName, $binary);
 
     respond(200, ['success' => true, 'url' => '/images/' . rawurlencode($finalFileName)]);
 }
@@ -2089,6 +2080,10 @@ function routeWithoutDatabase(): void
         $path = '/' . ltrim($path, '/');
     }
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
+
+    if ($path === '/upload-image' && $method === 'POST') {
+        storeUploadedImage();
+    }
 
     if ($method === 'OPTIONS') {
         header('Allow: GET, POST, PUT, DELETE, OPTIONS');

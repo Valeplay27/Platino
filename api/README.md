@@ -58,7 +58,10 @@ environment. The application cannot display or retrieve stored passwords.
 - `GET /api/auth/me`
 - `POST /api/auth/change-password`
 - `POST /api/auth/admin/password` (master administrator only)
+- `GET|POST /api/admin/recovery-code` (master administrator only)
+- `POST /api/admin/recovery-code/validate` (master administrator only)
 - `GET|PUT|DELETE /api/data?namespace=<name>` (encrypted namespaces, authenticated writes)
+- `POST /api/upload-image` (stores image files under `/images/` using their original filename)
 - `POST /api/public/appointments` (validated booking; public reads redact customer details)
 - `POST /api/public/reclamations` (append-only public complaint submission)
 - `POST /api/public/orders` (authenticated customer's append-only order submission)
@@ -87,9 +90,8 @@ the server environment variables. Do not publish the API until bootstrap and
 HTTPS are verified. No DB credentials or encryption keys belong in the Vite build.
 
 The app-data API currently stores encrypted JSON in one record per namespace.
-Keep each namespace under 2 MB and the complete request under 8 MB; large media
-should be stored as server-side files with a future upload endpoint rather than
-expanding these limits indiscriminately.
+Keep each namespace under 2 MB and the complete request under 8 MB. Uploaded
+images are stored as files and should not be embedded in app-data records.
 
 The frontend build/linter can be run with `npm run build` and `npm run lint`.
 PHP syntax and MySQL end-to-end checks must be run on the SiteGround PHP/MySQL

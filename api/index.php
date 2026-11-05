@@ -460,47 +460,38 @@ function requestBody(): array
 function storeUploadedImage(): never
 {
     $image = $_FILES['image'] ?? null;
-    if (!is_array($image) || !isset($image['error'], $image['tmp_name'])) {
-        respond(400, ['error' => 'Falta el archivo de imagen.']);
-    }
-    if ((int) $image['error'] !== UPLOAD_ERR_OK) {
-        respond(400, ['error' => 'No se pudo recibir el archivo de imagen.']);
-    }
-    if ((int) ($image['size'] ?? 0) > MAX_REQUEST_BYTES) {
-        respond(413, ['error' => 'La imagen supera el límite permitido.']);
+    $body = is_array($image) ? [] : requestBody();
+
+    $binary = null;
+    $fileName = '';
+
+    if (is_array($image) && isset($image['error'], $image['tmp_name']) && (int) $image['error'] === UPLOAD_ERR_OK) {
+        $fileName = (string) ($_POST['fileName'] ?? $image['name'] ?? 'joya.jpg');
+        $binary = file_get_contents((string) $image['tmp_name']);
+    } elseif (!empty($body['dataUrl'])) {
+        $fileName = (string) ($body['fileName'] ?? 'joya.jpg');
+        $raw = preg_replace('#^data:image/\w+;base64,#i', '', explode('#', $body['dataUrl'])[0]);
+        $binary = base64_decode($raw, true);
     }
 
-    $fileName = (string) ($_POST['fileName'] ?? $image['name'] ?? '');
-    if ($fileName === '' || strlen($fileName) > 255 ||
-        preg_match('/[\/\\\\\x00-\x1F\x7F]/', $fileName) ||
-        str_ends_with($fileName, '.') || str_ends_with($fileName, ' ')) {
-        respond(422, ['error' => 'El nombre de archivo no es válido.']);
-    }
-    $extension = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-    $allowedTypes = [
-        'jpg' => 'image/jpeg',
-        'jpeg' => 'image/jpeg',
-        'png' => 'image/png',
-        'webp' => 'image/webp',
-        'gif' => 'image/gif',
-    ];
-    if (!isset($allowedTypes[$extension])) {
-        respond(422, ['error' => 'El formato de imagen no es compatible.']);
+    if (!$binary) {
+        respond(400, ['error' => 'Falta el archivo o los datos de la imagen.']);
     }
 
-    $mime = (new finfo(FILEINFO_MIME_TYPE))->file((string) $image['tmp_name']);
-    if ($mime !== $allowedTypes[$extension]) {
-        respond(422, ['error' => 'El contenido de la imagen no coincide con su extensión.']);
-    }
+    $cleanRaw = preg_replace('/#.*$/', '', trim($fileName));
+    $cleanRaw = preg_replace('/\.(jpe?g|png|webp|gif)\.(jpe?g|png|webp|gif)$/i', '.$2', $cleanRaw);
+    $ext = strtolower(pathinfo($cleanRaw, PATHINFO_EXTENSION) ?: 'jpg');
+    if ($ext === 'jpeg') $ext = 'jpg';
+    $baseName = preg_replace('/\.(jpe?g|png|webp|gif)$/i', '', pathinfo($cleanRaw, PATHINFO_FILENAME));
+    $safeSlug = preg_replace('/[^a-zA-Z0-9_-]/', '-', $baseName);
+    $safeSlug = trim(preg_replace('/-+/', '-', $safeSlug ?: 'joya'), '-');
+    $finalFileName = $safeSlug . '.' . $ext;
 
-    $finalFileName = $fileName;
     $targetDir = dirname(__DIR__) . '/images';
-    if (!is_dir($targetDir) && !mkdir($targetDir, 0755, true) && !is_dir($targetDir)) {
-        respond(500, ['error' => 'No se pudo preparar la carpeta de imágenes.']);
+    if (!is_dir($targetDir)) {
+        @mkdir($targetDir, 0755, true);
     }
-    if (!move_uploaded_file((string) $image['tmp_name'], $targetDir . '/' . $finalFileName)) {
-        respond(500, ['error' => 'No se pudo guardar la imagen en el servidor.']);
-    }
+    file_put_contents($targetDir . '/' . $finalFileName, $binary);
 
     respond(200, ['success' => true, 'url' => '/images/' . rawurlencode($finalFileName)]);
 }
@@ -559,6 +550,109 @@ function deriveClientRecoveryCode(string $dailyCode, string $userId, string $dat
     $mac = hash_hmac('sha256', "recovery:{$dateKey}:{$userId}:{$dailyCode}", signingKey(), true);
     $num = unpack('N', substr($mac, 0, 4))[1] & 0x7fffffff;
     return (string) (100000 + ($num % 900000));
+}
+
+function currentUserWithoutDatabase(): ?array
+{
+    $parts = explode('.', (string) ($_COOKIE[SESSION_COOKIE] ?? ''));
+    if (count($parts) !== 5 || $parts[1] !== '') {
+        return null;
+    }
+
+    [$encodedHeader, , $encodedIv, $encodedCiphertext, $encodedTag] = $parts;
+    $header = json_decode(base64UrlDecode($encodedHeader) ?: '', true);
+    $iv = base64UrlDecode($encodedIv);
+    $ciphertext = base64UrlDecode($encodedCiphertext);
+    $tag = base64UrlDecode($encodedTag);
+    if (
+        !is_array($header) ||
+        ($header['alg'] ?? null) !== 'dir' ||
+        ($header['enc'] ?? null) !== 'A256GCM' ||
+        $iv === false ||
+        $ciphertext === false ||
+        $tag === false
+    ) {
+        return null;
+    }
+
+    $encodedPayload = openssl_decrypt(
+        $ciphertext,
+        'aes-256-gcm',
+        signingKey(),
+        OPENSSL_RAW_DATA,
+        $iv,
+        $tag,
+        $encodedHeader
+    );
+    $payload = $encodedPayload === false
+        ? null
+        : json_decode(base64UrlDecode($encodedPayload) ?: '', true);
+    if (
+        !is_array($payload) ||
+        !isset($payload['sub'], $payload['jti'], $payload['exp']) ||
+        (int) $payload['exp'] <= time()
+    ) {
+        return null;
+    }
+
+    return [
+        'id' => (string) $payload['sub'],
+        'role' => (string) ($payload['role'] ?? ''),
+        'email' => ($payload['role'] ?? '') === 'admin_master' ? 'vladimiryt18@gmail.com' : '',
+        'email_lookup' => ($payload['role'] ?? '') === 'admin_master'
+            ? emailLookup('vladimiryt18@gmail.com')
+            : '',
+    ];
+}
+
+function requireMasterWithoutDatabase(): array
+{
+    $user = currentUserWithoutDatabase();
+    if ($user === null) {
+        respond(401, ['error' => 'Autenticación requerida.']);
+    }
+    if (($user['role'] ?? '') !== 'admin_master' || ($user['email'] ?? '') !== 'vladimiryt18@gmail.com') {
+        respond(403, ['error' => 'Se requiere la cuenta del administrador principal.']);
+    }
+    return $user;
+}
+
+function getFallbackDailyRecoveryCode(bool $rotate = false): string
+{
+    $today = date('Y-m-d');
+    $record = readFileNamespace('_recovery_code');
+    if (
+        !$rotate &&
+        is_array($record) &&
+        ($record['date'] ?? '') === $today &&
+        isset($record['nonce'], $record['cipher'])
+    ) {
+        $nonce = base64_decode((string) $record['nonce'], true);
+        $cipher = base64_decode((string) $record['cipher'], true);
+        if ($nonce !== false && strlen($nonce) === 12 && $cipher !== false && strlen($cipher) >= 16) {
+            try {
+                $code = decryptData($nonce, $cipher);
+            } catch (RuntimeException) {
+                $code = '';
+            }
+            if (preg_match('/^\d{6}$/', $code) === 1) {
+                return $code;
+            }
+        }
+    }
+
+    $code = (string) random_int(100000, 999999);
+    [$nonce, $cipher] = encryptData($code);
+    $json = json_encode(
+        ['date' => $today, 'nonce' => base64_encode($nonce), 'cipher' => base64_encode($cipher)],
+        JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR
+    );
+    $file = ensureStorageDir() . '/ns__recovery_code.json';
+    if (file_put_contents($file, $json, LOCK_EX) === false) {
+        throw new RuntimeException('No se pudo guardar el código de recuperación en el servidor.');
+    }
+
+    return $code;
 }
 
 function publicUser(array $user): array
@@ -2090,6 +2184,10 @@ function routeWithoutDatabase(): void
     }
     $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
 
+    if ($path === '/upload-image' && $method === 'POST') {
+        storeUploadedImage();
+    }
+
     if ($method === 'OPTIONS') {
         header('Allow: GET, POST, PUT, DELETE, OPTIONS');
         respond(204, []);
@@ -2176,6 +2274,41 @@ function routeWithoutDatabase(): void
     if ($path === '/auth/logout' && $method === 'POST') {
         clearSessionCookie();
         respond(200, ['success' => true]);
+    }
+
+    if ($path === '/admin/recovery-code' && ($method === 'GET' || $method === 'POST')) {
+        requireMasterWithoutDatabase();
+        $code = getFallbackDailyRecoveryCode($method === 'POST');
+        respond(200, ['code' => $code, 'dateKey' => date('Y-m-d')]);
+    }
+
+    if ($path === '/admin/recovery-code/validate' && $method === 'POST') {
+        requireMasterWithoutDatabase();
+        $body = requestBody();
+        $input = preg_replace('/\D/', '', (string) ($body['code'] ?? ''));
+        $identifier = trim((string) ($body['identifier'] ?? ''));
+        $today = date('Y-m-d');
+        $dailyCode = getFallbackDailyRecoveryCode();
+        $valid = strlen($input) === 6 && hash_equals($dailyCode, $input);
+
+        if (!$valid && $identifier !== '' && strlen($input) === 6) {
+            $digits = preg_replace('/\D/', '', $identifier);
+            $users = readFileNamespace('_users');
+            foreach (is_array($users) ? $users : [] as $account) {
+                if (!is_array($account) || ($account['role'] ?? '') !== 'cliente') {
+                    continue;
+                }
+                $emailMatches = strtolower(trim((string) ($account['email'] ?? ''))) === strtolower($identifier);
+                $dniMatches = strlen($digits) === 8 && (string) ($account['dni'] ?? '') === $digits;
+                if (($emailMatches || $dniMatches) &&
+                    hash_equals(deriveClientRecoveryCode($dailyCode, (string) ($account['id'] ?? ''), $today), $input)) {
+                    $valid = true;
+                    break;
+                }
+            }
+        }
+
+        respond(200, ['valid' => $valid]);
     }
 
     if ($path === '/data' && ($method === 'GET' || $method === 'POST' || $method === 'PUT' || $method === 'DELETE')) {
