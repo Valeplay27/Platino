@@ -333,8 +333,8 @@
   position: absolute;
   bottom: 18px;
   right: 18px;
-  width: 36px;
-  height: 36px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: 1.5px solid var(--platino-gold);
   color: var(--platino-gold);
@@ -453,14 +453,14 @@
 .metal-swatches-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin-bottom: 10px;
+  gap: 8px;
+  margin-bottom: 8px;
   flex-wrap: wrap;
 }
 
 .metal-swatch-circle {
-  width: 36px;
-  height: 36px;
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   cursor: pointer;
   border: 2px solid transparent;
@@ -3214,4 +3214,37 @@
 .btn-modal-finalize:hover {
   background: #184c4a;
   transform: translateY(-1px);
+}
+
+
+/* Precios dinámicos de gemas */
+.gem-type-price-badge {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.gem-type-price-badge.included {
+  background: #edf5f0;
+  color: #137748;
+  border: 1px solid #c7dcd0;
+}
+.gem-type-price-badge.extra {
+  background: #fbf5e8;
+  color: #926d1c;
+  border: 1px solid #e7d5ad;
+}
+.gem-shape-price-tag {
+  display: inline-block;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #926d1c;
+  background: #fbf5e8;
+  border: 1px solid #e7d5ad;
+  border-radius: 4px;
+  padding: 1px 4px;
+  margin-top: 2px;
 }

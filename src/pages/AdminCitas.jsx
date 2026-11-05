@@ -927,6 +927,16 @@ export default function AdminCitas() {
   const [formDefaultGemShape, setFormDefaultGemShape] = useState("redondo");
   const [formGemShapeConfigs, setFormGemShapeConfigs] = useState({});
   const [formActiveGemShapeTab, setFormActiveGemShapeTab] = useState("redondo");
+  const [formGemTypePrices, setFormGemTypePrices] = useState({
+    "zirconita": "0",
+    "zirconita-swarovski": "80",
+    "moissanita": "350",
+    "diamante-lab": "1200",
+    "diamante-natural": "2800",
+  });
+  const [formGemShapePrices, setFormGemShapePrices] = useState({});
+  const [openProductSection, setOpenProductSection] = useState(1);
+  const toggleProductSection = (num) => setOpenProductSection((prev) => (prev === num ? null : num));
   const [feedbackMsg, setFeedbackMsg] = useState("");
 
   // Filtros de Citas
@@ -2092,6 +2102,15 @@ export default function AdminCitas() {
     setFormDefaultGemShape("redondo");
     setFormGemShapeConfigs({});
     setFormActiveGemShapeTab("redondo");
+    setFormGemTypePrices({
+      "zirconita": "0",
+      "zirconita-swarovski": "80",
+      "moissanita": "350",
+      "diamante-lab": "1200",
+      "diamante-natural": "2800",
+    });
+    setFormGemShapePrices({});
+    setOpenProductSection(1);
     setProductModalOpen(true);
   };
 
@@ -2197,6 +2216,18 @@ export default function AdminCitas() {
     setFormDefaultGemShape(defShape);
     setFormGemShapeConfigs(prod.gemShapeConfigs && typeof prod.gemShapeConfigs === "object" ? { ...prod.gemShapeConfigs } : {});
     setFormActiveGemShapeTab(defShape);
+    setFormGemTypePrices(
+      prod.gemTypePrices && typeof prod.gemTypePrices === "object"
+        ? { ...prod.gemTypePrices }
+        : {
+            "zirconita": "0",
+            "zirconita-swarovski": "80",
+            "moissanita": "350",
+            "diamante-lab": "1200",
+            "diamante-natural": "2800",
+          }
+    );
+    setFormGemShapePrices(prod.gemShapePrices && typeof prod.gemShapePrices === "object" ? { ...prod.gemShapePrices } : {});
 
     setProductModalOpen(true);
   };
@@ -2653,6 +2684,8 @@ export default function AdminCitas() {
       availableGemShapes: formAvailableGemShapes,
       defaultGemShape: formDefaultGemShape,
       gemShapeConfigs: formGemShapeConfigs,
+      gemTypePrices: formGemTypePrices,
+      gemShapePrices: formGemShapePrices,
       badge: formBadge.trim(),
       description: formDesc.trim(),
       image: mainImg,
@@ -11480,27 +11513,117 @@ export default function AdminCitas() {
             }}
           >
             <div className="catalog-modal-card" role="dialog" aria-modal="true">
-              <button
-                className="auth-modal-close"
-                onClick={() => setProductModalOpen(false)}
-                aria-label="Cerrar modal"
-              >
-                <i className="bi bi-x-lg"></i>
-              </button>
+              <div className="catalog-modal-header" style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: "16px",
+                marginBottom: "22px",
+                borderBottom: "1px solid #edf2ef",
+                paddingBottom: "16px",
+              }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "14px", flex: 1, minWidth: 0 }}>
+                  <div className="catalog-modal-header-icon-box">
+                    <i className="bi bi-gem"></i>
+                  </div>
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px", flexWrap: "wrap" }}>
+                      <span className="catalog-header-category-tag">
+                        Catálogo & Taller • Platino Perú
+                      </span>
 
-              <div className="catalog-modal-header">
-                <h2>
-                  {editingProduct
-                    ? `Modificar Joya: ${editingProduct.name}`
-                    : "Crear Nueva Joya en Catálogo"}
-                </h2>
-                <p>
-                  Actualiza los datos, precio y la fotografía del producto. Los cambios se sincronizan en vivo en la tienda.
-                </p>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap" }}>
+                      <h2 style={{ fontSize: "20px", margin: 0, color: "#111827", fontWeight: "800", letterSpacing: "-0.015em", fontFamily: "var(--font-sans, system-ui, sans-serif)" }}>
+                        {editingProduct ? "Modificar Joya:" : "Crear Nueva Joya"}
+                      </h2>
+                      {editingProduct && (
+                        <span className="catalog-header-product-pill">
+                          {editingProduct.name}
+                        </span>
+                      )}
+                    </div>
+                    <p style={{ margin: "4px 0 0 0", fontSize: "12.5px", color: "#64748b" }}>
+                      Organiza la información en secciones desplegables • Los cambios se sincronizan en vivo en la tienda
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  className="catalog-modal-close-btn"
+                  onClick={() => setProductModalOpen(false)}
+                  aria-label="Cerrar ventana"
+                  title="Cerrar ventana"
+                >
+                  <i className="bi bi-x-lg"></i>
+                </button>
               </div>
 
               <form onSubmit={handleSaveProduct} className="catalog-modal-form">
-                {/* 1. SELECTOR DE CATEGORÍA CON BARRA SEGMENTADA */}
+                
+              {/* ========================================================
+                  SECCIÓN 1: CATEGORÍA Y DATOS PRINCIPALES
+                  ======================================================== */}
+              {(() => {
+                const currentCategoryGroupObj = PRODUCT_CATEGORY_GROUPS.find((c) => c.id === formCategoryGroup) || PRODUCT_CATEGORY_GROUPS[0];
+                const activeGroupSubtypes = CATALOG_SUBTYPE_OPTIONS_BY_GROUP[formCategoryGroup] || [];
+                const currentSubOpt = activeGroupSubtypes.find((o) => o.id === formSubtypeOptionId) || activeGroupSubtypes[0];
+                const isSec1Complete = Boolean(formName.trim() && formPrice);
+
+                return (
+                  <div className={"product-accordion-card " + (openProductSection === 1 ? "active" : "")}>
+                    <div className="product-accordion-header" onClick={() => toggleProductSection(1)}>
+                      <div className="product-accordion-header-left">
+                        <span className="product-accordion-num-badge">1</span>
+                        <span className="product-accordion-title">
+                          {currentCategoryGroupObj?.label || "Anillos & Boda"}
+                        </span>
+                      </div>
+                      <div className="product-accordion-header-right">
+                        <span className={"product-accordion-pill " + (isSec1Complete ? "completed" : "step")}>
+                          {isSec1Complete ? "Completado" : "Paso 1"}
+                        </span>
+                        <i className={"bi bi-chevron-" + (openProductSection === 1 ? "up" : "down") + " product-accordion-chevron"}></i>
+                      </div>
+                    </div>
+
+                    {/* Vista previa compacta estilo mockup cuando la sección 1 está cerrada */}
+                    {openProductSection !== 1 && (
+                      <div
+                        className="product-accordion-collapsed-preview"
+                        onClick={() => setOpenProductSection(1)}
+                        title="Clic para editar categoría y datos principales"
+                      >
+                        <img
+                          src={formImage || formImageWhite || editingProduct?.image || "/images/cat-compromiso.jpg"}
+                          alt={formName || "Preview"}
+                          className="product-accordion-collapsed-img"
+                          onError={(e) => { e.target.src = "/images/cat-compromiso.jpg"; }}
+                        />
+                        <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
+                          <div style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: "600" }}>
+                            Categoría: <strong style={{ color: "#111827", textTransform: "none", fontSize: "12.5px" }}>{currentCategoryGroupObj?.label || "Anillos & Boda"}</strong>
+                          </div>
+                          <div style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: "600" }}>
+                            Subcategoría: <strong style={{ color: "#111827", textTransform: "none", fontSize: "12.5px" }}>{currentSubOpt?.label || formSubtype || "Anillo de Compromiso"}</strong>
+                          </div>
+                          <div style={{ fontSize: "11px", color: "#64748b", textTransform: "uppercase", letterSpacing: "0.04em", fontWeight: "600" }}>
+                            Nombre de la Joya: <strong style={{ color: "#113B3A", fontSize: "13.5px", textTransform: "none" }}>{formName || "Sin nombre asignado"}</strong>
+                          </div>
+                          {formPrice && (
+                            <div style={{ fontSize: "11.5px", color: "#64748b", fontWeight: "600" }}>
+                              Precio Base: <strong style={{ color: "#c5a059" }}>S/. {formPrice}</strong>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Contenido expandido de la sección 1 */}
+                    {openProductSection === 1 && (
+                      <div className="product-accordion-body">
+                        {/* 1. SELECTOR DE CATEGORÍA CON BARRA SEGMENTADA */}
                 <div className="catalog-form-group">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
                     <label style={{ margin: 0, fontWeight: "700", color: "#162e24", fontSize: "13.5px" }}>
@@ -11743,7 +11866,80 @@ export default function AdminCitas() {
                   </div>
                 </div>
 
-                {/* 3. PRIMERO: SELECCIÓN DE MATERIALES DISPONIBLES */}
+                        <div className="catalog-form-group">
+                  <label>Descripción de la Joya</label>
+                  <textarea
+                    className="catalog-form-textarea"
+                    placeholder="Describe los acabados, piedras, características y valor artesanal de la joya..."
+                    value={formDesc}
+                    onChange={(e) => setFormDesc(e.target.value)}
+                  ></textarea>
+                </div>
+
+                        <div style={{ display: "flex", justifyContent: "flex-end", marginTop: "20px", paddingTop: "14px", borderTop: "1px dashed #e2ece6" }}>
+                          <button
+                            type="button"
+                            onClick={() => setOpenProductSection(2)}
+                            style={{
+                              background: "#edf5f0",
+                              color: "#113B3A",
+                              border: "1px solid #c7dcd0",
+                              borderRadius: "8px",
+                              padding: "9px 18px",
+                              fontSize: "13px",
+                              fontWeight: "700",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "8px",
+                            }}
+                          >
+                            <span>Continuar a: 2. Materiales y Piedras</span>
+                            <i className="bi bi-arrow-down"></i>
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+
+              {/* ========================================================
+                  SECCIÓN 2: MATERIALES Y PRECIOS
+                  ======================================================== */}
+              <div className={"product-accordion-card " + (openProductSection === 2 ? "active" : "")}>
+                <div className="product-accordion-header" onClick={() => toggleProductSection(2)}>
+                  <div className="product-accordion-header-left">
+                    <span className="product-accordion-num-badge">2</span>
+                    <span className="product-accordion-title">
+                      <i className="bi bi-gem" style={{ color: "#113B3A" }}></i>
+                      Materiales y Piedras
+                    </span>
+                  </div>
+                  <div className="product-accordion-header-right">
+                    <span className="product-accordion-pill count">
+                      {formAvailableMetals.length} seleccionados
+                    </span>
+                    <i className={"bi bi-chevron-" + (openProductSection === 2 ? "up" : "down") + " product-accordion-chevron"}></i>
+                  </div>
+                </div>
+
+                {openProductSection !== 2 && (
+                  <div
+                    style={{ padding: "12px 18px", fontSize: "12.5px", color: "#64748b", background: "#fbfcfc", cursor: "pointer", borderTop: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                    onClick={() => setOpenProductSection(2)}
+                    title="Clic para editar materiales, fotos y precios"
+                  >
+                    <span>
+                      <strong style={{ color: "#113B3A" }}>{formAvailableMetals.length}</strong> de {METALS.length} materiales activos • {Object.values(formMetalPrices).filter((p) => p !== "" && p !== null && p !== undefined).length} precios definidos
+                    </span>
+                    <span style={{ fontSize: "11.5px", color: "#137748", fontWeight: "600" }}>Editar materiales →</span>
+                  </div>
+                )}
+
+                {openProductSection === 2 && (
+                  <div className="product-accordion-body">
+                    {/* 3. PRIMERO: SELECCIÓN DE MATERIALES DISPONIBLES */}
                 <div className="product-metals-box">
                   <div className="product-metals-header">
                     <div className="product-metals-title">
@@ -12130,7 +12326,86 @@ export default function AdminCitas() {
                   )}
                 </div>
 
-                {/* 5. SILUETAS Y FORMAS DE GEMA PARA ESTE MODELO (PASO 2) */}
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: "20px", paddingTop: "14px", borderTop: "1px dashed #e2ece6" }}>
+                      <button
+                        type="button"
+                        onClick={() => setOpenProductSection(1)}
+                        style={{
+                          background: "#ffffff",
+                          color: "#64748b",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "8px",
+                          padding: "8px 14px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          cursor: "pointer",
+                        }}
+                      >
+                        ← Anterior: Datos Básicos
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOpenProductSection(3)}
+                        style={{
+                          background: "#edf5f0",
+                          color: "#113B3A",
+                          border: "1px solid #c7dcd0",
+                          borderRadius: "8px",
+                          padding: "9px 18px",
+                          fontSize: "13px",
+                          fontWeight: "700",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
+                        <span>Continuar a: 3. Siluetas y Formas</span>
+                        <i className="bi bi-arrow-down"></i>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ========================================================
+                  SECCIÓN 3: SILUETAS Y FORMAS DE GEMAS
+                  ======================================================== */}
+              <div className={"product-accordion-card " + (openProductSection === 3 ? "active" : "")}>
+                <div className="product-accordion-header" onClick={() => toggleProductSection(3)}>
+                  <div className="product-accordion-header-left">
+                    <span className="product-accordion-num-badge">3</span>
+                    <span className="product-accordion-title">
+                      <i className="bi bi-suit-diamond" style={{ color: "#113B3A" }}></i>
+                      Siluetas y Formas
+                    </span>
+                  </div>
+                  <div className="product-accordion-header-right">
+                    <span className="product-accordion-pill step">
+                      {formHasGemSelection ? "Paso 2 Activo" : "Desactivado"}
+                    </span>
+                    <i className={"bi bi-chevron-" + (openProductSection === 3 ? "up" : "down") + " product-accordion-chevron"}></i>
+                  </div>
+                </div>
+
+                {openProductSection !== 3 && (
+                  <div
+                    style={{ padding: "12px 18px", fontSize: "12.5px", color: "#64748b", background: "#fbfcfc", cursor: "pointer", borderTop: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                    onClick={() => setOpenProductSection(3)}
+                    title="Clic para editar siluetas y pedrería"
+                  >
+                    <span>
+                      {formHasGemSelection
+                        ? (formAvailableGemShapes.length + " de " + MASTER_GEM_SHAPES.length + " siluetas habilitadas • Precios configurados")
+                        : "Paso de selección de gemas desactivado"}
+                    </span>
+                    <span style={{ fontSize: "11.5px", color: "#137748", fontWeight: "600" }}>Editar gemas →</span>
+                  </div>
+                )}
+
+                {openProductSection === 3 && (
+                  <div className="product-accordion-body">
+                    {/* 5. SILUETAS Y FORMAS DE GEMA PARA ESTE MODELO (PASO 2) */}
                 <div className="product-gem-shapes-config-card" style={{
                   background: "#fbf9f6",
                   border: "1.5px solid #d4e2db",
@@ -12185,6 +12460,130 @@ export default function AdminCitas() {
 
                   {formHasGemSelection && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+                      {/* Precios adicionales por Tipo de Gema (Compromiso y Anillos) */}
+                      <div style={{
+                        background: "#ffffff",
+                        border: "1px solid #d0e4d7",
+                        borderRadius: "10px",
+                        padding: "14px",
+                      }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", marginBottom: "10px" }}>
+                          <div>
+                            <strong style={{ fontSize: "13px", color: "#113B3A", display: "flex", alignItems: "center", gap: "6px" }}>
+                              <i className="bi bi-gem"></i> Precios Adicionales por Tipo de Gema / Pedrería (S/.)
+                            </strong>
+                            <div style={{ fontSize: "11px", color: "#5d6e65", marginTop: "2px" }}>
+                              Define el suplemento o valor que se sumará al precio base de la joya según la pedrería que elija el cliente:
+                            </div>
+                          </div>
+                          <div style={{ display: "flex", gap: "6px" }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFormGemTypePrices({
+                                  "zirconita": "0",
+                                  "zirconita-swarovski": "80",
+                                  "moissanita": "350",
+                                  "diamante-lab": "1200",
+                                  "diamante-natural": "2800",
+                                });
+                              }}
+                              style={{
+                                fontSize: "11px",
+                                padding: "4px 8px",
+                                borderRadius: "6px",
+                                border: "1px solid #c5a059",
+                                background: "#fbf7ef",
+                                color: "#8a6d3b",
+                                cursor: "pointer",
+                                fontWeight: "600",
+                              }}
+                            >
+                              ⚡ Valores sugeridos
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFormGemTypePrices({
+                                  "zirconita": "0",
+                                  "zirconita-swarovski": "0",
+                                  "moissanita": "0",
+                                  "diamante-lab": "0",
+                                  "diamante-natural": "0",
+                                });
+                              }}
+                              style={{
+                                fontSize: "11px",
+                                padding: "4px 8px",
+                                borderRadius: "6px",
+                                border: "1px solid #cbd5e1",
+                                background: "#ffffff",
+                                color: "#64748b",
+                                cursor: "pointer",
+                              }}
+                            >
+                              Todo S/. 0
+                            </button>
+                          </div>
+                        </div>
+
+                        <div style={{
+                          display: "grid",
+                          gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+                          gap: "10px",
+                        }}>
+                          {[
+                            { id: "zirconita", name: "Zirconita (Base)", hint: "Sin costo adicional" },
+                            { id: "zirconita-swarovski", name: "Zirconita Swarovski", hint: "Brillo suizo premium" },
+                            { id: "moissanita", name: "Moissanita GRA", hint: "Certificado GRA" },
+                            { id: "diamante-lab", name: "Diamante Lab IGI", hint: "Certificado IGI" },
+                            { id: "diamante-natural", name: "Diamante Natural GIA", hint: "Certificado GIA" },
+                          ].map((item) => (
+                            <div
+                              key={item.id}
+                              style={{
+                                background: "#f8faf9",
+                                border: "1px solid #e2ece6",
+                                borderRadius: "8px",
+                                padding: "8px 10px",
+                              }}
+                            >
+                              <div style={{ fontSize: "11.5px", fontWeight: "700", color: "#163a2c", marginBottom: "2px" }}>
+                                {item.name}
+                              </div>
+                              <div style={{ fontSize: "10px", color: "#64748b", marginBottom: "6px" }}>
+                                {item.hint}
+                              </div>
+                              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                <span style={{ fontSize: "12px", color: "#526359", fontWeight: "600" }}>+S/.</span>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  value={formGemTypePrices[item.id] ?? "0"}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setFormGemTypePrices((prev) => ({
+                                      ...prev,
+                                      [item.id]: val,
+                                    }));
+                                  }}
+                                  placeholder="0"
+                                  style={{
+                                    width: "100%",
+                                    padding: "4px 8px",
+                                    fontSize: "12.5px",
+                                    fontWeight: "600",
+                                    border: "1px solid #c7dcd0",
+                                    borderRadius: "6px",
+                                    background: "#ffffff",
+                                  }}
+                                />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
                       {/* Barra de acciones rápidas */}
                       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "8px", background: "#ffffff", padding: "10px 12px", borderRadius: "8px", border: "1px solid #e2ece6" }}>
                         <div style={{ fontSize: "12px", color: "#113B3A", fontWeight: "600" }}>
@@ -12372,6 +12771,28 @@ export default function AdminCitas() {
                             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "10px" }}>
                               <div>
                                 <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#173628", display: "block", marginBottom: "3px" }}>
+                                  Precio adicional para silueta {activeShape.name} (+S/.)
+                                </label>
+                                <input
+                                  type="number"
+                                  min="0"
+                                  className="catalog-form-input"
+                                  style={{ fontSize: "12px", padding: "6px 10px" }}
+                                  placeholder="0"
+                                  value={formGemShapePrices[activeShape.id] ?? "0"}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setFormGemShapePrices((prev) => ({
+                                      ...prev,
+                                      [activeShape.id]: val,
+                                    }));
+                                  }}
+                                />
+                                <span style={{ fontSize: "10.5px", color: "#718279" }}>Suplemento al precio si el cliente elige este corte</span>
+                              </div>
+
+                              <div>
+                                <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#173628", display: "block", marginBottom: "3px" }}>
                                   Badge de Quilataje / Medida (Ej. 1.00 ct)
                                 </label>
                                 <input
@@ -12541,7 +12962,84 @@ export default function AdminCitas() {
                   )}
                 </div>
 
-                {/* 6. CAJA / ESTUCHE DE PRESENTACIÓN DE LA JOYA */}
+                    <div style={{ display: "flex", justifyContent: "space-between", marginTop: "20px", paddingTop: "14px", borderTop: "1px dashed #e2ece6" }}>
+                      <button
+                        type="button"
+                        onClick={() => setOpenProductSection(2)}
+                        style={{
+                          background: "#ffffff",
+                          color: "#64748b",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "8px",
+                          padding: "8px 14px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          cursor: "pointer",
+                        }}
+                      >
+                        ← Anterior: Materiales
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setOpenProductSection(4)}
+                        style={{
+                          background: "#edf5f0",
+                          color: "#113B3A",
+                          border: "1px solid #c7dcd0",
+                          borderRadius: "8px",
+                          padding: "9px 18px",
+                          fontSize: "13px",
+                          fontWeight: "700",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "8px",
+                        }}
+                      >
+                        <span>Continuar a: 4. Presentación y Extras</span>
+                        <i className="bi bi-arrow-down"></i>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* ========================================================
+                  SECCIÓN 4: PRESENTACIÓN Y EXTRAS
+                  ======================================================== */}
+              <div className={"product-accordion-card " + (openProductSection === 4 ? "active" : "")}>
+                <div className="product-accordion-header" onClick={() => toggleProductSection(4)}>
+                  <div className="product-accordion-header-left">
+                    <span className="product-accordion-num-badge">4</span>
+                    <span className="product-accordion-title">
+                      <i className="bi bi-box2-heart" style={{ color: "#113B3A" }}></i>
+                      Presentación y Extras
+                    </span>
+                  </div>
+                  <div className="product-accordion-header-right">
+                    <span className="product-accordion-pill optional">
+                      Opcional
+                    </span>
+                    <i className={"bi bi-chevron-" + (openProductSection === 4 ? "up" : "down") + " product-accordion-chevron"}></i>
+                  </div>
+                </div>
+
+                {openProductSection !== 4 && (
+                  <div
+                    style={{ padding: "12px 18px", fontSize: "12.5px", color: "#64748b", background: "#fbfcfc", cursor: "pointer", borderTop: "1px solid #f1f5f9", display: "flex", alignItems: "center", justifyContent: "space-between" }}
+                    onClick={() => setOpenProductSection(4)}
+                    title="Clic para editar estuche y confección"
+                  >
+                    <span>
+                      Estuche de regalo y tiempos de confección en taller
+                    </span>
+                    <span style={{ fontSize: "11.5px", color: "#137748", fontWeight: "600" }}>Editar estuche →</span>
+                  </div>
+                )}
+
+                {openProductSection === 4 && (
+                  <div className="product-accordion-body">
+                    {/* 6. CAJA / ESTUCHE DE PRESENTACIÓN DE LA JOYA */}
                 <div className="product-box-config-card" style={{
                   background: "#fbf9f6",
                   border: "1.5px solid #e7dcce",
@@ -12690,35 +13188,77 @@ export default function AdminCitas() {
                   </div>
                 </div>
 
-                <div className="catalog-form-group">
-                  <label>Descripción de la Joya</label>
-                  <textarea
-                    className="catalog-form-textarea"
-                    placeholder="Describe los acabados, piedras, características y valor artesanal de la joya..."
-                    value={formDesc}
-                    onChange={(e) => setFormDesc(e.target.value)}
-                  ></textarea>
-                </div>
+                    <div style={{ display: "flex", justifyContent: "flex-start", marginTop: "20px", paddingTop: "14px", borderTop: "1px dashed #e2ece6" }}>
+                      <button
+                        type="button"
+                        onClick={() => setOpenProductSection(3)}
+                        style={{
+                          background: "#ffffff",
+                          color: "#64748b",
+                          border: "1px solid #cbd5e1",
+                          borderRadius: "8px",
+                          padding: "8px 14px",
+                          fontSize: "12px",
+                          fontWeight: "600",
+                          cursor: "pointer",
+                        }}
+                      >
+                        ← Anterior: Siluetas y Gemas
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
-                <div className="catalog-modal-actions">
-                  <button
-                    type="button"
-                    onClick={() => setProductModalOpen(false)}
-                    className="btn-card-delete"
-                    style={{ background: "#f5f7f6", color: "#4f5f57", border: "1px solid #d4ded8" }}
-                  >
-                    Cancelar
-                  </button>
+              <div className="catalog-modal-actions" style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                alignItems: "center",
+                gap: "12px",
+                marginTop: "22px",
+                paddingTop: "16px",
+                borderTop: "1px solid #e5e7eb"
+              }}>
+                <button
+                  type="button"
+                  onClick={() => setProductModalOpen(false)}
+                  style={{
+                    background: "#ffffff",
+                    color: "#374151",
+                    border: "1.5px solid #d1d5db",
+                    borderRadius: "10px",
+                    padding: "10px 22px",
+                    fontSize: "13.5px",
+                    fontWeight: "600",
+                    cursor: "pointer",
+                    transition: "all 0.15s ease"
+                  }}
+                >
+                  Cancelar
+                </button>
 
-                  <button
-                    type="submit"
-                    className="btn-catalog-create"
-                    style={{ padding: "11px 26px" }}
-                  >
-                    <i className="bi bi-check-lg"></i>{" "}
-                    {editingProduct ? "Guardar Cambios" : "Crear Joya"}
-                  </button>
-                </div>
+                <button
+                  type="submit"
+                  style={{
+                    background: "#064e3b",
+                    color: "#ffffff",
+                    border: "none",
+                    borderRadius: "10px",
+                    padding: "10px 24px",
+                    fontSize: "13.5px",
+                    fontWeight: "700",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    boxShadow: "0 2px 8px rgba(6, 78, 59, 0.25)",
+                    transition: "all 0.15s ease"
+                  }}
+                >
+                  <span>{editingProduct ? "Continuar / Guardar Cambios" : "Continuar / Crear Joya"}</span>
+                  <i className="bi bi-arrow-right"></i>
+                </button>
+              </div>
               </form>
             </div>
           </div>

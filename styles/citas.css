@@ -2041,8 +2041,8 @@
 }
 
 .metal-item-swatch {
-  width: 22px;
-  height: 22px;
+  width: 15px;
+  height: 15px;
   border-radius: 50%;
   flex-shrink: 0;
   box-shadow: 0 1px 3px rgba(0,0,0,0.12);
@@ -2180,10 +2180,66 @@
   color: var(--platino-green-dark); /* #0a271f */
 }
 
-/* Versión en modal de producto */
-.category-modal-bar {
+/* Versión en modal de producto: Cuadrícula responsive de 3 columnas para que todas las 6 categorías se vean completas y nunca se corten */
+.category-segmented-bar.category-modal-bar {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 7px;
+  background: #f4efe6;
+  border: 1.5px solid #ded6c5;
+  border-radius: 12px;
+  padding: 7px;
   margin-top: 6px;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
+  overflow: visible;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@media (max-width: 640px) {
+  .category-segmented-bar.category-modal-bar {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.category-segmented-bar.category-modal-bar .category-seg-item {
+  flex: initial;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #485c50;
+  background: #ffffff;
+  border: 1px solid #e5dfd2;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  user-select: none;
+  white-space: nowrap;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.category-segmented-bar.category-modal-bar .category-seg-item:hover:not(.active) {
+  color: #113B3A;
+  background: #fbf9f5;
+  border-color: #c5a059;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 6px rgba(17, 59, 58, 0.08);
+}
+
+.category-segmented-bar.category-modal-bar .category-seg-item.active {
+  color: #ffffff;
+  background: #113B3A;
+  border-color: #113B3A;
+  box-shadow: 0 3px 10px rgba(17, 59, 58, 0.25);
+  font-weight: 700;
+}
+
+.category-segmented-bar.category-modal-bar .category-seg-item.active .category-seg-icon {
+  color: #e5cb9b;
 }
 
 .category-subtypes-chips {
@@ -5081,4 +5137,309 @@
   color: #ffffff;
   padding: 1px 7px;
   border-radius: 999px;
+}
+
+
+/* ========================================================
+   MODAL DE PRODUCTO: ACORDEÓN DESPLEGABLE EN 4 SECCIONES
+   ======================================================== */
+.product-accordion-card {
+  border: 1.5px solid #e5e7eb;
+  border-radius: 14px;
+  background: #ffffff;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  margin-bottom: 12px;
+}
+
+.product-accordion-card.active {
+  border-color: #86efac;
+  box-shadow: 0 4px 16px rgba(17, 59, 58, 0.06);
+}
+
+.product-accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  cursor: pointer;
+  user-select: none;
+  background: #ffffff;
+  transition: background 0.15s ease;
+}
+
+.product-accordion-card.active .product-accordion-header {
+  background: #f0fdf4;
+  border-bottom: 1px solid #dcfce7;
+}
+
+.product-accordion-header-left {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.product-accordion-num-badge {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  background: #e2e8f0;
+  color: #475569;
+  flex-shrink: 0;
+}
+
+.product-accordion-card.active .product-accordion-num-badge,
+.product-accordion-card.completed .product-accordion-num-badge {
+  background: #059669;
+  color: #ffffff;
+}
+
+.product-accordion-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #111827;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.product-accordion-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.product-accordion-pill {
+  padding: 4px 10px;
+  border-radius: 9999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.product-accordion-pill.completed {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.product-accordion-pill.count {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.product-accordion-pill.step {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.product-accordion-pill.optional {
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.product-accordion-chevron {
+  color: #6b7280;
+  font-size: 14px;
+  transition: transform 0.2s ease;
+}
+
+.product-accordion-body {
+  padding: 20px;
+  background: #ffffff;
+}
+
+.product-accordion-collapsed-preview {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 12px 18px;
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.product-accordion-collapsed-preview:hover {
+  background: #f1f5f9;
+}
+
+.product-accordion-collapsed-img {
+  width: 72px;
+  height: 72px;
+  border-radius: 10px;
+  object-fit: contain;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  padding: 4px;
+}
+
+
+/* ========================================================
+   ANIMACIONES Y ESTILOS DE LUJO PARA CABECERA Y MODAL
+   ======================================================== */
+@keyframes modalLuxuryEntrance {
+  0% {
+    opacity: 0;
+    transform: translateY(22px) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes diamondGlowPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(17, 59, 58, 0.25), 0 4px 12px rgba(17, 59, 58, 0.12);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 7px rgba(197, 160, 89, 0.22), 0 6px 20px rgba(197, 160, 89, 0.25);
+    transform: scale(1.04);
+  }
+}
+
+@keyframes accordionBodySlide {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes livePulseDot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.4;
+    transform: scale(0.85);
+  }
+}
+
+.catalog-modal-overlay {
+  backdrop-filter: blur(8px) !important;
+  -webkit-backdrop-filter: blur(8px) !important;
+  background-color: rgba(9, 23, 19, 0.72) !important;
+}
+
+.catalog-modal-card {
+  border-radius: 18px !important;
+  padding: 28px 34px !important;
+  box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.12) inset !important;
+  animation: modalLuxuryEntrance 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards !important;
+}
+
+.catalog-modal-header-icon-box {
+  width: 46px;
+  height: 46px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #113B3A 0%, #1d5f50 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #e5c98e;
+  font-size: 22px;
+  flex-shrink: 0;
+  border: 1px solid #c5a059;
+  animation: diamondGlowPulse 3.5s infinite ease-in-out;
+}
+
+.catalog-header-category-tag {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #926d1c;
+  background: #fbf5e8;
+  border: 1px solid #eddcb7;
+  padding: 2px 8px;
+  border-radius: 4px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.catalog-header-sync-pill {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #15803d;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.catalog-header-sync-pill .pulse-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: livePulseDot 2s infinite ease-in-out;
+}
+
+.catalog-header-product-pill {
+  font-size: 14px;
+  font-weight: 700;
+  color: #113B3A;
+  background: #edf5f0;
+  border: 1px solid #c7dcd0;
+  padding: 3px 12px;
+  border-radius: 8px;
+}
+
+.catalog-modal-close-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: #f3f6f4;
+  border: 1px solid #d8e4de;
+  color: #4b5e54;
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.04);
+}
+
+.catalog-modal-close-btn:hover {
+  background: #fee2e2;
+  color: #ef4444;
+  border-color: #fca5a5;
+  transform: rotate(90deg) scale(1.08);
+  box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);
+}
+
+.product-accordion-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease !important;
+}
+
+.product-accordion-card:hover {
+  border-color: #cbd5e1;
+}
+
+.product-accordion-card.active {
+  border-color: #86efac !important;
+  box-shadow: 0 6px 20px rgba(17, 59, 58, 0.08) !important;
+}
+
+.product-accordion-body {
+  animation: accordionBodySlide 0.28s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.product-accordion-collapsed-preview:hover {
+  background: #f3f7f5 !important;
+  transform: translateX(2px);
 }

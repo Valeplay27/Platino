@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import {
   formatPrice,
@@ -419,6 +419,16 @@ export default function Product({ addToCart }) {
     return currentMetalPrice + (selectedPresentationObj?.price || 0) + (selectedGemType?.priceDelta || 0);
   }, [currentMetalPrice, selectedPresentationObj?.price, selectedGemType?.priceDelta]);
 
+  const selectedGemShapePriceDelta = useMemo(() => {
+    if (!product?.hasGemSelection || !selectedGemShape) return 0;
+    const shapePrices = product?.gemShapePrices || {};
+    return Number(shapePrices[selectedGemShape.id] ?? selectedGemShape?.priceDelta ?? 0) || 0;
+  }, [product?.hasGemSelection, product?.gemShapePrices, selectedGemShape]);
+
+  const currentGeneralPrice = useMemo(() => {
+    return currentMetalPrice + selectedGemShapePriceDelta;
+  }, [currentMetalPrice, selectedGemShapePriceDelta]);
+
   const [platinoCarePlan, setPlatinoCarePlan] = useState("cortesia"); // 'cortesia' o 'plus'
   const [platinoCareConfig, setPlatinoCareConfig] = useState(() => getPlatinoCareConfig());
   const [openCareAccordion, setOpenCareAccordion] = useState(null);
@@ -618,7 +628,7 @@ export default function Product({ addToCart }) {
       estimatedDeliveryDate: shouldShowDelivery ? deliveryDateFormatted : undefined,
       platinoCarePlan: platinoCarePlan,
       platinoCareTitle: platinoCarePlan === "plus" ? "Platino Care + (Premium)" : "Platino Care Cortesía",
-      price: currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0),
+      price: currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta,
       image: mainImage || product.image,
     };
     addToCart(customProduct);
@@ -673,7 +683,7 @@ export default function Product({ addToCart }) {
       product.hasGemSelection
         ? `*Forma de la Piedra/Gema:* ${selectedGemShape.name}%0A`
         : ""
-    }${engravingDetails}${stockDetails}*Precio:* ${formatPrice(isCompromisoOrPromesa ? totalCompromisoPrice : currentMetalPrice)}%0A%0A¿Podrían confirmarme la disponibilidad y cómo procedemos con la orden?`;
+    }${engravingDetails}${stockDetails}*Precio:* ${formatPrice(isCompromisoOrPromesa ? totalCompromisoPrice : currentGeneralPrice)}%0A%0A¿Podrían confirmarme la disponibilidad y cómo procedemos con la orden?`;
 
     return `https://wa.me/51927357217?text=${text}`;
   };
@@ -946,7 +956,7 @@ export default function Product({ addToCart }) {
 
             <div className="config-price-row">
               <span className="config-product-price">
-                {formatPrice(currentMetalPrice)}
+                {formatPrice(isCompromisoOrPromesa ? totalCompromisoPrice : currentGeneralPrice)}
               </span>
 
               <button
@@ -1393,6 +1403,7 @@ export default function Product({ addToCart }) {
                 <div className="gem-shapes-swatches">
                   {configuredGemShapes.map((shape) => {
                     const isSel = selectedGemShape?.id === shape.id;
+                    const shapeExtra = Number(product?.gemShapePrices?.[shape.id] || 0);
                     return (
                       <button
                         key={shape.id}
@@ -1409,6 +1420,9 @@ export default function Product({ addToCart }) {
                           )}
                         </div>
                         <span className="gem-shape-btn-name">{shape.name}</span>
+                        {shapeExtra > 0 && (
+                          <span className="gem-shape-price-tag">+S/. {shapeExtra}</span>
+                        )}
                       </button>
                     );
                   })}
@@ -1864,7 +1878,7 @@ export default function Product({ addToCart }) {
                 <div><strong>Garantía:</strong> Platino Care {platinoCarePlan === "plus" ? `+ (S/. ${carePlusPrice})` : "Cortesía (S/. 0)"}</div>
               )}
               <div style={{ borderTop: "1px solid #e8e4db", paddingTop: "10px", marginTop: "10px", fontSize: "17px", fontWeight: "700", color: "#17241e" }}>
-                Total: {formatPrice(currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0))}
+                Total: {formatPrice(currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta)}
               </div>
             </div>
 
@@ -1916,7 +1930,7 @@ export default function Product({ addToCart }) {
                       estimatedDeliveryDate: deliveryDateFormatted,
                       platinoCarePlan: platinoCarePlan,
                       platinoCareTitle: platinoCarePlan === "plus" ? "Platino Care + (Premium)" : "Platino Care Cortesía",
-                      price: currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0),
+                      price: currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta,
                       image: mainImage || product.image,
                     };
                     addToCart(customProduct);

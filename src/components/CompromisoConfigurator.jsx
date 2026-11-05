@@ -15,32 +15,48 @@ export const COMPROMISO_GEM_TYPES = [
   {
     id: "zirconita-swarovski",
     name: "Zirconita Swarovski",
-    subtitle: null,
+    subtitle: "Brillo extra suizo",
     certificateBadge: null,
-    priceDelta: 0,
+    priceDelta: 80,
   },
   {
     id: "moissanita",
     name: "Moissanita",
-    subtitle: null,
+    subtitle: "Dureza 9.25 y fuego supremo",
     certificateBadge: "Certificado GRA",
-    priceDelta: 0,
+    priceDelta: 350,
   },
   {
     id: "diamante-lab",
     name: "Diamante Lab Grown",
-    subtitle: null,
+    subtitle: "100% Diamante Real Ecológico",
     certificateBadge: "Certificado IGI",
-    priceDelta: 0,
+    priceDelta: 1200,
   },
   {
     id: "diamante-natural",
     name: "Diamante Natural",
-    subtitle: null,
+    subtitle: "Gema Preciosa Eterna",
     certificateBadge: "Certificado GIA",
-    priceDelta: 0,
+    priceDelta: 2800,
   },
 ];
+
+export function getProductGemTypes(product) {
+  const customPrices = product?.gemTypePrices || {};
+  return COMPROMISO_GEM_TYPES.map((gem) => {
+    const custom = customPrices[gem.id];
+    const priceDelta =
+      custom !== undefined && custom !== "" && !isNaN(Number(custom))
+        ? Number(custom)
+        : gem.priceDelta;
+    return {
+      ...gem,
+      priceDelta,
+      subtitle: priceDelta === 0 ? "Sin Costo adicional" : (gem.subtitle || null),
+    };
+  });
+}
 
 export default function CompromisoConfigurator({
   product = {},
@@ -75,6 +91,18 @@ export default function CompromisoConfigurator({
     }
   }, [currentStep, selectedPresentationObj?.image, setMainImage]);
 
+  const gemTypes = useMemo(() => getProductGemTypes(product), [product]);
+
+  // Sincronizar el priceDelta del selectedGemType si cambia el producto
+  useEffect(() => {
+    if (selectedGemType?.id && gemTypes.length > 0) {
+      const match = gemTypes.find((g) => g.id === selectedGemType.id);
+      if (match && match.priceDelta !== selectedGemType.priceDelta) {
+        setSelectedGemType(match);
+      }
+    }
+  }, [gemTypes, selectedGemType?.id, selectedGemType?.priceDelta, setSelectedGemType]);
+
   const gemCutLabel = useMemo(() => {
     const cutName = (product?.gemShape || "REDONDO").toUpperCase();
     const dimensions = product?.gemDimensions || "6.0mm";
@@ -89,11 +117,14 @@ export default function CompromisoConfigurator({
     const sizeStr = selectedSizeDama === "asesor" ? "Solicita Asesoramiento de Medida" : `${selectedSizeDama} Nacional`;
     const cofreStr = selectedPresentationObj?.name?.replace(/ \(Recomendado\)/i, "")?.replace(/ \(Incluido de Cortesía\)/i, "") || "Classic";
     const engravingStr = hasEngraving ? (engravingText ? `Si (${engravingText})` : "Si") : "No";
+    const gemStr = (selectedGemType?.priceDelta || 0) > 0
+      ? `${gemName} (+S/. ${selectedGemType.priceDelta})`
+      : `${gemName} (Incluida)`;
 
     const text = `¡Hola Platino Perú! Deseo realizar el pedido de este anillo de compromiso personalizado:%0A%0A` +
       `*Producto:* ${productName}%0A` +
       `*Metal:* ${metalName}%0A` +
-      `*Pedrería:* ${gemName}%0A` +
+      `*Pedrería:* ${gemStr}%0A` +
       `*Talla:* ${sizeStr}%0A` +
       `*Cofre:* ${cofreStr}%0A` +
       `*Grabado interno:* ${engravingStr}%0A` +
@@ -293,7 +324,7 @@ export default function CompromisoConfigurator({
           </div>
 
           <div className="gem-types-grid">
-            {COMPROMISO_GEM_TYPES.map((gem) => {
+            {gemTypes.map((gem) => {
               const isSel = selectedGemType?.id === gem.id;
               return (
                 <div
@@ -302,7 +333,7 @@ export default function CompromisoConfigurator({
                   onClick={() => setSelectedGemType(gem)}
                 >
                   <div className="gem-type-icon">
-                    <DiamondCutIcon shape={product?.gemShape || "redondo"} size={32} />
+                    <DiamondCutIcon shape={product?.gemShape || "redondo"} size={30} />
                   </div>
                   <div className="gem-type-cut-strip">
                     {gemCutLabel}
@@ -312,6 +343,9 @@ export default function CompromisoConfigurator({
                   {gem.certificateBadge && (
                     <span className="gem-type-cert-badge">{gem.certificateBadge}</span>
                   )}
+                  <div className={`gem-type-price-badge ${gem.priceDelta === 0 ? "included" : "extra"}`}>
+                    {gem.priceDelta === 0 ? "Incluido" : `+ S/. ${gem.priceDelta.toLocaleString("es-PE")}`}
+                  </div>
                 </div>
               );
             })}
