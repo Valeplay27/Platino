@@ -8,7 +8,7 @@ export const COMPROMISO_GEM_TYPES = [
   {
     id: "zirconita",
     name: "Zirconita",
-    subtitle: "Sin Costo adicional",
+    subtitle: "Gema base clásica",
     certificateBadge: null,
     priceDelta: 0,
   },
@@ -50,7 +50,7 @@ export function getProductGemTypes(product) {
       return {
         ...gem,
         priceDelta: 0,
-        subtitle: "Sin Costo adicional",
+        subtitle: "Gema base clásica",
       };
     }
     const custom = customPrices[gem.id];
@@ -61,7 +61,7 @@ export function getProductGemTypes(product) {
     return {
       ...gem,
       priceDelta,
-      subtitle: priceDelta === 0 ? "Sin Costo adicional" : (gem.subtitle || null),
+      subtitle: gem.subtitle || null,
     };
   });
 }
@@ -87,8 +87,12 @@ export default function CompromisoConfigurator({
   handleGoBack = () => {},
   totalPrice = 0,
   onAddToCart = () => {},
+  currentStep: propCurrentStep,
+  setCurrentStep: propSetCurrentStep,
 }) {
-  const [currentStep, setCurrentStep] = useState(1);
+  const [localStep, setLocalStep] = useState(1);
+  const currentStep = propCurrentStep !== undefined ? propCurrentStep : localStep;
+  const setCurrentStep = propSetCurrentStep !== undefined ? propSetCurrentStep : setLocalStep;
   const [modalOpen, setModalOpen] = useState(false);
 
   // Al llegar al paso 3, mostrar la caja en el visor principal de la izquierda
@@ -144,6 +148,9 @@ export default function CompromisoConfigurator({
     const text = `¡Hola Platino Perú! Deseo recibir asesoramiento sobre la medida y talla exacta para el anillo *${productName}* en ${metalName}.`;
     return `https://wa.me/51927357217?text=${encodeURIComponent(text)}`;
   };
+
+  const cofrePrice = Number(selectedPresentationObj?.price || 0);
+  const ringPrice = totalPrice > cofrePrice ? (totalPrice - cofrePrice) : (currentMetalPrice + (selectedGemType?.priceDelta || 0));
 
   const handleFinalizePurchase = () => {
     if (onAddToCart) {
@@ -349,11 +356,7 @@ export default function CompromisoConfigurator({
                   {gem.certificateBadge && (
                     <span className="gem-type-cert-badge">{gem.certificateBadge}</span>
                   )}
-                  {gem.priceDelta > 0 && (
-                    <div className="gem-type-price-badge extra">
-                      + S/. {gem.priceDelta.toLocaleString("es-PE")}
-                    </div>
-                  )}
+                  {/* Precio oculto en la tarjeta de gemas */}
                 </div>
               );
             })}
@@ -551,6 +554,15 @@ export default function CompromisoConfigurator({
                 <span className="summary-lbl">Cofre:</span>
                 <span className="summary-val">
                   {selectedPresentationObj?.name?.replace(/ \(Recomendado\)/i, "")?.replace(/ \(Incluido de Cortesía\)/i, "") || "Classic"}
+                  {cofrePrice > 0 ? (
+                    <span style={{ color: "#c5a059", fontWeight: "700", marginLeft: "6px" }}>
+                      (+{formatPrice(cofrePrice)})
+                    </span>
+                  ) : (
+                    <span style={{ color: "#166534", fontWeight: "600", marginLeft: "6px", fontSize: "11.5px" }}>
+                      (Incluido)
+                    </span>
+                  )}
                 </span>
               </div>
               <div className="summary-detail-row" style={{ marginTop: "4px" }}>
@@ -565,10 +577,27 @@ export default function CompromisoConfigurator({
 
               <div className="summary-divider"></div>
 
-              <div className="summary-total-row">
+              {/* Desglose de los valores que paga la persona: Anillo y Cofre */}
+              <div style={{ display: "flex", flexDirection: "column", gap: "5px", marginBottom: "10px", fontSize: "13px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "#475467" }}>1. Anillo de compromiso ({metalName}):</span>
+                  <span style={{ fontWeight: "700", color: "#113B3A" }}>{formatPrice(ringPrice)}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "#475467" }}>
+                    2. Cofre ({selectedPresentationObj?.name?.replace(/ \(Recomendado\)/i, "")?.replace(/ \(Incluido de Cortesía\)/i, "")}):
+                  </span>
+                  <span style={{ fontWeight: "700", color: cofrePrice > 0 ? "#c5a059" : "#166534" }}>
+                    {cofrePrice > 0 ? `+${formatPrice(cofrePrice)}` : "Incluido (S/. 0)"}
+                  </span>
+                </div>
+              </div>
+
+              <div className="summary-total-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px dashed #e5ded2", paddingTop: "8px" }}>
                 <span className="summary-total-lbl">Total:</span>
                 <span className="summary-total-val">{formatPrice(totalPrice)}</span>
-              </div></div>
+              </div>
+            </div>
 
             <div className="summary-modal-actions">
               <a

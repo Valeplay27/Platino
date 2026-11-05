@@ -165,6 +165,63 @@ export function DiamondCutIcon({ shape = "redondo", size = 48, strokeWidth, clas
         </svg>
       );
 
+    case "baguette":
+      return (
+        <svg {...commonProps}>
+          <rect x="18" y="26" width="64" height="48" rx="2" strokeWidth="2" />
+          <rect x="28" y="34" width="44" height="32" strokeWidth="1.3" />
+          <line x1="18" y1="26" x2="28" y2="34" strokeWidth="1.2" />
+          <line x1="82" y1="26" x2="72" y2="34" strokeWidth="1.2" />
+          <line x1="82" y1="74" x2="72" y2="66" strokeWidth="1.2" />
+          <line x1="18" y1="74" x2="28" y2="66" strokeWidth="1.2" />
+        </svg>
+      );
+
+    case "cabujon":
+    case "cabujón":
+      return (
+        <svg {...commonProps}>
+          <ellipse cx="50" cy="50" rx="36" ry="42" strokeWidth="2" />
+          <path d="M 28,32 C 40,22 60,22 72,32" strokeWidth="1.4" strokeDasharray="3 2" />
+          <path d="M 32,68 C 42,74 58,74 68,68" strokeWidth="1.2" opacity="0.6" />
+        </svg>
+      );
+
+    case "escudo":
+      return (
+        <svg {...commonProps}>
+          <polygon points="18,18 82,18 78,54 50,88 22,54" strokeWidth="2" />
+          <polygon points="30,28 70,28 66,50 50,72 34,50" strokeWidth="1.3" />
+          <line x1="18" y1="18" x2="30" y2="28" strokeWidth="1.2" />
+          <line x1="82" y1="18" x2="70" y2="28" strokeWidth="1.2" />
+          <line x1="50" y1="88" x2="50" y2="72" strokeWidth="1.2" />
+          <line x1="78" y1="54" x2="66" y2="50" strokeWidth="1.2" />
+          <line x1="22" y1="54" x2="34" y2="50" strokeWidth="1.2" />
+        </svg>
+      );
+
+    case "trillante":
+      return (
+        <svg {...commonProps}>
+          <polygon points="50,14 88,78 12,78" strokeWidth="2" />
+          <polygon points="50,34 72,70 28,70" strokeWidth="1.3" />
+          <line x1="50" y1="14" x2="50" y2="34" strokeWidth="1.2" />
+          <line x1="88" y1="78" x2="72" y2="70" strokeWidth="1.2" />
+          <line x1="12" y1="78" x2="28" y2="70" strokeWidth="1.2" />
+        </svg>
+      );
+
+    case "asscher":
+      return (
+        <svg {...commonProps}>
+          <polygon points="26,10 74,10 90,26 90,74 74,90 26,90 10,74 10,26" strokeWidth="2" />
+          <polygon points="34,22 66,22 78,34 78,66 66,78 34,78 22,66 22,34" strokeWidth="1.3" />
+          <line x1="10" y1="26" x2="90" y2="74" strokeWidth="1" />
+          <line x1="90" y1="26" x2="10" y2="74" strokeWidth="1" />
+          <rect x="38" y="38" width="24" height="24" strokeWidth="1.2" />
+        </svg>
+      );
+
     case "otros":
     default:
       return (

@@ -4,16 +4,6 @@ import { getAssetUrl } from "../utils/assetHelper";
 
 export const GEM_SHAPES_DATA = [
   {
-    id: "oval",
-    name: "Oval",
-    label: "Oval",
-    image: getAssetUrl("/images/gem-shapes/oval.webp"),
-    ratio: "1.35 - 1.50",
-    desc: "Silueta alargada que estiliza la mano con brillo suave y elegante.",
-    recommendedSetting: "Solitario de 4 o 6 puntas, Halo delicado",
-    facetCount: 57,
-  },
-  {
     id: "redondo",
     name: "Redondo",
     label: "Redondo",
@@ -22,6 +12,46 @@ export const GEM_SHAPES_DATA = [
     desc: "El corte clásico por excelencia, diseñado para maximizar el fuego y refracción.",
     recommendedSetting: "Montura clásica de 6 puntas, Bisel moderno",
     facetCount: 58,
+  },
+  {
+    id: "baguette",
+    name: "Baguette",
+    label: "Baguette",
+    image: "",
+    ratio: "1.50 - 2.50",
+    desc: "Corte rectangular escalonado de líneas puras y elegancia geométrica.",
+    recommendedSetting: "Canal lateral, Bisel, Acentos geométricos",
+    facetCount: 14,
+  },
+  {
+    id: "cabujon",
+    name: "Cabujón",
+    label: "Cabujón",
+    image: "",
+    ratio: "1.00 - 1.30",
+    desc: "Superficie pulida suave y redondeada sin facetas, que resalta el color natural.",
+    recommendedSetting: "Bisel envolvente de oro o platino",
+    facetCount: 0,
+  },
+  {
+    id: "corazon",
+    name: "Corazón",
+    label: "Corazón",
+    image: getAssetUrl("/images/gem-shapes/pera.webp"),
+    ratio: "0.90 - 1.05",
+    desc: "El símbolo definitivo de devoción y romance eterno tallado a mano.",
+    recommendedSetting: "Tres puntas con hendidura protegida",
+    facetCount: 59,
+  },
+  {
+    id: "cojin",
+    name: "Cojín",
+    label: "Cojín",
+    image: getAssetUrl("/images/gem-shapes/cojin.webp"),
+    ratio: "1.00 - 1.05",
+    desc: "Bordes redondeados de inspiración vintage con facetas profundas y luminosas.",
+    recommendedSetting: "Montura vintage milgrain, Doble halo",
+    facetCount: 64,
   },
   {
     id: "esmeralda",
@@ -34,6 +64,16 @@ export const GEM_SHAPES_DATA = [
     facetCount: 57,
   },
   {
+    id: "escudo",
+    name: "Escudo",
+    label: "Escudo",
+    image: "",
+    ratio: "1.00 - 1.20",
+    desc: "Silueta heráldica audaz con ángulos marcados y carácter contemporáneo.",
+    recommendedSetting: "Garras angulares en esquina, Acentos personalizados",
+    facetCount: 38,
+  },
+  {
     id: "marquesa",
     name: "Marquesa",
     label: "Marquesa",
@@ -44,14 +84,14 @@ export const GEM_SHAPES_DATA = [
     facetCount: 58,
   },
   {
-    id: "radiante",
-    name: "Radiante",
-    label: "Radiante",
-    image: getAssetUrl("/images/gem-shapes/radiante.webp"),
-    ratio: "1.20 - 1.35",
-    desc: "Esquinas truncadas con patrón de facetas brillantes de destello vibrante.",
-    recommendedSetting: "Solitario de cuatro garras, Halo brillante",
-    facetCount: 70,
+    id: "oval",
+    name: "Oval",
+    label: "Oval",
+    image: getAssetUrl("/images/gem-shapes/oval.webp"),
+    ratio: "1.35 - 1.50",
+    desc: "Silueta alargada que estiliza la mano con brillo suave y elegante.",
+    recommendedSetting: "Solitario de 4 o 6 puntas, Halo delicado",
+    facetCount: 57,
   },
   {
     id: "pera",
@@ -64,26 +104,6 @@ export const GEM_SHAPES_DATA = [
     facetCount: 58,
   },
   {
-    id: "corazón",
-    name: "Corazón",
-    label: "Corazón",
-    image: getAssetUrl("/images/gem-shapes/pera.webp"),
-    ratio: "0.90 - 1.05",
-    desc: "El símbolo definitivo de devoción y romance eterno tallado a mano.",
-    recommendedSetting: "Tres puntas con hendidura protegida",
-    facetCount: 59,
-  },
-  {
-    id: "cojín",
-    name: "Cojín",
-    label: "Cojín",
-    image: getAssetUrl("/images/gem-shapes/cojin.webp"),
-    ratio: "1.00 - 1.05",
-    desc: "Bordes redondeados de inspiración vintage con facetas profundas y luminosas.",
-    recommendedSetting: "Montura vintage milgrain, Doble halo",
-    facetCount: 64,
-  },
-  {
     id: "princesa",
     name: "Princesa",
     label: "Princesa",
@@ -92,6 +112,26 @@ export const GEM_SHAPES_DATA = [
     desc: "Corte cuadrado contemporáneo de líneas puras con destello geométrico.",
     recommendedSetting: "Garras protectoras angulares en esquina",
     facetCount: 76,
+  },
+  {
+    id: "trillante",
+    name: "Trillante",
+    label: "Trillante",
+    image: "",
+    ratio: "1.00",
+    desc: "Corte triangular brillante con destellos vivaces desde cada vértice.",
+    recommendedSetting: "Tres garras en V protectoras",
+    facetCount: 50,
+  },
+  {
+    id: "radiante",
+    name: "Radiante",
+    label: "Radiante",
+    image: getAssetUrl("/images/gem-shapes/radiante.webp"),
+    ratio: "1.20 - 1.35",
+    desc: "Esquinas truncadas con patrón de facetas brillantes de destello vibrante.",
+    recommendedSetting: "Solitario de cuatro garras, Halo brillante",
+    facetCount: 70,
   },
   {
     id: "asscher",
@@ -103,24 +143,80 @@ export const GEM_SHAPES_DATA = [
     recommendedSetting: "Montura geométrica clásica, Solitario 4 puntas",
     facetCount: 68,
   },
+  {
+    id: "otros",
+    name: "Otros",
+    label: "Otros Cortes",
+    image: "",
+    ratio: "Variable",
+    desc: "Cortes de fantasía exclusivos y tallas especiales sobre pedido.",
+    recommendedSetting: "Engaste a medida",
+    facetCount: 58,
+  },
 ];
 
 export const GEM_TYPES = [
   { id: "todos", label: "Todas las Gemas" },
   { id: "diamante-natural", label: "Diamantes Naturales" },
-  { id: "diamante-lab", label: "Diamantes Cultivados (Lab-Grown)" },
-  { id: "gema-color", label: "Gemas Preciosas de Color" },
+  { id: "diamante-lab", label: "Diamantes Lab-Grown" },
+  { id: "gema-color-natural", label: "Gemas de Color Naturales" },
+  { id: "gema-color-lab", label: "Gemas de Color Lab Grown" },
+  { id: "gema-color", label: "Gemas de Color (Todas)" },
 ];
 
-export const DIAMOND_COLORS = ["D", "E", "F", "G", "H", "I", "J", "Fancy"];
-export const CLARITY_GRADES = ["FL", "IF", "VVS1", "VVS2", "VS1", "VS2", "SI1"];
+export const DIAMOND_COLORS = ["D", "E", "F", "G", "H", "I - J", "K - Z", "Fancy"];
+
+export const CLARITY_GRADES = [
+  { id: "FL - IF", label: "FL - IF (Sin Inclusiones)" },
+  { id: "VVS", label: "VVS (Inc. Muy Muy Pequeñas)" },
+  { id: "VS", label: "VS (Inc. Muy Pequeñas)" },
+  { id: "SI", label: "SI (Inclusiones Pequeñas)" },
+  { id: "Eye Clean", label: "Eye Clean" },
+  { id: "Slightly Included", label: "Slightly Included" },
+  { id: "Moderately Included", label: "Moderately Included" },
+  { id: "Heavily Included", label: "Heavily Included" },
+];
+
 export const GEM_COLORS = [
-  { id: "incoloro", label: "Incoloro / Diamante", hex: "#eaf4fc" },
-  { id: "azul", label: "Azul Zafiro", hex: "#163a8a" },
-  { id: "verde", label: "Verde Esmeralda", hex: "#0b663b" },
-  { id: "rojo", label: "Rojo Rubí", hex: "#9b111e" },
-  { id: "amarillo", label: "Amarillo Canario", hex: "#d9a726" },
-  { id: "rosa", label: "Rosa Champán", hex: "#e499a8" },
+  { id: "incoloro", label: "Incoloro", hex: "#eaf4fc" },
+  { id: "marron", label: "Marrón", hex: "#78350f" },
+  { id: "azul", label: "Azul", hex: "#163a8a" },
+  { id: "morado", label: "Morado", hex: "#7e22ce" },
+  { id: "verde", label: "Verde", hex: "#0b663b" },
+  { id: "negro", label: "Negro", hex: "#0f172a" },
+  { id: "rojo", label: "Rojo", hex: "#9b111e" },
+  { id: "rosado", label: "Rosado", hex: "#ec4899" },
+  { id: "amarillo", label: "Amarillo", hex: "#d9a726" },
+  { id: "turqueza", label: "Turqueza", hex: "#06b6d4" },
+  { id: "anaranjado", label: "Anaranjado", hex: "#ea580c" },
+  { id: "bicolor", label: "Bicolor", hex: "linear-gradient(135deg, #3b82f6 50%, #10b981 50%)" },
+  { id: "gris", label: "Gris", hex: "#64748b" },
+  { id: "multicolor", label: "Multicolor", hex: "linear-gradient(135deg, #ef4444 0%, #eab308 33%, #22c55e 66%, #3b82f6 100%)" },
+];
+
+export const MM_RANGES = [
+  { id: "todos", label: "- Seleccionar Tamaño (mm) -" },
+  { id: "lt-3", label: "< 3.00 mm", min: 0, max: 2.999 },
+  { id: "3-3.99", label: "3.00 mm - 3.99 mm", min: 3.00, max: 3.999 },
+  { id: "4-4.99", label: "4.00 mm - 4.99 mm", min: 4.00, max: 4.999 },
+  { id: "5-5.99", label: "5.00 mm - 5.99 mm", min: 5.00, max: 5.999 },
+  { id: "6-6.99", label: "6.00 mm - 6.99 mm", min: 6.00, max: 6.999 },
+  { id: "7-9.99", label: "7.00 mm - 9.99 mm", min: 7.00, max: 9.999 },
+  { id: "10-13", label: "10.00 mm - 13.00 mm", min: 10.00, max: 13.00 },
+  { id: "gt-13", label: "> 13.00 mm", min: 13.001, max: 9999 },
+];
+
+export const CARAT_RANGES = [
+  { id: "todos", label: "- Seleccionar Peso / Carat (ct) -" },
+  { id: "lt-0.10", label: "< 0.10 ct", min: 0, max: 0.099 },
+  { id: "0.10-0.15", label: "0.10 ct - 0.15 ct", min: 0.10, max: 0.159 },
+  { id: "0.16-0.29", label: "0.16 ct - 0.29 ct", min: 0.16, max: 0.299 },
+  { id: "0.30-0.49", label: "0.30 ct - 0.49 ct", min: 0.30, max: 0.499 },
+  { id: "0.50-0.79", label: "0.50 ct - 0.79 ct", min: 0.50, max: 0.799 },
+  { id: "0.80-0.99", label: "0.80 ct - 0.99 ct", min: 0.80, max: 0.999 },
+  { id: "1.00-1.49", label: "1.00 ct - 1.49 ct", min: 1.00, max: 1.499 },
+  { id: "1.50-2.00", label: "1.50 ct - 2.00 ct", min: 1.50, max: 2.009 },
+  { id: "gt-2.00", label: "> 2.00 ct", min: 2.01, max: 9999 },
 ];
 
 export const formatGemPrice = (amount) => {

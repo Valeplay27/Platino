@@ -152,6 +152,61 @@ const normalizeProductMetals = (rawProd) => {
     metalGalleries,
     metalPrices: prod.metalPrices || defaultProdMatch?.metalPrices || null,
     boxImage,
+    boxImages: prod.boxImages || defaultProdMatch?.boxImages || {
+      "caja-verde-lujo": boxImage,
+      "estuche-terciopelo": "/images/box-presentation.jpg",
+      "caja-madera": "/images/detail-packaging.jpg",
+    },
+    boxNames: prod.boxNames || defaultProdMatch?.boxNames || {
+      "caja-verde-lujo": "Caja Verde Platino",
+      "estuche-terciopelo": "Estuche Terciopelo Negro",
+      "caja-madera": "Caja Madera LED",
+    },
+    boxPrices: prod.boxPrices || defaultProdMatch?.boxPrices || {
+      "caja-verde-lujo": "0",
+      "estuche-terciopelo": "25",
+      "caja-madera": "60",
+    },
+    presentationOptions: (Array.isArray(prod.presentationOptions) && prod.presentationOptions.length > 0)
+      ? prod.presentationOptions.map((opt) => {
+          const id = opt.id || "caja-verde-lujo";
+          let cleanName = prod.boxNames?.[id] || opt.name || "Caja Platino";
+          if (cleanName.includes("Esmeralda Platino (Recomendado)")) cleanName = prod.boxNames?.[id] || "Caja Verde Platino";
+          if (cleanName.includes("Terciopelo Negro Nupcial")) cleanName = prod.boxNames?.[id] || "Estuche Terciopelo Negro";
+          if (cleanName.includes("Madera Laqueada con Luz LED Nupcial")) cleanName = prod.boxNames?.[id] || "Caja Madera LED";
+          const p = prod.boxPrices?.[id] !== undefined ? Number(prod.boxPrices[id]) : Number(opt.price ?? 0);
+          const img = (id === "caja-verde-lujo" && boxImage) ? boxImage : (prod.boxImages?.[id] || opt.image);
+          return {
+            ...opt,
+            id,
+            name: cleanName,
+            price: isNaN(p) ? 0 : p,
+            image: img || (id === "estuche-terciopelo" ? "/images/box-presentation.jpg" : id === "caja-madera" ? "/images/detail-packaging.jpg" : "/images/detail-box-green.jpg"),
+          };
+        })
+      : (defaultProdMatch?.presentationOptions || [
+          {
+            id: "caja-verde-lujo",
+            name: prod.boxNames?.["caja-verde-lujo"] || "Caja Verde Platino",
+            price: Number(prod.boxPrices?.["caja-verde-lujo"] ?? 0),
+            image: boxImage || "/images/detail-box-green.jpg",
+            description: "Estuche de presentación oficial Platino Perú de alta gama con interiores acolchados y acabados finos."
+          },
+          {
+            id: "estuche-terciopelo",
+            name: prod.boxNames?.["estuche-terciopelo"] || "Estuche Terciopelo Negro",
+            price: Number(prod.boxPrices?.["estuche-terciopelo"] ?? 25),
+            image: prod.boxImages?.["estuche-terciopelo"] || "/images/box-presentation.jpg",
+            description: "Estuche premium de terciopelo negro suave al tacto para una entrega elegante y exclusiva."
+          },
+          {
+            id: "caja-madera",
+            name: prod.boxNames?.["caja-madera"] || "Caja Madera LED",
+            price: Number(prod.boxPrices?.["caja-madera"] ?? 60),
+            image: prod.boxImages?.["caja-madera"] || "/images/detail-packaging.jpg",
+            description: "Caja de madera noble con acabado brillante e iluminación LED focalizada al abrir para máxima sorpresa."
+          }
+        ]),
     gallery: combinedGallery,
     hasPresentationChoice: prod.hasPresentationChoice ?? true,
     showDeliveryEstimate: prod.showDeliveryEstimate,
@@ -241,6 +296,21 @@ export const createProduct = (productData) => {
     priceFormatted: formatPrice(numPrice),
     image: productData.image || "/images/cat-compromiso.jpg",
     boxImage: finalBoxImage,
+    boxImages: productData.boxImages || {
+      "caja-verde-lujo": finalBoxImage,
+      "estuche-terciopelo": "/images/box-presentation.jpg",
+      "caja-madera": "/images/detail-packaging.jpg",
+    },
+    boxNames: productData.boxNames || {
+      "caja-verde-lujo": "Caja Verde Platino",
+      "estuche-terciopelo": "Estuche Terciopelo Negro",
+      "caja-madera": "Caja Madera LED",
+    },
+    boxPrices: productData.boxPrices || {
+      "caja-verde-lujo": "0",
+      "estuche-terciopelo": "25",
+      "caja-madera": "60",
+    },
     metalImages: productData.metalImages || null,
     metalGalleries: productData.metalGalleries || null,
     metalPrices: productData.metalPrices || null,
@@ -351,6 +421,10 @@ export const updateProduct = (id, updatedFields) => {
     priceFormatted: formatPrice(numPrice),
     image: newImage,
     boxImage: finalBoxImage,
+    boxImages: updatedFields.boxImages !== undefined ? updatedFields.boxImages : current.boxImages,
+    boxNames: updatedFields.boxNames !== undefined ? updatedFields.boxNames : current.boxNames,
+    boxPrices: updatedFields.boxPrices !== undefined ? updatedFields.boxPrices : current.boxPrices,
+    presentationOptions: updatedFields.presentationOptions !== undefined ? updatedFields.presentationOptions : current.presentationOptions,
     gallery: combinedGallery,
     metalImages: finalMetalImages,
     metalGalleries: finalMetalGalleries,

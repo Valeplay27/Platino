@@ -6,12 +6,14 @@ import {
   DIAMOND_COLORS,
   CLARITY_GRADES,
   GEM_COLORS,
+  MM_RANGES,
+  CARAT_RANGES,
 } from "../data/gemstones";
 import { DiamondCutIcon } from "../components/GemstoneIcons";
 import GemstoneStoneVisual from "../components/GemstoneStoneVisual";
 import { useAuth } from "../context/useAuth";
 import { getUserFavorites, toggleUserFavorite } from "../services/favoritesService";
-import { getStoredGemstones } from "../services/gemstonesService";
+import { getStoredGemstones, getGemCertificateUrl, getGemCertificateDisplay } from "../services/gemstonesService";
 import "../../styles/gemstones.css";
 
 const normalizeShape = (s) => (s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -128,13 +130,16 @@ export default function GemstonesCatalog() {
       list.push({ key: "gColor", label: `Tono ${gc ? gc.label : selectedGemColor}`, clear: () => setSelectedGemColor("todos") });
     }
     if (selectedClarity !== "todos") {
-      list.push({ key: "clarity", label: `Pureza ${selectedClarity}`, clear: () => setSelectedClarity("todos") });
+      const c = CLARITY_GRADES.find((x) => (typeof x === "string" ? x : x.id) === selectedClarity);
+      list.push({ key: "clarity", label: `Pureza ${c ? (c.label || c.id) : selectedClarity}`, clear: () => setSelectedClarity("todos") });
     }
     if (selectedMmRange !== "todos") {
-      list.push({ key: "mm", label: "Tamaño mm", clear: () => setSelectedMmRange("todos") });
+      const r = MM_RANGES.find((x) => x.id === selectedMmRange);
+      list.push({ key: "mm", label: r ? r.label : "Tamaño mm", clear: () => setSelectedMmRange("todos") });
     }
     if (selectedCaratRange !== "todos") {
-      list.push({ key: "carat", label: "Rango Carat", clear: () => setSelectedCaratRange("todos") });
+      const r = CARAT_RANGES.find((x) => x.id === selectedCaratRange);
+      list.push({ key: "carat", label: r ? r.label : "Rango Carat", clear: () => setSelectedCaratRange("todos") });
     }
     return list;
   }, [
@@ -181,45 +186,88 @@ export default function GemstonesCatalog() {
       }
 
       // 2. Tipo de Gema
-      if (selectedType !== "todos" && gem.type !== selectedType) {
-        return false;
+      if (selectedType !== "todos") {
+        if (selectedType === "gema-color-natural") {
+          const isLab = (gem.name || "").toLowerCase().includes("lab") || (gem.name || "").toLowerCase().includes("cultivad");
+          if (gem.type !== "gema-color-natural" && (gem.type !== "gema-color" || isLab)) return false;
+        } else if (selectedType === "gema-color-lab") {
+          const isLab = (gem.name || "").toLowerCase().includes("lab") || (gem.name || "").toLowerCase().includes("cultivad");
+          if (gem.type !== "gema-color-lab" && !(gem.type === "gema-color" && isLab)) return false;
+        } else if (selectedType === "gema-color") {
+          if (!gem.type?.startsWith("gema-color")) return false;
+        } else if (gem.type !== selectedType) {
+          return false;
+        }
       }
 
       // 3. Forma / Corte
-      if (selectedShape !== "todas" && normalizeShape(gem.shape) !== normalizeShape(selectedShape)) {
-        return false;
+      if (selectedShape !== "todas") {
+        const gemS = normalizeShape(gem.shape);
+        const targetS = normalizeShape(selectedShape);
+        if (gemS !== targetS) {
+          if (targetS === "otros") {
+            const standardIds = ["redondo", "baguette", "cabujon", "corazon", "cojin", "esmeralda", "escudo", "marquesa", "oval", "pera", "princesa", "trillante", "radiante", "asscher"];
+            if (standardIds.includes(gemS)) return false;
+          } else {
+            return false;
+          }
+        }
       }
 
       // 4. Color de Diamante
-      if (selectedDiamondColor !== "todos" && gem.color !== selectedDiamondColor) {
-        return false;
+      if (selectedDiamondColor !== "todos") {
+        const c = (gem.color || "").toUpperCase().trim();
+        if (selectedDiamondColor === "I - J") {
+          if (c !== "I" && c !== "J" && c !== "I - J" && c !== "I-J") return false;
+        } else if (selectedDiamondColor === "K - Z") {
+          const code = c.charCodeAt(0);
+          if (code < 75 || code > 90) return false;
+        } else if (selectedDiamondColor === "Fancy") {
+          if (c !== "FANCY" && !c.includes("FANCY")) return false;
+        } else if (c !== selectedDiamondColor.toUpperCase()) {
+          return false;
+        }
       }
 
       // 5. Color de Gema
-      if (selectedGemColor !== "todos" && gem.gemColor !== selectedGemColor) {
-        return false;
+      if (selectedGemColor !== "todos") {
+        const gcNorm = (gem.gemColor || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const targetGcNorm = selectedGemColor.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if (gcNorm !== targetGcNorm && !gem.name?.toLowerCase().includes(targetGcNorm)) {
+          return false;
+        }
       }
 
       // 6. Pureza
-      if (selectedClarity !== "todos" && gem.clarity !== selectedClarity) {
-        return false;
+      if (selectedClarity !== "todos") {
+        const gemClarity = (gem.clarity || "").toLowerCase().trim();
+        if (selectedClarity === "FL - IF") {
+          if (!gemClarity.includes("fl") && !gemClarity.includes("if")) return false;
+        } else if (selectedClarity === "VVS") {
+          if (!gemClarity.includes("vvs")) return false;
+        } else if (selectedClarity === "VS") {
+          if (!gemClarity.includes("vs") || gemClarity.includes("vvs")) return false;
+        } else if (selectedClarity === "SI") {
+          if (!gemClarity.includes("si") && !gemClarity.includes("slightly")) return false;
+        } else if (!gemClarity.includes(selectedClarity.toLowerCase())) {
+          return false;
+        }
       }
 
       // 7. Tamaño en mm
       if (selectedMmRange !== "todos") {
-        if (selectedMmRange === "menor-6" && gem.mm >= 6.0) return false;
-        if (selectedMmRange === "6-7.5" && (gem.mm < 6.0 || gem.mm > 7.5)) return false;
-        if (selectedMmRange === "7.5-9" && (gem.mm < 7.5 || gem.mm > 9.0)) return false;
-        if (selectedMmRange === "mayor-9" && gem.mm <= 9.0) return false;
+        const r = MM_RANGES.find((x) => x.id === selectedMmRange);
+        if (r && gem.mm !== undefined) {
+          if (gem.mm < r.min || gem.mm > r.max) return false;
+        }
       }
 
       // 8. Rango de Carat
       if (selectedCaratRange !== "todos") {
-        if (selectedCaratRange === "0.5-0.79" && (gem.carat < 0.5 || gem.carat >= 0.8)) return false;
-        if (selectedCaratRange === "0.8-0.99" && (gem.carat < 0.8 || gem.carat >= 1.0)) return false;
-        if (selectedCaratRange === "1.0-1.49" && (gem.carat < 1.0 || gem.carat >= 1.5)) return false;
-        if (selectedCaratRange === "1.5-1.99" && (gem.carat < 1.5 || gem.carat >= 2.0)) return false;
-        if (selectedCaratRange === "2.0-plus" && gem.carat < 2.0) return false;
+        const r = CARAT_RANGES.find((x) => x.id === selectedCaratRange);
+        if (r && gem.carat !== undefined) {
+          if (gem.carat < r.min || gem.carat > r.max) return false;
+        }
       }
 
       return true;
@@ -466,11 +514,15 @@ export default function GemstonesCatalog() {
                 className="filter-select-modern"
               >
                 <option value="todos">- Seleccionar Pureza (Todas) -</option>
-                {CLARITY_GRADES.map((cl) => (
-                  <option key={cl} value={cl}>
-                    {cl} {cl === "FL" || cl === "IF" ? "(Sin inclusiones)" : cl.includes("VVS") ? "(Inclusiones mínimas)" : ""}
-                  </option>
-                ))}
+                {CLARITY_GRADES.map((cl) => {
+                  const val = typeof cl === "string" ? cl : cl.id;
+                  const lbl = typeof cl === "string" ? cl : cl.label;
+                  return (
+                    <option key={val} value={val}>
+                      {lbl}
+                    </option>
+                  );
+                })}
               </select>
             </div>
 
@@ -482,11 +534,11 @@ export default function GemstonesCatalog() {
                 onChange={(e) => setSelectedMmRange(e.target.value)}
                 className="filter-select-modern"
               >
-                <option value="todos">- Seleccionar Tamaño (mm) -</option>
-                <option value="menor-6">Menor a 6.0 mm (Sortijas delicadas)</option>
-                <option value="6-7.5">6.0 a 7.5 mm (Tamaño clásico)</option>
-                <option value="7.5-9">7.5 a 9.0 mm (Gran presencia)</option>
-                <option value="mayor-9">Mayor a 9.0 mm (Exclusiva)</option>
+                {MM_RANGES.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.label}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -498,12 +550,11 @@ export default function GemstonesCatalog() {
                 onChange={(e) => setSelectedCaratRange(e.target.value)}
                 className="filter-select-modern"
               >
-                <option value="todos">- Seleccionar Peso / Carat (ct) -</option>
-                <option value="0.5-0.79">0.50 a 0.79 ct</option>
-                <option value="0.8-0.99">0.80 a 0.99 ct</option>
-                <option value="1.0-1.49">1.00 a 1.49 ct (Más cotizado)</option>
-                <option value="1.5-1.99">1.50 a 1.99 ct</option>
-                <option value="2.0-plus">2.00 ct a más</option>
+                {CARAT_RANGES.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.label}
+                  </option>
+                ))}
               </select>
             </div>
 
@@ -726,7 +777,29 @@ export default function GemstonesCatalog() {
                         <div className="gem-card-cert-row">
                           <span>
                             <i className="bi bi-shield-check" style={{ color: "#C6AC7F", marginRight: "4px" }}></i>
-                            Inscripción Láser: <strong>{gem.certNumber}</strong>
+                            Inscripción Láser:{" "}
+                            {getGemCertificateUrl(gem) ? (
+                              <a
+                                href={getGemCertificateUrl(gem)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{
+                                  color: "#113B3A",
+                                  fontWeight: "700",
+                                  textDecoration: "underline",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "3px"
+                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                title="Abrir certificado en otra pestaña (target=_blank)"
+                              >
+                                <strong>{getGemCertificateDisplay(gem)}</strong>
+                                <i className="bi bi-box-arrow-up-right" style={{ fontSize: "10px" }}></i>
+                              </a>
+                            ) : (
+                              <strong>{gem.certNumber}</strong>
+                            )}
                           </span>
                           <span>
                             <i className="bi bi-geo-alt" style={{ color: "#71857c", marginRight: "3px" }}></i>
@@ -902,17 +975,45 @@ export default function GemstonesCatalog() {
                   )}
                 </div>
 
-                <div className="gem-cert-badge-box">
-                  <i className="bi bi-shield-fill-check"></i>
-                  <div>
-                    <div style={{ fontWeight: "700", fontSize: "14px" }}>
-                      Certificado Oficial {detailGem.certificate}
+                {getGemCertificateUrl(detailGem) ? (
+                  <a
+                    href={getGemCertificateUrl(detailGem)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="gem-cert-badge-box"
+                    style={{
+                      textDecoration: "none",
+                      cursor: "pointer",
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "12px"
+                    }}
+                    title="Abrir certificado oficial en otra pestaña (target=_blank)"
+                  >
+                    <i className="bi bi-shield-fill-check"></i>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: "700", fontSize: "14px", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <span>Certificado Oficial {detailGem.certificate}</span>
+                        <i className="bi bi-box-arrow-up-right" style={{ fontSize: "12px" }}></i>
+                      </div>
+                      <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.9)", marginTop: "2px" }}>
+                        Nº <u style={{ fontWeight: "700" }}>{getGemCertificateDisplay(detailGem)}</u> (Grabado Láser en Filetín)
+                      </div>
                     </div>
-                    <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.85)" }}>
-                      Nº {detailGem.certNumber} (Grabado Láser en Filetín)
+                  </a>
+                ) : (
+                  <div className="gem-cert-badge-box">
+                    <i className="bi bi-shield-fill-check"></i>
+                    <div>
+                      <div style={{ fontWeight: "700", fontSize: "14px" }}>
+                        Certificado Oficial {detailGem.certificate}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.85)" }}>
+                        Nº {detailGem.certNumber} (Grabado Láser en Filetín)
+                      </div>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {/* Lado Derecho: Especificaciones Completas */}

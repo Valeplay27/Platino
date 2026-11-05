@@ -915,6 +915,21 @@ export default function AdminCitas() {
   const [formImageYellow, setFormImageYellow] = useState("");
   const [formImageRose, setFormImageRose] = useState("");
   const [formBoxImage, setFormBoxImage] = useState("/images/detail-box-green.jpg");
+  const [formBoxImages, setFormBoxImages] = useState({
+    "caja-verde-lujo": "/images/detail-box-green.jpg",
+    "estuche-terciopelo": "/images/box-presentation.jpg",
+    "caja-madera": "/images/detail-packaging.jpg",
+  });
+  const [formBoxNames, setFormBoxNames] = useState({
+    "caja-verde-lujo": "Caja Verde Platino",
+    "estuche-terciopelo": "Estuche Terciopelo Negro",
+    "caja-madera": "Caja Madera LED",
+  });
+  const [formBoxPrices, setFormBoxPrices] = useState({
+    "caja-verde-lujo": "0",
+    "estuche-terciopelo": "25",
+    "caja-madera": "60",
+  });
   const [formSubtitle, setFormSubtitle] = useState("");
   const [formAvailableMetals, setFormAvailableMetals] = useState(() => METALS.map((m) => m.id));
   const [formSelectedMetal, setFormSelectedMetal] = useState("Oro 18k Blanco");
@@ -2080,6 +2095,21 @@ export default function AdminCitas() {
     setFormImageYellow("");
     setFormImageRose("");
     setFormBoxImage("/images/detail-box-green.jpg");
+    setFormBoxImages({
+      "caja-verde-lujo": "/images/detail-box-green.jpg",
+      "estuche-terciopelo": "/images/box-presentation.jpg",
+      "caja-madera": "/images/detail-packaging.jpg",
+    });
+    setFormBoxNames({
+      "caja-verde-lujo": "Caja Verde Platino",
+      "estuche-terciopelo": "Estuche Terciopelo Negro",
+      "caja-madera": "Caja Madera LED",
+    });
+    setFormBoxPrices({
+      "caja-verde-lujo": "0",
+      "estuche-terciopelo": "25",
+      "caja-madera": "60",
+    });
     const initMetals = METALS.map((m) => m.id);
     setFormAvailableMetals(initMetals);
     setFormSelectedMetal("Oro 18k Blanco");
@@ -2140,6 +2170,58 @@ export default function AdminCitas() {
     const baseImg = prod.image || "/images/cat-compromiso.jpg";
     setFormImage(baseImg);
     setFormBoxImage(prod.boxImage || prod.presentationImage || "/images/detail-box-green.jpg");
+    const initialBoxImages = {
+      "caja-verde-lujo": prod.boxImage || prod.presentationImage || "/images/detail-box-green.jpg",
+      "estuche-terciopelo": "/images/box-presentation.jpg",
+      "caja-madera": "/images/detail-packaging.jpg",
+    };
+    if (prod.boxImages && typeof prod.boxImages === "object") {
+      Object.assign(initialBoxImages, prod.boxImages);
+    }
+    if (Array.isArray(prod.presentationOptions)) {
+      prod.presentationOptions.forEach((opt) => {
+        if (opt.id && opt.image) initialBoxImages[opt.id] = opt.image;
+      });
+    }
+    setFormBoxImages(initialBoxImages);
+
+    const initialBoxNames = {
+      "caja-verde-lujo": "Caja Verde Platino",
+      "estuche-terciopelo": "Estuche Terciopelo Negro",
+      "caja-madera": "Caja Madera LED",
+    };
+    if (prod.boxNames && typeof prod.boxNames === "object") {
+      Object.assign(initialBoxNames, prod.boxNames);
+    }
+    if (Array.isArray(prod.presentationOptions)) {
+      prod.presentationOptions.forEach((opt) => {
+        if (opt.id && opt.name) {
+          let clean = opt.name;
+          if (clean.includes("Esmeralda Platino (Recomendado)")) clean = "Caja Verde Platino";
+          if (clean.includes("Terciopelo Negro Nupcial")) clean = "Estuche Terciopelo Negro";
+          if (clean.includes("Madera Laqueada con Luz LED Nupcial")) clean = "Caja Madera LED";
+          initialBoxNames[opt.id] = clean;
+        }
+      });
+    }
+    setFormBoxNames(initialBoxNames);
+
+    const initialBoxes = {
+      "caja-verde-lujo": "0",
+      "estuche-terciopelo": "25",
+      "caja-madera": "60",
+    };
+    if (Array.isArray(prod.presentationOptions)) {
+      prod.presentationOptions.forEach((opt) => {
+        if (opt.id) initialBoxes[opt.id] = String(opt.price ?? 0);
+      });
+    }
+    if (prod.boxPrices && typeof prod.boxPrices === "object") {
+      Object.keys(prod.boxPrices).forEach((k) => {
+        initialBoxes[k] = String(prod.boxPrices[k] ?? 0);
+      });
+    }
+    setFormBoxPrices(initialBoxes);
     setFormShowDeliveryEstimate(
       prod.showDeliveryEstimate !== undefined
         ? !!prod.showDeliveryEstimate
@@ -2463,6 +2545,21 @@ export default function AdminCitas() {
     }
   };
 
+  const handleBoxImageFileUploadFor = async (boxId, e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      try {
+        const url = await uploadImageFile(file, `caja-${boxId}.jpg`);
+        setFormBoxImages((prev) => ({ ...prev, [boxId]: url }));
+        if (boxId === "caja-verde-lujo") {
+          setFormBoxImage(url);
+        }
+      } catch (err) {
+        alert(err.message || "Error al procesar la imagen.");
+      }
+    }
+  };
+
   const handleBoxImageFileUpload = async (e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -2629,13 +2726,28 @@ export default function AdminCitas() {
     if (yellowId) metalImagesMap.yellow = metalImagesMap[yellowId];
     if (roseId) metalImagesMap.rose = metalImagesMap[roseId];
 
-    const finalBoxImage = formBoxImage.trim() || "/images/detail-box-green.jpg";
+    const finalBoxImage = (formBoxImages["caja-verde-lujo"] || formBoxImage || "").trim() || "/images/detail-box-green.jpg";
+    const finalBoxImages = {
+      "caja-verde-lujo": finalBoxImage,
+      "estuche-terciopelo": (formBoxImages["estuche-terciopelo"] || "").trim() || "/images/box-presentation.jpg",
+      "caja-madera": (formBoxImages["caja-madera"] || "").trim() || "/images/detail-packaging.jpg",
+    };
+    const finalBoxNames = {
+      "caja-verde-lujo": (formBoxNames["caja-verde-lujo"] || "").trim() || "Caja Verde Platino",
+      "estuche-terciopelo": (formBoxNames["estuche-terciopelo"] || "").trim() || "Estuche Terciopelo Negro",
+      "caja-madera": (formBoxNames["caja-madera"] || "").trim() || "Caja Madera LED",
+    };
+    const finalBoxPrices = {
+      "caja-verde-lujo": String(formBoxPrices["caja-verde-lujo"] ?? 0),
+      "estuche-terciopelo": String(formBoxPrices["estuche-terciopelo"] ?? 25),
+      "caja-madera": String(formBoxPrices["caja-madera"] ?? 60),
+    };
     const allImagesToInclude = [
       ...(metalGalleriesMap[defaultMetalId] || []),
       mainImg,
       ...Object.values(metalGalleriesMap).flat().filter((v) => typeof v === "string"),
       ...Object.values(metalImagesMap).filter((v) => typeof v === "string"),
-      finalBoxImage,
+      ...Object.values(finalBoxImages).filter((v) => typeof v === "string"),
     ].filter(Boolean);
     const baseGallery = Array.from(new Set(allImagesToInclude));
 
@@ -2703,28 +2815,31 @@ export default function AdminCitas() {
       selectedMetal: finalSelectedMetal,
       showDeliveryEstimate: isRingGroup ? false : formShowDeliveryEstimate,
       hasPresentationChoice: true,
+      boxImages: finalBoxImages,
+      boxNames: finalBoxNames,
+      boxPrices: finalBoxPrices,
       presentationOptions: [
         {
           id: "caja-verde-lujo",
-          name: "Caja de Lujo Esmeralda Platino (Recomendado)",
-          price: 0,
-          image: finalBoxImage,
-          description: "Estuche rígido icónico verde esmeralda Platino con interior de gamuza aterciopelada y detalles dorados."
+          name: finalBoxNames["caja-verde-lujo"],
+          price: Number(finalBoxPrices["caja-verde-lujo"]),
+          image: finalBoxImages["caja-verde-lujo"],
+          description: "Estuche de presentación oficial Platino Perú de alta gama con interiores acolchados y acabados finos.",
         },
         {
           id: "estuche-terciopelo",
-          name: "Estuche de Terciopelo Negro Nupcial",
-          price: 25,
-          image: "/images/box-presentation.jpg",
-          description: "Estuche premium de terciopelo negro mate tacto suave, ideal para pedida de mano y bodas."
+          name: finalBoxNames["estuche-terciopelo"],
+          price: Number(finalBoxPrices["estuche-terciopelo"]),
+          image: finalBoxImages["estuche-terciopelo"],
+          description: "Estuche premium de terciopelo negro suave al tacto para una entrega elegante y exclusiva.",
         },
         {
           id: "caja-madera",
-          name: "Caja de Madera Laqueada con Luz LED Nupcial",
-          price: 60,
-          image: "/images/detail-packaging.jpg",
-          description: "Caja de madera noble con acabado piano brillante e iluminación LED focalizada al abrir para máxima sorpresa."
-        }
+          name: finalBoxNames["caja-madera"],
+          price: Number(finalBoxPrices["caja-madera"]),
+          image: finalBoxImages["caja-madera"],
+          description: "Caja de madera noble con acabado brillante e iluminación LED focalizada al abrir para máxima sorpresa.",
+        },
       ],
     };
 
@@ -13151,7 +13266,7 @@ export default function AdminCitas() {
 
                 {openProductSection === 4 && (
                   <div className="product-accordion-body">
-                    {/* 6. CAJA / ESTUCHE DE PRESENTACIÓN DE LA JOYA */}
+                    {/* 6. CAJA / ESTUCHE DE PRESENTACIÓN DE LA JOYA (3 OPCIONES VISIBLES) */}
                 <div className="product-box-config-card" style={{
                   background: "#fbf9f6",
                   border: "1.5px solid #e7dcce",
@@ -13163,91 +13278,157 @@ export default function AdminCitas() {
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       <i className="bi bi-box2-heart-fill" style={{ color: "#c5a059", fontSize: "20px" }}></i>
-                      <strong style={{ fontSize: "14px", color: "#113B3A" }}>6. Caja de Presentación / Estuche del Producto</strong>
+                      <strong style={{ fontSize: "14px", color: "#113B3A" }}>6. Cajas de Presentación y Estuches del Producto (3 Opciones)</strong>
                     </div>
                     <span style={{ fontSize: "11px", background: "#edf5f0", color: "#113B3A", padding: "3px 8px", borderRadius: "4px", fontWeight: "600" }}>
                       Visible en Portafolio y Paso 2
                     </span>
                   </div>
 
-                  <p style={{ fontSize: "12px", color: "#5d6d65", margin: "0 0 14px", lineHeight: "1.45" }}>
-                    Configura la foto de la caja o estuche de regalo que se agregará al portafolio de la joya y se mostrará al cliente en el <strong>Paso 2: Complementos y Estuche</strong>.
+                  <p style={{ fontSize: "12px", color: "#5d6d65", margin: "0 0 16px", lineHeight: "1.45" }}>
+                    Personaliza la foto, el nombre y el precio de cada uno de los 3 estuches para este producto. Puedes subir una foto específica para cada caja (por ejemplo estuches de collar, aretes o pulseras). En la tienda, el cliente verá estas fotos en el selector.
                   </p>
 
-                  <div className="product-box-layout">
-                    {/* Vista previa de la caja */}
-                    <div className="product-box-preview">
-                      <img
-                        src={formBoxImage || "/images/detail-box-green.jpg"}
-                        alt="Caja de presentación"
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        onError={(e) => { e.target.onerror = null; e.target.src = "/images/detail-box-green.jpg"; }}
-                      />
-                    </div>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "14px" }}>
+                    {[
+                      { id: "caja-verde-lujo", num: 1, label: "Estuche #1 (Principal)", defName: "Caja Verde Platino", defImg: "/images/detail-box-green.jpg", defPrice: "0" },
+                      { id: "estuche-terciopelo", num: 2, label: "Estuche #2", defName: "Estuche Terciopelo Negro", defImg: "/images/box-presentation.jpg", defPrice: "25" },
+                      { id: "caja-madera", num: 3, label: "Estuche #3", defName: "Caja Madera LED", defImg: "/images/detail-packaging.jpg", defPrice: "60" },
+                    ].map((box) => {
+                      const currentImg = formBoxImages[box.id] || box.defImg;
+                      const currentName = formBoxNames[box.id] ?? box.defName;
+                      const currentPrice = formBoxPrices[box.id] ?? box.defPrice;
+                      const numPrice = Number(currentPrice || 0);
 
-                    <div className="product-box-controls">
-                      <div className="product-box-presets">
-                        <button
-                          type="button"
-                          onClick={() => setFormBoxImage("/images/detail-box-green.jpg")}
-                          className="btn-box-preset"
-                          style={{ fontSize: "11px", padding: "4px 10px", borderRadius: "6px", border: "1px solid #113B3A", background: formBoxImage === "/images/detail-box-green.jpg" ? "#113B3A" : "#ffffff", color: formBoxImage === "/images/detail-box-green.jpg" ? "#ffffff" : "#113B3A", cursor: "pointer", fontWeight: "600" }}
-                        >
-                          Caja Verde Platino
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setFormBoxImage("/images/box-presentation.jpg")}
-                          className="btn-box-preset"
-                          style={{ fontSize: "11px", padding: "4px 10px", borderRadius: "6px", border: "1px solid #113B3A", background: formBoxImage === "/images/box-presentation.jpg" ? "#113B3A" : "#ffffff", color: formBoxImage === "/images/box-presentation.jpg" ? "#ffffff" : "#113B3A", cursor: "pointer", fontWeight: "600" }}
-                        >
-                          Estuche Terciopelo Negro
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setFormBoxImage("/images/detail-packaging.jpg")}
-                          className="btn-box-preset"
-                          style={{ fontSize: "11px", padding: "4px 10px", borderRadius: "6px", border: "1px solid #113B3A", background: formBoxImage === "/images/detail-packaging.jpg" ? "#113B3A" : "#ffffff", color: formBoxImage === "/images/detail-packaging.jpg" ? "#ffffff" : "#113B3A", cursor: "pointer", fontWeight: "600" }}
-                        >
-                          Caja Madera LED
-                        </button>
-                      </div>
+                      return (
+                        <div key={box.id} style={{ background: "#ffffff", border: "1px solid #dce8e1", borderRadius: "10px", padding: "12px 14px", display: "flex", flexDirection: "column", gap: "10px", boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                            <span style={{ fontSize: "12px", fontWeight: "700", color: "#113B3A" }}>{box.label}</span>
+                            <span style={{ fontSize: "10.5px", background: numPrice === 0 ? "#edf5f0" : "#fdf6e7", color: numPrice === 0 ? "#166534" : "#92400e", padding: "2px 6px", borderRadius: "4px", fontWeight: "700" }}>
+                              {numPrice === 0 ? "Cortesía (S/. 0)" : `+S/. ${numPrice}`}
+                            </span>
+                          </div>
 
-                      <div className="product-box-input-row">
-                        <input
-                          type="text"
-                          className="catalog-form-input"
-                          style={{ fontSize: "12px", padding: "8px 12px", flex: 1 }}
-                          placeholder="Ruta o URL de la caja (Ej. /images/detail-box-green.jpg)"
-                          value={getImageInputValue(formBoxImage)}
-                          readOnly={isEmbeddedImage(formBoxImage)}
-                          title={isEmbeddedImage(formBoxImage) ? "Vuelve a subir una foto para reemplazarla" : undefined}
-                          onChange={(e) => setFormBoxImage(e.target.value)}
-                        />
-                        <label className="btn-upload-box-file" style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "6px",
-                          padding: "8px 14px",
-                          background: "#edf5f0",
-                          color: "#113B3A",
-                          border: "1px solid #b7d6c5",
-                          borderRadius: "6px",
-                          fontSize: "12px",
-                          fontWeight: "600",
-                          cursor: "pointer",
-                          whiteSpace: "nowrap"
-                        }}>
-                          <i className="bi bi-cloud-arrow-up-fill"></i> Subir Foto de Caja
-                          <input
-                            type="file"
-                            accept="image/*"
-                            onChange={handleBoxImageFileUpload}
-                            style={{ display: "none" }}
-                          />
-                        </label>
-                      </div>
-                    </div>
+                          {/* Vista previa de foto y botón de subida */}
+                          <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+                            <div style={{ width: "75px", height: "75px", borderRadius: "8px", overflow: "hidden", border: "1px solid #dcd3c5", flexShrink: 0, background: "#f8f9fa" }}>
+                              <img
+                                src={currentImg}
+                                alt={currentName}
+                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                onError={(e) => { e.target.onerror = null; e.target.src = box.defImg; }}
+                              />
+                            </div>
+                            <div style={{ display: "flex", flexDirection: "column", gap: "6px", flex: 1 }}>
+                              <label style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                gap: "5px",
+                                padding: "6px 10px",
+                                background: "#edf5f0",
+                                color: "#113B3A",
+                                border: "1px solid #b7d6c5",
+                                borderRadius: "6px",
+                                fontSize: "11px",
+                                fontWeight: "600",
+                                cursor: "pointer",
+                                textAlign: "center"
+                              }}>
+                                <i className="bi bi-cloud-arrow-up-fill"></i> Subir Foto
+                                <input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => handleBoxImageFileUploadFor(box.id, e)}
+                                  style={{ display: "none" }}
+                                />
+                              </label>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setFormBoxImages((prev) => ({ ...prev, [box.id]: box.defImg }));
+                                  if (box.id === "caja-verde-lujo") setFormBoxImage(box.defImg);
+                                }}
+                                style={{
+                                  padding: "3px 6px",
+                                  background: "transparent",
+                                  border: "1px solid #e2e8f0",
+                                  borderRadius: "4px",
+                                  fontSize: "9.5px",
+                                  color: "#64748b",
+                                  cursor: "pointer"
+                                }}
+                              >
+                                Foto por defecto
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Input URL */}
+                          <div>
+                            <label style={{ fontSize: "10.5px", fontWeight: "600", color: "#64748b", display: "block", marginBottom: "2px" }}>
+                              Ruta / URL:
+                            </label>
+                            <input
+                              type="text"
+                              value={getImageInputValue(currentImg)}
+                              readOnly={isEmbeddedImage(currentImg)}
+                              title={isEmbeddedImage(currentImg) ? "Sube una nueva foto para reemplazarla" : undefined}
+                              onChange={(e) => {
+                                const val = e.target.value;
+                                setFormBoxImages((prev) => ({ ...prev, [box.id]: val }));
+                                if (box.id === "caja-verde-lujo") setFormBoxImage(val);
+                              }}
+                              className="catalog-form-input"
+                              style={{ fontSize: "11px", padding: "5px 8px", width: "100%" }}
+                              placeholder={box.defImg}
+                            />
+                          </div>
+
+                          {/* Nombre */}
+                          <div>
+                            <label style={{ fontSize: "11px", fontWeight: "700", color: "#113B3A", display: "block", marginBottom: "2px" }}>
+                              Nombre del Estuche #{box.num}:
+                            </label>
+                            <input
+                              type="text"
+                              value={currentName}
+                              onChange={(e) =>
+                                setFormBoxNames((prev) => ({ ...prev, [box.id]: e.target.value }))
+                              }
+                              className="catalog-form-input"
+                              style={{ fontSize: "12px", padding: "5px 8px", width: "100%", fontWeight: "600" }}
+                              placeholder={box.defName}
+                            />
+                          </div>
+
+                          {/* Precio */}
+                          <div>
+                            <label style={{ fontSize: "11px", fontWeight: "600", color: "#475467", display: "block", marginBottom: "2px" }}>
+                              Precio en Soles (S/.):
+                            </label>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <span style={{ fontSize: "12px", color: "#667085", fontWeight: "700" }}>S/.</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="1"
+                                value={currentPrice}
+                                onChange={(e) =>
+                                  setFormBoxPrices((prev) => ({ ...prev, [box.id]: e.target.value }))
+                                }
+                                className="catalog-form-input"
+                                style={{ fontSize: "12px", padding: "5px 8px", width: "100%" }}
+                                placeholder="0"
+                              />
+                            </div>
+                            <span style={{ fontSize: "10.5px", color: numPrice === 0 ? "#166534" : "#c5a059", marginTop: "3px", display: "block", fontWeight: "600" }}>
+                              {numPrice === 0 ? "Incluido de cortesía" : `+S/. ${numPrice} adicional`}
+                            </span>
+                          </div>
+                        </div>
+                      );
+                    })}
                   </div>
                 </div>
 

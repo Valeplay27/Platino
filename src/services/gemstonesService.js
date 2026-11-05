@@ -1,3 +1,60 @@
+/**
+ * Retorna la URL del certificado gemológico oficial (enlace externo o reporte online)
+ * Si se definió `certUrl`, se usa directamente. De lo contrario, genera el enlace oficial
+ * de consulta pública para laboratorios reconocidos como GIA, IGI o HRD.
+ */
+/**
+ * Retorna el texto legible del número de certificado para mostrar en pantalla.
+ * Si certNumber era una URL completa, extrae el nombre de archivo o código.
+ */
+export const getGemCertificateDisplay = (gem) => {
+  if (!gem) return "";
+  const raw = (gem.certNumber || "").trim();
+  if (raw.startsWith("http://") || raw.startsWith("https://")) {
+    try {
+      const url = new URL(raw);
+      const pathname = url.pathname;
+      const filename = pathname.substring(pathname.lastIndexOf("/") + 1);
+      return decodeURIComponent(filename).replace(/\.[^/.]+$/, "") || raw;
+    } catch {
+      return raw;
+    }
+  }
+  return raw;
+};
+
+export const getGemCertificateUrl = (gem) => {
+  if (!gem) return "";
+  if (typeof gem.certUrl === "string" && gem.certUrl.trim() !== "") {
+    return gem.certUrl.trim();
+  }
+
+  const certNumber = (gem.certNumber || "").trim();
+  const certOrg = (gem.certificate || "").toUpperCase();
+
+  if (!certNumber) return "";
+
+  // Si el propio certNumber ya es una URL
+  if (certNumber.startsWith("http://") || certNumber.startsWith("https://")) {
+    return certNumber;
+  }
+
+  // Extraer dígitos limpios para los portales de verificación oficial
+  const digitsOnly = certNumber.replace(/[^0-9]/g, "");
+
+  if (certOrg.includes("GIA") && digitsOnly) {
+    return `https://www.gia.edu/report-check?reportno=${digitsOnly}`;
+  }
+  if (certOrg.includes("IGI") && digitsOnly) {
+    return `https://www.igi.org/verify-your-report/?r=${digitsOnly}`;
+  }
+  if (certOrg.includes("HRD") && digitsOnly) {
+    return `https://my.hrdantwerp.com/?id=34&record_number=${digitsOnly}`;
+  }
+
+  return "";
+};
+
 // Servicio de administración y persistencia de Gemas y Diamantes Certificados para Platino Perú
 import { CERTIFIED_GEMSTONES } from "../data/gemstones";
 import { getRemoteData, setRemoteData } from "./remoteData";
@@ -84,6 +141,7 @@ export const normalizeGemstone = (g) => {
     ...g,
     units,
     inStock,
+    certUrl: (g.certUrl || "").trim(),
     price: Number(g.price) || 0,
     priceFormatted: g.priceFormatted || `S/. ${(Number(g.price) || 0).toLocaleString("es-PE")}`,
   };

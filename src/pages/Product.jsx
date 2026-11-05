@@ -369,9 +369,40 @@ export default function Product({ addToCart }) {
 
   // Presentación / Opciones de Estuches con fotos y detalles
   const presentationOptionsList = useMemo(() => {
-    if (product.presentationOptions && product.presentationOptions.length > 0) {
-      return product.presentationOptions.map((opt) => ({
+    const rawOptions = (product.presentationOptions && product.presentationOptions.length > 0)
+      ? product.presentationOptions
+      : [
+          {
+            id: "caja-verde-lujo",
+            name: "Caja de Lujo Esmeralda Platino (Recomendado)",
+            price: Number(product.boxPrices?.["caja-verde-lujo"] ?? 0),
+            image: product.boxImage || "/images/detail-box-green.jpg",
+            description: "Estuche rígido icónico verde esmeralda Platino con interior de gamuza aterciopelada y detalles dorados."
+          },
+          {
+            id: "estuche-terciopelo",
+            name: "Estuche de Terciopelo Negro Nupcial",
+            price: Number(product.boxPrices?.["estuche-terciopelo"] ?? 25),
+            image: "/images/box-presentation.jpg",
+            description: "Estuche premium de terciopelo negro mate tacto suave, ideal para pedida de mano y bodas."
+          },
+          {
+            id: "caja-madera",
+            name: "Caja de Madera Laqueada con Luz LED Nupcial",
+            price: Number(product.boxPrices?.["caja-madera"] ?? 60),
+            image: "/images/detail-packaging.jpg",
+            description: "Caja de madera noble con acabado piano brillante e iluminación LED focalizada al abrir para máxima sorpresa."
+          }
+        ];
+
+    return rawOptions.map((opt) => {
+      const customPrice = product.boxPrices && product.boxPrices[opt.id] !== undefined
+        ? Number(product.boxPrices[opt.id])
+        : Number(opt.price ?? 0);
+
+      return {
         ...opt,
+        price: isNaN(customPrice) ? 0 : customPrice,
         image: opt.image || (opt.id === "estuche-terciopelo"
           ? "/images/box-presentation.jpg"
           : opt.id === "caja-madera"
@@ -382,32 +413,9 @@ export default function Product({ addToCart }) {
           : opt.id === "caja-madera"
           ? "Caja de madera noble con acabado piano brillante e iluminación LED focalizada al abrir para máxima sorpresa."
           : "Estuche rígido icónico verde esmeralda Platino con interior de gamuza aterciopelada y detalles dorados.")
-      }));
-    }
-    return [
-      {
-        id: "caja-verde-lujo",
-        name: "Caja de Lujo Esmeralda Platino (Recomendado)",
-        price: 0,
-        image: product.boxImage || "/images/detail-box-green.jpg",
-        description: "Estuche rígido icónico verde esmeralda Platino con interior de gamuza aterciopelada y detalles dorados."
-      },
-      {
-        id: "estuche-terciopelo",
-        name: "Estuche de Terciopelo Negro Nupcial",
-        price: 25,
-        image: "/images/box-presentation.jpg",
-        description: "Estuche premium de terciopelo negro mate tacto suave, ideal para pedida de mano y bodas."
-      },
-      {
-        id: "caja-madera",
-        name: "Caja de Madera Laqueada con Luz LED Nupcial",
-        price: 60,
-        image: "/images/detail-packaging.jpg",
-        description: "Caja de madera noble con acabado piano brillante e iluminación LED focalizada al abrir para máxima sorpresa."
-      }
-    ];
-  }, [product.presentationOptions, product.boxImage]);
+      };
+    });
+  }, [product.presentationOptions, product.boxPrices, product.boxNames, product.boxImage]);
 
   const [selectedPresentation, setSelectedPresentation] = useState(
     product.presentationOptions?.[0]?.id || "caja-verde-lujo"
@@ -423,6 +431,7 @@ export default function Product({ addToCart }) {
     return Number(shapePrices[selectedGemShape.id] ?? selectedGemShape?.priceDelta ?? 0) || 0;
   }, [product?.hasGemSelection, product?.gemShapePrices, selectedGemShape]);
 
+  // Precio total para el pedido final (resumen modal, carrito, WhatsApp)
   const totalCompromisoPrice = useMemo(() => {
     return (
       currentMetalPrice +
@@ -431,9 +440,19 @@ export default function Product({ addToCart }) {
     );
   }, [currentMetalPrice, selectedPresentationObj?.price, selectedGemType?.priceDelta]);
 
-  const currentGeneralPrice = useMemo(() => {
-    return currentMetalPrice + selectedGemShapePriceDelta;
-  }, [currentMetalPrice, selectedGemShapePriceDelta]);
+  // Precio dinámico visible en la cabecera según el paso activo:
+  // Paso 1: Solo valor del producto/metal (no suma gema ni estuche aún)
+  // Paso 2: Metal + Gema seleccionada (todavía no ha pasado al paso de estuches)
+  // Paso 3 o posterior: Metal + Gema + Estuche seleccionado
+  const displayedCompromisoPrice = useMemo(() => {
+    if (currentStep === 1) {
+      return currentMetalPrice;
+    }
+    if (currentStep === 2) {
+      return currentMetalPrice + (selectedGemType?.priceDelta || 0);
+    }
+    return totalCompromisoPrice;
+  }, [currentStep, currentMetalPrice, selectedGemType?.priceDelta, totalCompromisoPrice]);
 
   const [platinoCarePlan, setPlatinoCarePlan] = useState("cortesia"); // 'cortesia' o 'plus'
   const [platinoCareConfig, setPlatinoCareConfig] = useState(() => getPlatinoCareConfig());
@@ -448,6 +467,28 @@ export default function Product({ addToCart }) {
   }, []);
 
   const carePlusPrice = platinoCareConfig?.plus?.price ?? 90;
+
+  const currentGeneralPrice = useMemo(() => {
+    return currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta + (selectedPresentationObj?.price || 0);
+  }, [currentMetalPrice, platinoCarePlan, isAccesorio, carePlusPrice, selectedGemShapePriceDelta, selectedPresentationObj?.price]);
+
+  const displayedGeneralPrice = useMemo(() => {
+    const isBoxStep = (!product.hasGemSelection || isAccesorio) ? currentStep >= 2 : currentStep >= 3;
+    const hasGems = product.hasGemSelection && !isAccesorio;
+    if (currentStep === 1) {
+      return currentMetalPrice;
+    }
+    if (currentStep === 2 && hasGems) {
+      return currentMetalPrice + selectedGemShapePriceDelta;
+    }
+    return (
+      currentMetalPrice +
+      (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) +
+      (hasGems ? selectedGemShapePriceDelta : 0) +
+      (isBoxStep ? (selectedPresentationObj?.price || 0) : 0)
+    );
+  }, [currentStep, currentMetalPrice, platinoCarePlan, isAccesorio, carePlusPrice, selectedGemShapePriceDelta, selectedPresentationObj?.price, product.hasGemSelection]);
+
 
   // Acordeón de FAQs
   const [openFaqIndex, setOpenFaqIndex] = useState(null);
@@ -642,9 +683,11 @@ export default function Product({ addToCart }) {
       stockUnits: currentTotalStock,
       deliveryDays: shouldShowDelivery ? deliveryDays : undefined,
       estimatedDeliveryDate: shouldShowDelivery ? deliveryDateFormatted : undefined,
+      selectedPresentation: selectedPresentationObj?.name,
+      presentationPrice: selectedPresentationObj?.price || 0,
       platinoCarePlan: platinoCarePlan,
       platinoCareTitle: platinoCarePlan === "plus" ? "Platino Care + (Premium)" : "Platino Care Cortesía",
-      price: currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta,
+      price: currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta + (selectedPresentationObj?.price || 0),
       image: mainImage || product.image,
     };
     addToCart(customProduct);
@@ -695,11 +738,15 @@ export default function Product({ addToCart }) {
           ? `*Disponibilidad:* ${currentTotalStock > 0 ? "Disponible en stock" : "A pedido"}%0A*Tiempo de entrega:* ${deliveryDays} días hábiles (Listo aprox: ${deliveryDateFormatted})%0A`
           : `*Disponibilidad:* ${currentTotalStock > 0 ? "Disponible en stock" : "A pedido"}%0A`);
 
+    const boxDetails = selectedPresentationObj
+      ? `*Estuche:* ${selectedPresentationObj.name}${selectedPresentationObj.price > 0 ? ` (+S/. ${selectedPresentationObj.price})` : " (Incluido)"}%0A`
+      : "";
+
     const text = `¡Hola Platino Perú! Estoy interesado en ordenar esta joya personalizada:%0A%0A*Producto:* ${product.name}%0A*Metal seleccionado:* ${selectedMetal.name}%0A${sizeDetails}${
       product.hasGemSelection
         ? `*Forma de la Piedra/Gema:* ${selectedGemShape.name}%0A`
         : ""
-    }${engravingDetails}${stockDetails}*Precio:* ${formatPrice(isCompromisoOrPromesa ? totalCompromisoPrice : currentGeneralPrice)}%0A%0A¿Podrían confirmarme la disponibilidad y cómo procedemos con la orden?`;
+    }${boxDetails}${engravingDetails}${stockDetails}*Precio:* ${formatPrice(isCompromisoOrPromesa ? totalCompromisoPrice : currentGeneralPrice)}%0A%0A¿Podrían confirmarme la disponibilidad y cómo procedemos con la orden?`;
 
     return `https://wa.me/51927357217?text=${text}`;
   };
@@ -1019,7 +1066,7 @@ export default function Product({ addToCart }) {
 
             <div className="config-price-row">
               <span className="config-product-price">
-                {formatPrice(isCompromisoOrPromesa ? totalCompromisoPrice : currentGeneralPrice)}
+                {formatPrice(isCompromisoOrPromesa ? displayedCompromisoPrice : displayedGeneralPrice)}
               </span>
 
               <button
@@ -1042,6 +1089,8 @@ export default function Product({ addToCart }) {
 
           {isCompromisoOrPromesa ? (
             <CompromisoConfigurator
+              currentStep={currentStep}
+              setCurrentStep={setCurrentStep}
               product={product}
               selectedMetal={selectedMetal}
               handleSelectMetal={handleSelectMetal}
@@ -1753,6 +1802,12 @@ export default function Product({ addToCart }) {
                     </div>
                   </>
                 )}
+                {selectedPresentationObj && (
+                  <div className="step-review-line">
+                    <i className="bi bi-box2-heart" style={{ color: "#c5a059" }}></i>
+                    <span><strong>Estuche:</strong> {selectedPresentationObj.name} {selectedPresentationObj.price > 0 ? `(+S/. ${selectedPresentationObj.price})` : "(Incluido)"}</span>
+                  </div>
+                )}
                 {shouldShowDelivery && (
                   <div className="step-review-line" style={{ fontWeight: "700", color: "#0f2a24" }}>
                     <i className="bi bi-truck" style={{ color: deliveryDays === 7 ? "#b45309" : "#15803d" }}></i>
@@ -1936,13 +1991,34 @@ export default function Product({ addToCart }) {
                   — {deliveryDateFormatted}
                 </div>
               )}
-              {isAccesorio ? (
-                <div><strong>Presentación:</strong> {product.presentationOptions?.find((o) => o.id === selectedPresentation)?.name}</div>
-              ) : (
+              <div>
+                <strong>Presentación y Estuche:</strong> {selectedPresentationObj?.name}{" "}
+                {selectedPresentationObj?.price > 0 ? (
+                  <span style={{ color: "#c5a059", fontWeight: "700" }}>
+                    (+{formatPrice(selectedPresentationObj.price)})
+                  </span>
+                ) : (
+                  <span style={{ color: "#166534", fontWeight: "600" }}>(Incluido de Cortesía)</span>
+                )}
+              </div>
+              {!isAccesorio && (
                 <div><strong>Garantía:</strong> Platino Care {platinoCarePlan === "plus" ? `+ (S/. ${carePlusPrice})` : "Cortesía (S/. 0)"}</div>
               )}
-              <div style={{ borderTop: "1px solid #e8e4db", paddingTop: "10px", marginTop: "10px", fontSize: "17px", fontWeight: "700", color: "#17241e" }}>
-                Total: {formatPrice(currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta)}
+              <div style={{ borderTop: "1px dashed #e8e4db", paddingTop: "8px", marginTop: "10px", fontSize: "13px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                  <span style={{ color: "#475467" }}>1. {product.type === "anillo" ? "Anillo" : "Joya"}:</span>
+                  <span style={{ fontWeight: "700", color: "#113B3A" }}>{formatPrice(isCompromisoOrPromesa ? (totalCompromisoPrice - (selectedPresentationObj?.price || 0)) : (currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta))}</span>
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                  <span style={{ color: "#475467" }}>2. Estuche / Cofre:</span>
+                  <span style={{ fontWeight: "700", color: selectedPresentationObj?.price > 0 ? "#c5a059" : "#166534" }}>
+                    {selectedPresentationObj?.price > 0 ? `+${formatPrice(selectedPresentationObj.price)}` : "Incluido (S/. 0)"}
+                  </span>
+                </div>
+              </div>
+              <div style={{ borderTop: "1px solid #e8e4db", paddingTop: "10px", marginTop: "10px", fontSize: "17px", fontWeight: "700", color: "#17241e", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                <span>Total:</span>
+                <span>{formatPrice(isCompromisoOrPromesa ? totalCompromisoPrice : (currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta + (selectedPresentationObj?.price || 0)))}</span>
               </div>
             </div>
 
@@ -1992,9 +2068,11 @@ export default function Product({ addToCart }) {
                       stockUnits: currentTotalStock,
                       deliveryDays,
                       estimatedDeliveryDate: deliveryDateFormatted,
+                      selectedPresentation: selectedPresentationObj?.name,
+                      presentationPrice: selectedPresentationObj?.price || 0,
                       platinoCarePlan: platinoCarePlan,
                       platinoCareTitle: platinoCarePlan === "plus" ? "Platino Care + (Premium)" : "Platino Care Cortesía",
-                      price: currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta,
+                      price: isCompromisoOrPromesa ? totalCompromisoPrice : (currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta + (selectedPresentationObj?.price || 0)),
                       image: mainImage || product.image,
                     };
                     addToCart(customProduct);

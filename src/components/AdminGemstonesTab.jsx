@@ -18,6 +18,8 @@ import {
   addLaboratory,
   deleteLaboratory,
   updateGemstoneUnits,
+  getGemCertificateUrl,
+  getGemCertificateDisplay,
 } from "../services/gemstonesService";
 import {
   getImageInputValue,
@@ -54,7 +56,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
     color: "D",
     gemColor: "incoloro",
     gemColorLabel: "Incoloro Puro",
-    clarity: "VVS1",
+    clarity: "VVS",
     cutQuality: "Excelente",
     polish: "Excelente",
     symmetry: "Excelente",
@@ -62,6 +64,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
     mm: "8.45",
     certificate: "GIA",
     certNumber: "GIA-" + Math.floor(10000000 + Math.random() * 90000000),
+    certUrl: "",
     price: 8450,
     origin: "Botsuana (Ético)",
     fluorescence: "Ninguna",
@@ -152,6 +155,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
       price: gem.price || 5000,
       units: gemUnits,
       inStock: gemUnits > 0 && gem.inStock !== false,
+      certUrl: gem.certUrl || "",
       image: gem.image || "",
     });
     setIsFormOpen(true);
@@ -572,11 +576,21 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                     className="admin-form-select"
                     required
                   >
-                    {CLARITY_GRADES.map((cl) => (
-                      <option key={cl} value={cl}>
-                        {cl} {cl === "FL" || cl === "IF" ? "(Sin inclusiones)" : cl.includes("VVS") ? "(Inclusiones mínimas)" : ""}
-                      </option>
-                    ))}
+                    {CLARITY_GRADES.map((cl) => {
+                      const val = typeof cl === "string" ? cl : cl.id;
+                      const lbl = typeof cl === "string" ? cl : cl.label;
+                      return (
+                        <option key={val} value={val}>
+                          {lbl}
+                        </option>
+                      );
+                    })}
+                    {formData.clarity &&
+                      !CLARITY_GRADES.some(
+                        (cl) => (typeof cl === "string" ? cl : cl.id) === formData.clarity
+                      ) && (
+                        <option value={formData.clarity}>{formData.clarity}</option>
+                      )}
                   </select>
                 </div>
 
@@ -709,18 +723,54 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                 </div>
 
                 <div className="form-field-group">
-                  <label className="form-label-bold">
-                    Número de Certificado (Grabado Láser en Filetín)
-                  </label>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                    <label className="form-label-bold" style={{ margin: 0 }}>
+                      Número de Certificado (Grabado Láser en Filetín)
+                    </label>
+                    {getGemCertificateUrl(formData) && (
+                      <a
+                        href={getGemCertificateUrl(formData)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{
+                          fontSize: "11.5px",
+                          color: "#113B3A",
+                          fontWeight: "700",
+                          textDecoration: "underline",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "3px"
+                        }}
+                        title="Ver certificado en otra pestaña (target=_blank)"
+                      >
+                        <i className="bi bi-box-arrow-up-right"></i> Ver en otra pestaña ↗
+                      </a>
+                    )}
+                  </div>
                   <input
                     type="text"
                     value={formData.certNumber}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData((prev) => ({
+                        ...prev,
+                        certNumber: val,
+                        certUrl: val.startsWith("http://") || val.startsWith("https://") ? val : prev.certUrl,
+                      }));
+                    }}
+                    className="admin-form-input"
+                    placeholder="GL-202500052 o enlace https://..."
+                    required
+                  />
+                  <input
+                    type="url"
+                    value={formData.certUrl || ""}
                     onChange={(e) =>
-                      setFormData({ ...formData, certNumber: e.target.value })
+                      setFormData((prev) => ({ ...prev, certUrl: e.target.value }))
                     }
                     className="admin-form-input"
-                    placeholder="GIA-24891024"
-                    required
+                    style={{ fontSize: "11.5px", padding: "5px 8px", marginTop: "6px" }}
+                    placeholder="Enlace / PDF del certificado (opcional si es URL externa)"
                   />
                 </div>
               </div>
@@ -1010,7 +1060,28 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                     <div className="gem-card-cert-row">
                       <span>
                         <i className="bi bi-shield-check" style={{ color: "#C6AC7F", marginRight: "4px" }}></i>
-                        Láser: <strong>{formData.certNumber}</strong>
+                        Láser:{" "}
+                        {getGemCertificateUrl(formData) ? (
+                          <a
+                            href={getGemCertificateUrl(formData)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              color: "#113B3A",
+                              fontWeight: "700",
+                              textDecoration: "underline",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "3px"
+                            }}
+                            title="Abrir certificado en otra pestaña (target=_blank)"
+                          >
+                            <strong>{getGemCertificateDisplay(formData)}</strong>
+                            <i className="bi bi-box-arrow-up-right" style={{ fontSize: "10.5px" }}></i>
+                          </a>
+                        ) : (
+                          <strong>{formData.certNumber}</strong>
+                        )}
                       </span>
                       <span>
                         <i className="bi bi-geo-alt" style={{ color: "#71857c", marginRight: "3px" }}></i>
@@ -1271,7 +1342,27 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                         <div className="table-gem-name">{gem.name}</div>
                         <div className="table-gem-cert">
                           <span className="cert-tag">{gem.certificate}</span>
-                          <span>{gem.certNumber}</span>
+                          {getGemCertificateUrl(gem) ? (
+                            <a
+                              href={getGemCertificateUrl(gem)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title="Abrir certificado en otra pestaña (target=_blank)"
+                              style={{
+                                color: "#113B3A",
+                                fontWeight: "700",
+                                textDecoration: "underline",
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: "3px"
+                              }}
+                            >
+                              <span>{getGemCertificateDisplay(gem)}</span>
+                              <i className="bi bi-box-arrow-up-right" style={{ fontSize: "10px" }}></i>
+                            </a>
+                          ) : (
+                            <span>{gem.certNumber}</span>
+                          )}
                         </div>
                       </td>
 
@@ -1289,7 +1380,9 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                       <td>
                         <div style={{ fontWeight: "700" }}>Color {gem.color}</div>
                         <div style={{ fontSize: "12px", color: "#5c7068" }}>
-                          {gem.clarity} · {gem.cutQuality}
+                          {typeof gem.clarity === "object" && gem.clarity !== null
+                            ? (gem.clarity.label || gem.clarity.id || "")
+                            : gem.clarity} · {gem.cutQuality}
                         </div>
                       </td>
 
