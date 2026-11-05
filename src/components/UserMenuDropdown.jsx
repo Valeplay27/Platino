@@ -1,4 +1,4 @@
-﻿import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/useAuth";
 import { hasPermission, isMasterAdmin } from "../services/permissionsService";
@@ -66,7 +66,7 @@ export default function UserMenuDropdown() {
     navigate("/");
   };
 
-  // Permisos dinÃ¡micos segÃºn autorizaciÃ³n otorgada por Vladimir (Cruce de permisos)
+  // Permisos dinámicos según autorización otorgada por Vladimir (Cruce de permisos)
   const isMaster = isMasterAdmin(user);
   const canSeeCitas = isMaster || hasPermission(user, "citas") || hasPermission(user, "citas_global");
   const canSeeCatalogo = isMaster || hasPermission(user, "catalogo");
@@ -166,12 +166,12 @@ export default function UserMenuDropdown() {
                   </>
                 )}
 
-                {/* 2. CATÃLOGO & INVENTARIO */}
+                {/* 2. CATÁLOGO & INVENTARIO */}
                 {(canSeeCatalogo || canSeeGemas || canSeeInventario) && (
                   <>
                     <li className="user-dropdown-divider"></li>
                     <li className="user-dropdown-section-title">
-                      CatÃ¡logo & Stock
+                      Catálogo & Stock
                     </li>
                     {canSeeCatalogo && (
                       <li>
@@ -227,7 +227,7 @@ export default function UserMenuDropdown() {
                           onClick={() => setDropdownOpen(false)}
                         >
                           <i className="bi bi-images"></i>
-                          <span>ImÃ¡genes del Inicio</span>
+                          <span>Imágenes del Inicio</span>
                         </Link>
                       </li>
                     )}
@@ -251,20 +251,20 @@ export default function UserMenuDropdown() {
                           onClick={() => setDropdownOpen(false)}
                         >
                           <i className="bi bi-newspaper"></i>
-                          <span>Blog & EducaciÃ³n (Publicaciones)</span>
+                          <span>Blog & Educación (Publicaciones)</span>
                         </Link>
                       </li>
                     )}
                   </>
                 )}
 
-                {/* 4. ADMINISTRACIÃ“N CENTRAL (MASTER) O SOLICITUD DE PERMISOS (SEDES) */}
+                {/* 4. ADMINISTRACIÓN CENTRAL (MASTER) O SOLICITUD DE PERMISOS (SEDES) */}
                 {isMaster ? (
                   <>
                     <li className="user-dropdown-divider"></li>
                     <li className="user-dropdown-section-title master-title">
                       <i className="bi bi-shield-check" style={{ width: "auto", fontSize: "11px", color: "var(--platino-gold)" }}></i>
-                      <span>AdministraciÃ³n Central</span>
+                      <span>Administración Central</span>
                     </li>
                     <li>
                       <Link
@@ -273,7 +273,7 @@ export default function UserMenuDropdown() {
                         onClick={() => setDropdownOpen(false)}
                       >
                         <i className="bi bi-shield-shaded"></i>
-                        <span>GestiÃ³n de Permisos & Sedes</span>
+                        <span>Gestión de Permisos & Sedes</span>
                       </Link>
                     </li>
                     <li>
@@ -303,7 +303,7 @@ export default function UserMenuDropdown() {
                         onClick={() => setDropdownOpen(false)}
                       >
                         <i className="bi bi-shield-fill-check"></i>
-                        <span>Platino Care & GarantÃ­as</span>
+                        <span>Platino Care & Garantías</span>
                       </Link>
                     </li>
                     <li>
@@ -349,7 +349,7 @@ export default function UserMenuDropdown() {
                             Solicitar Permisos & Accesos
                           </span>
                           <span style={{ fontSize: "11px", color: "#64748b", lineHeight: "1.35" }}>
-                            Solicita permisos a AdministraciÃ³n Central (Vladimir)
+                            Solicita permisos a Administración Central (Vladimir)
                           </span>
                         </div>
                       </Link>
@@ -399,7 +399,7 @@ export default function UserMenuDropdown() {
                     onClick={() => setDropdownOpen(false)}
                   >
                     <i className="bi bi-gem"></i>
-                    <span>Explorar ColecciÃ³n</span>
+                    <span>Explorar Colección</span>
                   </Link>
                 </li>
               </>
@@ -414,7 +414,7 @@ export default function UserMenuDropdown() {
                 onClick={handleLogout}
               >
                 <i className="bi bi-box-arrow-right"></i>
-                <span>Cerrar sesiÃ³n</span>
+                <span>Cerrar sesión</span>
               </button>
             </li>
           </ul>

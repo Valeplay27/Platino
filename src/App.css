@@ -90,3 +90,70 @@
   }
 }
 
+
+/* ==========================================================================
+   BANNER HERO REPLICADO DE FAVORITOS VACÍOS (LUXURY EMERALD)
+   ========================================================================== */
+.favorites-hero-banner {
+  position: relative;
+  background: #061914;
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid rgba(197, 160, 89, 0.25);
+  box-shadow: 0 24px 60px rgba(6, 25, 20, 0.28), 0 4px 16px rgba(0, 0, 0, 0.12);
+  margin: 10px auto 40px;
+  max-width: 1060px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 340px;
+}
+.favorites-hero-content {
+  position: relative;
+  z-index: 2;
+  padding: 48px 44px;
+  max-width: 560px;
+  text-align: left;
+}
+.favorites-hero-image-wrap {
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 52%;
+  min-width: 280px;
+  height: 100%;
+  pointer-events: none;
+  overflow: hidden;
+}
+.favorites-hero-image-wrap img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center right;
+}
+.favorites-hero-image-wrap .gradient-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, #061914 0%, rgba(6, 25, 20, 0.7) 35%, transparent 75%);
+}
+
+@media (max-width: 768px) {
+  .favorites-hero-banner {
+    flex-direction: column !important;
+    min-height: auto !important;
+  }
+  .favorites-hero-content {
+    padding: 32px 24px !important;
+    max-width: 100% !important;
+  }
+  .favorites-hero-image-wrap {
+    position: relative !important;
+    width: 100% !important;
+    height: 190px !important;
+    order: -1;
+  }
+  .favorites-hero-image-wrap .gradient-overlay {
+    background: linear-gradient(180deg, transparent 40%, #061914 100%) !important;
+  }
+}

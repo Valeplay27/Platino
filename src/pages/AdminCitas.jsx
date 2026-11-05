@@ -716,6 +716,28 @@ export default function AdminCitas() {
     window.scrollTo({ top: 120, behavior: "smooth" });
   };
 
+  // Categoría del módulo administrativo actualmente activa
+  const [selectedAdminCategory, setSelectedAdminCategory] = useState(() => {
+    const initialTab = getTabFromLocation();
+    if (["finanzas", "pedidos", "citas"].includes(initialTab)) return "operaciones";
+    if (["catalogo", "gemas", "inventario"].includes(initialTab)) return "catalogo";
+    if (["home_images"].includes(initialTab)) return "tienda";
+    if (["permisos", "claves", "reclamaciones", "platino_care"].includes(initialTab)) return "administracion";
+    return "operaciones";
+  });
+
+  useEffect(() => {
+    if (["finanzas", "pedidos", "citas"].includes(activeTab)) {
+      setSelectedAdminCategory("operaciones");
+    } else if (["catalogo", "gemas", "inventario"].includes(activeTab)) {
+      setSelectedAdminCategory("catalogo");
+    } else if (["home_images"].includes(activeTab)) {
+      setSelectedAdminCategory("tienda");
+    } else if (["permisos", "claves", "reclamaciones", "platino_care"].includes(activeTab)) {
+      setSelectedAdminCategory("administracion");
+    }
+  }, [activeTab]);
+
   // Estados de Permisos & Sedes para Vladimir y los Administradores de Lima y Miraflores
   const [permissionsMatrix, setPermissionsMatrix] = useState(() => getPermissionsMatrix());
   const [permissionRequests, setPermissionRequests] = useState(() => getPermissionRequests());
@@ -2254,9 +2276,32 @@ export default function AdminCitas() {
     });
   };
 
+  const handleMainPriceChange = (val) => {
+    setFormPrice(val);
+    setFormMetalPrices((prev) => {
+      const next = { ...prev };
+      formAvailableMetals.forEach((id) => {
+        if (!next[id] || next[id] === formPrice) {
+          next[id] = val;
+        }
+      });
+      if (formAvailableMetals.length === 1) {
+        next[formAvailableMetals[0]] = val;
+      }
+      return next;
+    });
+  };
+
   const handleSelectOnlyGold = () => {
     const goldIds = METALS.filter((m) => m.group === "Oro 18k").map((m) => m.id);
     setFormAvailableMetals(goldIds);
+    setFormMetalPrices((prevP) => {
+      const nextP = { ...prevP };
+      goldIds.forEach((id) => {
+        if (!nextP[id]) nextP[id] = formPrice || "";
+      });
+      return nextP;
+    });
     if (!goldIds.some((id) => METALS.find((m) => m.id === id)?.name === formSelectedMetal)) {
       setFormSelectedMetal("Oro 18k Amarillo");
     }
@@ -2265,6 +2310,13 @@ export default function AdminCitas() {
   const handleSelectSilverAndMixed = () => {
     const silverIds = METALS.filter((m) => m.group === "Plata" || m.group === "Plata con Oro").map((m) => m.id);
     setFormAvailableMetals(silverIds);
+    setFormMetalPrices((prevP) => {
+      const nextP = { ...prevP };
+      silverIds.forEach((id) => {
+        if (!nextP[id]) nextP[id] = formPrice || "";
+      });
+      return nextP;
+    });
     if (!silverIds.some((id) => METALS.find((m) => m.id === id)?.name === formSelectedMetal)) {
       setFormSelectedMetal("Plata 950");
     }
@@ -2477,15 +2529,18 @@ export default function AdminCitas() {
       return;
     }
 
-    // 1. Validar OBLIGATORIAMENTE que cada material seleccionado tenga precio en Soles > 0
+    // 1. Validar que cada material seleccionado tenga precio en Soles > 0 (hereda automáticamente el precio base si no se cambió)
     for (const mId of formAvailableMetals) {
       const metalObj = METALS.find((m) => m.id === mId) || { name: mId };
-      const rawPrice = formMetalPrices[mId];
+      const rawPrice = (formMetalPrices[mId] !== undefined && formMetalPrices[mId] !== "" && formMetalPrices[mId] !== null)
+        ? formMetalPrices[mId]
+        : formPrice;
       const numPrice = Number(rawPrice);
       if (rawPrice === undefined || rawPrice === null || String(rawPrice).trim() === "" || isNaN(numPrice) || numPrice <= 0) {
-        alert(`⚠️ Falta el valor (precio) para el material "${metalObj.name}". Cada material seleccionado debe tener un precio en Soles (S/.) mayor a 0.`);
+        alert(`⚠️ Por favor ingresa el precio en Soles (S/.) para la joya o para el material "${metalObj.name}".`);
         return;
       }
+      formMetalPrices[mId] = String(rawPrice);
     }
 
     // 2. Validar OBLIGATORIAMENTE que cada material seleccionado tenga al menos una fotografía asignada
@@ -5135,114 +5190,246 @@ export default function AdminCitas() {
         </div>
 
         {/* ========================================================
-            BARRA DE PESTAÑAS Y MÓDULOS DEL DASHBOARD ADMINISTRATIVO
+            BARRA DE NAVEGACIÓN MODULAR Y JERÁRQUICA (POR SECCIONES)
             ======================================================== */}
-        <nav className="admin-nav-tabs-bar" aria-label="Módulos del Administrador">
-          <button
-            type="button"
-            className={`admin-nav-tab-item ${activeTab === "citas" ? "active" : ""}`}
-            onClick={() => handleSwitchTab("citas", "/admin/citas")}
-          >
-            <i className="bi bi-calendar2-check"></i>
-            <span>Citas & Horarios</span>
-          </button>
+        {(() => {
+          const getCategoryFromTab = (tab) => {
+            if (["finanzas", "pedidos", "citas"].includes(tab)) return "operaciones";
+            if (["catalogo", "gemas", "inventario"].includes(tab)) return "catalogo";
+            if (["home_images"].includes(tab)) return "tienda";
+            if (["permisos", "claves", "reclamaciones", "platino_care"].includes(tab)) return "administracion";
+            return "operaciones";
+          };
 
-          <button
-            type="button"
-            className={`admin-nav-tab-item ${activeTab === "finanzas" ? "active" : ""}`}
-            onClick={() => handleSwitchTab("finanzas", "/admin/pagos")}
-          >
-            <i className="bi bi-wallet2"></i>
-            <span>Control de Pagos</span>
-          </button>
+          const currentCategory = selectedAdminCategory || getCategoryFromTab(activeTab);
 
-          <button
-            type="button"
-            className={`admin-nav-tab-item ${activeTab === "pedidos" ? "active" : ""}`}
-            onClick={() => handleSwitchTab("pedidos", "/admin/pedidos")}
-          >
-            <i className="bi bi-box-seam"></i>
-            <span>Pedidos en Taller</span>
-          </button>
+          const categoriesList = [
+            {
+              id: "operaciones",
+              label: "Operaciones & Taller",
+              icon: "bi-hammer",
+              defaultTab: "finanzas",
+              defaultRoute: "/admin/pagos",
+              visible: isEffectiveMaster || userHasPermission("finanzas") || userHasPermission("pedidos") || userHasPermission("pedidos_global") || userHasPermission("citas"),
+              subTabs: [
+                {
+                  id: "finanzas",
+                  label: "Control de Pagos & Pedidos",
+                  icon: "bi-wallet2",
+                  route: "/admin/pagos",
+                  visible: isEffectiveMaster || userHasPermission("finanzas"),
+                },
+                {
+                  id: "pedidos",
+                  label: "Pedidos en Taller",
+                  icon: "bi-box-seam",
+                  route: "/admin/pedidos",
+                  visible: isEffectiveMaster || userHasPermission("pedidos") || userHasPermission("pedidos_global"),
+                },
+                {
+                  id: "citas",
+                  label: "Citas & Horarios",
+                  icon: "bi-calendar2-check",
+                  route: "/admin/citas",
+                  visible: isEffectiveMaster || userHasPermission("citas"),
+                },
+              ],
+            },
+            {
+              id: "catalogo",
+              label: "Catálogo & Stock",
+              icon: "bi-gem",
+              defaultTab: "catalogo",
+              defaultRoute: "/admin/catalogo",
+              visible: isEffectiveMaster || userHasPermission("catalogo") || userHasPermission("gemas") || userHasPermission("inventario"),
+              subTabs: [
+                {
+                  id: "catalogo",
+                  label: "Catálogo de Joyas",
+                  icon: "bi-gem",
+                  route: "/admin/catalogo",
+                  visible: isEffectiveMaster || userHasPermission("catalogo"),
+                },
+                {
+                  id: "gemas",
+                  label: "Portafolio de Gemas",
+                  icon: "bi-diamond-half",
+                  route: "/admin/gemas",
+                  badge: "GIA / IGI",
+                  isGem: true,
+                  visible: isEffectiveMaster || userHasPermission("gemas") || userHasPermission("catalogo"),
+                },
+                {
+                  id: "inventario",
+                  label: "Inventario & Stock",
+                  icon: "bi-boxes",
+                  route: "/admin/inventario",
+                  visible: isEffectiveMaster || userHasPermission("inventario"),
+                },
+              ],
+            },
+            {
+              id: "tienda",
+              label: "Tienda & Contenido Web",
+              icon: "bi-shop",
+              defaultTab: "home_images",
+              defaultRoute: "/admin/imagenes",
+              visible: isEffectiveMaster || userHasPermission("home_images") || userHasPermission("catalogo"),
+              subTabs: [
+                {
+                  id: "home_images",
+                  label: "Imágenes Inicio",
+                  icon: "bi-images",
+                  route: "/admin/imagenes",
+                  visible: isEffectiveMaster || userHasPermission("home_images"),
+                },
+                {
+                  id: "nosotros_link",
+                  label: "Editar Historia (Nosotros)",
+                  icon: "bi-journal-richtext",
+                  route: "/nosotros",
+                  isExternal: true,
+                  visible: isEffectiveMaster || userHasPermission("catalogo"),
+                },
+                {
+                  id: "educacion_link",
+                  label: "Blog & Educación",
+                  icon: "bi-newspaper",
+                  route: "/educacion?admin=1",
+                  isExternal: true,
+                  visible: isEffectiveMaster || userHasPermission("catalogo"),
+                },
+              ],
+            },
+            {
+              id: "administracion",
+              label: "Administración Central",
+              icon: "bi-shield-check",
+              defaultTab: "permisos",
+              defaultRoute: "/admin/permisos",
+              badge: pendingRequestsCount > 0 && isEffectiveMaster ? pendingRequestsCount : null,
+              visible: isEffectiveMaster || userHasPermission("reclamaciones") || true,
+              subTabs: [
+                {
+                  id: "permisos",
+                  label: isEffectiveMaster ? "Gestión de Permisos & Sedes" : "Solicitar Permisos",
+                  icon: "bi-shield-shaded",
+                  route: "/admin/permisos",
+                  badgeCount: pendingRequestsCount > 0 && isEffectiveMaster ? pendingRequestsCount : null,
+                  visible: true,
+                },
+                {
+                  id: "claves",
+                  label: "Validador de Clave Diaria",
+                  icon: "bi-key-fill",
+                  route: "/admin/claves",
+                  visible: isEffectiveMaster,
+                },
+                {
+                  id: "reclamaciones",
+                  label: "Libro de Reclamaciones",
+                  icon: "bi-book-half",
+                  route: "/admin/reclamaciones",
+                  visible: isEffectiveMaster || userHasPermission("reclamaciones"),
+                },
+                {
+                  id: "platino_care",
+                  label: "Platino Care & Garantías",
+                  icon: "bi-shield-fill-check",
+                  route: "/admin/platino-care",
+                  visible: isEffectiveMaster,
+                },
+              ],
+            },
+          ];
 
-          <button
-            type="button"
-            className={`admin-nav-tab-item ${activeTab === "catalogo" ? "active" : ""}`}
-            onClick={() => handleSwitchTab("catalogo", "/admin/catalogo")}
-          >
-            <i className="bi bi-gem"></i>
-            <span>Catálogo de Joyas</span>
-          </button>
+          const activeCatObj = categoriesList.find((c) => c.id === currentCategory) || categoriesList[0];
+          const activeSubTabs = activeCatObj.subTabs.filter((t) => t.visible);
 
-          {/* PORTAFOLIO DE GEMAS & DIAMANTES CERTIFICADOS */}
-          <button
-            type="button"
-            className={`admin-nav-tab-item highlighted-gem-tab ${activeTab === "gemas" ? "active" : ""}`}
-            onClick={() => handleSwitchTab("gemas", "/admin/gemas")}
-            title="Gestión y Creación de Diamantes & Gemas Certificadas GIA / IGI / GRA"
-          >
-            <i className="bi bi-diamond-half" style={{ color: "#c5a059" }}></i>
-            <span>Portafolio de Gemas</span>
-            <span className="gem-tab-badge">GIA / IGI</span>
-          </button>
+          return (
+            <div className="admin-modular-nav-container">
+              {/* Nivel 1: Módulos Principales (Categorías) */}
+              <div className="admin-category-tabs" role="tablist" aria-label="Módulos Principales">
+                {categoriesList
+                  .filter((cat) => cat.visible)
+                  .map((cat) => {
+                    const isCatActive = currentCategory === cat.id;
+                    return (
+                      <button
+                        key={cat.id}
+                        type="button"
+                        role="tab"
+                        aria-selected={isCatActive}
+                        className={`admin-category-btn ${isCatActive ? "active" : ""}`}
+                        onClick={() => {
+                          setSelectedAdminCategory(cat.id);
+                          if (!cat.subTabs.some((t) => t.id === activeTab)) {
+                            const firstAllowed = cat.subTabs.find((t) => t.visible && !t.isExternal);
+                            if (firstAllowed) {
+                              handleSwitchTab(firstAllowed.id, firstAllowed.route);
+                            }
+                          }
+                        }}
+                      >
+                        <i className={`bi ${cat.icon}`}></i>
+                        <span>{cat.label}</span>
+                        {cat.badge && (
+                          <span className="admin-tab-count-pill" style={{ marginLeft: "4px" }}>
+                            {cat.badge}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+              </div>
 
-          <button
-            type="button"
-            className={`admin-nav-tab-item ${activeTab === "inventario" ? "active" : ""}`}
-            onClick={() => handleSwitchTab("inventario", "/admin/inventario")}
-          >
-            <i className="bi bi-boxes"></i>
-            <span>Inventario & Stock</span>
-          </button>
+              {/* Nivel 2: Sub-pestañas exclusivas de la categoría activa */}
+              <nav className="admin-subtabs-bar" aria-label={`Sub-módulos de ${activeCatObj.label}`}>
+                {activeSubTabs.map((sub) => {
+                  if (sub.isExternal) {
+                    return (
+                      <Link
+                        key={sub.id}
+                        to={sub.route}
+                        className="admin-nav-tab-item"
+                        title="Abrir en la tienda"
+                      >
+                        <i className={`bi ${sub.icon}`}></i>
+                        <span>{sub.label}</span>
+                        <i className="bi bi-box-arrow-up-right" style={{ fontSize: "10px", opacity: 0.6 }}></i>
+                      </Link>
+                    );
+                  }
 
-          <button
-            type="button"
-            className={`admin-nav-tab-item ${activeTab === "home_images" ? "active" : ""}`}
-            onClick={() => handleSwitchTab("home_images", "/admin/imagenes")}
-          >
-            <i className="bi bi-images"></i>
-            <span>Imágenes Inicio</span>
-          </button>
+                  const isTabActive = activeTab === sub.id;
+                  const isGem = sub.isGem;
 
-          <button
-            type="button"
-            className={`admin-nav-tab-item ${activeTab === "claves" ? "active" : ""}`}
-            onClick={() => handleSwitchTab("claves", "/admin/claves")}
-          >
-            <i className="bi bi-key-fill"></i>
-            <span>Clave Diaria</span>
-          </button>
-
-          <button
-            type="button"
-            className={`admin-nav-tab-item ${activeTab === "platino_care" ? "active" : ""}`}
-            onClick={() => handleSwitchTab("platino_care", "/admin/platino-care")}
-          >
-            <i className="bi bi-shield-fill-check"></i>
-            <span>Platino Care</span>
-          </button>
-
-          <button
-            type="button"
-            className={`admin-nav-tab-item ${activeTab === "reclamaciones" ? "active" : ""}`}
-            onClick={() => handleSwitchTab("reclamaciones", "/admin/reclamaciones")}
-          >
-            <i className="bi bi-book-half"></i>
-            <span>Reclamaciones</span>
-          </button>
-
-          <button
-            type="button"
-            className={`admin-nav-tab-item ${activeTab === "permisos" ? "active" : ""}`}
-            onClick={() => handleSwitchTab("permisos", "/admin/permisos")}
-          >
-            <i className="bi bi-shield-shaded"></i>
-            <span>{isEffectiveMaster ? "Permisos & Sedes" : "Solicitar Permisos"}</span>
-            {pendingRequestsCount > 0 && isEffectiveMaster && (
-              <span className="admin-tab-count-pill">{pendingRequestsCount}</span>
-            )}
-          </button>
-        </nav>
+                  return (
+                    <button
+                      key={sub.id}
+                      type="button"
+                      className={`admin-nav-tab-item ${isGem ? "highlighted-gem-tab" : ""} ${isTabActive ? "active" : ""}`}
+                      onClick={() => {
+                        setSelectedAdminCategory(activeCatObj.id);
+                        handleSwitchTab(sub.id, sub.route);
+                      }}
+                    >
+                      <i
+                        className={`bi ${sub.icon}`}
+                        style={isGem ? { color: "#c5a059" } : {}}
+                      ></i>
+                      <span>{sub.label}</span>
+                      {sub.badge && <span className="gem-tab-badge">{sub.badge}</span>}
+                      {sub.badgeCount && (
+                        <span className="admin-tab-count-pill">{sub.badgeCount}</span>
+                      )}
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+          );
+        })()}
 
         {/* Feedback Alert si hubo cambios */}
         {feedbackMsg && (
@@ -11512,7 +11699,7 @@ export default function AdminCitas() {
                       className="catalog-form-input"
                       placeholder="Ej. 2850"
                       value={formPrice}
-                      onChange={(e) => setFormPrice(e.target.value)}
+                      onChange={(e) => handleMainPriceChange(e.target.value)}
                       required
                       min="0"
                     />
@@ -11692,7 +11879,9 @@ export default function AdminCitas() {
                       {formAvailableMetals.map((mId) => {
                         const metal = METALS.find((m) => m.id === mId) || { id: mId, name: mId, color: "#e4e7e7", border: "#cfd3d3", group: "General" };
                         const isDefault = formSelectedMetal === metal.name;
-                        const currentPrice = formMetalPrices[mId] ?? "";
+                        const currentPrice = (formMetalPrices[mId] !== undefined && formMetalPrices[mId] !== "")
+                          ? formMetalPrices[mId]
+                          : (formPrice ?? "");
                         const gallerySeq = getMetalGalleryList(mId);
 
                         return (

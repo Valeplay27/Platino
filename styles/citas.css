@@ -4917,8 +4917,86 @@
 
 
 /* ==========================================================================
-   BARRA DE PESTAÑAS Y MÓDULOS DEL DASHBOARD ADMINISTRATIVO
+   BARRA DE PESTAÑAS Y MÓDULOS DEL DASHBOARD ADMINISTRATIVO (ESTRUCTURA MODULAR)
    ========================================================================== */
+.admin-modular-nav-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.admin-category-tabs {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #f1f5f9;
+  padding: 6px;
+  border-radius: 14px;
+  border: 1px solid #e2e8f0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.admin-category-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.admin-category-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1.5px solid transparent;
+  color: #64748b;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  font-family: inherit;
+  text-decoration: none;
+}
+.admin-category-btn i {
+  font-size: 14px;
+  color: #94a3b8;
+  transition: color 0.2s ease;
+}
+.admin-category-btn:hover {
+  color: #113B3A;
+  background: rgba(255, 255, 255, 0.7);
+}
+.admin-category-btn:hover i {
+  color: #113B3A;
+}
+.admin-category-btn.active {
+  background: #ffffff;
+  color: #113B3A;
+  border-color: #cbd5e1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  font-weight: 800;
+}
+.admin-category-btn.active i {
+  color: #C6AC7F;
+}
+
+.admin-subtabs-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 2px 14px 2px;
+  border-bottom: 1.5px solid #edf2f7;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  flex-wrap: wrap;
+}
+.admin-subtabs-bar::-webkit-scrollbar {
+  display: none;
+}
+
 .admin-nav-tabs-bar {
   display: flex;
   align-items: center;
@@ -4927,15 +5005,11 @@
   padding: 6px 2px 16px 2px;
   margin-bottom: 22px;
   border-bottom: 1.5px solid #e2e8f0;
-  scrollbar-width: thin;
-  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
 }
 .admin-nav-tabs-bar::-webkit-scrollbar {
-  height: 5px;
-}
-.admin-nav-tabs-bar::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 999px;
+  display: none;
 }
 
 .admin-nav-tab-item {

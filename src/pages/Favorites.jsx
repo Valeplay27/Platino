@@ -69,137 +69,284 @@ export default function Favorites({ addToCart }) {
         </div>
       )}
 
-      {/* Header */}
-      <header className="page-heading" style={{ marginBottom: "32px", textAlign: "left" }}>
-        <span className="eyebrow" style={{ color: "var(--platino-gold)", letterSpacing: "0.15em", textTransform: "uppercase", fontSize: "12px", fontWeight: "700" }}>
-          Tu Selección Exclusiva
-        </span>
-        <h1 style={{ fontFamily: "var(--font-serif)", fontSize: "36px", color: "var(--platino-green-dark)", margin: "6px 0 10px" }}>
-          Joyas Favoritas
-        </h1>
-        <p style={{ color: "#607067", fontSize: "15px", maxWidth: "680px" }}>
-          Guarda las piezas de alta orfebrería que más te cautivan para compararlas, personalizarlas o agendar tu cita de prueba.
-        </p>
-      </header>
+      {/* Header Luxury cuando hay joyas favoritas guardadas */}
+      {favorites.length > 0 && (
+        <div style={{ maxWidth: "1060px", margin: "10px auto 32px" }}>
+          <div className="favorites-hero-banner" style={{ minHeight: "260px" }}>
+            <div className="favorites-hero-content" style={{ padding: "38px 42px", maxWidth: "620px" }}>
+              <span
+                style={{
+                  display: "inline-block",
+                  color: "#d1b47c",
+                  fontSize: "11px",
+                  fontWeight: "700",
+                  letterSpacing: "0.18em",
+                  textTransform: "uppercase",
+                  marginBottom: "8px",
+                }}
+              >
+                Tu Selección Exclusiva
+              </span>
+
+              <h1
+                style={{
+                  fontFamily: "'Playfair Display', Georgia, serif",
+                  fontSize: "clamp(28px, 3.5vw, 38px)",
+                  color: "#ffffff",
+                  fontWeight: "400",
+                  lineHeight: "1.18",
+                  margin: "0 0 10px",
+                  letterSpacing: "-0.01em",
+                }}
+              >
+                Joyas Favoritas
+              </h1>
+
+              <p
+                style={{
+                  fontSize: "14px",
+                  color: "#d4ded9",
+                  lineHeight: "1.55",
+                  maxWidth: "480px",
+                  margin: "0 0 20px",
+                }}
+              >
+                Guarda las piezas de alta orfebrería que más te cautivan para compararlas, personalizarlas o agendar tu cita de prueba.
+              </p>
+
+              <div style={{ display: "flex", alignItems: "center", gap: "14px", flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "8px",
+                    background: "rgba(255, 255, 255, 0.08)",
+                    border: "1px solid rgba(209, 180, 124, 0.4)",
+                    padding: "7px 18px",
+                    borderRadius: "9999px",
+                    color: "#ffffff",
+                    fontSize: "13.5px",
+                    fontWeight: "600",
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
+                  }}
+                >
+                  <i className="bi bi-suit-heart-fill" style={{ color: "#d1b47c", fontSize: "14px" }}></i>
+                  <span>
+                    {favorites.length} {favorites.length === 1 ? "joya guardada" : "joyas guardadas"}
+                    {user?.name ? ` en tu perfil de (${user.name})` : ""}
+                  </span>
+                </div>
+
+                <Link
+                  to="/catalogo"
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    color: "#d1b47c",
+                    fontSize: "13px",
+                    fontWeight: "700",
+                    textDecoration: "none",
+                    padding: "7px 12px",
+                    borderRadius: "8px",
+                    transition: "all 0.2s ease",
+                  }}
+                  onMouseEnter={(e) => {
+                    e.currentTarget.style.color = "#ffffff";
+                    e.currentTarget.style.transform = "translateX(2px)";
+                  }}
+                  onMouseLeave={(e) => {
+                    e.currentTarget.style.color = "#d1b47c";
+                    e.currentTarget.style.transform = "translateX(0)";
+                  }}
+                >
+                  <span>+ Seguir explorando catálogo</span>
+                  <i className="bi bi-arrow-right" style={{ fontSize: "13px" }}></i>
+                </Link>
+              </div>
+            </div>
+
+            <div className="favorites-hero-image-wrap">
+              <img src={getAssetUrl("/images/favorites-ring-art.png")} alt="Anillo de diamantes Platino Perú" />
+              <div className="gradient-overlay" />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* SI NO HA INICIADO SESIÓN */}
       {!user ? (
-        <div
-          style={{
-            background: "#faf8f5",
-            border: "1.5px solid #ebe5da",
-            borderRadius: "20px",
-            padding: "48px 32px",
-            textAlign: "center",
-            maxWidth: "640px",
-            margin: "0 auto",
-            boxShadow: "0 15px 40px rgba(15, 42, 36, 0.05)",
-          }}
-        >
-          <div
-            style={{
-              width: "72px",
-              height: "72px",
-              borderRadius: "50%",
-              background: "#f0ebe1",
-              color: "#c5a059",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "32px",
-              margin: "0 auto 20px",
-            }}
-          >
-            <i className="bi bi-person-lock"></i>
+        <div style={{ maxWidth: "1060px", margin: "10px auto 40px" }}>
+          {/* Banner Hero Replicado en HTML/CSS */}
+          <div className="favorites-hero-banner">
+            <div className="favorites-hero-content">
+              <span style={{ display: "inline-block", color: "#d1b47c", fontSize: "11.5px", fontWeight: "700", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: "10px" }}>
+                Tu Selección Exclusiva
+              </span>
+              <h1 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(30px, 3.8vw, 42px)", color: "#ffffff", fontWeight: "400", lineHeight: "1.18", margin: "0 0 14px", letterSpacing: "-0.01em" }}>
+                Joyas Favoritas
+              </h1>
+              <p style={{ fontSize: "14.5px", color: "#d4ded9", lineHeight: "1.6", maxWidth: "460px", margin: "0 0 24px" }}>
+                Guarda las piezas de alta orfebrería que más te cautivan para comprarlas, personalizarlas o agendar tu cita de prueba.
+              </p>
+              <div style={{ width: "42px", height: "42px", borderRadius: "50%", background: "rgba(6, 25, 20, 0.8)", border: "1.5px solid #d1b47c", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "12px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)" }}>
+                <i className="bi bi-suit-heart-fill" style={{ color: "#d1b47c", fontSize: "16px" }}></i>
+              </div>
+              <p style={{ fontSize: "14.5px", color: "#ffffff", fontWeight: "600", letterSpacing: "0.01em", margin: "0 0 20px" }}>
+                Aún no has guardado ninguna joya
+              </p>
+              <Link
+                to="/catalogo"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  background: "linear-gradient(135deg, #e4c588 0%, #caa159 100%)",
+                  color: "#0f2a24",
+                  padding: "12px 28px",
+                  borderRadius: "9999px",
+                  fontSize: "14px",
+                  fontWeight: "700",
+                  textDecoration: "none",
+                  boxShadow: "0 6px 20px rgba(202, 161, 89, 0.35)",
+                  transition: "all 0.25s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 8px 25px rgba(202, 161, 89, 0.5)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(202, 161, 89, 0.35)";
+                }}
+              >
+                <span>Explorar colección</span>
+                <i className="bi bi-arrow-right" style={{ fontSize: "14px" }}></i>
+              </Link>
+            </div>
+            <div className="favorites-hero-image-wrap">
+              <img src={getAssetUrl("/images/favorites-ring-art.png")} alt="Anillo de diamantes Platino Perú" />
+              <div className="gradient-overlay" />
+            </div>
           </div>
 
-          <h2 style={{ fontFamily: "var(--font-serif)", fontSize: "26px", color: "#0f2a24", margin: "0 0 12px" }}>
-            Inicia sesión para ver tus Favoritos
-          </h2>
-          <p style={{ fontSize: "14px", color: "#5d6d65", lineHeight: "1.6", margin: "0 0 28px" }}>
-            Para guardar tus piezas predilectas de forma permanente en tu perfil y acceder a ellas desde cualquier dispositivo, inicia sesión o regístrate en Platino Perú.
-          </p>
-
-          <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
-            <button
-              type="button"
-              className="showroom-btn filled"
-              onClick={() => openAuthModal("login")}
-              style={{ borderRadius: "9999px", padding: "13px 28px", fontSize: "14px" }}
+          <div
+            style={{
+              background: "#faf8f5",
+              border: "1.5px solid #ebe5da",
+              borderRadius: "20px",
+              padding: "42px 32px",
+              textAlign: "center",
+              maxWidth: "640px",
+              margin: "0 auto",
+              boxShadow: "0 15px 40px rgba(15, 42, 36, 0.05)",
+            }}
+          >
+            <div
+              style={{
+                width: "64px",
+                height: "64px",
+                borderRadius: "50%",
+                background: "#f0ebe1",
+                color: "#c5a059",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "28px",
+                margin: "0 auto 16px",
+              }}
             >
-              <i className="bi bi-box-arrow-in-right" style={{ marginRight: "6px" }}></i>
-              Iniciar Sesión
-            </button>
+              <i className="bi bi-person-lock"></i>
+            </div>
 
-            <button
-              type="button"
-              className="showroom-btn outline"
-              onClick={() => openAuthModal("register")}
-              style={{ borderRadius: "9999px", padding: "13px 28px", fontSize: "14px" }}
-            >
-              <i className="bi bi-person-plus" style={{ marginRight: "6px" }}></i>
-              Crear Cuenta
-            </button>
+            <h2 style={{ fontFamily: "var(--font-serif)", fontSize: "24px", color: "#0f2a24", margin: "0 0 10px" }}>
+              Inicia sesión para ver tus Favoritos
+            </h2>
+            <p style={{ fontSize: "14px", color: "#5d6d65", lineHeight: "1.6", margin: "0 0 24px" }}>
+              Para guardar tus piezas predilectas de forma permanente en tu perfil y acceder a ellas desde cualquier dispositivo, inicia sesión o regístrate en Platino Perú.
+            </p>
+
+            <div style={{ display: "flex", gap: "12px", justifyContent: "center", flexWrap: "wrap" }}>
+              <button
+                type="button"
+                className="showroom-btn filled"
+                onClick={() => openAuthModal("login")}
+                style={{ borderRadius: "9999px", padding: "13px 28px", fontSize: "14px" }}
+              >
+                <i className="bi bi-box-arrow-in-right" style={{ marginRight: "6px" }}></i>
+                Iniciar Sesión
+              </button>
+
+              <button
+                type="button"
+                className="showroom-btn outline"
+                onClick={() => openAuthModal("register")}
+                style={{ borderRadius: "9999px", padding: "13px 28px", fontSize: "14px" }}
+              >
+                <i className="bi bi-person-plus" style={{ marginRight: "6px" }}></i>
+                Crear Cuenta
+              </button>
+            </div>
           </div>
         </div>
       ) : favorites.length === 0 ? (
         /* SI TIENE SESIÓN PERO NO TIENE FAVORITOS AÚN */
-        <div
-          style={{
-            background: "#faf8f5",
-            border: "1.5px solid #ebe5da",
-            borderRadius: "20px",
-            padding: "50px 30px",
-            textAlign: "center",
-            maxWidth: "600px",
-            margin: "0 auto",
-          }}
-        >
-          <div
-            style={{
-              width: "70px",
-              height: "70px",
-              borderRadius: "50%",
-              background: "#fee2e2",
-              color: "#e11d48",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontSize: "30px",
-              margin: "0 auto 18px",
-            }}
-          >
-            <i className="bi bi-heart"></i>
+        <div style={{ maxWidth: "1060px", margin: "16px auto 50px" }}>
+          <div className="favorites-hero-banner">
+            <div className="favorites-hero-content">
+              <span style={{ display: "inline-block", color: "#d1b47c", fontSize: "11.5px", fontWeight: "700", letterSpacing: "0.18em", textTransform: "uppercase", marginBottom: "10px" }}>
+                Tu Selección Exclusiva
+              </span>
+              <h1 style={{ fontFamily: "'Playfair Display', Georgia, serif", fontSize: "clamp(30px, 3.8vw, 42px)", color: "#ffffff", fontWeight: "400", lineHeight: "1.18", margin: "0 0 14px", letterSpacing: "-0.01em" }}>
+                Joyas Favoritas
+              </h1>
+              <p style={{ fontSize: "14.5px", color: "#d4ded9", lineHeight: "1.6", maxWidth: "460px", margin: "0 0 24px" }}>
+                Guarda las piezas de alta orfebrería que más te cautivan para comprarlas, personalizarlas o agendar tu cita de prueba.
+              </p>
+              <div style={{ width: "42px", height: "42px", borderRadius: "50%", background: "rgba(6, 25, 20, 0.8)", border: "1.5px solid #d1b47c", display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "12px", boxShadow: "0 4px 12px rgba(0, 0, 0, 0.3)" }}>
+                <i className="bi bi-suit-heart-fill" style={{ color: "#d1b47c", fontSize: "16px" }}></i>
+              </div>
+              <p style={{ fontSize: "14.5px", color: "#ffffff", fontWeight: "600", letterSpacing: "0.01em", margin: "0 0 20px" }}>
+                Aún no has guardado ninguna joya
+              </p>
+              <Link
+                to="/catalogo"
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "8px",
+                  background: "linear-gradient(135deg, #e4c588 0%, #caa159 100%)",
+                  color: "#0f2a24",
+                  padding: "12px 28px",
+                  borderRadius: "9999px",
+                  fontSize: "14px",
+                  fontWeight: "700",
+                  textDecoration: "none",
+                  boxShadow: "0 6px 20px rgba(202, 161, 89, 0.35)",
+                  transition: "all 0.25s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = "translateY(-2px)";
+                  e.currentTarget.style.boxShadow = "0 8px 25px rgba(202, 161, 89, 0.5)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = "translateY(0)";
+                  e.currentTarget.style.boxShadow = "0 6px 20px rgba(202, 161, 89, 0.35)";
+                }}
+              >
+                <span>Explorar colección</span>
+                <i className="bi bi-arrow-right" style={{ fontSize: "14px" }}></i>
+              </Link>
+            </div>
+            <div className="favorites-hero-image-wrap">
+              <img src={getAssetUrl("/images/favorites-ring-art.png")} alt="Anillo de diamantes Platino Perú" />
+              <div className="gradient-overlay" />
+            </div>
           </div>
-
-          <h2 style={{ fontFamily: "var(--font-serif)", fontSize: "24px", color: "#0f2a24", margin: "0 0 10px" }}>
-            Aún no has guardado ninguna joya
-          </h2>
-          <p style={{ fontSize: "14px", color: "#5d6d65", lineHeight: "1.6", margin: "0 0 24px" }}>
-            Explora nuestra colección de anillos de compromiso, aros de matrimonio y alta orfebrería, y haz clic en el icono de corazón o estrella para guardarlos en tu perfil.
-          </p>
-
-          <Link
-            to="/catalogo"
-            className="showroom-btn filled"
-            style={{ borderRadius: "9999px", padding: "13px 30px", textDecoration: "none", display: "inline-block" }}
-          >
-            Explorar Colección
-          </Link>
         </div>
       ) : (
         /* LISTADO DE FAVORITOS DEL CLIENTE */
-        <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "20px" }}>
-            <span style={{ fontSize: "14px", color: "#48564f", fontWeight: "600" }}>
-              {favorites.length} {favorites.length === 1 ? "joya guardada" : "joyas guardadas"} en tu perfil de ({user.name || user.email})
-            </span>
-
-            <Link to="/catalogo" style={{ fontSize: "13px", color: "var(--platino-green-dark)", fontWeight: "600", textDecoration: "underline" }}>
-              + Seguir explorando catálogo
-            </Link>
-          </div>
-
+        <div style={{ maxWidth: "1060px", margin: "0 auto" }}>
           <div
             style={{
               display: "grid",

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { formatPrice } from "../data/products";
 import { DAMA_SIZES } from "../services/inventoryService";
 import { DiamondCutIcon } from "./GemstoneIcons";
@@ -128,34 +128,44 @@ export default function CompromisoConfigurator({
           </div>
 
           {/* 1. SELECCIÓN DE METAL */}
-          {product?.availableMetals && product.availableMetals.length > 0 && (
-            <div className="config-block-clean">
-              <div className="config-block-header-inline">
-                <span className="config-block-title-bold">SELECCIÓN DE METAL</span>
-                <span className="config-block-value-text">{metalName}</span>
-              </div>
+          {(() => {
+            const metalsList = (product?.availableMetals && product.availableMetals.length > 1)
+              ? product.availableMetals
+              : [
+                  { id: "plata-950", name: "Plata 950", color: "#e4e7e7", border: "#cfd3d3" },
+                  { id: "oro-18k-amarillo", name: "Oro Amarillo 18k", color: "#ecc435", border: "#d4aa18" },
+                  { id: "oro-18k-rosa", name: "Oro Rosado 18k", color: "#e29438", border: "#c47a24" },
+                  { id: "oro-18k-blanco", name: "Oro Blanco 18k", color: "#eb96c9", border: "#d475ad" },
+                ];
+            return (
+              <div className="config-block-clean">
+                <div className="config-block-header-inline">
+                  <span className="config-block-title-bold">SELECCIÓN DE METAL</span>
+                  <span className="config-block-value-text">{metalName}</span>
+                </div>
 
-              <div className="metal-swatches-row">
-                {product.availableMetals.map((metal) => {
-                  const isSel = selectedMetal?.id === metal.id;
-                  return (
-                    <button
-                      key={metal.id}
-                      type="button"
-                      className={`metal-swatch-circle ${isSel ? "selected" : ""}`}
-                      style={{
-                        background: metal.color,
-                        borderColor: metal.border,
-                      }}
-                      onClick={() => handleSelectMetal(metal)}
-                      title={metal.name}
-                      aria-label={`Seleccionar material ${metal.name}`}
-                    />
-                  );
-                })}
+                <div className="metal-swatches-row">
+                  {metalsList.map((metal) => {
+                    const isSel = selectedMetal?.id === metal.id;
+                    return (
+                      <button
+                        key={metal.id}
+                        type="button"
+                        className={`metal-swatch-circle ${isSel ? "selected" : ""}`}
+                        style={{
+                          background: metal.color,
+                          borderColor: metal.border,
+                        }}
+                        onClick={() => handleSelectMetal(metal)}
+                        title={metal.name}
+                        aria-label={`Seleccionar material ${metal.name}`}
+                      />
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
 
           {/* 2. TALLA DAMA (05 AL 27) */}
           <div className="config-block-clean">
