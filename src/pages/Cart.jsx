@@ -417,6 +417,49 @@ function Cart({ cart, updateQuantity }) {
                             {!item.selectedSizeDama && !item.selectedSizeVaron && item.size ? item.size : ""}
                           </span>
                         )}
+                        {item.isGemstone && item.carat && (
+                          <span
+                            style={{
+                              background: "#f4f1ea",
+                              color: "#46544d",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              padding: "2px 8px",
+                              borderRadius: "12px",
+                            }}
+                          >
+                            💎 {item.carat} ct {item.shape ? `• ${item.shape}` : ""}
+                          </span>
+                        )}
+                        {item.isGemstone && item.certNumber && (
+                          <span
+                            style={{
+                              background: "#eaf2ec",
+                              color: "#165935",
+                              fontSize: "11px",
+                              fontWeight: 600,
+                              padding: "2px 8px",
+                              borderRadius: "12px",
+                            }}
+                          >
+                            Cert: {item.certNumber}
+                          </span>
+                        )}
+                        {item.wholesaleMinQty && item.quantity >= item.wholesaleMinQty && (
+                          <span
+                            style={{
+                              background: "#edf5f0",
+                              color: "#137748",
+                              fontSize: "11px",
+                              fontWeight: 700,
+                              padding: "2px 8px",
+                              borderRadius: "12px",
+                              border: "1px solid #b7d6c5",
+                            }}
+                          >
+                            🏷️ Precio Mayorista
+                          </span>
+                        )}
                         {item.selectedPresentation && item.presentationPrice > 0 && (
                           <span
                             style={{

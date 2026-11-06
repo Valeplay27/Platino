@@ -121,6 +121,10 @@ export default function ApiDataBootstrap({ children }) {
           <div
             style={{
               marginBottom: "26px",
+              display: "flex",
+              justifyContent: "center",
+              alignItems: "center",
+              width: "100%",
               animation: "platinoPulse 2s ease-in-out infinite",
             }}
           >
@@ -128,9 +132,14 @@ export default function ApiDataBootstrap({ children }) {
               src={platinoLogoWordmark}
               alt="Platino Perú"
               style={{
-                height: "44px",
-                width: "auto",
+                width: "min(300px, 82vw)",
+                height: "auto",
+                maxHeight: "32px",
+                aspectRatio: "1024 / 96",
+                objectFit: "contain",
                 display: "block",
+                margin: "0 auto",
+                flexShrink: 0,
                 filter: "drop-shadow(0 2px 8px rgba(17, 59, 58, 0.08))",
               }}
             />

@@ -284,6 +284,26 @@ export default function CartDrawer({
                           <i className="bi bi-pen"></i> Grabado personalizado
                         </span>
                       )}
+
+                      {item.isGemstone && item.carat && (
+                        <span className="cart-drawer-tag-pill">
+                          <i className="bi bi-diamond-fill" style={{ color: "#c5a059" }}></i>
+                          {item.carat} ct {item.shape ? `• ${item.shape}` : ""}
+                        </span>
+                      )}
+
+                      {item.isGemstone && item.certNumber && (
+                        <span className="cart-drawer-tag-pill">
+                          <i className="bi bi-shield-check" style={{ color: "#137748" }}></i>
+                          {item.certificate || "Cert"}: {item.certNumber}
+                        </span>
+                      )}
+
+                      {item.wholesaleMinQty && item.quantity >= item.wholesaleMinQty && (
+                        <span className="cart-drawer-tag-pill" style={{ background: "#edf5f0", color: "#137748", borderColor: "#b7d6c5" }}>
+                          <i className="bi bi-tags-fill"></i> Mayorista
+                        </span>
+                      )}
                     </div>
 
                     {/* Fila de stepper y precio */}

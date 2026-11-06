@@ -41,8 +41,25 @@ function App() {
 
   const addToCart = (product) => {
     const itemKey = product.cartItemId || `${product.id}-${product.selectedMetal || product.metal || ''}-${product.selectedSize || product.size || ''}-${product.engraving || ''}`;
+    const addQty = product.quantity || 1;
+    const basePrice = product.basePrice !== undefined ? Number(product.basePrice) : Number(product.price || 0);
+
+    const getEffectivePrice = (item, qty) => {
+      const bPrice = item.basePrice !== undefined ? Number(item.basePrice) : Number(item.price || 0);
+      if (item.wholesaleMinQty && item.wholesalePrice !== undefined && item.wholesalePrice !== null && Number(item.wholesalePrice) > 0) {
+        if (qty >= Number(item.wholesaleMinQty)) {
+          return Number(item.wholesalePrice);
+        }
+      }
+      return bPrice;
+    };
+
+    const initialPrice = getEffectivePrice({ ...product, basePrice }, addQty);
+
     const configuredProduct = {
       ...product,
+      basePrice,
+      price: initialPrice,
       cartItemId: itemKey,
       image: product.image || "/images/secret-garden-white.jpg",
     };
@@ -52,13 +69,16 @@ function App() {
         (item) => (item.cartItemId || item.id) === itemKey
       );
       if (existingIndex > -1) {
-        return currentCart.map((item, index) =>
-          index === existingIndex
-            ? { ...item, quantity: item.quantity + (product.quantity || 1) }
-            : item
-        );
+        return currentCart.map((item, index) => {
+          if (index === existingIndex) {
+            const nextQty = item.quantity + addQty;
+            const nextPrice = getEffectivePrice(item, nextQty);
+            return { ...item, quantity: nextQty, price: nextPrice };
+          }
+          return item;
+        });
       }
-      return [...currentCart, { ...configuredProduct, quantity: product.quantity || 1 }];
+      return [...currentCart, { ...configuredProduct, quantity: addQty }];
     });
 
     setLastAddedItem(configuredProduct);
@@ -69,9 +89,19 @@ function App() {
     setCart((currentCart) =>
       quantity < 1
         ? currentCart.filter((item) => (item.cartItemId || item.id) !== idOrKey)
-        : currentCart.map((item) =>
-            (item.cartItemId || item.id) === idOrKey ? { ...item, quantity } : item
-          )
+        : currentCart.map((item) => {
+            if ((item.cartItemId || item.id) === idOrKey) {
+              const bPrice = item.basePrice !== undefined ? Number(item.basePrice) : Number(item.price || 0);
+              let effPrice = bPrice;
+              if (item.wholesaleMinQty && item.wholesalePrice !== undefined && item.wholesalePrice !== null && Number(item.wholesalePrice) > 0) {
+                if (quantity >= Number(item.wholesaleMinQty)) {
+                  effPrice = Number(item.wholesalePrice);
+                }
+              }
+              return { ...item, quantity, price: effPrice, basePrice: bPrice };
+            }
+            return item;
+          })
     );
   }
 
@@ -140,8 +170,8 @@ function App() {
             <Route path="/checkout" element={<Checkout cart={cart} clearCart={clearCart} />} />
             <Route path="/sedes" element={<Sedes />} />
             <Route path="/agendar-cita" element={<AgendarCita />} />
-            <Route path="/catalogo-gemas" element={<GemstonesCatalog />} />
-            <Route path="/gemas" element={<GemstonesCatalog />} />
+            <Route path="/catalogo-gemas" element={<GemstonesCatalog addToCart={addToCart} />} />
+            <Route path="/gemas" element={<GemstonesCatalog addToCart={addToCart} />} />
             <Route path="/favoritos" element={<Favorites addToCart={addToCart} />} />
             <Route path="/nosotros" element={<Nosotros />} />
             <Route path="/educacion" element={<Educacion />} />

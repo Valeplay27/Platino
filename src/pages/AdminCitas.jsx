@@ -12286,8 +12286,8 @@ export default function AdminCitas() {
                                 <span style={{ fontSize: "13px", fontWeight: "700", color: "#506258" }}>S/.</span>
                                 <input
                                   type="number"
-                                  min="1"
-                                  step="1"
+                                  min="0"
+                                  step="any"
                                   required
                                   className="metal-price-input"
                                   placeholder="Ej. 2950"

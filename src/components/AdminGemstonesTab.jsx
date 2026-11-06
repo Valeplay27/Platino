@@ -57,7 +57,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
     gemColor: "incoloro",
     gemColorLabel: "Incoloro Puro",
     clarity: "VVS",
-    cutQuality: "Excelente",
+    cutQuality: "EXC | Excellent",
     polish: "Excelente",
     symmetry: "Excelente",
     dimensions: "8.45 x 5.92 x 3.68 mm",
@@ -65,13 +65,15 @@ export default function AdminGemstonesTab({ isMaster = true }) {
     certificate: "GIA",
     certNumber: "GIA-" + Math.floor(10000000 + Math.random() * 90000000),
     certUrl: "",
-    price: 8450,
+    price: 0,
     origin: "Botsuana (Ético)",
     fluorescence: "Ninguna",
     table: "58%",
     depth: "62.1%",
     units: 1, // Cantidad de piezas en stock
     inStock: true,
+    wholesaleMinQty: "",
+    wholesalePrice: "",
     image: "", // Fotografía de la gema subida por el admin
   };
 
@@ -145,18 +147,39 @@ export default function AdminGemstonesTab({ isMaster = true }) {
     }
   };
 
+  const mapCutQuality = (val) => {
+    if (!val) return "EXC | Excellent";
+    const v = String(val).trim();
+    if (v === "Ideal" || v.startsWith("Ideal")) return "ID | Ideal";
+    if (v.includes("Excelente") || v.includes("Excellent")) return "EXC | Excellent";
+    if (v.includes("Muy Bueno") || v.includes("Very Good")) return "VG | Very Good";
+    if (v.includes("Bueno") || v.includes("Good")) return "G | Good";
+    if (v.includes("Fair")) return "F | Fair";
+    if (v.includes("Poor")) return "P | Poor";
+    return v;
+  };
+
   const handleEditClick = (gem) => {
     setEditingGem(gem);
     const gemUnits = gem.units !== undefined ? Number(gem.units) : (gem.inStock !== false ? 1 : 0);
     setFormData({
       ...gem,
-      carat: String(gem.carat || "1.00"),
-      mm: String(gem.mm || "7.00"),
-      price: gem.price || 5000,
+      cutQuality: mapCutQuality(gem.cutQuality),
+      carat: String(gem.carat !== undefined ? gem.carat : "1.00"),
+      mm: String(gem.mm !== undefined ? gem.mm : "7.00"),
+      price: gem.price !== undefined && gem.price !== null ? gem.price : 0,
       units: gemUnits,
       inStock: gemUnits > 0 && gem.inStock !== false,
       certUrl: gem.certUrl || "",
       image: gem.image || "",
+      wholesaleMinQty: gem.wholesaleMinQty !== undefined && gem.wholesaleMinQty !== null ? gem.wholesaleMinQty : "",
+      wholesalePrice: gem.wholesalePrice !== undefined && gem.wholesalePrice !== null ? gem.wholesalePrice : "",
+      table: gem.table !== undefined ? gem.table : "58%",
+      depth: gem.depth !== undefined ? gem.depth : "62.1%",
+      fluorescence: gem.fluorescence !== undefined ? gem.fluorescence : "Ninguna",
+      polish: gem.polish !== undefined ? gem.polish : "Excelente",
+      symmetry: gem.symmetry !== undefined ? gem.symmetry : "Excelente",
+      dimensions: gem.dimensions || "",
     });
     setIsFormOpen(true);
     window.scrollTo({ top: 350, behavior: "smooth" });
@@ -174,13 +197,24 @@ export default function AdminGemstonesTab({ isMaster = true }) {
     const finalName = formData.name.trim() || generateSuggestedName();
     const unitsNum = Math.max(0, parseInt(formData.units !== undefined ? formData.units : 1, 10) || 0);
     const isAvailable = unitsNum > 0 && formData.inStock !== false;
+    const parsedCarat = parseFloat(formData.carat);
+    const parsedMm = parseFloat(formData.mm);
+
+    const wholesaleQtyNum = formData.wholesaleMinQty !== "" && !isNaN(Number(formData.wholesaleMinQty))
+      ? Math.max(1, parseInt(formData.wholesaleMinQty, 10))
+      : null;
+    const wholesalePriceNum = formData.wholesalePrice !== "" && !isNaN(Number(formData.wholesalePrice))
+      ? Math.max(0, Number(formData.wholesalePrice))
+      : null;
 
     const payload = {
       ...formData,
       name: finalName,
-      carat: parseFloat(formData.carat) || 1.0,
-      mm: parseFloat(formData.mm) || 7.0,
-      price: Number(formData.price) || 0,
+      carat: !isNaN(parsedCarat) && parsedCarat > 0 ? parsedCarat : 0.001,
+      mm: !isNaN(parsedMm) && parsedMm > 0 ? parsedMm : 1.0,
+      price: Math.max(0, Number(formData.price) || 0),
+      wholesaleMinQty: wholesaleQtyNum,
+      wholesalePrice: wholesalePriceNum,
       units: unitsNum,
       inStock: isAvailable,
     };
@@ -603,10 +637,15 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                     }
                     className="admin-form-select"
                   >
-                    <option value="Ideal">Ideal (Máximo Fuego)</option>
-                    <option value="Excelente">Excelente</option>
-                    <option value="Muy Bueno">Muy Bueno</option>
-                    <option value="Bueno">Bueno</option>
+                    <option value="ID | Ideal">ID | Ideal</option>
+                    <option value="EXC | Excellent">EXC | Excellent</option>
+                    <option value="VG | Very Good">VG | Very Good</option>
+                    <option value="G | Good">G | Good</option>
+                    <option value="F | Fair">F | Fair</option>
+                    <option value="P | Poor">P | Poor</option>
+                    {formData.cutQuality && !["ID | Ideal", "EXC | Excellent", "VG | Very Good", "G | Good", "F | Fair", "P | Poor"].includes(formData.cutQuality) && (
+                      <option value={formData.cutQuality}>{formData.cutQuality}</option>
+                    )}
                   </select>
                 </div>
               </div>
@@ -618,15 +657,15 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                   <div className="input-with-affix">
                     <input
                       type="number"
-                      step="0.01"
-                      min="0.1"
-                      max="20"
+                      step="any"
+                      min="0.0001"
+                      max="100"
                       value={formData.carat}
                       onChange={(e) =>
                         setFormData({ ...formData, carat: e.target.value })
                       }
                       className="admin-form-input"
-                      placeholder="1.25"
+                      placeholder="0.008"
                       required
                     />
                     <span className="input-affix">ct</span>
@@ -638,15 +677,15 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                   <div className="input-with-affix">
                     <input
                       type="number"
-                      step="0.01"
-                      min="1"
-                      max="30"
+                      step="any"
+                      min="0.01"
+                      max="100"
                       value={formData.mm}
                       onChange={(e) =>
                         setFormData({ ...formData, mm: e.target.value })
                       }
                       className="admin-form-input"
-                      placeholder="8.45"
+                      placeholder="1.20"
                       required
                     />
                     <span className="input-affix">mm</span>
@@ -678,21 +717,198 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                     <span className="input-affix-left">S/.</span>
                     <input
                       type="number"
-                      min="100"
-                      step="50"
+                      min="0"
+                      step="any"
                       value={formData.price}
                       onChange={(e) =>
                         setFormData({ ...formData, price: e.target.value })
                       }
                       className="admin-form-input with-left-affix"
-                      placeholder="8450"
+                      placeholder="0"
                       required
                     />
                   </div>
                 </div>
               </div>
 
-              {/* 7. LABORATORIO GEMOLÓGICO DINÁMICO & NÚMERO DE CERTIFICADO */}
+              {/* PRECIO ESPECIAL POR CANTIDAD / MAYORISTA (OPCIONAL) */}
+              <div
+                style={{
+                  background: "#f7faf8",
+                  border: "1px dashed #b7d6c5",
+                  borderRadius: "10px",
+                  padding: "12px 14px",
+                  marginBottom: "16px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px", flexWrap: "wrap", gap: "6px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <i className="bi bi-tags-fill" style={{ color: "#c5a059", fontSize: "14px" }}></i>
+                    <strong style={{ fontSize: "12.5px", color: "#113B3A" }}>
+                      Precio Especial por Cantidad / Volumen (Opcional)
+                    </strong>
+                  </div>
+                  <span style={{ fontSize: "10.5px", background: "#edf5f0", color: "#137748", padding: "2px 6px", borderRadius: "4px", fontWeight: "600" }}>
+                    Venta por Lotes / Mayorista
+                  </span>
+                </div>
+                <p style={{ fontSize: "11px", color: "#5d6e65", margin: "0 0 10px 0", lineHeight: "1.4" }}>
+                  Define un precio unitario especial si el cliente adquiere a partir de cierta cantidad de piezas:
+                </p>
+
+                <div className="form-row-2" style={{ marginBottom: 0 }}>
+                  <div className="form-field-group" style={{ marginBottom: 0 }}>
+                    <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#163a2c", marginBottom: "4px", display: "block" }}>
+                      A partir de cuántas unidades:
+                    </label>
+                    <div className="input-with-affix">
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={formData.wholesaleMinQty ?? ""}
+                        onChange={(e) =>
+                          setFormData({ ...formData, wholesaleMinQty: e.target.value })
+                        }
+                        className="admin-form-input"
+                        placeholder="Ej. 10 (piezas)"
+                      />
+                      <span className="input-affix">unids</span>
+                    </div>
+                  </div>
+
+                  <div className="form-field-group" style={{ marginBottom: 0 }}>
+                    <label style={{ fontSize: "11.5px", fontWeight: "700", color: "#163a2c", marginBottom: "4px", display: "block" }}>
+                      Precio especial por unidad:
+                    </label>
+                    <div className="input-with-affix">
+                      <span className="input-affix-left">S/.</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={formData.wholesalePrice ?? ""}
+                        onChange={(e) =>
+                          setFormData({ ...formData, wholesalePrice: e.target.value })
+                        }
+                        className="admin-form-input with-left-affix"
+                        placeholder="Ej. 80 (c/u)"
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {formData.wholesaleMinQty && formData.wholesalePrice !== "" && formData.wholesalePrice !== undefined && (
+                  <div style={{ marginTop: "8px", fontSize: "11px", color: "#166534", fontWeight: "600", display: "flex", alignItems: "center", gap: "4px" }}>
+                    <i className="bi bi-check-circle-fill"></i>
+                    <span>
+                      Vista previa: A partir de {formData.wholesaleMinQty} unidades a S/. {formData.wholesalePrice} c/u
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              {/* 7. PROPORCIONES Y ESPECIFICACIONES TÉCNICAS (TABLA, PROFUNDIDAD, FLUORESCENCIA, PULIDO, SIMETRÍA) */}
+              <div
+                style={{
+                  background: "#fdfefe",
+                  border: "1px solid #d9e7e2",
+                  borderRadius: "10px",
+                  padding: "14px 16px",
+                  marginBottom: "16px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
+                  <i className="bi bi-gem" style={{ color: "#113B3A", fontSize: "14px" }}></i>
+                  <strong style={{ fontSize: "13px", color: "#113B3A" }}>
+                    Proporciones y Detalles Técnicos (Ficha de la Gema)
+                  </strong>
+                </div>
+
+                <div className="form-row-3" style={{ marginBottom: "12px" }}>
+                  <div className="form-field-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label-bold">Tabla (%)</label>
+                    <input
+                      type="text"
+                      value={formData.table || ""}
+                      onChange={(e) => setFormData({ ...formData, table: e.target.value })}
+                      className="admin-form-input"
+                      placeholder="58%"
+                    />
+                  </div>
+
+                  <div className="form-field-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label-bold">Profundidad (%)</label>
+                    <input
+                      type="text"
+                      value={formData.depth || ""}
+                      onChange={(e) => setFormData({ ...formData, depth: e.target.value })}
+                      className="admin-form-input"
+                      placeholder="62.1%"
+                    />
+                  </div>
+
+                  <div className="form-field-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label-bold">Fluorescencia</label>
+                    <input
+                      type="text"
+                      list="gem-fluorescence-options"
+                      value={formData.fluorescence || ""}
+                      onChange={(e) => setFormData({ ...formData, fluorescence: e.target.value })}
+                      className="admin-form-input"
+                      placeholder="Ninguna"
+                    />
+                    <datalist id="gem-fluorescence-options">
+                      <option value="Ninguna" />
+                      <option value="Muy Débil" />
+                      <option value="Débil" />
+                      <option value="Media" />
+                      <option value="Fuerte" />
+                      <option value="Muy Fuerte" />
+                    </datalist>
+                  </div>
+                </div>
+
+                <div className="form-row-2" style={{ marginBottom: 0 }}>
+                  <div className="form-field-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label-bold">Pulido</label>
+                    <input
+                      type="text"
+                      list="gem-polish-options"
+                      value={formData.polish || ""}
+                      onChange={(e) => setFormData({ ...formData, polish: e.target.value })}
+                      className="admin-form-input"
+                      placeholder="Excelente"
+                    />
+                    <datalist id="gem-polish-options">
+                      <option value="Excelente" />
+                      <option value="Muy Bueno" />
+                      <option value="Bueno" />
+                      <option value="Aceptable" />
+                    </datalist>
+                  </div>
+
+                  <div className="form-field-group" style={{ marginBottom: 0 }}>
+                    <label className="form-label-bold">Simetría</label>
+                    <input
+                      type="text"
+                      list="gem-symmetry-options"
+                      value={formData.symmetry || ""}
+                      onChange={(e) => setFormData({ ...formData, symmetry: e.target.value })}
+                      className="admin-form-input"
+                      placeholder="Excelente"
+                    />
+                    <datalist id="gem-symmetry-options">
+                      <option value="Excelente" />
+                      <option value="Muy Bueno" />
+                      <option value="Bueno" />
+                      <option value="Aceptable" />
+                    </datalist>
+                  </div>
+                </div>
+              </div>
+
+              {/* 8. LABORATORIO GEMOLÓGICO DINÁMICO & NÚMERO DE CERTIFICADO */}
               <div className="form-row-2">
                 <div className="form-field-group">
                   <div className="lab-header-row">
@@ -725,7 +941,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                 <div className="form-field-group">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
                     <label className="form-label-bold" style={{ margin: 0 }}>
-                      Número de Certificado (Grabado Láser en Filetín)
+                      Número de Certificado
                     </label>
                     {getGemCertificateUrl(formData) && (
                       <a
@@ -1097,6 +1313,30 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                         </span>
                       </div>
 
+                      {formData.wholesaleMinQty && formData.wholesalePrice !== "" && (
+                        <div style={{
+                          marginTop: "6px",
+                          marginBottom: "6px",
+                          padding: "4px 8px",
+                          background: "#f0f7f3",
+                          border: "1px dashed #b7d6c5",
+                          borderRadius: "6px",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          fontSize: "11px",
+                          color: "#113B3A",
+                        }}>
+                          <span style={{ fontWeight: "600", display: "flex", alignItems: "center", gap: "4px" }}>
+                            <i className="bi bi-tags-fill" style={{ color: "#c5a059", fontSize: "11px" }}></i>
+                            A partir de {formData.wholesaleMinQty} unids:
+                          </span>
+                          <span style={{ fontWeight: "700", color: "#137748" }}>
+                            S/. {Number(formData.wholesalePrice).toLocaleString("es-PE")} c/u
+                          </span>
+                        </div>
+                      )}
+
                       <div className="btn-preview-demo-tag">
                         <i className="bi bi-eye-fill"></i> Vista Previa en Tienda Pública
                       </div>
@@ -1396,6 +1636,11 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                         <div className="table-gem-price">
                           {gem.priceFormatted || `S/. ${Number(gem.price).toLocaleString("es-PE")}`}
                         </div>
+                        {gem.wholesaleMinQty && gem.wholesalePrice !== undefined && gem.wholesalePrice !== null && (
+                          <div style={{ fontSize: "10.5px", color: "#166534", fontWeight: "600", marginTop: "2px" }}>
+                            {gem.wholesaleMinQty}+ un: S/. {Number(gem.wholesalePrice).toLocaleString("es-PE")}
+                          </div>
+                        )}
                       </td>
 
                       {/* Control de Unidades de Stock y Visibilidad */}

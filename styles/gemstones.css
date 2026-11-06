@@ -2008,6 +2008,20 @@
   margin-bottom: 16px;
 }
 
+.form-row-3 {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 680px) {
+  .form-row-2,
+  .form-row-3 {
+    grid-template-columns: 1fr;
+  }
+}
+
 .form-field-group {
   margin-bottom: 16px;
 }
@@ -3161,3 +3175,612 @@
   border: 1px solid rgba(220, 38, 38, 0.2);
 }
 
+
+
+/* --- BOTÓN AGREGAR AL CARRITO EN GEMAS (CARD & MODAL) --- */
+.btn-card-add-gem {
+  width: 100%;
+  background: #ffffff;
+  color: #113B3A;
+  border: 1.5px solid #113B3A;
+  border-radius: 6px;
+  padding: 9px 12px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin-bottom: 8px;
+  transition: all 0.2s ease;
+}
+
+.btn-card-add-gem i {
+  color: #c5a059;
+  font-size: 14px;
+  transition: transform 0.2s ease;
+}
+
+.btn-card-add-gem:hover {
+  background: #113B3A;
+  color: #ffffff;
+  border-color: #113B3A;
+  box-shadow: 0 4px 14px rgba(17, 59, 58, 0.25);
+}
+
+.btn-card-add-gem:hover i {
+  color: #dfcaa7;
+  transform: scale(1.15);
+}
+
+.gem-modal-cart-box {
+  background: #f7faf8;
+  border: 1.5px solid #d5e5dc;
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.gem-modal-wholesale-notice {
+  font-size: 11.5px;
+  color: #137748;
+  font-weight: 600;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #edf5f0;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.gem-modal-cart-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.gem-qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1.5px solid #d0ded6;
+  border-radius: 8px;
+  background: #ffffff;
+  overflow: hidden;
+  height: 44px;
+}
+
+.gem-qty-btn {
+  background: transparent;
+  border: none;
+  width: 36px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 700;
+  color: #113B3A;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.gem-qty-btn:hover:not(:disabled) {
+  background: #f0f5f2;
+}
+
+.gem-qty-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.gem-qty-val {
+  min-width: 34px;
+  text-align: center;
+  font-weight: 700;
+  font-size: 14px;
+  color: #113B3A;
+}
+
+.btn-modal-add-cart {
+  flex: 1;
+  height: 44px;
+  background: linear-gradient(135deg, #113B3A 0%, #1a4d4b 100%);
+  color: #ffffff;
+  border: 1.5px solid #C6AC7F;
+  border-radius: 8px;
+  font-family: var(--font-sans);
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.2s;
+  box-shadow: 0 4px 14px rgba(17, 59, 58, 0.22);
+}
+
+.btn-modal-add-cart i {
+  color: #C6AC7F;
+  font-size: 15px;
+}
+
+.btn-modal-add-cart:hover {
+  background: #0c2b2a;
+  border-color: #dfcaa7;
+  box-shadow: 0 6px 18px rgba(17, 59, 58, 0.35);
+  transform: translateY(-1px);
+}
+
+
+/* --- CONTROL DE UNIDADES Y AGREGAR AL CARRITO EN TARJETAS DE GEMAS --- */
+.gem-card-cart-box {
+  margin-bottom: 8px;
+}
+
+.gem-card-cart-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gem-card-qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1.5px solid #d0ded6;
+  border-radius: 6px;
+  background: #ffffff;
+  overflow: hidden;
+  height: 38px;
+  flex-shrink: 0;
+}
+
+.btn-card-qty {
+  background: transparent;
+  border: none;
+  width: 28px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #113B3A;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-card-qty:hover:not(:disabled) {
+  background: #f0f5f2;
+  color: #0c2b2a;
+}
+
+.btn-card-qty:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.gem-card-qty-input {
+  width: 44px;
+  height: 100%;
+  border: none;
+  border-left: 1px solid #e5ede8;
+  border-right: 1px solid #e5ede8;
+  background: transparent;
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  color: #113B3A;
+  outline: none;
+  padding: 0 2px;
+  -moz-appearance: textfield;
+}
+
+.gem-card-qty-input::-webkit-outer-spin-button,
+.gem-card-qty-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.btn-card-add-gem {
+  flex: 1;
+  height: 38px;
+  background: #ffffff;
+  color: #113B3A;
+  border: 1.5px solid #113B3A;
+  border-radius: 6px;
+  padding: 0 10px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+  margin-bottom: 0 !important;
+}
+
+.btn-card-add-gem i {
+  color: #c5a059;
+  font-size: 14px;
+  transition: transform 0.2s ease;
+}
+
+.btn-card-add-gem:hover {
+  background: #113B3A;
+  color: #ffffff;
+  border-color: #113B3A;
+  box-shadow: 0 4px 14px rgba(17, 59, 58, 0.25);
+}
+
+.btn-card-add-gem:hover i {
+  color: #dfcaa7;
+  transform: scale(1.12);
+}
+
+.gem-card-wholesale-micro-tag {
+  margin-top: 5px;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.gem-card-wholesale-micro-tag .wholesale-applied {
+  color: #137748;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: #edf5f0;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.gem-card-wholesale-micro-tag .wholesale-hint {
+  color: #63776d;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.gem-qty-input {
+  width: 52px;
+  height: 100%;
+  border: none;
+  border-left: 1px solid #dce8e1;
+  border-right: 1px solid #dce8e1;
+  background: transparent;
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: 14px;
+  font-weight: 700;
+  color: #113B3A;
+  outline: none;
+  padding: 0 4px;
+  -moz-appearance: textfield;
+}
+
+.gem-qty-input::-webkit-outer-spin-button,
+.gem-qty-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+
+/* ========================================================
+   TARJETA DE GEMA REDISEÑADA Y REFINADA (LUXURY ATELIER)
+   ======================================================== */
+.gem-card-footer {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+/* Bloque de Precio y Descuento por Mayoreo Unificado */
+.gem-card-price-section {
+  background: #fafcfb;
+  border: 1px solid #e2ebe6;
+  border-radius: 8px;
+  padding: 8px 11px;
+}
+
+.gem-price-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+
+.gem-card-price-section .price-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  font-weight: 700;
+  color: #71857c;
+}
+
+.gem-wholesale-pill-active {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #137748;
+  background: #eaf5ee;
+  border: 1px solid #b7d8c5;
+  padding: 1px 6px;
+  border-radius: 4px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.gem-price-main-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+}
+
+.gem-price-current {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.gem-price-current .gem-currency {
+  font-family: var(--font-serif);
+  font-size: 15px;
+  font-weight: 700;
+  color: #113B3A;
+}
+
+.gem-price-current .gem-amount {
+  font-family: var(--font-serif);
+  font-size: 21px;
+  font-weight: 800;
+  color: #113B3A;
+  line-height: 1;
+}
+
+.gem-price-current .gem-unit-tag {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: #71857c;
+}
+
+.gem-regular-strike {
+  font-size: 12px;
+  font-weight: 600;
+  color: #9ba8a2;
+  text-decoration: line-through;
+  margin-left: 3px;
+}
+
+.gem-subtotal-tag {
+  font-size: 11px;
+  font-weight: 700;
+  color: #113B3A;
+  background: #eaf2ed;
+  padding: 2px 7px;
+  border-radius: 4px;
+}
+
+.gem-wholesale-hint-clean {
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: #4b6357;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.gem-wholesale-hint-clean i {
+  color: #c5a059;
+  font-size: 10.5px;
+}
+
+.gem-wholesale-applied-bar {
+  margin-top: 4px;
+  font-size: 10.5px;
+  color: #137748;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* Grupo de Acciones de Compra */
+.gem-card-cta-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Fila Principal: Stepper + Agregar al Carrito */
+.gem-card-primary-action {
+  display: flex;
+  align-items: stretch;
+  gap: 7px;
+  height: 38px;
+}
+
+.gem-card-qty-stepper {
+  display: inline-flex;
+  align-items: center;
+  border: 1.5px solid #d0ded6;
+  border-radius: 6px;
+  background: #ffffff;
+  overflow: hidden;
+  width: 95px;
+  flex-shrink: 0;
+  transition: border-color 0.2s;
+}
+
+.gem-card-qty-stepper:focus-within {
+  border-color: #113B3A;
+}
+
+.btn-card-qty {
+  background: transparent;
+  border: none;
+  width: 29px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  color: #113B3A;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-card-qty:hover:not(:disabled) {
+  background: #f0f5f2;
+}
+
+.btn-card-qty:active:not(:disabled) {
+  background: #dbeae1;
+}
+
+.btn-card-qty:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.gem-card-qty-input {
+  flex: 1;
+  width: 37px;
+  height: 100%;
+  border: none;
+  border-left: 1px solid #e7ede9;
+  border-right: 1px solid #e7ede9;
+  background: transparent;
+  text-align: center;
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-weight: 700;
+  color: #113B3A;
+  outline: none;
+  padding: 0;
+  -moz-appearance: textfield;
+}
+
+.gem-card-qty-input::-webkit-outer-spin-button,
+.gem-card-qty-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+/* Botón Principal de Agregar a la Bolsa */
+.btn-card-add-primary {
+  flex: 1;
+  background: linear-gradient(135deg, #113B3A 0%, #194644 100%);
+  color: #ffffff;
+  border: 1.5px solid #113B3A;
+  border-radius: 6px;
+  padding: 0 10px;
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  white-space: nowrap;
+  transition: all 0.22s ease;
+  box-shadow: 0 3px 10px rgba(17, 59, 58, 0.16);
+}
+
+.btn-card-add-primary i {
+  color: #dfcaa7;
+  font-size: 13.5px;
+  transition: transform 0.2s ease;
+}
+
+.btn-card-add-primary:hover {
+  background: #0b2928;
+  border-color: #C6AC7F;
+  box-shadow: 0 5px 14px rgba(17, 59, 58, 0.28);
+  transform: translateY(-1px);
+}
+
+.btn-card-add-primary:hover i {
+  color: #ffffff;
+  transform: scale(1.15);
+}
+
+/* Fila Secundaria: Detalles y Agendar Cita */
+.gem-card-secondary-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.btn-card-inspect {
+  height: 32px;
+  background: #ffffff;
+  color: #113B3A;
+  border: 1px solid #d4ded8;
+  border-radius: 6px;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.18s ease;
+}
+
+.btn-card-inspect i {
+  color: #71857c;
+  font-size: 12px;
+}
+
+.btn-card-inspect:hover {
+  background: #f4f8f5;
+  border-color: #113B3A;
+  color: #113B3A;
+}
+
+.btn-card-inspect:hover i {
+  color: #113B3A;
+}
+
+.btn-card-book {
+  height: 32px;
+  background: #fdfbf7;
+  color: #113B3A;
+  border: 1px solid #dfcaa7;
+  border-radius: 6px;
+  text-decoration: none;
+  font-family: var(--font-sans);
+  font-size: 11.5px;
+  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  transition: all 0.18s ease;
+}
+
+.btn-card-book i {
+  color: #c5a059;
+  font-size: 12px;
+}
+
+.btn-card-book:hover {
+  background: #fbf5ea;
+  border-color: #c5a059;
+  color: #0c2b2a;
+}
