@@ -1060,7 +1060,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                     <div className="gem-card-cert-row">
                       <span>
                         <i className="bi bi-shield-check" style={{ color: "#C6AC7F", marginRight: "4px" }}></i>
-                        Láser:{" "}
+                        Certificado:{" "}
                         {getGemCertificateUrl(formData) ? (
                           <a
                             href={getGemCertificateUrl(formData)}

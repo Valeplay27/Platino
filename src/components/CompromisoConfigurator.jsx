@@ -44,12 +44,25 @@ export const COMPROMISO_GEM_TYPES = [
 
 export function getProductGemTypes(product) {
   const customPrices = product?.gemTypePrices || {};
-  return COMPROMISO_GEM_TYPES.map((gem) => {
-    // La zirconita es la gema base estándar incluida en el precio base de la joya (siempre delta 0)
+  const enabledMap = product?.enabledGemTypes;
+
+  const filtered = COMPROMISO_GEM_TYPES.filter((gem) => {
+    if (!enabledMap || typeof enabledMap !== "object") return true;
+    return enabledMap[gem.id] !== false;
+  });
+
+  const list = filtered.length > 0 ? filtered : [COMPROMISO_GEM_TYPES[0]];
+
+  return list.map((gem) => {
     if (gem.id === "zirconita") {
+      const customZirc = customPrices["zirconita"];
+      const priceDelta =
+        customZirc !== undefined && customZirc !== "" && !isNaN(Number(customZirc))
+          ? Number(customZirc)
+          : 0;
       return {
         ...gem,
-        priceDelta: 0,
+        priceDelta,
         subtitle: "Gema base clásica",
       };
     }
@@ -94,6 +107,7 @@ export default function CompromisoConfigurator({
   const currentStep = propCurrentStep !== undefined ? propCurrentStep : localStep;
   const setCurrentStep = propSetCurrentStep !== undefined ? propSetCurrentStep : setLocalStep;
   const [modalOpen, setModalOpen] = useState(false);
+  const hasGemTypes = product?.hasGemTypeSelection !== false && product?.hasGemSelection !== false && (!product?.enabledGemTypes || Object.values(product.enabledGemTypes).some((v) => v !== false));
 
   // Al llegar al paso 3, mostrar la caja en el visor principal de la izquierda
   useEffect(() => {
@@ -106,12 +120,16 @@ export default function CompromisoConfigurator({
 
   const gemTypes = useMemo(() => getProductGemTypes(product), [product]);
 
-  // Sincronizar el priceDelta del selectedGemType si cambia el producto
+  // Sincronizar selectedGemType con las gemas activas del producto
   useEffect(() => {
-    if (selectedGemType?.id && gemTypes.length > 0) {
-      const match = gemTypes.find((g) => g.id === selectedGemType.id);
-      if (match && match.priceDelta !== selectedGemType.priceDelta) {
-        setSelectedGemType(match);
+    if (gemTypes.length > 0) {
+      const match = gemTypes.find((g) => g.id === selectedGemType?.id);
+      if (match) {
+        if (match.priceDelta !== selectedGemType?.priceDelta) {
+          setSelectedGemType(match);
+        }
+      } else {
+        setSelectedGemType(gemTypes[0]);
       }
     }
   }, [gemTypes, selectedGemType?.id, selectedGemType?.priceDelta, setSelectedGemType]);
@@ -134,7 +152,7 @@ export default function CompromisoConfigurator({
     const text = `¡Hola Platino Perú! Deseo realizar el pedido de este anillo de compromiso personalizado:%0A%0A` +
       `*Producto:* ${productName}%0A` +
       `*Metal:* ${metalName}%0A` +
-      `*Pedrería:* ${gemName}%0A` +
+      (hasGemTypes ? `*Pedrería:* ${gemName}%0A` : "") +
       `*Talla:* ${sizeStr}%0A` +
       `*Cofre:* ${cofreStr}%0A` +
       `*Grabado interno:* ${engravingStr}%0A` +
@@ -150,7 +168,7 @@ export default function CompromisoConfigurator({
   };
 
   const cofrePrice = Number(selectedPresentationObj?.price || 0);
-  const ringPrice = totalPrice > cofrePrice ? (totalPrice - cofrePrice) : (currentMetalPrice + (selectedGemType?.priceDelta || 0));
+  const ringPrice = totalPrice > cofrePrice ? (totalPrice - cofrePrice) : (currentMetalPrice + (hasGemTypes ? (selectedGemType?.priceDelta || 0) : 0));
 
   const handleFinalizePurchase = () => {
     if (onAddToCart) {
@@ -167,7 +185,7 @@ export default function CompromisoConfigurator({
       {currentStep === 1 && (
         <div className="step-pane step-pane-1">
           <div className="step-progress-inline">
-            <span className="step-progress-tag">PASO 1 DE 3</span>
+            <span className="step-progress-tag">{hasGemTypes ? "PASO 1 DE 3" : "PASO 1 DE 2"}</span>
             <div className="step-progress-line"></div>
           </div>
 
@@ -310,11 +328,11 @@ export default function CompromisoConfigurator({
               type="button"
               className="btn-wizard-forward-solid"
               onClick={() => {
-                setCurrentStep(2);
+                setCurrentStep(hasGemTypes ? 2 : 3);
                 window.scrollTo({ top: 120, behavior: "smooth" });
               }}
             >
-              <span>CONTINUAR A PASO 2: SELECCIÓN DE GEMA</span>
+              <span>{hasGemTypes ? "CONTINUAR A PASO 2: SELECCIÓN DE GEMA" : "CONTINUAR A COMPLEMENTOS Y ESTUCHE"}</span>
               <i className="bi bi-arrow-right"></i>
             </button>
           </div>
@@ -324,7 +342,7 @@ export default function CompromisoConfigurator({
       {/* ========================================================
           PASO 2 DE 3: SELECCIÓN DE GEMA (SILUETA Y TIPO DE GEMA)
           ======================================================== */}
-      {currentStep === 2 && (
+      {currentStep === 2 && hasGemTypes && (
         <div className="step-pane step-pane-2">
           <div className="step-progress-inline">
             <span className="step-progress-tag">PASO 2 DE 3</span>
@@ -397,7 +415,7 @@ export default function CompromisoConfigurator({
       {currentStep === 3 && (
         <div className="step-pane step-pane-3">
           <div className="step-progress-inline">
-            <span className="step-progress-tag">PASO 3 DE 3</span>
+            <span className="step-progress-tag">{hasGemTypes ? "PASO 3 DE 3" : "PASO 2 DE 2"}</span>
             <div className="step-progress-line"></div>
           </div>
 
@@ -477,7 +495,7 @@ export default function CompromisoConfigurator({
               type="button"
               className="btn-trio-back btn-wizard-back-outline"
               onClick={() => {
-                setCurrentStep(2);
+                setCurrentStep(hasGemTypes ? 2 : 1);
                 window.scrollTo({ top: 120, behavior: "smooth" });
               }}
             >

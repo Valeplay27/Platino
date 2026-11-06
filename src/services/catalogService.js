@@ -211,12 +211,18 @@ const normalizeProductMetals = (rawProd) => {
     hasPresentationChoice: prod.hasPresentationChoice ?? true,
     showDeliveryEstimate: prod.showDeliveryEstimate,
     hasGemSelection: prod.hasGemSelection ?? (defaultProdMatch?.hasGemSelection ?? true),
+    hasGemTypeSelection: prod.hasGemTypeSelection !== undefined
+      ? prod.hasGemTypeSelection
+      : (defaultProdMatch?.hasGemTypeSelection !== undefined
+          ? defaultProdMatch.hasGemTypeSelection
+          : (prod.hasGemSelection !== false)),
     availableGemShapes: Array.isArray(prod.availableGemShapes) && prod.availableGemShapes.length > 0
       ? prod.availableGemShapes
       : (defaultProdMatch?.availableGemShapes || MASTER_GEM_SHAPES.map((s) => s.id)),
     defaultGemShape: prod.defaultGemShape || defaultProdMatch?.defaultGemShape || "redondo",
     gemShapeConfigs: prod.gemShapeConfigs || defaultProdMatch?.gemShapeConfigs || {},
     gemTypePrices: prod.gemTypePrices || defaultProdMatch?.gemTypePrices || null,
+    enabledGemTypes: prod.enabledGemTypes !== undefined ? prod.enabledGemTypes : (defaultProdMatch?.enabledGemTypes || null),
   };
 };
 
@@ -328,6 +334,8 @@ export const createProduct = (productData) => {
     gemShapeConfigs: productData.gemShapeConfigs || {},
     description: productData.description?.trim() || "Joya artesanal con certificación y acabados de alta calidad.",
     hasGemSelection: productData.hasGemSelection ?? true,
+    hasGemTypeSelection: productData.hasGemTypeSelection !== undefined ? productData.hasGemTypeSelection : (productData.hasGemSelection ?? true),
+    enabledGemTypes: productData.enabledGemTypes || null,
     hasDoubleSizes: productData.hasDoubleSizes ?? false,
     hasPresentationChoice: productData.hasPresentationChoice ?? true,
     presentationOptions: productData.presentationOptions || [
@@ -435,6 +443,12 @@ export const updateProduct = (id, updatedFields) => {
     hasGemSelection: updatedFields.hasGemSelection !== undefined
       ? updatedFields.hasGemSelection
       : current.hasGemSelection,
+    hasGemTypeSelection: updatedFields.hasGemTypeSelection !== undefined
+      ? updatedFields.hasGemTypeSelection
+      : current.hasGemTypeSelection,
+    enabledGemTypes: updatedFields.enabledGemTypes !== undefined
+      ? updatedFields.enabledGemTypes
+      : current.enabledGemTypes,
     availableGemShapes: updatedFields.availableGemShapes !== undefined
       ? updatedFields.availableGemShapes
       : (current.availableGemShapes || MASTER_GEM_SHAPES.map((s) => s.id)),

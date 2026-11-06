@@ -938,10 +938,18 @@ export default function AdminCitas() {
   const [formMetalGalleries, setFormMetalGalleries] = useState({});
   const [formShowDeliveryEstimate, setFormShowDeliveryEstimate] = useState(true);
   const [formHasGemSelection, setFormHasGemSelection] = useState(true);
+  const [formHasGemTypeSelection, setFormHasGemTypeSelection] = useState(true);
   const [formAvailableGemShapes, setFormAvailableGemShapes] = useState(() => (Array.isArray(MASTER_GEM_SHAPES) ? MASTER_GEM_SHAPES.map((s) => s.id) : []));
   const [formDefaultGemShape, setFormDefaultGemShape] = useState("redondo");
   const [formGemShapeConfigs, setFormGemShapeConfigs] = useState({});
   const [formActiveGemShapeTab, setFormActiveGemShapeTab] = useState("redondo");
+  const [formEnabledGemTypes, setFormEnabledGemTypes] = useState({
+    "zirconita": true,
+    "zirconita-swarovski": true,
+    "moissanita": true,
+    "diamante-lab": true,
+    "diamante-natural": true,
+  });
   const [formGemTypePrices, setFormGemTypePrices] = useState({
     "zirconita": "0",
     "zirconita-swarovski": "80",
@@ -2125,7 +2133,7 @@ export default function AdminCitas() {
     setFormMetalImages(initImages);
     setFormMetalGalleries(initGalleries);
     setFormShowDeliveryEstimate(initialGroup !== "anillos");
-    setFormHasGemSelection(initialGroup === "anillos");
+    setFormHasGemSelection(true);
     const masterShapes = Array.isArray(MASTER_GEM_SHAPES) ? MASTER_GEM_SHAPES : [];
     const allShapeIds = masterShapes.map((s) => s.id);
     setFormAvailableGemShapes(allShapeIds);
@@ -2138,6 +2146,13 @@ export default function AdminCitas() {
       "moissanita": "350",
       "diamante-lab": "1200",
       "diamante-natural": "2800",
+    });
+    setFormEnabledGemTypes({
+      "zirconita": true,
+      "zirconita-swarovski": true,
+      "moissanita": true,
+      "diamante-lab": true,
+      "diamante-natural": true,
     });
     setFormGemShapePrices({});
     setOpenProductSection(1);
@@ -2284,6 +2299,11 @@ export default function AdminCitas() {
       ? !!prod.hasGemSelection 
       : (prod.type === "anillo" || group === "anillos");
     setFormHasGemSelection(hasGems);
+    setFormHasGemTypeSelection(
+      prod.hasGemTypeSelection !== undefined
+        ? !!prod.hasGemTypeSelection
+        : (hasGems && (!!prod.gemTypePrices || group === "anillos"))
+    );
     const masterShapes = Array.isArray(MASTER_GEM_SHAPES) ? MASTER_GEM_SHAPES : [];
     const allShapeIds = masterShapes.map((s) => s.id);
     const rawAvail = Array.isArray(prod.availableGemShapes) && prod.availableGemShapes.length > 0
@@ -2309,6 +2329,23 @@ export default function AdminCitas() {
             "diamante-natural": "2800",
           }
     );
+    setFormEnabledGemTypes(
+      prod.enabledGemTypes && typeof prod.enabledGemTypes === "object"
+        ? {
+            "zirconita": prod.enabledGemTypes["zirconita"] !== false,
+            "zirconita-swarovski": prod.enabledGemTypes["zirconita-swarovski"] !== false,
+            "moissanita": prod.enabledGemTypes["moissanita"] !== false,
+            "diamante-lab": prod.enabledGemTypes["diamante-lab"] !== false,
+            "diamante-natural": prod.enabledGemTypes["diamante-natural"] !== false,
+          }
+        : {
+            "zirconita": true,
+            "zirconita-swarovski": true,
+            "moissanita": true,
+            "diamante-lab": true,
+            "diamante-natural": true,
+          }
+    );
     setFormGemShapePrices(prod.gemShapePrices && typeof prod.gemShapePrices === "object" ? { ...prod.gemShapePrices } : {});
 
     setProductModalOpen(true);
@@ -2326,12 +2363,10 @@ export default function AdminCitas() {
       const styleOpts = RING_STYLE_OPTIONS_BY_SUBTYPE[subOpt.id] || RING_STYLE_OPTIONS_BY_SUBTYPE[subOpt.subtype] || [];
       setFormStyle(styleOpts[0]?.id || "");
       setFormGem(subOpt.id === "anillo-compromiso" ? "diamante" : "");
-      setFormHasGemSelection(subOpt.type === "anillo");
       setFormShowDeliveryEstimate(false);
     } else {
       setFormStyle("");
       setFormGem("");
-      setFormHasGemSelection(false);
       setFormShowDeliveryEstimate(true);
     }
   };
@@ -2799,10 +2834,12 @@ export default function AdminCitas() {
       type: formType,
       hasDoubleSizes: isArosType,
       hasGemSelection: formHasGemSelection,
+      hasGemTypeSelection: formHasGemSelection && Object.values(formEnabledGemTypes).some((v) => v !== false),
+      enabledGemTypes: formEnabledGemTypes,
+      gemTypePrices: formGemTypePrices,
       availableGemShapes: formAvailableGemShapes,
       defaultGemShape: formDefaultGemShape,
       gemShapeConfigs: formGemShapeConfigs,
-      gemTypePrices: formGemTypePrices,
       gemShapePrices: formGemShapePrices,
       badge: formBadge.trim(),
       description: formDesc.trim(),
@@ -12663,21 +12700,46 @@ export default function AdminCitas() {
                     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
                       {/* Precios adicionales por Tipo de Gema (Compromiso y Anillos) */}
                       <div style={{
-                        background: "#ffffff",
+                        background: "#f4f8f6",
                         border: "1px solid #d0e4d7",
                         borderRadius: "10px",
                         padding: "14px",
                       }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", marginBottom: "10px" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "8px", marginBottom: "12px", paddingBottom: "10px", borderBottom: "1px dashed #d0e4d7" }}>
                           <div>
                             <strong style={{ fontSize: "13px", color: "#113B3A", display: "flex", alignItems: "center", gap: "6px" }}>
                               <i className="bi bi-gem"></i> Precios Adicionales por Tipo de Gema / Pedrería (S/.)
                             </strong>
                             <div style={{ fontSize: "11px", color: "#5d6e65", marginTop: "2px" }}>
-                              Define el suplemento o valor que se sumará al precio base de la joya según la pedrería que elija el cliente:
+                              Activa o desactiva qué gemas ofrece este producto y personaliza su suplemento en soles:
                             </div>
                           </div>
-                          <div style={{ display: "flex", gap: "6px" }}>
+
+                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFormEnabledGemTypes({
+                                  "zirconita": true,
+                                  "zirconita-swarovski": true,
+                                  "moissanita": true,
+                                  "diamante-lab": true,
+                                  "diamante-natural": true,
+                                });
+                              }}
+                              style={{
+                                fontSize: "11px",
+                                padding: "4px 8px",
+                                borderRadius: "6px",
+                                border: "1px solid #b7d6c5",
+                                background: "#edf5f0",
+                                color: "#137748",
+                                cursor: "pointer",
+                                fontWeight: "600",
+                              }}
+                            >
+                              ✓ Activar todas
+                            </button>
                             <button
                               type="button"
                               onClick={() => {
@@ -12730,7 +12792,7 @@ export default function AdminCitas() {
 
                         <div style={{
                           display: "grid",
-                          gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+                          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
                           gap: "10px",
                         }}>
                           {[
@@ -12739,75 +12801,135 @@ export default function AdminCitas() {
                             { id: "moissanita", name: "Moissanita GRA", hint: "Certificado GRA" },
                             { id: "diamante-lab", name: "Diamante Lab IGI", hint: "Certificado IGI" },
                             { id: "diamante-natural", name: "Diamante Natural GIA", hint: "Certificado GIA" },
-                          ].map((item) => (
-                            <div
-                              key={item.id}
-                              style={{
-                                background: "#f8faf9",
-                                border: "1px solid #e2ece6",
-                                borderRadius: "8px",
-                                padding: "8px 10px",
-                              }}
-                            >
-                              <div style={{ fontSize: "11.5px", fontWeight: "700", color: "#163a2c", marginBottom: "2px" }}>
-                                {item.name}
-                              </div>
-                              <div style={{ fontSize: "10px", color: "#64748b", marginBottom: "6px" }}>
-                                {item.hint}
-                              </div>
-                              <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                <span style={{ fontSize: "12px", color: "#526359", fontWeight: "600" }}>+S/.</span>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  value={formGemTypePrices[item.id] ?? "0"}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setFormGemTypePrices((prev) => ({
-                                      ...prev,
-                                      [item.id]: val,
-                                    }));
-                                  }}
-                                  placeholder="0"
-                                  style={{
-                                    width: "100%",
-                                    padding: "4px 8px",
-                                    fontSize: "12.5px",
-                                    fontWeight: "600",
-                                    border: "1px solid #c7dcd0",
-                                    borderRadius: "6px",
-                                    background: "#ffffff",
-                                  }}
-                                />
-                              </div>
-                              {Number(formGemTypePrices[item.id] || 0) === 0 ? (
-                                <div
-                                  style={{
-                                    fontSize: "10.5px",
-                                    fontWeight: "600",
-                                    color: "#166534",
-                                    marginTop: "5px",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    gap: "3px",
-                                  }}
-                                >
-                                  ✓ Viene incluida
+                          ].map((item) => {
+                            const isEnabled = formEnabledGemTypes[item.id] !== false;
+                            return (
+                              <div
+                                key={item.id}
+                                style={{
+                                  background: isEnabled ? "#ffffff" : "#f8faf9",
+                                  border: isEnabled ? "1.5px solid #113B3A" : "1px dashed #cbd5e1",
+                                  borderRadius: "8px",
+                                  padding: "9px 11px",
+                                  transition: "all 0.2s ease",
+                                  opacity: isEnabled ? 1 : 0.65,
+                                }}
+                              >
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "6px", marginBottom: "4px" }}>
+                                  <div style={{ fontSize: "11.5px", fontWeight: "700", color: isEnabled ? "#113B3A" : "#64748b" }}>
+                                    {item.name}
+                                  </div>
+                                  <label
+                                    style={{
+                                      display: "inline-flex",
+                                      alignItems: "center",
+                                      gap: "4px",
+                                      cursor: "pointer",
+                                      fontSize: "10.5px",
+                                      fontWeight: "700",
+                                      padding: "2px 6px",
+                                      borderRadius: "5px",
+                                      background: isEnabled ? "#e8f5ed" : "#f1f5f9",
+                                      color: isEnabled ? "#137748" : "#64748b",
+                                      border: isEnabled ? "1px solid #b7d6c5" : "1px solid #cbd5e1",
+                                      userSelect: "none",
+                                    }}
+                                    title={isEnabled ? "Desactivar esta opción para el producto" : "Activar esta opción para el producto"}
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={isEnabled}
+                                      onChange={(e) => {
+                                        const checked = e.target.checked;
+                                        setFormEnabledGemTypes((prev) => ({
+                                          ...prev,
+                                          [item.id]: checked,
+                                        }));
+                                      }}
+                                      style={{ width: "13px", height: "13px", accentColor: "#113B3A", cursor: "pointer" }}
+                                    />
+                                    <span>{isEnabled ? "Activo" : "Inactivo"}</span>
+                                  </label>
                                 </div>
-                              ) : (
-                                <div
-                                  style={{
-                                    fontSize: "10.5px",
-                                    fontWeight: "600",
-                                    color: "#b45309",
-                                    marginTop: "5px",
-                                  }}
-                                >
-                                  Suplemento: +S/. {formGemTypePrices[item.id]}
+
+                                <div style={{ fontSize: "10px", color: "#64748b", marginBottom: "6px" }}>
+                                  {item.hint}
                                 </div>
-                              )}
-                            </div>
-                          ))}
+
+                                {isEnabled ? (
+                                  <>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
+                                      <span style={{ fontSize: "12px", color: "#526359", fontWeight: "600" }}>+S/.</span>
+                                      <input
+                                        type="number"
+                                        min="0"
+                                        value={formGemTypePrices[item.id] ?? "0"}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          setFormGemTypePrices((prev) => ({
+                                            ...prev,
+                                            [item.id]: val,
+                                          }));
+                                        }}
+                                        placeholder="0"
+                                        style={{
+                                          width: "100%",
+                                          padding: "4px 8px",
+                                          fontSize: "12.5px",
+                                          fontWeight: "600",
+                                          border: "1px solid #c7dcd0",
+                                          borderRadius: "6px",
+                                          background: "#ffffff",
+                                        }}
+                                      />
+                                    </div>
+                                    {Number(formGemTypePrices[item.id] || 0) === 0 ? (
+                                      <div
+                                        style={{
+                                          fontSize: "10.5px",
+                                          fontWeight: "600",
+                                          color: "#166534",
+                                          marginTop: "5px",
+                                          display: "flex",
+                                          alignItems: "center",
+                                          gap: "3px",
+                                        }}
+                                      >
+                                        ✓ Viene incluida
+                                      </div>
+                                    ) : (
+                                      <div
+                                        style={{
+                                          fontSize: "10.5px",
+                                          fontWeight: "600",
+                                          color: "#b45309",
+                                          marginTop: "5px",
+                                        }}
+                                      >
+                                        Suplemento: +S/. {formGemTypePrices[item.id]}
+                                      </div>
+                                    )}
+                                  </>
+                                ) : (
+                                  <div
+                                    style={{
+                                      fontSize: "10.5px",
+                                      color: "#94a3b8",
+                                      fontStyle: "italic",
+                                      background: "#ffffff",
+                                      padding: "6px 8px",
+                                      borderRadius: "6px",
+                                      border: "1px dashed #e2e8f0",
+                                      textAlign: "center",
+                                      marginTop: "6px",
+                                    }}
+                                  >
+                                    ✕ No ofrecida para esta joya
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
                         </div>
                       </div>
 

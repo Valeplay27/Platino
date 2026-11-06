@@ -777,7 +777,7 @@ export default function GemstonesCatalog() {
                         <div className="gem-card-cert-row">
                           <span>
                             <i className="bi bi-shield-check" style={{ color: "#C6AC7F", marginRight: "4px" }}></i>
-                            Inscripción Láser:{" "}
+                            Certificado:{" "}
                             {getGemCertificateUrl(gem) ? (
                               <a
                                 href={getGemCertificateUrl(gem)}
@@ -872,7 +872,7 @@ export default function GemstonesCatalog() {
                     <div className="atelier-step-arrow">→</div>
                     <div className="atelier-step">
                       <span className="step-num">2</span>
-                      <span className="step-text">Selecciona tu Montura en Oro 18k</span>
+                      <span className="step-text">Selecciona tu Montura</span>
                     </div>
                     <div className="atelier-step-arrow">→</div>
                     <div className="atelier-step">

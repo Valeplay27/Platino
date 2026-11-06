@@ -18,7 +18,7 @@ import { useAuth } from "../context/useAuth";
 import { isUserFavorite, toggleUserFavorite } from "../services/favoritesService";
 import { getPlatinoCareConfig } from "../services/platinoCareService";
 import { DiamondCutIcon } from "../components/GemstoneIcons";
-import CompromisoConfigurator, { COMPROMISO_GEM_TYPES } from "../components/CompromisoConfigurator";
+import CompromisoConfigurator, { COMPROMISO_GEM_TYPES, getProductGemTypes } from "../components/CompromisoConfigurator";
 import { getAssetUrl } from "../utils/assetHelper";
 import { fixMojibake } from "../utils/textHelper";
 import { setLastViewedProduct } from "../services/recentProducts";
@@ -285,6 +285,7 @@ export default function Product({ addToCart }) {
     prodSubtype.startsWith("collares") ||
     ["cadenas", "pulseras", "tobilleras", "juegos", "relojes", "porta-aros", "copas-decoradas", "cuadros"].includes(prodSubtype);
   const isAnillo = (prodType === "anillo" || (!isAros && !isAccesorio)) && !isAccesorio;
+  const totalConfigSteps = (!product.hasGemSelection || isAccesorio) ? 2 : 3;
   const isCompromisoOrPromesa =
     !isAros &&
     !isAccesorio &&
@@ -300,8 +301,11 @@ export default function Product({ addToCart }) {
   const [engravingText, setEngravingText] = useState("");
 
   useEffect(() => {
-    setSelectedGemType(COMPROMISO_GEM_TYPES[0]);
+    const availGems = getProductGemTypes(product);
+    setSelectedGemType(availGems?.[0] || COMPROMISO_GEM_TYPES[0]);
     setEngravingText("");
+    setSelectedSizeDama("asesor");
+    setSelectedSizeVaron("asesor");
   }, [product?.id]);
 
 
@@ -316,7 +320,7 @@ export default function Product({ addToCart }) {
   }, [product?.id, isAros, isVaronSingleRing]);
 
   const [selectedSizeDama, setSelectedSizeDama] = useState("asesor");
-  const [selectedSizeVaron, setSelectedSizeVaron] = useState("20");
+  const [selectedSizeVaron, setSelectedSizeVaron] = useState("asesor");
   const [sizeGuideOpen, setSizeGuideOpen] = useState(false);
   const [sizeGuideTab, setSizeGuideTab] = useState(isAros ? "ambos" : "dama");
 
@@ -1120,7 +1124,7 @@ export default function Product({ addToCart }) {
           {currentStep === 1 && (
             <div className="step-pane step-pane-1">
               <div className="step-mini-header">
-                <span className="step-tag-pill">Paso 1 de {isAccesorio ? "2" : "3"}</span>
+                <span className="step-tag-pill">Paso 1 de {totalConfigSteps}</span>
                 <h3 className="step-heading-text">Personaliza las Características</h3>
               </div>
 
@@ -1196,7 +1200,7 @@ export default function Product({ addToCart }) {
                             onChange={(e) => setSelectedSizeDama(e.target.value)}
                             className="select-talla-dropdown"
                           >
-                            <option value="asesor">¿No sabes tu talla? Asesoramiento</option>
+                            <option value="asesor">¿No sabes tu talla? Solicitar asesoramiento de medida</option>
                             {DAMA_SIZES.map((sz) => {
                               const avail = getSizeAvailability(productStock, "dama", sz.number);
                               return (
@@ -1220,7 +1224,7 @@ export default function Product({ addToCart }) {
                             onChange={(e) => setSelectedSizeVaron(e.target.value)}
                             className="select-talla-dropdown"
                           >
-                            <option value="asesor">¿No sabes tu talla? Asesoramiento</option>
+                            <option value="asesor">¿No sabes tu talla? Solicitar asesoramiento de medida</option>
                             {VARON_SIZES.map((sz) => {
                               const avail = getSizeAvailability(productStock, "varon", sz.number);
                               return (
@@ -1234,19 +1238,25 @@ export default function Product({ addToCart }) {
                       </div>
 
                       {/* Banner de Asesoría de Medida Unificado a todo el ancho */}
-                      <div className="size-advice-banner double-advice-banner">
-                        <div className="size-advice-text">
+                      <div className="size-advice-whatsapp-box" style={{ marginTop: "12px", marginBottom: "8px" }}>
+                        <div className="size-advice-whatsapp-text">
                           <i className="bi bi-question-circle"></i>
                           <span>¿No están seguros de la medida exacta de dama o varón?</span>
                         </div>
-                        <button
-                          type="button"
-                          className="btn-open-size-advice"
-                          onClick={() => setSizeAdviceModalOpen(true)}
+                        <a
+                          href={`https://wa.me/51927357217?text=${encodeURIComponent(`¡Hola Platino Perú! Deseo recibir asesoramiento sobre las medidas exactas de dama y varón para las alianzas *${product.name}* en ${selectedMetal?.name || "Platino"}.`)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn-size-whatsapp"
                         >
-                          Asesoría de Medida
-                        </button>
+                          <i className="bi bi-whatsapp"></i>
+                          <span>ASESORAMIENTO VÍA WHATSAPP</span>
+                        </a>
                       </div>
+
+                      <p className="size-price-note" style={{ marginBottom: "14px" }}>
+                        *Precio válido de la web: Tallas Americanas (4 al 8) o Tallas Nacionales (8 al 17). Otras medidas consulta para la cotización
+                      </p>
 
                       {/* Stock Resumen Elegante para Ambos Aros */}
                       <div className="double-stock-cards-container">
@@ -1343,19 +1353,25 @@ export default function Product({ addToCart }) {
                         })}
                       </select>
 
-                      <div className="size-advice-banner">
-                        <div className="size-advice-text">
+                      <div className="size-advice-whatsapp-box" style={{ marginTop: "12px", marginBottom: "8px" }}>
+                        <div className="size-advice-whatsapp-text">
                           <i className="bi bi-question-circle"></i>
                           <span>¿No estás seguro de la talla?</span>
                         </div>
-                        <button
-                          type="button"
-                          className="btn-open-size-advice"
-                          onClick={() => setSizeAdviceModalOpen(true)}
+                        <a
+                          href={`https://wa.me/51927357217?text=${encodeURIComponent(`¡Hola Platino Perú! Deseo recibir asesoramiento sobre la medida y talla exacta para la joya *${product.name}* en ${selectedMetal?.name || "Platino"}.`)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn-size-whatsapp"
                         >
-                          Asesoría de Medida
-                        </button>
+                          <i className="bi bi-whatsapp"></i>
+                          <span>ASESORAMIENTO VÍA WHATSAPP</span>
+                        </a>
                       </div>
+
+                      <p className="size-price-note" style={{ marginBottom: "14px" }}>
+                        *Precio válido de la web: Tallas Americanas (4 al 8) o Tallas Nacionales (8 al 17). Otras medidas consulta para la cotización
+                      </p>
 
                       {/* Stock General por Talla (Dama) */}
                       {selectedSizeDama !== "asesor" && (
@@ -1504,9 +1520,52 @@ export default function Product({ addToCart }) {
           {currentStep === 2 && !isAccesorio && product.hasGemSelection && (
             <div className="step-pane step-pane-2">
               <div className="step-mini-header">
-                <span className="step-tag-pill">Paso 2 de 3</span>
-                <h3 className="step-heading-text">Elige la Forma de tu Gema</h3>
+                <span className="step-tag-pill">Paso 2 de {totalConfigSteps}</span>
+                <h3 className="step-heading-text">Elige tu Pedrería y Gema</h3>
               </div>
+
+              {/* Selección de Tipo de Gema / Pedrería (Zirconita, Moissanita, Diamantes) */}
+              {(() => {
+                const availGems = getProductGemTypes(product);
+                if (!availGems || availGems.length === 0) return null;
+                return (
+                  <div className="config-block" style={{ marginBottom: "24px" }}>
+                    <div className="config-block-header-inline" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "12px" }}>
+                      <span className="config-block-title-bold" style={{ fontSize: "13px", fontWeight: "700", color: "#113B3A", textTransform: "uppercase" }}>
+                        Selección de Gema
+                      </span>
+                      <span className="config-block-value-text" style={{ fontSize: "12.5px", fontWeight: "600", color: "#166534" }}>
+                        {selectedGemType?.name || "Zirconita"}
+                      </span>
+                    </div>
+
+                    <div className="gem-types-grid">
+                      {availGems.map((gem) => {
+                        const isSel = selectedGemType?.id === gem.id;
+                        return (
+                          <div
+                            key={gem.id}
+                            className={`gem-type-card ${isSel ? "selected" : ""}`}
+                            onClick={() => setSelectedGemType(gem)}
+                          >
+                            <div className="gem-type-icon">
+                              <DiamondCutIcon shape={selectedGemShape?.id || product?.gemShape || "redondo"} size={30} />
+                            </div>
+                            <div className="gem-type-cut-strip">
+                              CORTE {(selectedGemShape?.name || product?.gemShape || "REDONDO").toUpperCase()} | {product?.gemDimensions || "6.0mm"}
+                            </div>
+                            <h4 className="gem-type-name">{gem.name}</h4>
+                            {gem.subtitle && <span className="gem-type-subtitle">{gem.subtitle}</span>}
+                            {gem.certificateBadge && (
+                              <span className="gem-type-cert-badge">{gem.certificateBadge}</span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
 
               <div className="config-block">
                 <div className="config-block-header">
@@ -1650,7 +1709,7 @@ export default function Product({ addToCart }) {
             <div className="step-pane step-pane-3">
               <div className="step-mini-header">
                 <span className="step-tag-pill">
-                  Paso {!product.hasGemSelection || isAccesorio ? "2 de 2" : "3 de 3"}
+                  Paso {totalConfigSteps} de {totalConfigSteps}
                 </span>
                 <h3 className="step-heading-text">Complementos, Garantía y Estuche</h3>
               </div>
