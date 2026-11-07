@@ -224,7 +224,7 @@ export default function LibroReclamaciones() {
               {/* Datos de la Empresa Proveedora */}
               <div style={{ background: "#F2F9F2", border: "1px solid #d5e5d5", borderRadius: "8px", padding: "12px 16px", fontSize: "12.5px", color: "#113B3A", lineHeight: "1.5" }}>
                 <div><strong style={{ color: "#C6AC7F" }}>Razón Social:</strong> {PROVEEDOR_INFO.razonSocial} | <strong style={{ color: "#C6AC7F" }}>RUC:</strong> {PROVEEDOR_INFO.ruc}</div>
-                <div><strong>Sede Miraflores:</strong> Av. José Larco 345, Miraflores, Lima | <strong>Sede Lima Centro:</strong> Jr. de la Unión 446, Lima</div>
+                <div><strong>Sede Miraflores:</strong> Av. José Larco 345 Tda S-9, Miraflores, Lima | <strong>Sede Lima Centro:</strong> Jr. de la Unión 446 Tda 128, Lima</div>
               </div>
             </div>
 
@@ -467,8 +467,8 @@ export default function LibroReclamaciones() {
                       onChange={(e) => setSedeId(e.target.value)}
                       style={{ width: "100%", padding: "10px 12px", border: "1.5px solid #d5e0d9", borderRadius: "6px", fontSize: "13.5px", boxSizing: "border-box" }}
                     >
-                      <option value="miraflores">Sede Miraflores (Av. José Larco 345)</option>
-                      <option value="lima-centro">Sede Lima Centro (Jr. de la Unión 446)</option>
+                      <option value="miraflores">Sede Miraflores (Av. José Larco 345 Tda S-9)</option>
+                      <option value="lima-centro">Sede Lima Centro (Jr. de la Unión 446 Tda 128)</option>
                       <option value="virtual">Tienda Virtual / Web Platino</option>
                     </select>
                   </div>

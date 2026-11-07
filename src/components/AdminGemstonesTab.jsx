@@ -552,11 +552,11 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                 </div>
               </div>
 
-              {/* 3. COLOR DE DIAMANTE & TONALIDAD DE GEMA */}
+              {/* 3. ESCALA DE COLOR & TONALIDAD DE GEMA */}
               <div className="form-row-2">
                 <div className="form-field-group">
                   <label className="form-label-bold">
-                    Color de Diamante (Escala GIA)
+                    Escala de Color
                   </label>
                   <select
                     value={formData.color}
@@ -567,7 +567,9 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                   >
                     {DIAMOND_COLORS.map((col) => (
                       <option key={col} value={col}>
-                        Color {col} {col === "D" ? "(Incoloro Máximo)" : col === "Fancy" ? "(Color Fantasía)" : ""}
+                        {col.startsWith("GEM") || ["AAA", "AA", "A", "B - C"].includes(col)
+                          ? col
+                          : `Color ${col} ${col === "D" ? "(Incoloro Máximo)" : col === "Fancy" ? "(Color Fantasía)" : ""}`}
                       </option>
                     ))}
                   </select>

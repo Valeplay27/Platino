@@ -252,36 +252,44 @@ export default function CartDrawer({
 
                     {/* Tags de especificación de la joya */}
                     <div className="cart-drawer-item-tags">
-                      {(item.selectedMetal || item.metal) && (
+                      {Boolean(item.selectedMetal || item.metal) && (
                         <span className="cart-drawer-tag-pill metal">
                           <i className="bi bi-gem"></i>
-                          {item.selectedMetal || item.metal} {item.metalPrice ? `(${formatPrice(item.metalPrice)})` : ""}
+                          {typeof (item.selectedMetal || item.metal) === "object"
+                            ? (item.selectedMetal?.name || item.metal?.name || "Oro 18k")
+                            : String(item.selectedMetal || item.metal)} {item.metalPrice ? `(${formatPrice(item.metalPrice)})` : ""}
                         </span>
                       )}
 
-                      {(item.selectedShape || item.selectedGemShape) && (
+                      {Boolean(item.selectedShape || item.selectedGemShape) && (
                         <span className="cart-drawer-tag-pill">
                           <i className="bi bi-diamond"></i>
-                          Corte {item.selectedShape || item.selectedGemShape} {item.shapePrice > 0 ? `(+${formatPrice(item.shapePrice)})` : ""}
+                          Corte {typeof (item.selectedShape || item.selectedGemShape) === "object"
+                            ? (item.selectedShape?.name || item.selectedGemShape?.name || "")
+                            : String(item.selectedShape || item.selectedGemShape)} {item.shapePrice > 0 ? `(+${formatPrice(item.shapePrice)})` : ""}
                         </span>
                       )}
 
-                      {(item.selectedGemstone || item.gemstone) && (
+                      {Boolean(item.selectedGemstone || item.gemstone) && (
                         <span className="cart-drawer-tag-pill">
-                          💎 {item.selectedGemstone || item.gemstone} {item.gemPrice > 0 ? `(+${formatPrice(item.gemPrice)})` : ""}
+                          💎 {typeof (item.selectedGemstone || item.gemstone) === "object"
+                            ? (item.selectedGemstone?.name || item.gemstone?.name || "")
+                            : String(item.selectedGemstone || item.gemstone)} {item.gemPrice > 0 ? `(+${formatPrice(item.gemPrice)})` : ""}
                         </span>
                       )}
 
-                      {(item.selectedSize || item.size) && (
+                      {Boolean(item.selectedSize || item.size) && (
                         <span className="cart-drawer-tag-pill">
                           <i className="bi bi-rulers"></i>
-                          {item.selectedSize || item.size}
+                          {typeof (item.selectedSize || item.size) === "object"
+                            ? (item.selectedSize?.name || item.size?.name || "")
+                            : String(item.selectedSize || item.size)}
                         </span>
                       )}
 
-                      {item.engraving && (
+                      {Boolean(item.engraving) && (
                         <span className="cart-drawer-tag-pill engraving">
-                          <i className="bi bi-pen"></i> Grabado personalizado
+                          <i className="bi bi-pen"></i> {typeof item.engraving === "object" ? (item.engraving?.text || "Grabado personalizado") : String(item.engraving)}
                         </span>
                       )}
 
@@ -331,6 +339,8 @@ export default function CartDrawer({
                             }
                           }}
                           aria-label="Aumentar cantidad"
+                          disabled={item.isGemstone && item.quantity >= (Number(item.stockUnits) || 0)}
+                          title={item.isGemstone ? `Stock disponible: ${item.stockUnits || 0}` : undefined}
                         >
                           +
                         </button>

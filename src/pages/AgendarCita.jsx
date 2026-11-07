@@ -245,7 +245,7 @@ export default function AgendarCita() {
               <span className="step-number">2</span> Fecha y Hora de Atención
             </h3>
             <p className="booking-section-desc">
-              Atención personalizada para asesoría en joyería fina, alianzas de boda y anillos de compromiso. De Lunes a Sábado de 10:00 am a 7:00 pm (Refrigerio de 1:00 pm a 2:00 pm).
+              Atención personalizada para asesoría en joyería fina, alianzas de boda y anillos de compromiso. De Lunes a Sábado de 10:00 am a 7:00 pm (Refrigerio de 1:30 pm a 2:50 pm).
             </p>
 
             <div className="datetime-container">

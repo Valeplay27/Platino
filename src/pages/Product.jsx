@@ -95,24 +95,40 @@ export default function Product({ addToCart }) {
     setSelectedSizeDama("asesor");
   }, [product.id]);
 
-  const [selectedMetal, setSelectedMetal] = useState(() => {
-    if (product.availableMetals && product.availableMetals.length > 0) {
-      const match = product.availableMetals.find(
-        (m) => m.name === product.selectedMetal || m.id === product.selectedMetal
-      );
-      return match || product.availableMetals[0];
+  const normalizeMetal = (m, fallbackName = "Oro 18k Blanco") => {
+    if (!m) return { id: "oro-18k-blanco", name: fallbackName, color: "#e8eaeb", border: "#c2c7c8" };
+    if (typeof m === "string") {
+      const id = m.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+      return { id, name: m, color: "#e8eaeb", border: "#c2c7c8" };
     }
-    return { name: product.selectedMetal || "Oro 18k Blanco", id: "oro-18k-blanco", color: "#e8eaeb", border: "#c2c7c8" };
+    return {
+      id: m.id || m.name?.toLowerCase()?.replace(/[^a-z0-9]+/g, "-") || "oro-18k-blanco",
+      name: m.name || m.id || fallbackName,
+      color: m.color || "#e8eaeb",
+      border: m.border || "#c2c7c8",
+    };
+  };
+
+  const [selectedMetal, setSelectedMetal] = useState(() => {
+    if (product?.availableMetals && product.availableMetals.length > 0) {
+      const match = product.availableMetals.find(
+        (m) => (typeof m === "object" ? (m.name === product.selectedMetal || m.id === product.selectedMetal) : m === product.selectedMetal)
+      );
+      return normalizeMetal(match || product.availableMetals[0], product?.selectedMetal);
+    }
+    return normalizeMetal(null, product?.selectedMetal);
   });
 
   useEffect(() => {
-    if (product.availableMetals && product.availableMetals.length > 0) {
+    if (product?.availableMetals && product.availableMetals.length > 0) {
       const match = product.availableMetals.find(
-        (m) => m.name === product.selectedMetal || m.id === product.selectedMetal
+        (m) => (typeof m === "object" ? (m.name === product.selectedMetal || m.id === product.selectedMetal) : m === product.selectedMetal)
       );
-      setSelectedMetal(match || product.availableMetals[0]);
+      setSelectedMetal(normalizeMetal(match || product.availableMetals[0], product?.selectedMetal));
+    } else {
+      setSelectedMetal(normalizeMetal(null, product?.selectedMetal));
     }
-  }, [product.id, product.availableMetals, product.selectedMetal]);
+  }, [product?.id, product?.availableMetals, product?.selectedMetal]);
 
   // Galería de imágenes (respeta la secuencia exacta configurada por material + estuche)
   const galleryImages = useMemo(() => {
@@ -371,59 +387,88 @@ export default function Product({ addToCart }) {
     }
   }, [product.id, product.defaultGemShape, configuredGemShapes]);
 
-  // Presentación / Opciones de Estuches con fotos y detalles
+  // Presentación / Opciones de Estuches con fotos y detalles (filtrando solo los activos)
   const presentationOptionsList = useMemo(() => {
-    const rawOptions = (product.presentationOptions && product.presentationOptions.length > 0)
-      ? product.presentationOptions
-      : [
-          {
-            id: "caja-verde-lujo",
-            name: "Caja de Lujo Esmeralda Platino (Recomendado)",
-            price: Number(product.boxPrices?.["caja-verde-lujo"] ?? 0),
-            image: product.boxImage || "/images/detail-box-green.jpg",
-            description: "Estuche rígido icónico verde esmeralda Platino con interior de gamuza aterciopelada y detalles dorados."
-          },
-          {
-            id: "estuche-terciopelo",
-            name: "Estuche de Terciopelo Negro Nupcial",
-            price: Number(product.boxPrices?.["estuche-terciopelo"] ?? 25),
-            image: "/images/box-presentation.jpg",
-            description: "Estuche premium de terciopelo negro mate tacto suave, ideal para pedida de mano y bodas."
-          },
-          {
-            id: "caja-madera",
-            name: "Caja de Madera Laqueada con Luz LED Nupcial",
-            price: Number(product.boxPrices?.["caja-madera"] ?? 60),
-            image: "/images/detail-packaging.jpg",
-            description: "Caja de madera noble con acabado piano brillante e iluminación LED focalizada al abrir para máxima sorpresa."
-          }
-        ];
+    let rawOptions = [];
+    if (Array.isArray(product.presentationOptions) && product.presentationOptions.length > 0) {
+      rawOptions = product.presentationOptions;
+    } else if (Array.isArray(product.allPresentationBoxes) && product.allPresentationBoxes.length > 0) {
+      rawOptions = product.allPresentationBoxes;
+    } else {
+      rawOptions = [
+        {
+          id: "caja-verde-lujo",
+          name: "Caja de Lujo Esmeralda Platino (Recomendado)",
+          price: Number(product.boxPrices?.["caja-verde-lujo"] ?? 0),
+          image: product.boxImage || "/images/detail-box-green.jpg",
+          description: "Estuche rígido icónico verde esmeralda Platino con interior de gamuza aterciopelada y detalles dorados."
+        },
+        {
+          id: "estuche-terciopelo",
+          name: "Estuche de Terciopelo Negro Nupcial",
+          price: Number(product.boxPrices?.["estuche-terciopelo"] ?? 25),
+          image: "/images/box-presentation.jpg",
+          description: "Estuche premium de terciopelo negro mate tacto suave, ideal para pedida de mano y bodas."
+        },
+        {
+          id: "caja-madera",
+          name: "Caja de Madera Laqueada con Luz LED Nupcial",
+          price: Number(product.boxPrices?.["caja-madera"] ?? 60),
+          image: "/images/detail-packaging.jpg",
+          description: "Caja de madera noble con acabado piano brillante e iluminación LED focalizada al abrir para máxima sorpresa."
+        }
+      ];
+    }
 
-    return rawOptions.map((opt) => {
+    // Filtrar solo las que estén activas
+    const enabledOnly = rawOptions.filter((opt) => {
+      if (opt.enabled === false) return false;
+      if (product.enabledBoxes && product.enabledBoxes[opt.id] === false) return false;
+      return true;
+    });
+
+    const defaultFallbackBox = {
+      id: "caja-verde-lujo",
+      name: "Caja Verde Platino",
+      price: 0,
+      image: product?.boxImage || "/images/detail-box-green.jpg",
+      description: "Estuche oficial Platino Perú incluido."
+    };
+    const activeList = enabledOnly.length > 0
+      ? enabledOnly
+      : (rawOptions.length > 0 && rawOptions[0] ? [rawOptions[0]] : [defaultFallbackBox]);
+
+    return activeList.map((opt) => {
       const customPrice = product.boxPrices && product.boxPrices[opt.id] !== undefined
         ? Number(product.boxPrices[opt.id])
         : Number(opt.price ?? 0);
 
+      const customName = product.boxNames?.[opt.id] || opt.name;
+      const customImage = product.boxImages?.[opt.id] || opt.image;
+
       return {
         ...opt,
+        name: customName,
         price: isNaN(customPrice) ? 0 : customPrice,
-        image: opt.image || (opt.id === "estuche-terciopelo"
+        image: customImage || (opt.id === "estuche-terciopelo"
           ? "/images/box-presentation.jpg"
           : opt.id === "caja-madera"
           ? "/images/detail-packaging.jpg"
           : (product.boxImage || "/images/detail-box-green.jpg")),
-        description: opt.description || (opt.id === "estuche-terciopelo"
-          ? "Estuche premium de terciopelo negro mate tacto suave, ideal para pedida de mano y bodas."
-          : opt.id === "caja-madera"
-          ? "Caja de madera noble con acabado piano brillante e iluminación LED focalizada al abrir para máxima sorpresa."
-          : "Estuche rígido icónico verde esmeralda Platino con interior de gamuza aterciopelada y detalles dorados.")
+        description: opt.description || "Estuche de presentación oficial Platino Perú con interiores finos."
       };
     });
-  }, [product.presentationOptions, product.boxPrices, product.boxNames, product.boxImage]);
+  }, [product.presentationOptions, product.allPresentationBoxes, product.enabledBoxes, product.boxPrices, product.boxNames, product.boxImages, product.boxImage]);
 
   const [selectedPresentation, setSelectedPresentation] = useState(
     product.presentationOptions?.[0]?.id || "caja-verde-lujo"
   );
+
+  useEffect(() => {
+    if (presentationOptionsList.length > 0 && !presentationOptionsList.some((p) => p.id === selectedPresentation)) {
+      setSelectedPresentation(presentationOptionsList[0].id);
+    }
+  }, [presentationOptionsList, selectedPresentation]);
 
   const selectedPresentationObj = useMemo(() => {
     return presentationOptionsList.find((p) => p.id === selectedPresentation) || presentationOptionsList[0];
@@ -437,12 +482,13 @@ export default function Product({ addToCart }) {
 
   // Precio total para el pedido final (resumen modal, carrito, WhatsApp)
   const totalCompromisoPrice = useMemo(() => {
-    return (
+    return Math.max(
+      0,
       currentMetalPrice +
       (selectedPresentationObj?.price || 0) +
-      (selectedGemType?.priceDelta || 0)
+      (selectedGemType?.isQuoteOnly ? 0 : (selectedGemType?.priceDelta || 0))
     );
-  }, [currentMetalPrice, selectedPresentationObj?.price, selectedGemType?.priceDelta]);
+  }, [currentMetalPrice, selectedPresentationObj?.price, selectedGemType]);
 
   // Precio dinámico visible en la cabecera según el paso activo:
   // Paso 1: Solo valor del producto/metal (no suma gema ni estuche aún)
@@ -453,10 +499,10 @@ export default function Product({ addToCart }) {
       return currentMetalPrice;
     }
     if (currentStep === 2) {
-      return currentMetalPrice + (selectedGemType?.priceDelta || 0);
+      return Math.max(0, currentMetalPrice + (selectedGemType?.isQuoteOnly ? 0 : (selectedGemType?.priceDelta || 0)));
     }
     return totalCompromisoPrice;
-  }, [currentStep, currentMetalPrice, selectedGemType?.priceDelta, totalCompromisoPrice]);
+  }, [currentStep, currentMetalPrice, selectedGemType, totalCompromisoPrice]);
 
   const [platinoCarePlan, setPlatinoCarePlan] = useState("cortesia"); // 'cortesia' o 'plus'
   const [platinoCareConfig, setPlatinoCareConfig] = useState(() => getPlatinoCareConfig());
@@ -594,8 +640,9 @@ export default function Product({ addToCart }) {
 
   // 2. Función que actualiza el estado con la URL de la imagen correspondiente al presionar un botón de material
   const handleSelectMetal = (metal) => {
-    setSelectedMetal(metal);
-    const newImageUrl = getImageUrlForMetal(metal.id);
+    const norm = normalizeMetal(metal);
+    setSelectedMetal(norm);
+    const newImageUrl = getImageUrlForMetal(norm.id);
     setMainImage(newImageUrl);
     setActiveImageIdx(0);
   };
@@ -630,71 +677,97 @@ export default function Product({ addToCart }) {
     setSummaryModalOpen(true);
   };
 
-  const handleAddToCartDirect = () => {
+  const handleAddToCartDirect = (options = {}) => {
     if (!addToCart) return;
-    if (isCompromisoOrPromesa) {
+    try {
+      const skipConfirmation = options === true || options?.skipConfirmation === true;
+      const openCartDrawer = options?.openCartDrawer !== false;
+      const safeMetalName =
+        selectedMetal?.name ||
+        (typeof selectedMetal === "string" ? selectedMetal : null) ||
+        product?.availableMetals?.[0]?.name ||
+        product?.availableMetals?.[0] ||
+        product?.selectedMetal ||
+        "Oro 18k Blanco";
+
+      const safeShapeName = selectedGemShape?.name || product?.defaultGemShape || "Redondo";
+      const safeGemName = selectedGemType?.name || product?.gem || "Zirconita";
+      const safePresentationName = selectedPresentationObj?.name || "Caja Verde Platino";
+      const safePresentationPrice = Number(selectedPresentationObj?.price || 0);
+      const safeImage = mainImage || product?.image || "/images/cat-compromiso.jpg";
+
+      if (isCompromisoOrPromesa) {
+        const customProduct = {
+          ...product,
+          selectedMetal: safeMetalName,
+          metal: safeMetalName,
+          metalPrice: currentMetalPrice,
+          selectedShape: safeShapeName,
+          selectedGemShape: safeShapeName,
+          shapePrice: selectedGemShapePriceDelta || 0,
+          selectedSize: selectedSizeDama === "asesor" ? "Asesoría de medida" : `Talla ${selectedSizeDama} Nacional`,
+          size: selectedSizeDama === "asesor" ? "Asesoría de medida" : `Talla ${selectedSizeDama} Nacional`,
+          selectedGemstone: safeGemName,
+          gemstone: safeGemName,
+          gemPrice: selectedGemType?.priceDelta || 0,
+          selectedPresentation: safePresentationName,
+          presentationPrice: safePresentationPrice,
+          hasEngraving: Boolean(hasEngraving),
+          engraving: hasEngraving ? (engravingText ? `Sí: "${engravingText}"` : "Sí (A coordinar)") : null,
+          needsSizeAdvice: selectedSizeDama === "asesor",
+          price: totalCompromisoPrice || currentMetalPrice || Number(product?.price) || 0,
+          image: safeImage,
+        };
+        addToCart(customProduct, { skipConfirmation, openCartDrawer });
+        return;
+      }
+
       const customProduct = {
         ...product,
-        selectedMetal: selectedMetal.name,
-        metal: selectedMetal.name,
+        selectedMetal: safeMetalName,
+        metal: safeMetalName,
         metalPrice: currentMetalPrice,
-        selectedShape: selectedGemShape?.name,
-        selectedGemShape: selectedGemShape?.name,
-        shapePrice: selectedGemShapePriceDelta,
-        selectedSize: selectedSizeDama === "asesor" ? "Asesoría de medida" : `Talla ${selectedSizeDama} Nacional`,
-        size: selectedSizeDama === "asesor" ? "Asesoría de medida" : `Talla ${selectedSizeDama} Nacional`,
-        selectedGemstone: selectedGemType.name,
-        gemstone: selectedGemType.name,
-        gemPrice: selectedGemType?.priceDelta || 0,
-        selectedPresentation: selectedPresentationObj?.name,
-        presentationPrice: selectedPresentationObj?.price || 0,
-        hasEngraving,
-        engraving: hasEngraving ? (engravingText ? `Sí: "${engravingText}"` : "Sí (A coordinar)") : null,
-        needsSizeAdvice: selectedSizeDama === "asesor",
-        price: totalCompromisoPrice,
-        image: mainImage || product.image,
+        selectedShape: product?.hasGemSelection ? safeShapeName : undefined,
+        selectedGemShape: product?.hasGemSelection ? safeShapeName : undefined,
+        shapePrice: selectedGemShapePriceDelta || 0,
+        selectedSize:
+          isAros && targetGender === "ambos"
+            ? `Dama: ${selectedSizeDama === "asesor" ? "Asesoría" : selectedSizeDama} / Varón: ${selectedSizeVaron === "asesor" ? "Asesoría" : selectedSizeVaron}`
+            : targetGender === "varon"
+            ? `Varón: ${selectedSizeVaron === "asesor" ? "Asesoría de medida" : selectedSizeVaron}`
+            : `Mujer: ${selectedSizeDama === "asesor" ? "Asesoría de medida" : selectedSizeDama}`,
+        size:
+          isAros && targetGender === "ambos"
+            ? `Dama: ${selectedSizeDama === "asesor" ? "Asesoría" : selectedSizeDama} / Varón: ${selectedSizeVaron === "asesor" ? "Asesoría" : selectedSizeVaron}`
+            : targetGender === "varon"
+            ? `Varón: ${selectedSizeVaron === "asesor" ? "Asesoría de medida" : selectedSizeVaron}`
+            : `Mujer: ${selectedSizeDama === "asesor" ? "Asesoría de medida" : selectedSizeDama}`,
+        selectedGemstone: product?.hasGemSelection ? safeShapeName : undefined,
+        gemstone: product?.hasGemSelection ? safeShapeName : undefined,
+        hasEngraving: Boolean(hasEngraving),
+        engraving: hasEngraving ? "Sí solicita (Personalización por WhatsApp)" : null,
+        needsSizeAdvice:
+          (isAros && targetGender === "ambos" && (selectedSizeDama === "asesor" || selectedSizeVaron === "asesor")) ||
+          (targetGender === "varon" ? selectedSizeVaron === "asesor" : selectedSizeDama === "asesor"),
+        stockUnits: currentTotalStock,
+        deliveryDays: shouldShowDelivery ? deliveryDays : undefined,
+        estimatedDeliveryDate: shouldShowDelivery ? deliveryDateFormatted : undefined,
+        selectedPresentation: safePresentationName,
+        presentationPrice: safePresentationPrice,
+        platinoCarePlan: platinoCarePlan,
+        platinoCareTitle: platinoCarePlan === "plus" ? "Platino Care + (Premium)" : "Platino Care Cortesía",
+        price: currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + (selectedGemShapePriceDelta || 0) + safePresentationPrice,
+        image: safeImage,
       };
-      addToCart(customProduct);
-      return;
+      addToCart(customProduct, { skipConfirmation, openCartDrawer });
+    } catch (err) {
+      console.error("Error en handleAddToCartDirect:", err);
+      addToCart({
+        ...product,
+        price: Number(product?.price) || 0,
+        image: mainImage || product?.image || "/images/cat-compromiso.jpg",
+      });
     }
-    const customProduct = {
-      ...product,
-      selectedMetal: selectedMetal.name,
-      metal: selectedMetal.name,
-      metalPrice: currentMetalPrice,
-      selectedShape: product.hasGemSelection ? selectedGemShape?.name : undefined,
-      selectedGemShape: product.hasGemSelection ? selectedGemShape?.name : undefined,
-      shapePrice: selectedGemShapePriceDelta,
-      selectedSize:
-        isAros && targetGender === "ambos"
-          ? `Dama: ${selectedSizeDama === "asesor" ? "Asesoría" : selectedSizeDama} / Varón: ${selectedSizeVaron === "asesor" ? "Asesoría" : selectedSizeVaron}`
-          : targetGender === "varon"
-          ? `Varón: ${selectedSizeVaron === "asesor" ? "Asesoría de medida" : selectedSizeVaron}`
-          : `Mujer: ${selectedSizeDama === "asesor" ? "Asesoría de medida" : selectedSizeDama}`,
-      size:
-        isAros && targetGender === "ambos"
-          ? `Dama: ${selectedSizeDama === "asesor" ? "Asesoría" : selectedSizeDama} / Varón: ${selectedSizeVaron === "asesor" ? "Asesoría" : selectedSizeVaron}`
-          : targetGender === "varon"
-          ? `Varón: ${selectedSizeVaron === "asesor" ? "Asesoría de medida" : selectedSizeVaron}`
-          : `Mujer: ${selectedSizeDama === "asesor" ? "Asesoría de medida" : selectedSizeDama}`,
-      selectedGemstone: product.hasGemSelection ? selectedGemShape.name : undefined,
-      gemstone: product.hasGemSelection ? selectedGemShape.name : undefined,
-      hasEngraving,
-      engraving: hasEngraving ? "Sí solicita (Personalización por WhatsApp)" : null,
-      needsSizeAdvice:
-        (isAros && targetGender === "ambos" && (selectedSizeDama === "asesor" || selectedSizeVaron === "asesor")) ||
-        (targetGender === "varon" ? selectedSizeVaron === "asesor" : selectedSizeDama === "asesor"),
-      stockUnits: currentTotalStock,
-      deliveryDays: shouldShowDelivery ? deliveryDays : undefined,
-      estimatedDeliveryDate: shouldShowDelivery ? deliveryDateFormatted : undefined,
-      selectedPresentation: selectedPresentationObj?.name,
-      presentationPrice: selectedPresentationObj?.price || 0,
-      platinoCarePlan: platinoCarePlan,
-      platinoCareTitle: platinoCarePlan === "plus" ? "Platino Care + (Premium)" : "Platino Care Cortesía",
-      price: currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta + (selectedPresentationObj?.price || 0),
-      image: mainImage || product.image,
-    };
-    addToCart(customProduct);
   };
 
   const getWhatsAppMessageUrl = () => {
@@ -1064,7 +1137,7 @@ export default function Product({ addToCart }) {
         </div>
 
         {/* Columna Derecha: Configurador */}
-        <div className="product-config-side">
+        <div className={`product-config-side ${isCompromisoOrPromesa ? "product-config-side-compromiso" : ""}`}>
           <div className="config-header-row">
             <h1 className="config-product-title">{fixMojibake(product.name?.replace(/Plata\s*\|\s*/i, "") || product.name)}</h1>
 
@@ -1084,7 +1157,7 @@ export default function Product({ addToCart }) {
                 <i className={isFavorite ? "bi bi-star-fill" : "bi bi-star"} style={{ fontSize: "10px", marginLeft: "2px" }}></i>
               </button>
             </div>
-            {isCompromisoOrPromesa && (
+            {isCompromisoOrPromesa && currentStep === 1 && (
               <p className="config-product-description">
                 {fixMojibake(product.description || "Breve descripción del producto. Breve descripción. Breve descripción del producto. Breve descripción. Breve descripción del producto.")}
               </p>
@@ -1114,7 +1187,7 @@ export default function Product({ addToCart }) {
               setMainImage={setMainImage}
               handleGoBack={handleGoBack}
               totalPrice={totalCompromisoPrice}
-              onAddToCart={handleAddToCartDirect}
+              onAddToCart={(options) => handleAddToCartDirect(options)}
             />
           ) : (
             <>
@@ -2102,46 +2175,56 @@ export default function Product({ addToCart }) {
               </Link>
 
               {addToCart && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    const customProduct = {
-                      ...product,
-                      selectedMetal: selectedMetal.name,
-                      metal: selectedMetal.name,
-                      selectedSize: isAros && targetGender === "ambos"
-                        ? `Dama: ${selectedSizeDama === "asesor" ? "Asesoría" : selectedSizeDama} / Varón: ${selectedSizeVaron === "asesor" ? "Asesoría" : selectedSizeVaron}`
-                        : (targetGender === "varon"
-                            ? `Varón: ${selectedSizeVaron === "asesor" ? "Asesoría de medida" : selectedSizeVaron}`
-                            : `Mujer: ${selectedSizeDama === "asesor" ? "Asesoría de medida" : selectedSizeDama}`),
-                      size: isAros && targetGender === "ambos"
-                        ? `Dama: ${selectedSizeDama === "asesor" ? "Asesoría" : selectedSizeDama} / Varón: ${selectedSizeVaron === "asesor" ? "Asesoría" : selectedSizeVaron}`
-                        : (targetGender === "varon"
-                            ? `Varón: ${selectedSizeVaron === "asesor" ? "Asesoría de medida" : selectedSizeVaron}`
-                            : `Mujer: ${selectedSizeDama === "asesor" ? "Asesoría de medida" : selectedSizeDama}`),
-                      selectedGemstone: product.hasGemSelection ? selectedGemShape.name : undefined,
-                      gemstone: product.hasGemSelection ? selectedGemShape.name : undefined,
-                      hasEngraving,
-                      engraving: hasEngraving ? "Sí solicita (Personalización por WhatsApp)" : null,
-                      needsSizeAdvice: (isAros && targetGender === "ambos" && (selectedSizeDama === "asesor" || selectedSizeVaron === "asesor")) || (targetGender === "varon" ? selectedSizeVaron === "asesor" : selectedSizeDama === "asesor"),
-                      stockUnits: currentTotalStock,
-                      deliveryDays,
-                      estimatedDeliveryDate: deliveryDateFormatted,
-                      selectedPresentation: selectedPresentationObj?.name,
-                      presentationPrice: selectedPresentationObj?.price || 0,
-                      platinoCarePlan: platinoCarePlan,
-                      platinoCareTitle: platinoCarePlan === "plus" ? "Platino Care + (Premium)" : "Platino Care Cortesía",
-                      price: isCompromisoOrPromesa ? totalCompromisoPrice : (currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta + (selectedPresentationObj?.price || 0)),
-                      image: mainImage || product.image,
-                    };
-                    addToCart(customProduct);
-                    setSummaryModalOpen(false);
-                  }}
-                  className="showroom-btn filled"
-                  style={{ borderRadius: "9999px", padding: "14px 20px" }}
-                >
-                  Añadir al Carrito
-                </button>
+                <div style={{ display: "flex", gap: "10px" }}>
+                  <button
+                    type="button"
+                    onClick={() => setSummaryModalOpen(false)}
+                    className="showroom-btn outline"
+                    style={{ flex: 1, borderRadius: "9999px", padding: "14px 20px" }}
+                  >
+                    Modificar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const customProduct = {
+                        ...product,
+                        selectedMetal: selectedMetal.name,
+                        metal: selectedMetal.name,
+                        selectedSize: isAros && targetGender === "ambos"
+                          ? `Dama: ${selectedSizeDama === "asesor" ? "Asesoría" : selectedSizeDama} / Varón: ${selectedSizeVaron === "asesor" ? "Asesoría" : selectedSizeVaron}`
+                          : (targetGender === "varon"
+                              ? `Varón: ${selectedSizeVaron === "asesor" ? "Asesoría de medida" : selectedSizeVaron}`
+                              : `Mujer: ${selectedSizeDama === "asesor" ? "Asesoría de medida" : selectedSizeDama}`),
+                        size: isAros && targetGender === "ambos"
+                          ? `Dama: ${selectedSizeDama === "asesor" ? "Asesoría" : selectedSizeDama} / Varón: ${selectedSizeVaron === "asesor" ? "Asesoría" : selectedSizeVaron}`
+                          : (targetGender === "varon"
+                              ? `Varón: ${selectedSizeVaron === "asesor" ? "Asesoría de medida" : selectedSizeVaron}`
+                              : `Mujer: ${selectedSizeDama === "asesor" ? "Asesoría de medida" : selectedSizeDama}`),
+                        selectedGemstone: product.hasGemSelection ? selectedGemShape.name : undefined,
+                        gemstone: product.hasGemSelection ? selectedGemShape.name : undefined,
+                        hasEngraving,
+                        engraving: hasEngraving ? "Sí solicita (Personalización por WhatsApp)" : null,
+                        needsSizeAdvice: (isAros && targetGender === "ambos" && (selectedSizeDama === "asesor" || selectedSizeVaron === "asesor")) || (targetGender === "varon" ? selectedSizeVaron === "asesor" : selectedSizeDama === "asesor"),
+                        stockUnits: currentTotalStock,
+                        deliveryDays,
+                        estimatedDeliveryDate: deliveryDateFormatted,
+                        selectedPresentation: selectedPresentationObj?.name,
+                        presentationPrice: selectedPresentationObj?.price || 0,
+                        platinoCarePlan: platinoCarePlan,
+                        platinoCareTitle: platinoCarePlan === "plus" ? "Platino Care + (Premium)" : "Platino Care Cortesía",
+                        price: isCompromisoOrPromesa ? totalCompromisoPrice : (currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta + (selectedPresentationObj?.price || 0)),
+                        image: mainImage || product.image,
+                      };
+                      addToCart(customProduct, { skipConfirmation: true });
+                      setSummaryModalOpen(false);
+                    }}
+                    className="showroom-btn filled"
+                    style={{ flex: 1, borderRadius: "9999px", padding: "14px 20px" }}
+                  >
+                    Continuar
+                  </button>
+                </div>
               )}
             </div>
           </div>

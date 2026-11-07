@@ -5,7 +5,7 @@ export const sedesData = [
     id: "lima-centro",
     name: "Sede Lima Centro",
     subtitle: "Platino Perú Joyería Fina",
-    address: "Jr. de la Unión 446, Lima 15001",
+    address: "Jr. de la Unión 446, Tienda 128, Lima 15001",
     district: "Cercado de Lima",
     reference: "En pleno Centro Histórico de Lima, a pasos de la Plaza de Armas",
     mapsUrl: "https://maps.app.goo.gl/fbS5VVr2qUGXLkGk7",
@@ -14,7 +14,7 @@ export const sedesData = [
     whatsapp: "+51927357217",
     whatsappDisplay: "927 357 217",
     hours: "Lunes a Sábado: 10:00 am - 7:00 pm",
-    breakTime: "Refrigerio: 1:00 pm - 2:00 pm",
+    breakTime: "Refrigerio: 1:30 pm a 2:50 pm",
     image: getAssetUrl("/images/showroom.jpg"),
     services: [
       "Exhibición exclusiva de aros de boda y compromiso",
@@ -36,7 +36,7 @@ export const sedesData = [
     whatsapp: "+51984281116",
     whatsappDisplay: "984281116",
     hours: "Lunes a Sábado: 10:00 am - 7:00 pm",
-    breakTime: "Refrigerio: 1:00 pm - 2:00 pm",
+    breakTime: "Refrigerio: 1:30 pm a 2:50 pm",
     image: getAssetUrl("/images/hero-matrimonio.jpg"),
     services: [
       "Atención nupcial privada y personalizada",

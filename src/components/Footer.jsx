@@ -106,7 +106,7 @@ const Footer = () => {
                   title="Ver Sede Lima Centro en Google Maps"
                 >
                   <i className="bi bi-geo-alt" style={{ marginRight: "4px" }}></i>
-                  <strong>Sede Lima:</strong> Jr. de la Unión 446
+                  <strong>Sede Lima:</strong> Jr. de la Unión 446 Tda 128
                 </a>
               </li>
               <li>
@@ -117,14 +117,14 @@ const Footer = () => {
                   title="Ver Sede Miraflores en Google Maps"
                 >
                   <i className="bi bi-geo-alt" style={{ marginRight: "4px" }}></i>
-                  <strong>Sede Miraflores:</strong> Av. José Larco 345
+                  <strong>Sede Miraflores:</strong> Av. José Larco 345 Tda S-9
                 </a>
               </li>
               <li className="hours-item">
                 <span>Lunes a Sábado de 10am a 7pm</span>
               </li>
               <li className="hours-item muted">
-                <span>Refrigerio: 1:00pm a 2:00pm</span>
+                <span>Refrigerio: 1:30pm a 2:50pm</span>
               </li>
             </ul>
           </div>

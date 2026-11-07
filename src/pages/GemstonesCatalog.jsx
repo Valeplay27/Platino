@@ -30,7 +30,7 @@ const formatCutDisplay = (cut) => {
   return s;
 };
 
-export default function GemstonesCatalog({ addToCart }) {
+export default function GemstonesCatalog({ addToCart, cart = [] }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const { user, openAuthModal } = useAuth();
 
@@ -60,16 +60,29 @@ export default function GemstonesCatalog({ addToCart }) {
   const [detailGem, setDetailGem] = useState(null);
   const [modalQty, setModalQty] = useState(1);
   const [cardQuantities, setCardQuantities] = useState({});
+  const [stockNotice, setStockNotice] = useState("");
 
   const getCardQty = (gemId) => cardQuantities[gemId] || 1;
+  const getGemCartKey = (gem) => `gem-${gem.id || gem.certNumber || ""}`;
+  const getRemainingStock = (gem) => {
+    const stockUnits = Math.max(0, Number(gem.units !== undefined ? gem.units : 1) || 0);
+    const cartQty = cart.reduce((total, item) => {
+      const itemKey = item.cartItemId || item.id;
+      return item.isGemstone && itemKey === getGemCartKey(gem)
+        ? total + (Number(item.quantity) || 0)
+        : total;
+    }, 0);
+    return Math.max(0, stockUnits - cartQty);
+  };
 
-  const handleCardQtyChange = (gemId, nextVal) => {
+  const handleCardQtyChange = (gem, nextVal) => {
     const parsed = parseInt(nextVal, 10);
     if (isNaN(parsed) || parsed < 1) {
-      setCardQuantities((prev) => ({ ...prev, [gemId]: 1 }));
+      setCardQuantities((prev) => ({ ...prev, [gem.id]: 1 }));
       return;
     }
-    setCardQuantities((prev) => ({ ...prev, [gemId]: Math.min(9999, Math.max(1, parsed)) }));
+    const maxQty = getRemainingStock(gem);
+    setCardQuantities((prev) => ({ ...prev, [gem.id]: Math.min(maxQty || 1, parsed) }));
   };
 
   useEffect(() => {
@@ -86,8 +99,18 @@ export default function GemstonesCatalog({ addToCart }) {
   };
 
   const handleAddToCart = (gem, qty = 1) => {
-    if (!addToCart) return;
+    if (!addToCart) return false;
     const parsedQty = Math.max(1, parseInt(qty, 10) || 1);
+    const maxQty = getRemainingStock(gem);
+    if (maxQty < 1 || parsedQty > maxQty) {
+      setStockNotice(
+        maxQty < 1
+          ? `Ya no quedan unidades disponibles de ${gem.name}.`
+          : `Solo puedes agregar ${maxQty} ${maxQty === 1 ? "unidad" : "unidades"} de ${gem.name} según el stock disponible.`
+      );
+      return false;
+    }
+
     const unitPrice = Number(gem.price) || 0;
     const isWholesale = gem.wholesaleMinQty && Number(gem.wholesalePrice) > 0 && parsedQty >= Number(gem.wholesaleMinQty);
     const effectivePrice = isWholesale ? Number(gem.wholesalePrice) : unitPrice;
@@ -98,6 +121,7 @@ export default function GemstonesCatalog({ addToCart }) {
       name: gem.name,
       price: effectivePrice,
       basePrice: unitPrice,
+      stockUnits: Math.max(0, Number(gem.units !== undefined ? gem.units : 1) || 0),
       wholesaleMinQty: gem.wholesaleMinQty ? Number(gem.wholesaleMinQty) : null,
       wholesalePrice: gem.wholesalePrice ? Number(gem.wholesalePrice) : null,
       image: getGemImage(gem),
@@ -113,6 +137,8 @@ export default function GemstonesCatalog({ addToCart }) {
       dimensions: gem.dimensions,
     };
     addToCart(cartItem);
+    setStockNotice("");
+    return true;
   };
 
   // Estado reactivo de favoritos del usuario
@@ -373,6 +399,8 @@ export default function GemstonesCatalog({ addToCart }) {
   };
 
   const currentShapeObj = GEM_SHAPES_DATA.find((s) => normalizeShape(s.id) === normalizeShape(selectedShape));
+  const detailGemRemainingQty = detailGem ? getRemainingStock(detailGem) : 0;
+  const currentModalQty = Math.min(modalQty, detailGemRemainingQty || 1);
 
   return (
     <div className="gemstones-page">
@@ -514,9 +542,9 @@ export default function GemstonesCatalog({ addToCart }) {
               </div>
             </div>
 
-            {/* 4. Color de Diamante */}
+            {/* 4. Escala de Color */}
             <div className="filter-group">
-              <label className="filter-label">Color de Diamante (Escala GIA)</label>
+              <label className="filter-label">Escala de Color</label>
               <div className="color-grades-row">
                 <button
                   type="button"
@@ -707,6 +735,23 @@ export default function GemstonesCatalog({ addToCart }) {
             )}
 
             {/* Grid de Gemas */}
+            {stockNotice && (
+              <div
+                role="status"
+                style={{
+                  marginBottom: "16px",
+                  padding: "11px 14px",
+                  border: "1px solid #e8c9a0",
+                  borderRadius: "8px",
+                  background: "#fff8ed",
+                  color: "#704616",
+                  fontSize: "13px",
+                }}
+              >
+                <i className="bi bi-info-circle" style={{ marginRight: "8px" }}></i>
+                {stockNotice}
+              </div>
+            )}
             {filteredGemstones.length === 0 ? (
               <div className="no-gems-found">
                 <i className="bi bi-gem"></i>
@@ -928,7 +973,8 @@ export default function GemstonesCatalog({ addToCart }) {
                           </div>
 
                           {addToCart && (() => {
-                            const currentCardQty = getCardQty(gem.id);
+                            const remainingQty = getRemainingStock(gem);
+                            const currentCardQty = Math.min(getCardQty(gem.id), remainingQty || 1);
                             return (
                               <div className="gem-card-cart-row" style={{ marginBottom: "8px" }}>
                                 <div className="gem-card-qty-stepper">
@@ -937,7 +983,7 @@ export default function GemstonesCatalog({ addToCart }) {
                                     className="btn-card-qty"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleCardQtyChange(gem.id, currentCardQty - 1);
+                                      handleCardQtyChange(gem, currentCardQty - 1);
                                     }}
                                     disabled={currentCardQty <= 1}
                                     title="Restar 1 unidad"
@@ -947,11 +993,12 @@ export default function GemstonesCatalog({ addToCart }) {
                                   <input
                                     type="number"
                                     min="1"
-                                    max="9999"
+                                    max={remainingQty || 1}
                                     value={currentCardQty}
+                                    disabled={remainingQty < 1}
                                     onChange={(e) => {
                                       e.stopPropagation();
-                                      handleCardQtyChange(gem.id, e.target.value);
+                                      handleCardQtyChange(gem, e.target.value);
                                     }}
                                     onClick={(e) => e.stopPropagation()}
                                     className="gem-card-qty-input"
@@ -962,9 +1009,10 @@ export default function GemstonesCatalog({ addToCart }) {
                                     className="btn-card-qty"
                                     onClick={(e) => {
                                       e.stopPropagation();
-                                      handleCardQtyChange(gem.id, currentCardQty + 1);
+                                      handleCardQtyChange(gem, currentCardQty + 1);
                                     }}
-                                    title="Sumar 1 unidad"
+                                    disabled={currentCardQty >= remainingQty}
+                                    title={remainingQty > 0 ? `Stock disponible: ${remainingQty}` : "No quedan unidades disponibles"}
                                   >
                                     <i className="bi bi-plus"></i>
                                   </button>
@@ -977,10 +1025,13 @@ export default function GemstonesCatalog({ addToCart }) {
                                     handleAddToCart(gem, currentCardQty);
                                   }}
                                   className="btn-card-add-gem"
-                                  title={`Añadir ${currentCardQty} ${currentCardQty === 1 ? "unidad" : "unidades"} a tu bolsa de compras`}
+                                  disabled={remainingQty < 1}
+                                  title={remainingQty > 0
+                                    ? `Añadir ${currentCardQty} ${currentCardQty === 1 ? "unidad" : "unidades"} a tu bolsa de compras`
+                                    : "Ya agregaste todas las unidades disponibles"}
                                 >
                                   <i className="bi bi-bag-plus-fill"></i>
-                                  <span>{currentCardQty > 1 ? `Agregar ${currentCardQty} un.` : "Agregar al Carrito"}</span>
+                                  <span>{remainingQty < 1 ? "Stock completo en bolsa" : currentCardQty > 1 ? `Agregar ${currentCardQty} un.` : "Agregar al Carrito"}</span>
                                 </button>
                               </div>
                             );
@@ -1249,7 +1300,7 @@ export default function GemstonesCatalog({ addToCart }) {
                     {detailGem.wholesaleMinQty && Number(detailGem.wholesalePrice) > 0 && (
                       <div className="gem-modal-wholesale-notice">
                         <i className="bi bi-tags-fill"></i>
-                        {modalQty >= Number(detailGem.wholesaleMinQty) ? (
+                        {currentModalQty >= Number(detailGem.wholesaleMinQty) ? (
                           <span>¡Precio mayorista aplicado! (S/. {Number(detailGem.wholesalePrice).toLocaleString("es-PE")} c/u)</span>
                         ) : (
                           <span>Lleva {detailGem.wholesaleMinQty} o más por solo <strong>S/. {Number(detailGem.wholesalePrice).toLocaleString("es-PE")} c/u</strong></span>
@@ -1262,7 +1313,7 @@ export default function GemstonesCatalog({ addToCart }) {
                           type="button"
                           className="gem-qty-btn"
                           onClick={() => setModalQty((q) => Math.max(1, q - 1))}
-                          disabled={modalQty <= 1}
+                          disabled={currentModalQty <= 1}
                           title="Restar 1"
                         >
                           <i className="bi bi-dash"></i>
@@ -1270,14 +1321,15 @@ export default function GemstonesCatalog({ addToCart }) {
                         <input
                           type="number"
                           min="1"
-                          max="9999"
-                          value={modalQty}
+                          max={detailGemRemainingQty || 1}
+                          value={currentModalQty}
+                          disabled={detailGemRemainingQty < 1}
                           onChange={(e) => {
                             const val = parseInt(e.target.value, 10);
                             if (isNaN(val) || val < 1) {
                               setModalQty(1);
                             } else {
-                              setModalQty(Math.min(9999, val));
+                              setModalQty(Math.min(detailGemRemainingQty || 1, val));
                             }
                           }}
                           className="gem-qty-input"
@@ -1286,9 +1338,9 @@ export default function GemstonesCatalog({ addToCart }) {
                         <button
                           type="button"
                           className="gem-qty-btn"
-                          onClick={() => setModalQty((q) => Math.min(9999, q + 1))}
-                          disabled={modalQty >= 9999}
-                          title="Sumar 1"
+                          onClick={() => setModalQty((q) => Math.min(detailGemRemainingQty, q + 1))}
+                          disabled={currentModalQty >= detailGemRemainingQty}
+                          title={`Stock disponible: ${detailGemRemainingQty}`}
                         >
                           <i className="bi bi-plus"></i>
                         </button>
@@ -1298,16 +1350,18 @@ export default function GemstonesCatalog({ addToCart }) {
                         type="button"
                         className="btn-modal-add-cart"
                         onClick={() => {
-                          handleAddToCart(detailGem, modalQty);
+                          const added = handleAddToCart(detailGem, currentModalQty);
+                          if (!added) return;
                           setDetailGem(null);
                         }}
+                        disabled={detailGemRemainingQty < 1}
                       >
                         <i className="bi bi-bag-plus-fill"></i>
                         <span>
                           Agregar a la Bolsa • S/. {(
-                            (detailGem.wholesaleMinQty && Number(detailGem.wholesalePrice) > 0 && modalQty >= Number(detailGem.wholesaleMinQty)
+                            (detailGem.wholesaleMinQty && Number(detailGem.wholesalePrice) > 0 && currentModalQty >= Number(detailGem.wholesaleMinQty)
                               ? Number(detailGem.wholesalePrice)
-                              : Number(detailGem.price) || 0) * modalQty
+                              : Number(detailGem.price) || 0) * currentModalQty
                           ).toLocaleString("es-PE")}
                         </span>
                       </button>

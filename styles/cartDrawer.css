@@ -334,9 +334,14 @@
   transition: all 0.15s ease;
 }
 
-.cart-drawer-qty-btn:hover {
+.cart-drawer-qty-btn:hover:not(:disabled) {
   background: #0e2920;
   color: #ffffff;
+}
+
+.cart-drawer-qty-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
 }
 
 .cart-drawer-qty-num {

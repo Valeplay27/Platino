@@ -63,6 +63,11 @@ import {
   updateOrderStageComment,
 } from "../services/ordersService";
 import { METALS, formatPrice, MASTER_GEM_SHAPES } from "../data/products";
+import {
+  createGemCollectionId,
+  getGemCollectionOptions,
+  saveGemCollectionOptions,
+} from "../services/gemCollectionService";
 import { DiamondCutIcon } from "../components/GemstoneIcons";
 import { useAuth } from "../context/useAuth";
 import {
@@ -566,14 +571,6 @@ const RING_STYLE_OPTIONS_BY_SUBTYPE = {
   ],
 };
 
-const GEM_COLLECTION_OPTIONS = [
-  { id: "", label: "Todas / Sin filtro de gema específica" },
-  { id: "diamante", label: "💎 Diamante (Natural / Lab Grown)" },
-  { id: "esmeralda", label: "💚 Esmeralda" },
-  { id: "rubi", label: "❤️ Rubí" },
-  { id: "zafiro", label: "💙 Zafiro" },
-];
-
 const getProductCategoryGroup = (prod) => {
   if (!prod) return "otros";
   const cat = (prod.category || "").toLowerCase();
@@ -906,6 +903,8 @@ export default function AdminCitas() {
   const [formGender, setFormGender] = useState("mujer");
   const [formStyle, setFormStyle] = useState("solitario");
   const [formGem, setFormGem] = useState("diamante");
+  const [gemCollectionOptions, setGemCollectionOptions] = useState(() => getGemCollectionOptions());
+  const [newGemCollectionLabel, setNewGemCollectionLabel] = useState("");
   const [formPrice, setFormPrice] = useState("");
   const [formType, setFormType] = useState("anillo");
   const [formBadge, setFormBadge] = useState("");
@@ -925,6 +924,55 @@ export default function AdminCitas() {
     "estuche-terciopelo": "Estuche Terciopelo Negro",
     "caja-madera": "Caja Madera LED",
   });
+  const DEFAULT_FORM_BOXES = [
+    { id: "caja-verde-lujo", name: "Caja Verde Platino", image: "/images/detail-box-green.jpg", price: "0", enabled: true, description: "Estuche de presentación oficial Platino Perú de alta gama con interiores acolchados y acabados finos." },
+    { id: "estuche-terciopelo", name: "Estuche Terciopelo Negro", image: "/images/box-presentation.jpg", price: "25", enabled: true, description: "Estuche premium de terciopelo negro suave al tacto para una entrega elegante y exclusiva." },
+    { id: "caja-madera", name: "Caja Madera LED", image: "/images/detail-packaging.jpg", price: "60", enabled: true, description: "Caja de madera noble con acabado brillante e iluminación LED focalizada al abrir para máxima sorpresa." },
+  ];
+
+  const [formBoxes, setFormBoxes] = useState(() => DEFAULT_FORM_BOXES.map((b) => ({ ...b })));
+
+  const handleAddBox = () => {
+    const newId = `estuche-custom-${Date.now()}`;
+    const nextNum = formBoxes.length + 1;
+    const newBox = {
+      id: newId,
+      name: `Estuche #${nextNum} Platino`,
+      image: "/images/detail-box-green.jpg",
+      price: "0",
+      enabled: true,
+      description: "Estuche exclusivo Platino Perú de alta gama con interiores acolchados.",
+    };
+    setFormBoxes((prev) => [...prev, newBox]);
+  };
+
+  const handleRemoveBox = (boxId) => {
+    if (formBoxes.length <= 1) {
+      alert("Debe haber al menos 1 estuche configurado.");
+      return;
+    }
+    setFormBoxes((prev) => prev.filter((b) => b.id !== boxId));
+  };
+
+  const handleToggleBoxEnabled = (boxId) => {
+    setFormBoxes((prev) =>
+      prev.map((b) => (b.id === boxId ? { ...b, enabled: b.enabled === false ? true : false } : b))
+    );
+  };
+
+  const handleUpdateBoxField = (boxId, field, value) => {
+    setFormBoxes((prev) =>
+      prev.map((b) => (b.id === boxId ? { ...b, [field]: value } : b))
+    );
+    if (field === "name") {
+      setFormBoxNames((prev) => ({ ...prev, [boxId]: value }));
+    } else if (field === "price") {
+      setFormBoxPrices((prev) => ({ ...prev, [boxId]: value }));
+    } else if (field === "image") {
+      setFormBoxImages((prev) => ({ ...prev, [boxId]: value }));
+      if (boxId === "caja-verde-lujo") setFormBoxImage(value);
+    }
+  };
   const [formBoxPrices, setFormBoxPrices] = useState({
     "caja-verde-lujo": "0",
     "estuche-terciopelo": "25",
@@ -957,7 +1005,41 @@ export default function AdminCitas() {
     "diamante-lab": "1200",
     "diamante-natural": "2800",
   });
+  const [formGemTypeModes, setFormGemTypeModes] = useState({
+    "zirconita": "add",
+    "zirconita-swarovski": "add",
+    "moissanita": "add",
+    "diamante-lab": "add",
+    "diamante-natural": "quote",
+  });
   const [formGemShapePrices, setFormGemShapePrices] = useState({});
+
+  useEffect(() => {
+    const refreshGemCollectionOptions = () => setGemCollectionOptions(getGemCollectionOptions());
+    window.addEventListener("gem_collection_options_updated", refreshGemCollectionOptions);
+    return () => window.removeEventListener("gem_collection_options_updated", refreshGemCollectionOptions);
+  }, []);
+
+  const handleAddGemCollectionOption = () => {
+    const label = newGemCollectionLabel.trim();
+    const id = createGemCollectionId(label);
+    if (!id) {
+      alert("Ingresa el nombre de la nueva categoría de gema.");
+      return;
+    }
+    if (gemCollectionOptions.some((option) => option.id === id)) {
+      alert("Ya existe una categoría con ese nombre.");
+      return;
+    }
+
+    const updatedOptions = saveGemCollectionOptions([
+      ...gemCollectionOptions,
+      { id, label },
+    ]);
+    setGemCollectionOptions(updatedOptions);
+    setFormGem(id);
+    setNewGemCollectionLabel("");
+  };
   const [openProductSection, setOpenProductSection] = useState(1);
   const toggleProductSection = (num) => setOpenProductSection((prev) => (prev === num ? null : num));
   const [feedbackMsg, setFeedbackMsg] = useState("");
@@ -2118,6 +2200,7 @@ export default function AdminCitas() {
       "estuche-terciopelo": "25",
       "caja-madera": "60",
     });
+    setFormBoxes(DEFAULT_FORM_BOXES.map((b) => ({ ...b })));
     const initMetals = METALS.map((m) => m.id);
     setFormAvailableMetals(initMetals);
     setFormSelectedMetal("Oro 18k Blanco");
@@ -2237,6 +2320,37 @@ export default function AdminCitas() {
       });
     }
     setFormBoxPrices(initialBoxes);
+
+    let loadedBoxes = [];
+    if (Array.isArray(prod.allPresentationBoxes) && prod.allPresentationBoxes.length > 0) {
+      loadedBoxes = prod.allPresentationBoxes.map((b) => ({
+        id: b.id,
+        name: b.name || "Estuche Platino",
+        image: b.image || "/images/detail-box-green.jpg",
+        price: String(b.price ?? 0),
+        enabled: b.enabled !== false,
+        description: b.description || "",
+      }));
+    } else if (Array.isArray(prod.presentationOptions) && prod.presentationOptions.length > 0) {
+      const enabledMap = prod.enabledBoxes || {};
+      loadedBoxes = prod.presentationOptions.map((opt) => ({
+        id: opt.id,
+        name: opt.name || "Estuche Platino",
+        image: opt.image || (prod.boxImages?.[opt.id] || "/images/detail-box-green.jpg"),
+        price: String(prod.boxPrices?.[opt.id] ?? opt.price ?? 0),
+        enabled: opt.enabled !== undefined ? opt.enabled : (enabledMap[opt.id] !== false),
+        description: opt.description || "",
+      }));
+    } else {
+      loadedBoxes = DEFAULT_FORM_BOXES.map((b) => ({
+        ...b,
+        image: prod.boxImages?.[b.id] || (b.id === "caja-verde-lujo" ? (prod.boxImage || b.image) : b.image),
+        name: prod.boxNames?.[b.id] || b.name,
+        price: String(prod.boxPrices?.[b.id] ?? b.price),
+        enabled: prod.enabledBoxes ? prod.enabledBoxes[b.id] !== false : true,
+      }));
+    }
+    setFormBoxes(loadedBoxes);
     setFormShowDeliveryEstimate(
       prod.showDeliveryEstimate !== undefined
         ? !!prod.showDeliveryEstimate
@@ -2327,6 +2441,17 @@ export default function AdminCitas() {
             "moissanita": "350",
             "diamante-lab": "1200",
             "diamante-natural": "2800",
+          }
+    );
+    setFormGemTypeModes(
+      prod.gemTypeModes && typeof prod.gemTypeModes === "object"
+        ? { ...prod.gemTypeModes }
+        : {
+            "zirconita": "add",
+            "zirconita-swarovski": "add",
+            "moissanita": "add",
+            "diamante-lab": "add",
+            "diamante-natural": "quote",
           }
     );
     setFormEnabledGemTypes(
@@ -2585,6 +2710,9 @@ export default function AdminCitas() {
     if (file) {
       try {
         const url = await uploadImageFile(file, `caja-${boxId}.jpg`);
+        setFormBoxes((prev) =>
+          prev.map((b) => (b.id === boxId ? { ...b, image: url } : b))
+        );
         setFormBoxImages((prev) => ({ ...prev, [boxId]: url }));
         if (boxId === "caja-verde-lujo") {
           setFormBoxImage(url);
@@ -2629,6 +2757,12 @@ export default function AdminCitas() {
   };
 
   const handleSelectDefaultGemShape = (shapeId) => {
+    if (shapeId === "sin-forma") {
+      setFormHasGemSelection(false);
+      return;
+    }
+
+    setFormHasGemSelection(true);
     setFormDefaultGemShape(shapeId);
     if (!formAvailableGemShapes.includes(shapeId)) {
       setFormAvailableGemShapes((prev) => [...prev, shapeId]);
@@ -2761,22 +2895,43 @@ export default function AdminCitas() {
     if (yellowId) metalImagesMap.yellow = metalImagesMap[yellowId];
     if (roseId) metalImagesMap.rose = metalImagesMap[roseId];
 
-    const finalBoxImage = (formBoxImages["caja-verde-lujo"] || formBoxImage || "").trim() || "/images/detail-box-green.jpg";
-    const finalBoxImages = {
-      "caja-verde-lujo": finalBoxImage,
-      "estuche-terciopelo": (formBoxImages["estuche-terciopelo"] || "").trim() || "/images/box-presentation.jpg",
-      "caja-madera": (formBoxImages["caja-madera"] || "").trim() || "/images/detail-packaging.jpg",
-    };
-    const finalBoxNames = {
-      "caja-verde-lujo": (formBoxNames["caja-verde-lujo"] || "").trim() || "Caja Verde Platino",
-      "estuche-terciopelo": (formBoxNames["estuche-terciopelo"] || "").trim() || "Estuche Terciopelo Negro",
-      "caja-madera": (formBoxNames["caja-madera"] || "").trim() || "Caja Madera LED",
-    };
-    const finalBoxPrices = {
-      "caja-verde-lujo": String(formBoxPrices["caja-verde-lujo"] ?? 0),
-      "estuche-terciopelo": String(formBoxPrices["estuche-terciopelo"] ?? 25),
-      "caja-madera": String(formBoxPrices["caja-madera"] ?? 60),
-    };
+    const finalBoxImages = {};
+    const finalBoxNames = {};
+    const finalBoxPrices = {};
+    const finalEnabledBoxes = {};
+
+    formBoxes.forEach((b) => {
+      finalBoxImages[b.id] = (b.image || "").trim() || "/images/detail-box-green.jpg";
+      finalBoxNames[b.id] = (b.name || "").trim() || "Estuche Platino";
+      finalBoxPrices[b.id] = String(b.price ?? 0);
+      finalEnabledBoxes[b.id] = b.enabled !== false;
+    });
+
+    const finalBoxImage = finalBoxImages["caja-verde-lujo"] || formBoxes[0]?.image || "/images/detail-box-green.jpg";
+
+    const finalPresentationOptions = formBoxes
+      .filter((b) => b.enabled !== false)
+      .map((b) => ({
+        id: b.id,
+        name: (b.name || "").trim() || "Estuche Platino",
+        price: Number(b.price || 0),
+        image: (b.image || "").trim() || "/images/detail-box-green.jpg",
+        description: b.description || "Estuche de presentación oficial Platino Perú con interiores finos.",
+        enabled: true,
+      }));
+
+    const safePresentationOptions = finalPresentationOptions.length > 0
+      ? finalPresentationOptions
+      : [
+          {
+            id: formBoxes[0]?.id || "caja-verde-lujo",
+            name: formBoxes[0]?.name || "Caja Verde Platino",
+            price: Number(formBoxes[0]?.price || 0),
+            image: formBoxes[0]?.image || "/images/detail-box-green.jpg",
+            description: "Estuche de presentación oficial Platino Perú con interiores finos.",
+            enabled: true,
+          }
+        ];
     const allImagesToInclude = [
       ...(metalGalleriesMap[defaultMetalId] || []),
       mainImg,
@@ -2837,6 +2992,7 @@ export default function AdminCitas() {
       hasGemTypeSelection: formHasGemSelection && Object.values(formEnabledGemTypes).some((v) => v !== false),
       enabledGemTypes: formEnabledGemTypes,
       gemTypePrices: formGemTypePrices,
+      gemTypeModes: formGemTypeModes,
       availableGemShapes: formAvailableGemShapes,
       defaultGemShape: formDefaultGemShape,
       gemShapeConfigs: formGemShapeConfigs,
@@ -2855,29 +3011,16 @@ export default function AdminCitas() {
       boxImages: finalBoxImages,
       boxNames: finalBoxNames,
       boxPrices: finalBoxPrices,
-      presentationOptions: [
-        {
-          id: "caja-verde-lujo",
-          name: finalBoxNames["caja-verde-lujo"],
-          price: Number(finalBoxPrices["caja-verde-lujo"]),
-          image: finalBoxImages["caja-verde-lujo"],
-          description: "Estuche de presentación oficial Platino Perú de alta gama con interiores acolchados y acabados finos.",
-        },
-        {
-          id: "estuche-terciopelo",
-          name: finalBoxNames["estuche-terciopelo"],
-          price: Number(finalBoxPrices["estuche-terciopelo"]),
-          image: finalBoxImages["estuche-terciopelo"],
-          description: "Estuche premium de terciopelo negro suave al tacto para una entrega elegante y exclusiva.",
-        },
-        {
-          id: "caja-madera",
-          name: finalBoxNames["caja-madera"],
-          price: Number(finalBoxPrices["caja-madera"]),
-          image: finalBoxImages["caja-madera"],
-          description: "Caja de madera noble con acabado brillante e iluminación LED focalizada al abrir para máxima sorpresa.",
-        },
-      ],
+      enabledBoxes: finalEnabledBoxes,
+      presentationOptions: safePresentationOptions,
+      allPresentationBoxes: formBoxes.map((b) => ({
+        id: b.id,
+        name: (b.name || "").trim() || "Estuche Platino",
+        price: Number(b.price || 0),
+        image: (b.image || "").trim() || "/images/detail-box-green.jpg",
+        enabled: b.enabled !== false,
+        description: b.description || "",
+      })),
     };
 
     if (editingProduct) {
@@ -6867,7 +7010,7 @@ export default function AdminCitas() {
                 <div className="inventory-kpi-info">
                   <h4>Sede Lima Centro</h4>
                   <div className="inventory-kpi-num">{inventoryKpis.limaCentro}</div>
-                  <p className="inventory-kpi-sub">Jr. de la Unión 446</p>
+                  <p className="inventory-kpi-sub">Jr. de la Unión 446 Tda 128</p>
                 </div>
               </div>
 
@@ -6878,7 +7021,7 @@ export default function AdminCitas() {
                 <div className="inventory-kpi-info">
                   <h4>Sede Miraflores</h4>
                   <div className="inventory-kpi-num">{inventoryKpis.miraflores}</div>
-                  <p className="inventory-kpi-sub">Av. Larco 345</p>
+                  <p className="inventory-kpi-sub">Av. Larco 345 Tda S-9</p>
                 </div>
               </div>
 
@@ -10109,8 +10252,8 @@ export default function AdminCitas() {
                     }}
                   >
                     <option value="todos">Filtrar por Sede de Entrega</option>
-                    <option value="miraflores">Sede Miraflores (Av. José Larco 880)</option>
-                    <option value="lima-centro">Sede Lima Centro (Jr. de la Unión 540)</option>
+                    <option value="miraflores">Sede Miraflores (Av. José Larco 345 Tda S-9)</option>
+                    <option value="lima-centro">Sede Lima Centro (Jr. de la Unión 446 Tda 128)</option>
                   </select>
                 </div>
 
@@ -11901,10 +12044,11 @@ export default function AdminCitas() {
                                 </label>
                                 <select
                                   className="catalog-form-select"
-                                  value={formDefaultGemShape}
+                                  value={formHasGemSelection ? formDefaultGemShape : "sin-forma"}
                                   onChange={(e) => handleSelectDefaultGemShape(e.target.value)}
                                   style={{ height: "36px", fontSize: "12.5px" }}
                                 >
+                                  <option value="sin-forma">Sin forma</option>
                                   {MASTER_GEM_SHAPES.map((shape) => (
                                     <option key={shape.id} value={shape.id}>
                                       {shape.name}
@@ -11946,12 +12090,46 @@ export default function AdminCitas() {
                                   onChange={(e) => setFormGem(e.target.value)}
                                   style={{ height: "36px", fontSize: "12.5px" }}
                                 >
-                                  {GEM_COLLECTION_OPTIONS.map((gm) => (
+                                  {gemCollectionOptions.map((gm) => (
                                     <option key={gm.id} value={gm.id}>
                                       {gm.label}
                                     </option>
                                   ))}
                                 </select>
+                                <div style={{ display: "flex", gap: "6px", marginTop: "6px" }}>
+                                  <input
+                                    type="text"
+                                    className="catalog-form-input"
+                                    value={newGemCollectionLabel}
+                                    onChange={(e) => setNewGemCollectionLabel(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === "Enter") {
+                                        e.preventDefault();
+                                        handleAddGemCollectionOption();
+                                      }
+                                    }}
+                                    placeholder="Crear categoría, ej. Morganita"
+                                    aria-label="Nombre de la nueva categoría de gema"
+                                    style={{ height: "34px", fontSize: "12px" }}
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={handleAddGemCollectionOption}
+                                    style={{
+                                      flexShrink: 0,
+                                      border: "1px solid #9fc5b0",
+                                      borderRadius: "6px",
+                                      background: "#f4f9f6",
+                                      color: "#0d5c36",
+                                      fontSize: "12px",
+                                      fontWeight: "700",
+                                      padding: "0 10px",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    <i className="bi bi-plus-lg"></i> Crear
+                                  </button>
+                                </div>
                               </div>
                             )}
                           </div>
@@ -12803,19 +12981,30 @@ export default function AdminCitas() {
                             { id: "diamante-natural", name: "Diamante Natural GIA", hint: "Certificado GIA" },
                           ].map((item) => {
                             const isEnabled = formEnabledGemTypes[item.id] !== false;
+                            const currentMode = formGemTypeModes[item.id] || (item.id === "diamante-natural" ? "quote" : "add");
+                            const priceVal = formGemTypePrices[item.id] ?? (item.id === "zirconita" ? "0" : "");
                             return (
                               <div
                                 key={item.id}
                                 style={{
                                   background: isEnabled ? "#ffffff" : "#f8faf9",
-                                  border: isEnabled ? "1.5px solid #113B3A" : "1px dashed #cbd5e1",
-                                  borderRadius: "8px",
-                                  padding: "9px 11px",
+                                  border: isEnabled
+                                    ? currentMode === "quote"
+                                      ? "1.5px solid #0f766e"
+                                      : currentMode === "sub"
+                                      ? "1.5px solid #d97706"
+                                      : "1.5px solid #113B3A"
+                                    : "1px dashed #cbd5e1",
+                                  borderRadius: "9px",
+                                  padding: "10px 11px",
                                   transition: "all 0.2s ease",
                                   opacity: isEnabled ? 1 : 0.65,
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: "5px",
                                 }}
                               >
-                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "6px", marginBottom: "4px" }}>
+                                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "6px", marginBottom: "2px" }}>
                                   <div style={{ fontSize: "11.5px", fontWeight: "700", color: isEnabled ? "#113B3A" : "#64748b" }}>
                                     {item.name}
                                   </div>
@@ -12852,62 +13041,172 @@ export default function AdminCitas() {
                                   </label>
                                 </div>
 
-                                <div style={{ fontSize: "10px", color: "#64748b", marginBottom: "6px" }}>
+                                <div style={{ fontSize: "10px", color: "#64748b" }}>
                                   {item.hint}
                                 </div>
 
                                 {isEnabled ? (
                                   <>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "4px" }}>
-                                      <span style={{ fontSize: "12px", color: "#526359", fontWeight: "600" }}>+S/.</span>
-                                      <input
-                                        type="number"
-                                        min="0"
-                                        value={formGemTypePrices[item.id] ?? "0"}
-                                        onChange={(e) => {
-                                          const val = e.target.value;
-                                          setFormGemTypePrices((prev) => ({
-                                            ...prev,
-                                            [item.id]: val,
-                                          }));
+                                    {/* Botones de acción: Sumar (+) | Restar (-) | Cotizar */}
+                                    <div style={{ display: "flex", gap: "2px", background: "#f1f5f9", padding: "2px", borderRadius: "6px", marginTop: "2px" }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setFormGemTypeModes((prev) => ({ ...prev, [item.id]: "add" }));
                                         }}
-                                        placeholder="0"
                                         style={{
-                                          width: "100%",
-                                          padding: "4px 8px",
-                                          fontSize: "12.5px",
-                                          fontWeight: "600",
-                                          border: "1px solid #c7dcd0",
-                                          borderRadius: "6px",
-                                          background: "#ffffff",
+                                          flex: 1,
+                                          fontSize: "10px",
+                                          fontWeight: "700",
+                                          padding: "3px 2px",
+                                          borderRadius: "4px",
+                                          border: "none",
+                                          cursor: "pointer",
+                                          background: currentMode === "add" ? "#113B3A" : "transparent",
+                                          color: currentMode === "add" ? "#ffffff" : "#475569",
+                                          transition: "all 0.15s ease",
                                         }}
-                                      />
+                                        title="Suma este suplemento al precio del anillo"
+                                      >
+                                        + Sumar
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setFormGemTypeModes((prev) => ({ ...prev, [item.id]: "sub" }));
+                                        }}
+                                        style={{
+                                          flex: 1,
+                                          fontSize: "10px",
+                                          fontWeight: "700",
+                                          padding: "3px 2px",
+                                          borderRadius: "4px",
+                                          border: "none",
+                                          cursor: "pointer",
+                                          background: currentMode === "sub" ? "#d97706" : "transparent",
+                                          color: currentMode === "sub" ? "#ffffff" : "#475569",
+                                          transition: "all 0.15s ease",
+                                        }}
+                                        title="Resta / Descuenta este valor del precio del producto"
+                                      >
+                                        - Restar
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setFormGemTypeModes((prev) => ({ ...prev, [item.id]: "quote" }));
+                                        }}
+                                        style={{
+                                          flex: 1.1,
+                                          fontSize: "10px",
+                                          fontWeight: "700",
+                                          padding: "3px 2px",
+                                          borderRadius: "4px",
+                                          border: "none",
+                                          cursor: "pointer",
+                                          background: currentMode === "quote" ? "#0f766e" : "transparent",
+                                          color: currentMode === "quote" ? "#ffffff" : "#475569",
+                                          transition: "all 0.15s ease",
+                                        }}
+                                        title="Solo se habilitará el botón de solicitar cotización en el resumen vía WhatsApp"
+                                      >
+                                        Cotizar
+                                      </button>
                                     </div>
-                                    {Number(formGemTypePrices[item.id] || 0) === 0 ? (
+
+                                    {currentMode === "quote" ? (
                                       <div
                                         style={{
+                                          background: "#f0fdfa",
+                                          border: "1px solid #99f6e4",
+                                          borderRadius: "6px",
+                                          padding: "7px 8px",
                                           fontSize: "10.5px",
-                                          fontWeight: "600",
-                                          color: "#166534",
-                                          marginTop: "5px",
+                                          color: "#0f766e",
+                                          fontWeight: "700",
                                           display: "flex",
                                           alignItems: "center",
-                                          gap: "3px",
+                                          gap: "6px",
+                                          marginTop: "3px",
                                         }}
                                       >
-                                        ✓ Viene incluida
+                                        <i className="bi bi-whatsapp" style={{ fontSize: "14px" }}></i>
+                                        <span>Solo Cotización vía WhatsApp</span>
                                       </div>
                                     ) : (
-                                      <div
-                                        style={{
-                                          fontSize: "10.5px",
-                                          fontWeight: "600",
-                                          color: "#b45309",
-                                          marginTop: "5px",
-                                        }}
-                                      >
-                                        Suplemento: +S/. {formGemTypePrices[item.id]}
-                                      </div>
+                                      <>
+                                        <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "3px" }}>
+                                          <span
+                                            style={{
+                                              fontSize: "12px",
+                                              fontWeight: "800",
+                                              color: currentMode === "sub" ? "#d97706" : "#113B3A",
+                                              minWidth: "26px",
+                                            }}
+                                          >
+                                            {currentMode === "sub" ? "-S/." : "+S/."}
+                                          </span>
+                                          <input
+                                            type="number"
+                                            min="0"
+                                            value={priceVal}
+                                            onChange={(e) => {
+                                              const val = e.target.value;
+                                              setFormGemTypePrices((prev) => ({
+                                                ...prev,
+                                                [item.id]: val,
+                                              }));
+                                            }}
+                                            placeholder="0"
+                                            style={{
+                                              width: "100%",
+                                              padding: "4px 8px",
+                                              fontSize: "12.5px",
+                                              fontWeight: "600",
+                                              border: currentMode === "sub" ? "1px solid #fde68a" : "1px solid #c7dcd0",
+                                              borderRadius: "6px",
+                                              background: "#ffffff",
+                                            }}
+                                          />
+                                        </div>
+                                        {Number(priceVal || 0) === 0 ? (
+                                          <div
+                                            style={{
+                                              fontSize: "10.5px",
+                                              fontWeight: "600",
+                                              color: "#166534",
+                                              marginTop: "4px",
+                                              display: "flex",
+                                              alignItems: "center",
+                                              gap: "3px",
+                                            }}
+                                          >
+                                            ✓ Viene incluida
+                                          </div>
+                                        ) : currentMode === "sub" ? (
+                                          <div
+                                            style={{
+                                              fontSize: "10.5px",
+                                              fontWeight: "700",
+                                              color: "#b45309",
+                                              marginTop: "4px",
+                                            }}
+                                          >
+                                            Deducción: -S/. {priceVal}
+                                          </div>
+                                        ) : (
+                                          <div
+                                            style={{
+                                              fontSize: "10.5px",
+                                              fontWeight: "700",
+                                              color: "#15803d",
+                                              marginTop: "4px",
+                                            }}
+                                          >
+                                            Suplemento: +S/. {priceVal}
+                                          </div>
+                                        )}
+                                      </>
                                     )}
                                   </>
                                 ) : (
@@ -13400,45 +13699,132 @@ export default function AdminCitas() {
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                       <i className="bi bi-box2-heart-fill" style={{ color: "#c5a059", fontSize: "20px" }}></i>
-                      <strong style={{ fontSize: "14px", color: "#113B3A" }}>6. Cajas de Presentación y Estuches del Producto (3 Opciones)</strong>
+                      <strong style={{ fontSize: "14px", color: "#113B3A" }}>6. Cajas de Presentación y Estuches del Producto</strong>
                     </div>
-                    <span style={{ fontSize: "11px", background: "#edf5f0", color: "#113B3A", padding: "3px 8px", borderRadius: "4px", fontWeight: "600" }}>
-                      Visible en Portafolio y Paso 2
-                    </span>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <button
+                        type="button"
+                        onClick={handleAddBox}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "6px",
+                          background: "#113B3A",
+                          color: "#ffffff",
+                          border: "none",
+                          padding: "5px 12px",
+                          borderRadius: "6px",
+                          fontSize: "12px",
+                          fontWeight: "700",
+                          cursor: "pointer",
+                        }}
+                      >
+                        <i className="bi bi-plus-circle-fill"></i> + Agregar Nuevo Estuche
+                      </button>
+                      <span style={{ fontSize: "11px", background: "#edf5f0", color: "#113B3A", padding: "3px 8px", borderRadius: "4px", fontWeight: "600" }}>
+                        Personalizable
+                      </span>
+                    </div>
                   </div>
 
                   <p style={{ fontSize: "12px", color: "#5d6d65", margin: "0 0 16px", lineHeight: "1.45" }}>
                     Personaliza la foto, el nombre y el precio de cada uno de los 3 estuches para este producto. Puedes subir una foto específica para cada caja (por ejemplo estuches de collar, aretes o pulseras). En la tienda, el cliente verá estas fotos en el selector.
                   </p>
 
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "14px" }}>
-                    {[
-                      { id: "caja-verde-lujo", num: 1, label: "Estuche #1 (Principal)", defName: "Caja Verde Platino", defImg: "/images/detail-box-green.jpg", defPrice: "0" },
-                      { id: "estuche-terciopelo", num: 2, label: "Estuche #2", defName: "Estuche Terciopelo Negro", defImg: "/images/box-presentation.jpg", defPrice: "25" },
-                      { id: "caja-madera", num: 3, label: "Estuche #3", defName: "Caja Madera LED", defImg: "/images/detail-packaging.jpg", defPrice: "60" },
-                    ].map((box) => {
-                      const currentImg = formBoxImages[box.id] || box.defImg;
-                      const currentName = formBoxNames[box.id] ?? box.defName;
-                      const currentPrice = formBoxPrices[box.id] ?? box.defPrice;
-                      const numPrice = Number(currentPrice || 0);
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "14px" }}>
+                    {formBoxes.map((box, index) => {
+                      const numPrice = Number(box.price || 0);
+                      const isEnabled = box.enabled !== false;
+                      const boxNum = index + 1;
 
                       return (
-                        <div key={box.id} style={{ background: "#ffffff", border: "1px solid #dce8e1", borderRadius: "10px", padding: "12px 14px", display: "flex", flexDirection: "column", gap: "10px", boxShadow: "0 1px 3px rgba(0,0,0,0.03)" }}>
-                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                            <span style={{ fontSize: "12px", fontWeight: "700", color: "#113B3A" }}>{box.label}</span>
-                            <span style={{ fontSize: "10.5px", background: numPrice === 0 ? "#edf5f0" : "#fdf6e7", color: numPrice === 0 ? "#166534" : "#92400e", padding: "2px 6px", borderRadius: "4px", fontWeight: "700" }}>
-                              {numPrice === 0 ? "Cortesía (S/. 0)" : `+S/. ${numPrice}`}
-                            </span>
+                        <div
+                          key={box.id}
+                          style={{
+                            background: isEnabled ? "#ffffff" : "#f8faf9",
+                            border: isEnabled ? "1.5px solid #113B3A" : "1.5px dashed #cbd5e1",
+                            borderRadius: "10px",
+                            padding: "12px 14px",
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "10px",
+                            boxShadow: "0 1px 3px rgba(0,0,0,0.03)",
+                            opacity: isEnabled ? 1 : 0.65,
+                            transition: "all 0.2s ease",
+                          }}
+                        >
+                          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "6px" }}>
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              <span style={{ fontSize: "12px", fontWeight: "700", color: isEnabled ? "#113B3A" : "#64748b" }}>
+                                Estuche #{boxNum} {boxNum === 1 ? "(Principal)" : ""}
+                              </span>
+                              <span style={{ fontSize: "10px", background: numPrice === 0 ? "#edf5f0" : "#fdf6e7", color: numPrice === 0 ? "#166534" : "#92400e", padding: "2px 6px", borderRadius: "4px", fontWeight: "700" }}>
+                                {numPrice === 0 ? "Cortesía (S/. 0)" : `+S/. ${numPrice}`}
+                              </span>
+                            </div>
+
+                            <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                              {/* Toggle Activo / Inactivo */}
+                              <label
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                  cursor: "pointer",
+                                  fontSize: "10.5px",
+                                  fontWeight: "700",
+                                  padding: "2px 6px",
+                                  borderRadius: "5px",
+                                  background: isEnabled ? "#e8f5ed" : "#f1f5f9",
+                                  color: isEnabled ? "#137748" : "#64748b",
+                                  border: isEnabled ? "1px solid #b7d6c5" : "1px solid #cbd5e1",
+                                  userSelect: "none",
+                                }}
+                                title={isEnabled ? "Desactivar este estuche para el producto" : "Activar este estuche para el producto"}
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isEnabled}
+                                  onChange={() => handleToggleBoxEnabled(box.id)}
+                                  style={{ width: "13px", height: "13px", accentColor: "#113B3A", cursor: "pointer" }}
+                                />
+                                <span>{isEnabled ? "Activo" : "Inactivo"}</span>
+                              </label>
+
+                              {/* Botón Eliminar si hay más de 1 estuche */}
+                              {formBoxes.length > 1 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveBox(box.id)}
+                                  title="Eliminar este estuche"
+                                  style={{
+                                    border: "none",
+                                    background: "#fee2e2",
+                                    color: "#b91c1c",
+                                    width: "22px",
+                                    height: "22px",
+                                    borderRadius: "4px",
+                                    display: "flex",
+                                    alignItems: "center",
+                                    justifyContent: "center",
+                                    cursor: "pointer",
+                                    fontSize: "12px",
+                                  }}
+                                >
+                                  <i className="bi bi-trash-fill"></i>
+                                </button>
+                              )}
+                            </div>
                           </div>
 
                           {/* Vista previa de foto y botón de subida */}
                           <div style={{ display: "flex", gap: "10px", alignItems: "center" }}>
                             <div style={{ width: "75px", height: "75px", borderRadius: "8px", overflow: "hidden", border: "1px solid #dcd3c5", flexShrink: 0, background: "#f8f9fa" }}>
                               <img
-                                src={currentImg}
-                                alt={currentName}
+                                src={box.image || "/images/detail-box-green.jpg"}
+                                alt={box.name}
                                 style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                                onError={(e) => { e.target.onerror = null; e.target.src = box.defImg; }}
+                                onError={(e) => { e.target.onerror = null; e.target.src = "/images/detail-box-green.jpg"; }}
                               />
                             </div>
                             <div style={{ display: "flex", flexDirection: "column", gap: "6px", flex: 1 }}>
@@ -13467,10 +13853,7 @@ export default function AdminCitas() {
                               </label>
                               <button
                                 type="button"
-                                onClick={() => {
-                                  setFormBoxImages((prev) => ({ ...prev, [box.id]: box.defImg }));
-                                  if (box.id === "caja-verde-lujo") setFormBoxImage(box.defImg);
-                                }}
+                                onClick={() => handleUpdateBoxField(box.id, "image", "/images/detail-box-green.jpg")}
                                 style={{
                                   padding: "3px 6px",
                                   background: "transparent",
@@ -13493,34 +13876,28 @@ export default function AdminCitas() {
                             </label>
                             <input
                               type="text"
-                              value={getImageInputValue(currentImg)}
-                              readOnly={isEmbeddedImage(currentImg)}
-                              title={isEmbeddedImage(currentImg) ? "Sube una nueva foto para reemplazarla" : undefined}
-                              onChange={(e) => {
-                                const val = e.target.value;
-                                setFormBoxImages((prev) => ({ ...prev, [box.id]: val }));
-                                if (box.id === "caja-verde-lujo") setFormBoxImage(val);
-                              }}
+                              value={getImageInputValue(box.image || "")}
+                              readOnly={isEmbeddedImage(box.image || "")}
+                              title={isEmbeddedImage(box.image || "") ? "Sube una nueva foto para reemplazarla" : undefined}
+                              onChange={(e) => handleUpdateBoxField(box.id, "image", e.target.value)}
                               className="catalog-form-input"
                               style={{ fontSize: "11px", padding: "5px 8px", width: "100%" }}
-                              placeholder={box.defImg}
+                              placeholder="/images/detail-box-green.jpg"
                             />
                           </div>
 
                           {/* Nombre */}
                           <div>
                             <label style={{ fontSize: "11px", fontWeight: "700", color: "#113B3A", display: "block", marginBottom: "2px" }}>
-                              Nombre del Estuche #{box.num}:
+                              Nombre del Estuche #{boxNum}:
                             </label>
                             <input
                               type="text"
-                              value={currentName}
-                              onChange={(e) =>
-                                setFormBoxNames((prev) => ({ ...prev, [box.id]: e.target.value }))
-                              }
+                              value={box.name}
+                              onChange={(e) => handleUpdateBoxField(box.id, "name", e.target.value)}
                               className="catalog-form-input"
                               style={{ fontSize: "12px", padding: "5px 8px", width: "100%", fontWeight: "600" }}
-                              placeholder={box.defName}
+                              placeholder={`Estuche #${boxNum} Platino`}
                             />
                           </div>
 
@@ -13535,10 +13912,8 @@ export default function AdminCitas() {
                                 type="number"
                                 min="0"
                                 step="1"
-                                value={currentPrice}
-                                onChange={(e) =>
-                                  setFormBoxPrices((prev) => ({ ...prev, [box.id]: e.target.value }))
-                                }
+                                value={box.price}
+                                onChange={(e) => handleUpdateBoxField(box.id, "price", e.target.value)}
                                 className="catalog-form-input"
                                 style={{ fontSize: "12px", padding: "5px 8px", width: "100%" }}
                                 placeholder="0"

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { formatPrice } from "../data/products";
 import { DAMA_SIZES } from "../services/inventoryService";
 import { DiamondCutIcon } from "./GemstoneIcons";
@@ -44,6 +45,7 @@ export const COMPROMISO_GEM_TYPES = [
 
 export function getProductGemTypes(product) {
   const customPrices = product?.gemTypePrices || {};
+  const customModes = product?.gemTypeModes || {};
   const enabledMap = product?.enabledGemTypes;
 
   const filtered = COMPROMISO_GEM_TYPES.filter((gem) => {
@@ -54,27 +56,31 @@ export function getProductGemTypes(product) {
   const list = filtered.length > 0 ? filtered : [COMPROMISO_GEM_TYPES[0]];
 
   return list.map((gem) => {
-    if (gem.id === "zirconita") {
-      const customZirc = customPrices["zirconita"];
-      const priceDelta =
-        customZirc !== undefined && customZirc !== "" && !isNaN(Number(customZirc))
-          ? Number(customZirc)
-          : 0;
-      return {
-        ...gem,
-        priceDelta,
-        subtitle: "Gema base clásica",
-      };
+    const mode = customModes[gem.id] || (gem.id === "diamante-natural" ? "quote" : "add");
+    const isQuoteOnly = mode === "quote";
+
+    let rawPrice = 0;
+    if (customPrices[gem.id] !== undefined && customPrices[gem.id] !== "") {
+      rawPrice = Number(customPrices[gem.id]);
+    } else {
+      rawPrice = gem.priceDelta;
     }
-    const custom = customPrices[gem.id];
-    const priceDelta =
-      custom !== undefined && custom !== "" && !isNaN(Number(custom))
-        ? Number(custom)
-        : gem.priceDelta;
+    if (isNaN(rawPrice)) rawPrice = 0;
+
+    let finalDelta = rawPrice;
+    if (isQuoteOnly) {
+      finalDelta = 0;
+    } else if (mode === "sub") {
+      finalDelta = -Math.abs(rawPrice);
+    } else {
+      finalDelta = Math.abs(rawPrice);
+    }
+
     return {
       ...gem,
-      priceDelta,
-      subtitle: gem.subtitle || null,
+      priceDelta: finalDelta,
+      mode,
+      isQuoteOnly,
     };
   });
 }
@@ -106,6 +112,7 @@ export default function CompromisoConfigurator({
   const [localStep, setLocalStep] = useState(1);
   const currentStep = propCurrentStep !== undefined ? propCurrentStep : localStep;
   const setCurrentStep = propSetCurrentStep !== undefined ? propSetCurrentStep : setLocalStep;
+  const navigate = useNavigate();
   const [modalOpen, setModalOpen] = useState(false);
   const hasGemTypes = product?.hasGemTypeSelection !== false && product?.hasGemSelection !== false && (!product?.enabledGemTypes || Object.values(product.enabledGemTypes).some((v) => v !== false));
 
@@ -144,6 +151,30 @@ export default function CompromisoConfigurator({
   const metalName = selectedMetal?.name || product?.availableMetals?.[0]?.name || "Plata 950";
   const gemName = selectedGemType?.name || "Zirconita";
 
+  const isQuoteOnly = Boolean(
+    selectedGemType?.isQuoteOnly ||
+    selectedGemType?.id === "diamante-natural" && selectedGemType?.mode === "quote" ||
+    product?.gemTypeModes?.[selectedGemType?.id] === "quote"
+  );
+
+  const getWhatsAppQuoteUrl = () => {
+    const sizeStr = selectedSizeDama === "asesor" ? "Solicito Asesoramiento de Medida" : `${selectedSizeDama} Nacional`;
+    const cofreStr = selectedPresentationObj?.name?.replace(/ \(Recomendado\)/i, "")?.replace(/ \(Incluido de Cortesía\)/i, "") || "Classic";
+    const engravingStr = hasEngraving ? (engravingText ? `Si ("${engravingText}")` : "Si") : "No";
+
+    const text = `¡Hola Platino Perú! Deseo solicitar una cotización personalizada para este anillo de compromiso con Diamante Natural Certificado GIA:%0A%0A` +
+      `💎 *Producto:* ${productName}%0A` +
+      `💍 *Metal:* ${metalName}%0A` +
+      `✨ *Gema Solicitada:* ${gemName} (Certificación GIA Internacional)%0A` +
+      `📏 *Talla:* ${sizeStr}%0A` +
+      `🎁 *Estuche:* ${cofreStr}%0A` +
+      `✍️ *Grabado interno:* ${engravingStr}%0A` +
+      `💰 *Base Metal/Estuche:* ${formatPrice(currentMetalPrice + cofrePrice)}%0A%0A` +
+      `¿Podrían facilitarme la cotización exacta del Diamante Natural según peso en quilates (ct), pureza y disponibilidad? Muchas gracias.`;
+
+    return `https://wa.me/51927357217?text=${text}`;
+  };
+
   const getWhatsAppOrderUrl = () => {
     const sizeStr = selectedSizeDama === "asesor" ? "Solicita Asesoramiento de Medida" : `${selectedSizeDama} Nacional`;
     const cofreStr = selectedPresentationObj?.name?.replace(/ \(Recomendado\)/i, "")?.replace(/ \(Incluido de Cortesía\)/i, "") || "Classic";
@@ -170,11 +201,21 @@ export default function CompromisoConfigurator({
   const cofrePrice = Number(selectedPresentationObj?.price || 0);
   const ringPrice = totalPrice > cofrePrice ? (totalPrice - cofrePrice) : (currentMetalPrice + (hasGemTypes ? (selectedGemType?.priceDelta || 0) : 0));
 
-  const handleFinalizePurchase = () => {
-    if (onAddToCart) {
-      onAddToCart();
-    }
+  const handleModifyFromModal = () => {
     setModalOpen(false);
+    setCurrentStep(hasGemTypes ? 3 : 2);
+    window.scrollTo({ top: 140, behavior: "smooth" });
+  };
+
+  const handleAddToCartOnly = () => {
+    onAddToCart({ skipConfirmation: true });
+    setModalOpen(false);
+  };
+
+  const handleFinalizePurchase = () => {
+    onAddToCart({ skipConfirmation: true, openCartDrawer: false });
+    setModalOpen(false);
+    navigate("/checkout");
   };
 
   return (
@@ -200,7 +241,7 @@ export default function CompromisoConfigurator({
                   { id: "oro-18k-blanco", name: "Oro Blanco 18k", color: "#eb96c9", border: "#d475ad" },
                 ];
             return (
-              <div className="config-block-clean" style={{ marginBottom: "34px" }}>
+              <div className="config-block-clean">
                 <div className="config-block-header-inline">
                   <span className="config-block-title-bold">SELECCIÓN DE METAL</span>
                   <span className="config-block-value-text">{metalName}</span>
@@ -370,11 +411,22 @@ export default function CompromisoConfigurator({
                     {gemCutLabel}
                   </div>
                   <h4 className="gem-type-name">{gem.name}</h4>
-                  {gem.subtitle && <span className="gem-type-subtitle">{gem.subtitle}</span>}
                   {gem.certificateBadge && (
                     <span className="gem-type-cert-badge">{gem.certificateBadge}</span>
                   )}
-                  {/* Precio oculto en la tarjeta de gemas */}
+                  {gem.isQuoteOnly && (
+                    <span
+                      style={{
+                        fontSize: "10.5px",
+                        fontWeight: "600",
+                        color: "#0f766e",
+                        marginTop: "5px",
+                        letterSpacing: "0.02em",
+                      }}
+                    >
+                      Precio por cotización
+                    </span>
+                  )}
                 </div>
               );
             })}
@@ -506,22 +558,22 @@ export default function CompromisoConfigurator({
             <button
               type="button"
               className="btn-trio-summary btn-wizard-summary-pill"
-              onClick={() => setModalOpen(true)}
+              onClick={() => {
+                setModalOpen(true);
+              }}
+              title="Añadir esta joya a la bolsa y ver resumen de la venta"
             >
-              <span>VER RESUMEN</span>
+              <i className="bi bi-bag-plus"></i>
+              <span>AÑADIR AL CARRITO</span>
             </button>
 
             <button
               type="button"
               className="btn-trio-finalize btn-wizard-finalize-pill"
-              onClick={() => {
-                if (onAddToCart) {
-                  onAddToCart();
-                }
-                setModalOpen(true);
-              }}
+              onClick={() => setModalOpen(true)}
+              title="Revisar el producto antes de finalizar la compra"
             >
-              <i className="bi bi-bag"></i>
+              <i className="bi bi-bag-check-fill"></i>
               <span>FINALIZAR COMPRA</span>
             </button>
           </div>
@@ -560,7 +612,18 @@ export default function CompromisoConfigurator({
               </div>
               <div className="summary-detail-row">
                 <span className="summary-lbl">Pedrería:</span>
-                <span className="summary-val">{gemName}</span>
+                <span className="summary-val">
+                  {gemName}
+                  {isQuoteOnly ? (
+                    <span style={{ color: "#0f766e", fontWeight: "700", marginLeft: "6px" }}>(Solo Cotización GIA)</span>
+                  ) : selectedGemType?.priceDelta < 0 ? (
+                    <span style={{ color: "#d97706", fontWeight: "700", marginLeft: "6px" }}>(-{formatPrice(Math.abs(selectedGemType.priceDelta))})</span>
+                  ) : selectedGemType?.priceDelta > 0 ? (
+                    <span style={{ color: "#166534", fontWeight: "700", marginLeft: "6px" }}>(+{formatPrice(selectedGemType.priceDelta)})</span>
+                  ) : (
+                    <span style={{ color: "#64748b", fontWeight: "600", marginLeft: "6px" }}>(Incluida)</span>
+                  )}
+                </span>
               </div>
               <div className="summary-detail-row">
                 <span className="summary-lbl">Talla:</span>
@@ -612,29 +675,171 @@ export default function CompromisoConfigurator({
               </div>
 
               <div className="summary-total-row" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", borderTop: "1px dashed #e5ded2", paddingTop: "8px" }}>
-                <span className="summary-total-lbl">Total:</span>
-                <span className="summary-total-val">{formatPrice(totalPrice)}</span>
+                <span className="summary-total-lbl">{isQuoteOnly ? "Total Base Estimado:" : "Total:"}</span>
+                <span className="summary-total-val">
+                  {isQuoteOnly
+                    ? `${formatPrice(currentMetalPrice + cofrePrice)} + Cotización GIA`
+                    : formatPrice(totalPrice)}
+                </span>
               </div>
             </div>
 
-            <div className="summary-modal-actions">
-              <a
-                href={getWhatsAppOrderUrl()}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-modal-whatsapp"
-              >
-                <i className="bi bi-whatsapp" style={{ fontSize: "16px" }}></i>
-                <span>REALIZAR PEDIDO VIA WHATSAPP</span>
-              </a>
+            <div className="summary-modal-actions" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+              {isQuoteOnly ? (
+                <>
+                  <a
+                    href={getWhatsAppQuoteUrl()}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-modal-whatsapp"
+                    style={{
+                      background: "#0f766e",
+                      color: "#ffffff",
+                      width: "100%",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "8px",
+                      padding: "13px 20px",
+                      borderRadius: "9999px",
+                      fontWeight: "800",
+                      textDecoration: "none",
+                      boxShadow: "0 4px 14px rgba(15, 118, 110, 0.3)",
+                      fontSize: "13px",
+                    }}
+                  >
+                    <i className="bi bi-whatsapp" style={{ fontSize: "17px" }}></i>
+                    <span>SOLICITAR COTIZACIÓN VIA WHATSAPP</span>
+                  </a>
 
-              <button
-                type="button"
-                className="btn-modal-finalize"
-                onClick={handleFinalizePurchase}
-              >
-                FINALIZAR COMPRA
-              </button>
+                  <div style={{ display: "flex", gap: "10px", width: "100%" }}>
+                    <button
+                      type="button"
+                      onClick={handleModifyFromModal}
+                      style={{
+                        flex: 1,
+                        background: "#ffffff",
+                        color: "#475569",
+                        border: "1.5px solid #cbd5e1",
+                        borderRadius: "9999px",
+                        padding: "12px 16px",
+                        fontSize: "12.5px",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                        transition: "all 0.2s ease",
+                      }}
+                      title="Modificar personalización y volver al configurador"
+                    >
+                      <i className="bi bi-pencil-square"></i>
+                      <span>Modificar</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleAddToCartOnly}
+                      style={{
+                        flex: 1.2,
+                        background: "linear-gradient(135deg, #c5a059 0%, #b38e46 100%)", color: "#ffffff", border: "1px solid #d4af37", boxShadow: "0 4px 14px rgba(197, 160, 89, 0.35)",
+                        borderRadius: "9999px",
+                        padding: "12px 18px",
+                        fontSize: "12.5px",
+                        fontWeight: "800",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                        boxShadow: "0 3px 12px rgba(15, 42, 36, 0.25)",
+                        transition: "all 0.2s ease",
+                      }}
+                      title="Agregar esta joya al carrito de compras"
+                    >
+                      <i className="bi bi-bag-plus"></i>
+                      <span>Continuar</span>
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div style={{ display: "flex", gap: "10px", width: "100%" }}>
+                    <button
+                      type="button"
+                      onClick={handleModifyFromModal}
+                      style={{
+                        flex: 1,
+                        background: "#ffffff",
+                        color: "#475569",
+                        border: "1.5px solid #cbd5e1",
+                        borderRadius: "9999px",
+                        padding: "12px 16px",
+                        fontSize: "12.5px",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                        transition: "all 0.2s ease",
+                      }}
+                      title="Modificar personalización y volver al configurador"
+                    >
+                      <i className="bi bi-pencil-square"></i>
+                      <span>Modificar</span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleAddToCartOnly}
+                      style={{
+                        flex: 1.2,
+                        background: "linear-gradient(135deg, #c5a059 0%, #b38e46 100%)", border: "1px solid #d4af37", boxShadow: "0 4px 14px rgba(197, 160, 89, 0.35)",
+                        color: "#ffffff",
+                        border: "none",
+                        borderRadius: "9999px",
+                        padding: "12px 18px",
+                        fontSize: "12.5px",
+                        fontWeight: "800",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: "6px",
+                        transition: "all 0.2s ease",
+                      }}
+                      title="Agregar esta joya al carrito de compras"
+                    >
+                      <i className="bi bi-bag-plus"></i>
+                      <span>Continuar</span>
+                    </button>
+                  </div>
+
+                  <div style={{ display: "flex", gap: "10px", width: "100%" }}>
+                    <a
+                      href={getWhatsAppOrderUrl()}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn-modal-whatsapp"
+                      style={{ flex: 1 }}
+                    >
+                      <i className="bi bi-whatsapp" style={{ fontSize: "15px" }}></i>
+                      <span>PEDIDO WHATSAPP</span>
+                    </a>
+
+                    <button
+                      type="button"
+                      className="btn-modal-finalize"
+                      onClick={handleFinalizePurchase}
+                      style={{ flex: 1.2 }}
+                    >
+                      <span>FINALIZAR COMPRA →</span>
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

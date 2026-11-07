@@ -164,7 +164,21 @@ export const GEM_TYPES = [
   { id: "gema-color", label: "Gemas de Color (Todas)" },
 ];
 
-export const DIAMOND_COLORS = ["D", "E", "F", "G", "H", "I - J", "K - Z", "Fancy"];
+export const DIAMOND_COLORS = [
+  "D",
+  "E",
+  "F",
+  "G",
+  "H",
+  "I - J",
+  "K - Z",
+  "Fancy",
+  "GEM",
+  "AAA",
+  "AA",
+  "A",
+  "B - C",
+];
 
 export const CLARITY_GRADES = [
   { id: "FL - IF", label: "FL - IF (Sin Inclusiones)" },

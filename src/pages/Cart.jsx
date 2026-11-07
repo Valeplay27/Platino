@@ -535,6 +535,8 @@ function Cart({ cart, updateQuantity }) {
                           type="button"
                           onClick={() => updateQuantity(item.id, item.quantity + 1)}
                           aria-label="Aumentar cantidad"
+                          disabled={item.isGemstone && item.quantity >= (Number(item.stockUnits) || 0)}
+                          title={item.isGemstone ? `Stock disponible: ${item.stockUnits || 0}` : undefined}
                           style={{
                             width: "28px",
                             height: "28px",
@@ -542,7 +544,7 @@ function Cart({ cart, updateQuantity }) {
                             border: "none",
                             background: "#ffffff",
                             color: "#283830",
-                            cursor: "pointer",
+                            cursor: item.isGemstone && item.quantity >= (Number(item.stockUnits) || 0) ? "not-allowed" : "pointer",
                             fontSize: "14px",
                             display: "flex",
                             alignItems: "center",

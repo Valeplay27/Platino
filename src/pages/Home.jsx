@@ -10,15 +10,15 @@ import "../../styles/home.css";
 
 const DIAMOND_SHAPES_BE = [
   // Fila 1 (4 columnas)
-  { id: "oval", name: "Oval", image: getAssetUrl("/images/gem-shapes/oval.webp"), link: "/catalogo-gemas?forma=oval" },
-  { id: "redondo", name: "Redondo", image: getAssetUrl("/images/gem-shapes/redondo.webp"), link: "/catalogo-gemas?forma=redondo" },
-  { id: "esmeralda", name: "Esmeralda", image: getAssetUrl("/images/gem-shapes/esmeralda.webp"), link: "/catalogo-gemas?forma=esmeralda" },
-  { id: "marquesa", name: "Marquise", image: getAssetUrl("/images/gem-shapes/marquesa.webp"), link: "/catalogo-gemas?forma=marquesa" },
+  { id: "oval", name: "Oval", image: getAssetUrl("/images/gem-shapes/oval.webp"), link: "/categoria/anillo-compromiso?forma=oval" },
+  { id: "redondo", name: "Redondo", image: getAssetUrl("/images/gem-shapes/redondo.webp"), link: "/categoria/anillo-compromiso?forma=redondo" },
+  { id: "esmeralda", name: "Esmeralda", image: getAssetUrl("/images/gem-shapes/esmeralda.webp"), link: "/categoria/anillo-compromiso?forma=esmeralda" },
+  { id: "marquesa", name: "Marquise", image: getAssetUrl("/images/gem-shapes/marquesa.webp"), link: "/categoria/anillo-compromiso?forma=marquesa" },
   // Fila 2 (4 columnas)
-  { id: "pera", name: "Pera", image: getAssetUrl("/images/gem-shapes/pera.webp"), link: "/catalogo-gemas?forma=pera" },
-  { id: "cojin", name: "Cojín", image: getAssetUrl("/images/gem-shapes/cojin.webp"), link: "/catalogo-gemas?forma=cojin" },
-  { id: "princesa", name: "Princesa", image: getAssetUrl("/images/gem-shapes/princesa.webp"), link: "/catalogo-gemas?forma=princesa" },
-  { id: "ver-mas", name: "Ver más", isVerMas: true, link: "/catalogo-gemas" },
+  { id: "pera", name: "Pera", image: getAssetUrl("/images/gem-shapes/pera.webp"), link: "/categoria/anillo-compromiso?forma=pera" },
+  { id: "cojin", name: "Cojín", image: getAssetUrl("/images/gem-shapes/cojin.webp"), link: "/categoria/anillo-compromiso?forma=cojin" },
+  { id: "princesa", name: "Princesa", image: getAssetUrl("/images/gem-shapes/princesa.webp"), link: "/categoria/anillo-compromiso?forma=princesa" },
+  { id: "ver-mas", name: "Ver más", isVerMas: true, link: "/categoria/anillo-compromiso" },
 ];
 
 const TRUST_BADGES = [
@@ -340,7 +340,7 @@ export default function Home() {
                     key="ver-mas"
                     to={shape.link}
                     className="be-shape-item be-ver-mas-item"
-                    title="Ver más cortes y gemas en el catálogo"
+                    title="Ver anillos de compromiso en el catálogo"
                   >
                     <div className="be-shape-img-wrap">
                       <div className="be-ver-mas-icon">
@@ -357,7 +357,7 @@ export default function Home() {
                   key={shape.id}
                   to={shape.link}
                   className="be-shape-item"
-                  title={`Ver diamantes y gemas corte ${shape.name}`}
+                  title={`Ver anillos de compromiso con gema corte ${shape.name}`}
                 >
                   <div className="be-shape-img-wrap">
                     <img

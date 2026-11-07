@@ -51,7 +51,7 @@ export const ORDER_STAGES = [
     id: "listo_envio",
     label: "Listo para Entrega / Despacho",
     shortLabel: "Listo para Entrega",
-    description: "Empaque de lujo completado en estuche de madera fina. Listo para recojo o courier blindado.",
+    description: "Empaque de lujo completado en estuche de madera fina. Listo para recojo o envío a domicilio.",
     icon: "bi-box-seam",
     stepNumber: 5,
     color: "#059669",
@@ -105,7 +105,7 @@ export const CLIENT_ORDER_STAGES = [
     id: "listo_envio",
     label: "Listo para Entrega",
     shortLabel: "Listo para Entrega",
-    description: "Empaque de lujo completado en estuche noble. Listo para entrega en boutique o despacho blindado.",
+    description: "Empaque de lujo completado en estuche noble. Listo para entrega en boutique o despacho a domicilio.",
     icon: "bi-box-seam",
     stepNumber: 3,
     color: "#059669",
@@ -321,7 +321,7 @@ export const PAYMENT_METHODS_DATA = [
     category: "Transferencia Bancaria",
     description: "Transferencia directa a cuenta corriente Soles / Dólares BCP",
     icon: "bi-bank",
-    instructions: "Transfiere vía App BCP o agente a nuestra Cta. Cte. Soles: 194-8291048-0-12 (CCI: 00219400829104801290).",
+    instructions: "Una vez confirmado tu pedido, te enviaremos los datos de nuestras cuentas bancarias por WhatsApp para que puedas realizar el pago.",
   },
   {
     id: "Interbank",
@@ -330,7 +330,7 @@ export const PAYMENT_METHODS_DATA = [
     category: "Transferencia Bancaria",
     description: "Transferencia directa o interbancaria Interbank",
     icon: "bi-building-fill",
-    instructions: "Transfiere desde tu banca móvil Interbank a nuestra Cta. Cte. Soles: 200-3001847192 (CCI: 00320000300184719245).",
+    instructions: "Una vez confirmado tu pedido, te enviaremos los datos de nuestras cuentas bancarias por WhatsApp para que puedas realizar el pago.",
   },
   {
     id: "BanBif",
@@ -339,7 +339,7 @@ export const PAYMENT_METHODS_DATA = [
     category: "Transferencia Bancaria",
     description: "Abono o transferencia a cuenta corriente BanBif",
     icon: "bi-bank2",
-    instructions: "Transfiere vía BanBif a nuestra Cta. Cte. Soles: 007-001928471-9 (CCI: 03800700192847190011).",
+    instructions: "Una vez confirmado tu pedido, te enviaremos los datos de nuestras cuentas bancarias por WhatsApp para que puedas realizar el pago.",
   },
   {
     id: "Banco de la Nación",
@@ -348,7 +348,7 @@ export const PAYMENT_METHODS_DATA = [
     category: "Depósito / Transferencia",
     description: "Depósito en ventanilla, agente o transferencia BN",
     icon: "bi-building",
-    instructions: "Abono o depósito en ventanilla o agente Banco de la Nación a la Cta. Institucional: 04-019-382910.",
+    instructions: "Una vez confirmado tu pedido, te enviaremos los datos de nuestras cuentas bancarias por WhatsApp para que puedas realizar el pago.",
   },
   {
     id: "IziPay",
@@ -366,7 +366,7 @@ export const PAYMENT_METHODS_DATA = [
     category: "Transferencia Bancaria",
     description: "Transferencia a cuenta empresarial Banco Pichincha",
     icon: "bi-credit-card",
-    instructions: "Transfiere desde la banca móvil Pichincha o interbancario a la Cta.: 0011-0982736182 (CCI: 01100110982736182390).",
+    instructions: "Una vez confirmado tu pedido, te enviaremos los datos de nuestras cuentas bancarias por WhatsApp para que puedas realizar el pago.",
   },
   {
     id: "Fondo Platino",

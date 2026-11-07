@@ -22,6 +22,8 @@ import Educacion from './pages/Educacion'
 import LibroReclamaciones from './pages/LibroReclamaciones'
 import GoogleReviewsToast from './components/GoogleReviewsToast'
 import CartDrawer from './components/CartDrawer'
+import AddToCartConfirmationModal from './components/AddToCartConfirmationModal'
+import { getStoredGemstones } from './services/gemstonesService'
 import ApiDataBootstrap from './components/ApiDataBootstrap'
 import MaintenanceNoticeModal from './components/MaintenanceNoticeModal'
 import LuxuryNotification from './components/LuxuryNotification'
@@ -31,6 +33,7 @@ function App() {
   const [cart, setCart] = useState([])
   const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false)
   const [lastAddedItem, setLastAddedItem] = useState(null)
+  const [pendingCartItem, setPendingCartItem] = useState(null)
   const [apiError, setApiError] = useState("")
 
   useEffect(() => {
@@ -39,9 +42,33 @@ function App() {
     return () => window.removeEventListener("platino_api_error", handleApiError);
   }, [])
 
-  const addToCart = (product) => {
+  const addProductToCart = (product, { openCartDrawer = true } = {}) => {
     const itemKey = product.cartItemId || `${product.id}-${product.selectedMetal || product.metal || ''}-${product.selectedSize || product.size || ''}-${product.engraving || ''}`;
     const addQty = product.quantity || 1;
+    if (product.isGemstone) {
+      const gemstone = getStoredGemstones().find(
+        (gem) => `gem-${gem.id || gem.certNumber || ""}` === itemKey
+      );
+      const stock = Math.max(0, Number(gemstone?.units) || 0);
+      const alreadyInCart = cart.reduce((total, item) => {
+        return item.isGemstone && (item.cartItemId || item.id) === itemKey
+          ? total + (Number(item.quantity) || 0)
+          : total;
+      }, 0);
+      const remainingStock = Math.max(0, stock - alreadyInCart);
+      if (addQty > remainingStock) {
+        window.dispatchEvent(new CustomEvent("platino_notification", {
+          detail: {
+            message: remainingStock > 0
+              ? `Solo quedan ${remainingStock} ${remainingStock === 1 ? "unidad" : "unidades"} disponibles de ${product.name}.`
+              : `No quedan unidades disponibles de ${product.name}.`,
+            type: "warning",
+          },
+        }));
+        return false;
+      }
+    }
+
     const basePrice = product.basePrice !== undefined ? Number(product.basePrice) : Number(product.price || 0);
 
     const getEffectivePrice = (item, qty) => {
@@ -82,10 +109,44 @@ function App() {
     });
 
     setLastAddedItem(configuredProduct);
-    setIsCartDrawerOpen(true);
+    setIsCartDrawerOpen(openCartDrawer);
+    return true;
   }
 
+  const addToCart = (product, { skipConfirmation = false, openCartDrawer = true } = {}) => {
+    if (skipConfirmation) {
+      addProductToCart(product, { openCartDrawer })
+      return
+    }
+    setPendingCartItem(product)
+  }
+
+  const confirmAddToCart = () => {
+    if (!pendingCartItem) return
+    addProductToCart(pendingCartItem)
+    setPendingCartItem(null)
+  }
+
+  const cancelAddToCart = () => setPendingCartItem(null)
+
   const updateQuantity = (idOrKey, quantity) => {
+    const currentItem = cart.find((item) => (item.cartItemId || item.id) === idOrKey);
+    if (currentItem?.isGemstone && quantity > currentItem.quantity) {
+      const gemstone = getStoredGemstones().find(
+        (gem) => `gem-${gem.id || gem.certNumber || ""}` === idOrKey
+      );
+      const stock = Math.max(0, Number(gemstone?.units) || 0);
+      if (quantity > stock) {
+        window.dispatchEvent(new CustomEvent("platino_notification", {
+          detail: {
+            message: `Solo hay ${stock} ${stock === 1 ? "unidad disponible" : "unidades disponibles"} de ${currentItem.name}.`,
+            type: "warning",
+          },
+        }));
+        return;
+      }
+    }
+
     setCart((currentCart) =>
       quantity < 1
         ? currentCart.filter((item) => (item.cartItemId || item.id) !== idOrKey)
@@ -170,8 +231,8 @@ function App() {
             <Route path="/checkout" element={<Checkout cart={cart} clearCart={clearCart} />} />
             <Route path="/sedes" element={<Sedes />} />
             <Route path="/agendar-cita" element={<AgendarCita />} />
-            <Route path="/catalogo-gemas" element={<GemstonesCatalog addToCart={addToCart} />} />
-            <Route path="/gemas" element={<GemstonesCatalog addToCart={addToCart} />} />
+            <Route path="/catalogo-gemas" element={<GemstonesCatalog addToCart={addToCart} cart={cart} />} />
+            <Route path="/gemas" element={<GemstonesCatalog addToCart={addToCart} cart={cart} />} />
             <Route path="/favoritos" element={<Favorites addToCart={addToCart} />} />
             <Route path="/nosotros" element={<Nosotros />} />
             <Route path="/educacion" element={<Educacion />} />
@@ -220,6 +281,11 @@ function App() {
           updateQuantity={updateQuantity}
           removeFromCart={removeFromCart}
           lastAddedItem={lastAddedItem}
+        />
+        <AddToCartConfirmationModal
+          product={pendingCartItem}
+          onModify={cancelAddToCart}
+          onContinue={confirmAddToCart}
         />
         <GoogleReviewsToast />
         <LuxuryNotification />

@@ -3,6 +3,7 @@ import { useParams, useSearchParams, Link } from "react-router-dom";
 import ProductCard from "../components/ProductCard";
 import { CATEGORY_INFO } from "../data/products";
 import { getCatalogProducts } from "../services/catalogService";
+import { getGemCollectionOptions } from "../services/gemCollectionService";
 import "../../styles/catalog.css";
 
 const FORMA_LABELS = {
@@ -91,6 +92,13 @@ const FORMA_PILL_OPTIONS = [
   { value: "esmeralda", label: "Esmeralda" },
   { value: "corazon", label: "Corazón" },
   { value: "otros", label: "Otros Cortes" },
+  { value: "radiante", label: "Radiante" },
+  { value: "pera", label: "Pera" },
+  { value: "cojin-alargado", label: "Cojín Alargado" },
+  { value: "cojin", label: "Cojín" },
+  { value: "princesa", label: "Princesa" },
+  { value: "asscher", label: "Asscher" },
+  { value: "sin-forma", label: "Sin forma" },
 ];
 
 const ESTILO_COMPROMISO_PILL_OPTIONS = [
@@ -100,13 +108,6 @@ const ESTILO_COMPROMISO_PILL_OPTIONS = [
   { value: "moderno", label: "Modernos" },
   { value: "vintage", label: "Vintage" },
   { value: "con-gemas", label: "Con Gemas" },
-];
-
-const GEMA_PILL_OPTIONS = [
-  { value: "diamante", label: "Diamante" },
-  { value: "esmeralda", label: "Esmeralda" },
-  { value: "rubi", label: "Rubí" },
-  { value: "zafiro", label: "Zafiro" },
 ];
 
 const ESTILO_BODA_PILL_OPTIONS = [
@@ -240,9 +241,11 @@ function MinimalPillFilter({ label, value, onChange, options, isActive, alignRig
     };
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside, { passive: true });
     }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
     };
   }, [isOpen]);
 
@@ -301,7 +304,24 @@ function MinimalPillFilter({ label, value, onChange, options, isActive, alignRig
       </button>
 
       {isOpen && (
-        <div className={`minimal-dropdown-menu ${alignRight ? "align-right" : ""}`}>
+        <>
+          <div
+            className="minimal-dropdown-backdrop"
+            onClick={() => setIsOpen(false)}
+            aria-hidden="true"
+          />
+          <div className={`minimal-dropdown-menu ${alignRight ? "align-right" : ""}`}>
+            <div className="minimal-dropdown-mobile-header">
+              <span className="minimal-dropdown-mobile-title">Filtrar por {label}</span>
+              <button
+                type="button"
+                className="minimal-dropdown-mobile-close"
+                onClick={() => setIsOpen(false)}
+                aria-label="Cerrar filtro"
+              >
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
           <button
             type="button"
             className={`minimal-dropdown-item ${!value ? "selected" : ""}`}
@@ -340,6 +360,7 @@ function MinimalPillFilter({ label, value, onChange, options, isActive, alignRig
             )
           )}
         </div>
+        </>
       )}
     </div>
   );
@@ -357,9 +378,11 @@ function MinimalSortFilter({ sortBy, setSortBy }) {
     };
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside, { passive: true });
     }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
     };
   }, [isOpen]);
 
@@ -408,7 +431,24 @@ function MinimalSortFilter({ sortBy, setSortBy }) {
       </button>
 
       {isOpen && (
-        <div className="minimal-dropdown-menu align-right">
+        <>
+          <div
+            className="minimal-dropdown-backdrop"
+            onClick={() => setIsOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="minimal-dropdown-menu align-right">
+            <div className="minimal-dropdown-mobile-header">
+              <span className="minimal-dropdown-mobile-title">Ordenar por</span>
+              <button
+                type="button"
+                className="minimal-dropdown-mobile-close"
+                onClick={() => setIsOpen(false)}
+                aria-label="Cerrar orden"
+              >
+                <i className="bi bi-x-lg"></i>
+              </button>
+            </div>
           <button
             type="button"
             className={`minimal-dropdown-item ${sortBy === "destacados" ? "selected" : ""}`}
@@ -434,6 +474,7 @@ function MinimalSortFilter({ sortBy, setSortBy }) {
             {sortBy === "precio-mayor" && <i className="bi bi-check2"></i>}
           </button>
         </div>
+        </>
       )}
     </div>
   );
@@ -453,6 +494,7 @@ function Category({ addToCart }) {
   const qParam = searchParams.get("q") || "";
 
   const [productsList, setProductsList] = useState(() => getCatalogProducts());
+  const [gemCollectionOptions, setGemCollectionOptions] = useState(() => getGemCollectionOptions());
   const [sortBy, setSortBy] = useState("destacados");
 
   useEffect(() => {
@@ -471,6 +513,12 @@ function Category({ addToCart }) {
       document.removeEventListener("visibilitychange", handleUpdate);
     };
   }, [category]);
+
+  useEffect(() => {
+    const refreshGemCollectionOptions = () => setGemCollectionOptions(getGemCollectionOptions());
+    window.addEventListener("gem_collection_options_updated", refreshGemCollectionOptions);
+    return () => window.removeEventListener("gem_collection_options_updated", refreshGemCollectionOptions);
+  }, []);
 
   useEffect(() => {
     try {
@@ -772,13 +820,16 @@ function Category({ addToCart }) {
 
     // Filtro por Forma de Gema
     if (formaParam) {
-      const targetForma = formaParam.toLowerCase();
+      const targetForma = formaParam.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       list = list.filter((p) => {
-        const defaultShape = (p.defaultGemShape || "").toLowerCase();
+        if (targetForma === "sin-forma") return p.hasGemSelection === false;
+        if (p.hasGemSelection === false) return false;
+
+        const defaultShape = (p.defaultGemShape || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         const shapes = Array.isArray(p.availableGemShapes)
-          ? p.availableGemShapes.map((s) => String(s).toLowerCase())
+          ? p.availableGemShapes.map((s) => String(s).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, ""))
           : [];
-        const pName = (p.name || "").toLowerCase();
+        const pName = (p.name || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 
         if (targetForma === "redondo") {
           return defaultShape.includes("redondo") || shapes.includes("redondo") || pName.includes("redondo");
@@ -802,13 +853,9 @@ function Category({ addToCart }) {
           );
         }
         if (targetForma === "otros") {
+          const otherShapes = ["radiante", "pera", "cojin", "cojin-alargado", "princesa", "asscher"];
           return (
-            shapes.some((s) => !["redondo", "oval"].includes(s)) ||
-            defaultShape.includes("princesa") ||
-            defaultShape.includes("pera") ||
-            defaultShape.includes("cojín") ||
-            defaultShape.includes("cojin") ||
-            defaultShape.includes("radiante")
+            otherShapes.some((shape) => shapes.includes(shape) || defaultShape.includes(shape) || pName.includes(shape))
           );
         }
         return defaultShape.includes(targetForma) || shapes.includes(targetForma);
@@ -953,12 +1000,14 @@ function Category({ addToCart }) {
 
     // Filtro por Gema Selecta
     if (gemaParam) {
-      const targetGema = gemaParam.toLowerCase();
+      const targetGema = gemaParam.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
       list = list.filter((p) => {
-        const pGem = (p.gem || "").toLowerCase();
-        const pName = (p.name || "").toLowerCase();
-        const pBadge = (p.badge || "").toLowerCase();
-        const pDesc = (p.description || "").toLowerCase();
+        const normalize = (value) => String(value || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const pGem = normalize(p.gem);
+        const pName = normalize(p.name);
+        const pBadge = normalize(p.badge);
+        const pDesc = normalize(p.description);
+        const pCategories = Array.isArray(p.categories) ? p.categories.map(normalize) : [];
 
         if (targetGema === "diamante") {
           return (
@@ -975,7 +1024,15 @@ function Category({ addToCart }) {
         if (targetGema === "zafiro") {
           return pGem === "zafiro" || pName.includes("zafiro") || pBadge.includes("zafiro") || pDesc.includes("zafiro");
         }
-        return pGem === targetGema;
+        const categoryLabel = normalize(gemCollectionOptions.find((option) => option.id === gemaParam)?.label);
+        return (
+          pGem === targetGema ||
+          pCategories.includes(`gema-${targetGema}`) ||
+          Boolean(
+            categoryLabel &&
+              (pName.includes(categoryLabel) || pBadge.includes(categoryLabel) || pDesc.includes(categoryLabel))
+          )
+        );
       });
     }
 
@@ -1267,7 +1324,7 @@ function Category({ addToCart }) {
     }
 
     return list;
-  }, [categoryKey, formaParam, estiloParam, metalParam, gemaParam, tipoParam, subcatParam, generoParam, qParam, sortBy, productsList]);
+  }, [categoryKey, formaParam, estiloParam, metalParam, gemaParam, tipoParam, subcatParam, generoParam, qParam, sortBy, productsList, gemCollectionOptions]);
 
   const isCompromisoCategory =
     normKey === "anillo-compromiso" ||
@@ -1290,6 +1347,10 @@ function Category({ addToCart }) {
     normKey === "promesa" ||
     normKey === "aros-alianzas" ||
     normKey === "alianzas";
+
+  const isPromesaRingSelection =
+    isPromesaCategory &&
+    (subcatParam !== "alianzas-amor" || ["anillo-promesa", "anillos-promesa", "promesa"].includes(normKey));
 
   const isJoyeriaCategory =
     normKey === "joyeria" ||
@@ -1357,7 +1418,10 @@ function Category({ addToCart }) {
                   label="Gema"
                   value={gemaParam}
                   onChange={(val) => updateParam("gema", val)}
-                  options={GEMA_PILL_OPTIONS}
+                  options={gemCollectionOptions.filter((option) => option.id).map((option) => ({
+                    value: option.id,
+                    label: option.label,
+                  }))}
                   isActive={Boolean(gemaParam)}
                 />
               </>
@@ -1377,6 +1441,15 @@ function Category({ addToCart }) {
             {/* 3. Amor y Promesa */}
             {isPromesaCategory && (
               <>
+                {isPromesaRingSelection && (
+                  <MinimalPillFilter
+                    label="Forma"
+                    value={formaParam}
+                    onChange={(val) => updateParam("forma", val)}
+                    options={FORMA_PILL_OPTIONS}
+                    isActive={Boolean(formaParam)}
+                  />
+                )}
                 <MinimalPillFilter
                   label="Colección"
                   value={subcatParam}

@@ -4,7 +4,7 @@ export const TIME_SLOTS = [
   "10:00 AM",
   "11:00 AM",
   "12:00 PM",
-  // 1:00 PM - 2:00 PM es refrigerio
+  // 1:30 PM - 2:50 PM es refrigerio
   "02:00 PM",
   "03:00 PM",
   "04:00 PM",

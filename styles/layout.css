@@ -150,8 +150,11 @@
 
 @media (max-width: 768px) {
   .brand-logo-wordmark {
-    height: 21px;
-    max-width: 210px;
+    height: 17.5px;
+    max-width: 145px;
+    width: auto;
+    object-fit: contain;
+    display: block;
   }
 }
 
@@ -1482,11 +1485,11 @@
     box-shadow: 0 4px 18px rgba(10, 37, 29, 0.08);
     border: 1px solid #e7ded0;
     border-top: none;
-    padding: 10px 16px;
+    padding: 8px 12px;
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
     width: 100%;
     box-sizing: border-box;
     position: relative;
@@ -1522,10 +1525,11 @@
     justify-content: center;
     text-decoration: none;
     flex: 1 1 auto;
+    min-width: 0;
     text-align: center;
     order: 2;
     white-space: nowrap;
-    padding: 0 4px;
+    padding: 0 2px;
   }
 
   .brand-logo-custom {
@@ -1565,7 +1569,7 @@
     display: flex !important;
     align-items: center;
     justify-content: flex-end;
-    gap: 9px;
+    gap: 5px;
     flex-shrink: 0;
     order: 4;
   }
@@ -1574,10 +1578,10 @@
     background: transparent;
     border: none;
     color: #113B3A;
-    font-size: 18px;
-    padding: 4px;
-    min-width: 28px;
-    height: 28px;
+    font-size: 17px;
+    padding: 3px;
+    min-width: 26px;
+    height: 26px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -1588,28 +1592,32 @@
   }
 
   .action-icon-btn i {
-    font-size: 18px;
+    font-size: 17px;
     color: #113B3A;
     line-height: 1;
   }
 
   .action-icon-btn .cart-badge {
     position: absolute;
-    top: -4px;
-    right: -6px;
+    top: -3px;
+    right: -3px;
     background: #113B3A;
     color: #ffffff;
-    font-size: 9px;
+    font-size: 8.5px;
     font-weight: 800;
-    width: 15px;
-    height: 15px;
+    width: 14px;
+    height: 14px;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     border: 1.5px solid #FAF7F2;
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
     line-height: 1;
+  }
+
+  .header-actions .action-icon-btn:last-child {
+    margin-right: 3px;
   }
 
 
@@ -2082,70 +2090,54 @@
   }
 
   .header-top-row {
-    padding: 8px 10px;
-    gap: 6px;
-  }
-
-  .brand-logo-custom {
-    font-size: 16.5px;
-    letter-spacing: 0.1em;
-    gap: 5px;
-  }
-
-  .brand-diamond-svg {
-    width: 15px;
-    height: 15px;
+    padding: 7px 8px;
+    gap: 4px;
   }
 
   .brand-logo {
-    gap: 6px;
-    padding: 0 2px;
+    gap: 3px;
+    padding: 0 1px;
+    min-width: 0;
   }
 
-  .brand-logo-img {
-    width: 25px;
-    height: 25px;
-    border-radius: 5px;
+  .brand-logo-wordmark {
+    height: 16px;
+    max-width: 132px;
   }
 
-  .brand-name {
-    font-size: 17px;
-    letter-spacing: 0.1em;
-  }
-
-  .brand-gem {
-    font-size: 10px;
-  }
-
-  .brand-country {
-    font-size: 15px;
-    letter-spacing: 0.12em;
+  .header-mobile-divider {
+    height: 18px;
+    margin: 0 2px;
   }
 
   .header-actions {
-    gap: 6px;
+    gap: 3px;
   }
 
   .action-icon-btn {
-    font-size: 17px;
-    padding: 3px;
+    font-size: 16px;
+    padding: 2px;
+    min-width: 25px;
+    height: 25px;
+  }
+
+  .action-icon-btn i {
+    font-size: 16px;
+  }
+
+  .mobile-menu-btn {
+    font-size: 22px;
+    padding: 2px;
     min-width: 28px;
     height: 28px;
   }
 
-  .mobile-menu-btn {
-    font-size: 23px;
-    padding: 2px;
-    min-width: 30px;
-    height: 30px;
-  }
-
   .cart-badge {
     top: -3px;
-    right: -5px;
-    width: 14px;
-    height: 14px;
-    font-size: 8.5px;
+    right: -2px;
+    width: 13px;
+    height: 13px;
+    font-size: 8px;
   }
 
   .footer-columns-grid {
@@ -2156,50 +2148,53 @@
 
 @media (max-width: 380px) {
   .header-top-row {
-    padding: 7px 6px;
-    gap: 4px;
-  }
-
-  .brand-logo-custom {
-    font-size: 14px;
-    letter-spacing: 0.08em;
-    gap: 4px;
-  }
-
-  .brand-diamond-svg {
-    width: 13px;
-    height: 13px;
+    padding: 6px 6px;
+    gap: 2px;
   }
 
   .brand-logo {
-    gap: 4px;
-    padding: 0 1px;
+    gap: 2px;
+    padding: 0;
+    min-width: 0;
+  }
+
+  .brand-logo-wordmark {
+    height: 14.5px;
+    max-width: 118px;
   }
 
   .header-mobile-divider {
-    height: 18px;
-    margin: 0 2px;
+    height: 16px;
+    margin: 0 1px;
   }
 
   .header-actions {
-    gap: 4px;
+    gap: 2px;
   }
 
   .action-icon-btn {
-    padding: 2px;
-    min-width: 25px;
-    height: 25px;
-    font-size: 15px;
+    padding: 1px;
+    min-width: 23px;
+    height: 23px;
+    font-size: 14.5px;
   }
 
   .action-icon-btn i {
-    font-size: 15px;
+    font-size: 14.5px;
   }
 
   .mobile-menu-btn {
-    min-width: 27px;
-    height: 28px;
-    font-size: 20px;
+    min-width: 25px;
+    height: 25px;
+    font-size: 19px;
+  }
+
+  .cart-badge {
+    top: -3px;
+    right: -2px;
+    width: 12px;
+    height: 12px;
+    font-size: 7.5px;
   }
 }
 

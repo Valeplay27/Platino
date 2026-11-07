@@ -341,37 +341,37 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                       <h4 className="megamenu-col-title">FORMA DE LA GEMA</h4>
                       <ul className="megamenu-links-list gem-shapes-list">
                         <li>
-                          <Link to="/catalogo-gemas?forma=redondo" onClick={handleNavClick}>
+                          <Link to="/categoria/anillo-compromiso?forma=redondo" onClick={handleNavClick}>
                             <DiamondCutIcon shape="redondo" size={20} />
                             <span>REDONDO</span>
                           </Link>
                         </li>
                         <li>
-                          <Link to="/catalogo-gemas?forma=oval" onClick={handleNavClick}>
+                          <Link to="/categoria/anillo-compromiso?forma=oval" onClick={handleNavClick}>
                             <DiamondCutIcon shape="oval" size={20} />
                             <span>OVAL</span>
                           </Link>
                         </li>
                         <li>
-                          <Link to="/catalogo-gemas?forma=marquesa" onClick={handleNavClick}>
+                          <Link to="/categoria/anillo-compromiso?forma=marquesa" onClick={handleNavClick}>
                             <DiamondCutIcon shape="marquesa" size={20} />
                             <span>MARQUESA</span>
                           </Link>
                         </li>
                         <li>
-                          <Link to="/catalogo-gemas?forma=esmeralda" onClick={handleNavClick}>
+                          <Link to="/categoria/anillo-compromiso?forma=esmeralda" onClick={handleNavClick}>
                             <DiamondCutIcon shape="esmeralda" size={20} />
                             <span>ESMERALDA</span>
                           </Link>
                         </li>
                         <li>
-                          <Link to="/catalogo-gemas?forma=corazon" onClick={handleNavClick}>
+                          <Link to="/categoria/anillo-compromiso?forma=corazon" onClick={handleNavClick}>
                             <DiamondCutIcon shape="corazon" size={20} />
                             <span>CORAZÓN</span>
                           </Link>
                         </li>
                         <li>
-                          <Link to="/catalogo-gemas" onClick={handleNavClick}>
+                          <Link to="/categoria/anillo-compromiso?forma=otros" onClick={handleNavClick}>
                             <DiamondCutIcon shape="otros" size={20} />
                             <span>OTROS</span>
                           </Link>

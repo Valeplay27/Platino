@@ -370,7 +370,12 @@ export const products = RAW_PRODUCTS.map((p) => ({
   gallery: (p.gallery || []).map((img) => getAssetUrl(img)),
 }));
 
-export const formatPrice = (price) => `S/. ${price.toLocaleString("es-PE")}`;
+export const formatPrice = (price) => {
+  if (price === undefined || price === null || price === "") return "S/. 0";
+  const num = typeof price === "number" ? price : Number(String(price).replace(/[^0-9.-]+/g, ""));
+  if (isNaN(num)) return "S/. 0";
+  return `S/. ${Math.round(num).toLocaleString("es-PE")}`;
+};
 
 export const FAQS = [
   {
