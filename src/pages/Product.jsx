@@ -11,6 +11,7 @@ import {
   DAMA_SIZES,
   VARON_SIZES,
   getProductStock,
+  getSizePrice,
   getSizeAvailability,
 } from "../services/inventoryService";
 import { getProductById, getCatalogProducts } from "../services/catalogService";
@@ -480,15 +481,28 @@ export default function Product({ addToCart }) {
     return Number(shapePrices[selectedGemShape.id] ?? selectedGemShape?.priceDelta ?? 0) || 0;
   }, [product?.hasGemSelection, product?.gemShapePrices, selectedGemShape]);
 
+  const selectedSizePriceAdjustment = useMemo(() => {
+    if (isAccesorio) return 0;
+    if (isAros && targetGender === "ambos") {
+      return (selectedSizeDama === "asesor" ? 0 : getSizePrice(productStock, "dama", selectedSizeDama)) +
+        (selectedSizeVaron === "asesor" ? 0 : getSizePrice(productStock, "varon", selectedSizeVaron));
+    }
+    if (targetGender === "varon") {
+      return selectedSizeVaron === "asesor" ? 0 : getSizePrice(productStock, "varon", selectedSizeVaron);
+    }
+    return selectedSizeDama === "asesor" ? 0 : getSizePrice(productStock, "dama", selectedSizeDama);
+  }, [isAccesorio, isAros, targetGender, selectedSizeDama, selectedSizeVaron, productStock]);
+
   // Precio total para el pedido final (resumen modal, carrito, WhatsApp)
   const totalCompromisoPrice = useMemo(() => {
     return Math.max(
       0,
       currentMetalPrice +
+      selectedSizePriceAdjustment +
       (selectedPresentationObj?.price || 0) +
       (selectedGemType?.isQuoteOnly ? 0 : (selectedGemType?.priceDelta || 0))
     );
-  }, [currentMetalPrice, selectedPresentationObj?.price, selectedGemType]);
+  }, [currentMetalPrice, selectedSizePriceAdjustment, selectedPresentationObj?.price, selectedGemType]);
 
   // Precio dinámico visible en la cabecera según el paso activo:
   // Paso 1: Solo valor del producto/metal (no suma gema ni estuche aún)
@@ -496,13 +510,13 @@ export default function Product({ addToCart }) {
   // Paso 3 o posterior: Metal + Gema + Estuche seleccionado
   const displayedCompromisoPrice = useMemo(() => {
     if (currentStep === 1) {
-      return currentMetalPrice;
+      return currentMetalPrice + selectedSizePriceAdjustment;
     }
     if (currentStep === 2) {
-      return Math.max(0, currentMetalPrice + (selectedGemType?.isQuoteOnly ? 0 : (selectedGemType?.priceDelta || 0)));
+      return Math.max(0, currentMetalPrice + selectedSizePriceAdjustment + (selectedGemType?.isQuoteOnly ? 0 : (selectedGemType?.priceDelta || 0)));
     }
     return totalCompromisoPrice;
-  }, [currentStep, currentMetalPrice, selectedGemType, totalCompromisoPrice]);
+  }, [currentStep, currentMetalPrice, selectedSizePriceAdjustment, selectedGemType, totalCompromisoPrice]);
 
   const [platinoCarePlan, setPlatinoCarePlan] = useState("cortesia"); // 'cortesia' o 'plus'
   const [platinoCareConfig, setPlatinoCareConfig] = useState(() => getPlatinoCareConfig());
@@ -519,25 +533,26 @@ export default function Product({ addToCart }) {
   const carePlusPrice = platinoCareConfig?.plus?.price ?? 90;
 
   const currentGeneralPrice = useMemo(() => {
-    return currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta + (selectedPresentationObj?.price || 0);
-  }, [currentMetalPrice, platinoCarePlan, isAccesorio, carePlusPrice, selectedGemShapePriceDelta, selectedPresentationObj?.price]);
+    return currentMetalPrice + selectedSizePriceAdjustment + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta + (selectedPresentationObj?.price || 0);
+  }, [currentMetalPrice, selectedSizePriceAdjustment, platinoCarePlan, isAccesorio, carePlusPrice, selectedGemShapePriceDelta, selectedPresentationObj?.price]);
 
   const displayedGeneralPrice = useMemo(() => {
     const isBoxStep = (!product.hasGemSelection || isAccesorio) ? currentStep >= 2 : currentStep >= 3;
     const hasGems = product.hasGemSelection && !isAccesorio;
     if (currentStep === 1) {
-      return currentMetalPrice;
+      return currentMetalPrice + selectedSizePriceAdjustment;
     }
     if (currentStep === 2 && hasGems) {
-      return currentMetalPrice + selectedGemShapePriceDelta;
+      return currentMetalPrice + selectedSizePriceAdjustment + selectedGemShapePriceDelta;
     }
     return (
       currentMetalPrice +
+      selectedSizePriceAdjustment +
       (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) +
       (hasGems ? selectedGemShapePriceDelta : 0) +
       (isBoxStep ? (selectedPresentationObj?.price || 0) : 0)
     );
-  }, [currentStep, currentMetalPrice, platinoCarePlan, isAccesorio, carePlusPrice, selectedGemShapePriceDelta, selectedPresentationObj?.price, product.hasGemSelection]);
+  }, [currentStep, currentMetalPrice, selectedSizePriceAdjustment, platinoCarePlan, isAccesorio, carePlusPrice, selectedGemShapePriceDelta, selectedPresentationObj?.price, product.hasGemSelection]);
 
 
   // Acordeón de FAQs
@@ -712,6 +727,7 @@ export default function Product({ addToCart }) {
           gemPrice: selectedGemType?.priceDelta || 0,
           selectedPresentation: safePresentationName,
           presentationPrice: safePresentationPrice,
+          sizePriceAdjustment: selectedSizePriceAdjustment,
           hasEngraving: Boolean(hasEngraving),
           engraving: hasEngraving ? (engravingText ? `Sí: "${engravingText}"` : "Sí (A coordinar)") : null,
           needsSizeAdvice: selectedSizeDama === "asesor",
@@ -754,9 +770,10 @@ export default function Product({ addToCart }) {
         estimatedDeliveryDate: shouldShowDelivery ? deliveryDateFormatted : undefined,
         selectedPresentation: safePresentationName,
         presentationPrice: safePresentationPrice,
+        sizePriceAdjustment: selectedSizePriceAdjustment,
         platinoCarePlan: platinoCarePlan,
         platinoCareTitle: platinoCarePlan === "plus" ? "Platino Care + (Premium)" : "Platino Care Cortesía",
-        price: currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + (selectedGemShapePriceDelta || 0) + safePresentationPrice,
+        price: currentMetalPrice + selectedSizePriceAdjustment + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + (selectedGemShapePriceDelta || 0) + safePresentationPrice,
         image: safeImage,
       };
       addToCart(customProduct, { skipConfirmation, openCartDrawer });
@@ -1139,13 +1156,8 @@ export default function Product({ addToCart }) {
         {/* Columna Derecha: Configurador */}
         <div className={`product-config-side ${isCompromisoOrPromesa ? "product-config-side-compromiso" : ""}`}>
           <div className="config-header-row">
-            <h1 className="config-product-title">{fixMojibake(product.name?.replace(/Plata\s*\|\s*/i, "") || product.name)}</h1>
-
-            <div className="config-price-row">
-              <span className="config-product-price">
-                {formatPrice(isCompromisoOrPromesa ? displayedCompromisoPrice : displayedGeneralPrice)}
-              </span>
-
+            <div className="config-title-row">
+              <h1 className="config-product-title">{fixMojibake(product.name?.replace(/Plata\s*\|\s*/i, "") || product.name)}</h1>
               <button
                 type="button"
                 className={`btn-favoritos ${isFavorite ? "active" : ""}`}
@@ -1156,6 +1168,12 @@ export default function Product({ addToCart }) {
                 <span>{isFavorite ? "EN FAVORITOS" : "FAVORITOS"}</span>
                 <i className={isFavorite ? "bi bi-star-fill" : "bi bi-star"} style={{ fontSize: "10px", marginLeft: "2px" }}></i>
               </button>
+            </div>
+
+            <div className="config-price-row">
+              <span className="config-product-price">
+                {formatPrice(isCompromisoOrPromesa ? displayedCompromisoPrice : displayedGeneralPrice)}
+              </span>
             </div>
             {isCompromisoOrPromesa && currentStep === 1 && (
               <p className="config-product-description">
@@ -1169,9 +1187,11 @@ export default function Product({ addToCart }) {
               currentStep={currentStep}
               setCurrentStep={setCurrentStep}
               product={product}
+              productStock={productStock}
               selectedMetal={selectedMetal}
               handleSelectMetal={handleSelectMetal}
               currentMetalPrice={currentMetalPrice}
+              sizePriceAdjustment={selectedSizePriceAdjustment}
               selectedSizeDama={selectedSizeDama}
               setSelectedSizeDama={setSelectedSizeDama}
               hasEngraving={hasEngraving}
@@ -1277,8 +1297,8 @@ export default function Product({ addToCart }) {
                             {DAMA_SIZES.map((sz) => {
                               const avail = getSizeAvailability(productStock, "dama", sz.number);
                               return (
-                                <option key={sz.number} value={sz.number}>
-                                  {sz.label} ({isAdmin ? (avail.total > 0 ? `${avail.total} en stock` : "Sin stock") : (avail.total > 0 ? "Disponible" : "A pedido")})
+                                <option key={sz.number} value={sz.number} disabled={avail.total === 0}>
+                                  {sz.label} · {avail.total > 0 ? `${avail.total} ${avail.total === 1 ? "unidad" : "unidades"}` : "Sin stock"}
                                 </option>
                               );
                             })}
@@ -1301,8 +1321,8 @@ export default function Product({ addToCart }) {
                             {VARON_SIZES.map((sz) => {
                               const avail = getSizeAvailability(productStock, "varon", sz.number);
                               return (
-                                <option key={sz.number} value={sz.number}>
-                                  {sz.label} ({isAdmin ? (avail.total > 0 ? `${avail.total} en stock` : "Sin stock") : (avail.total > 0 ? "Disponible" : "A pedido")})
+                                <option key={sz.number} value={sz.number} disabled={avail.total === 0}>
+                                  {sz.label} · {avail.total > 0 ? `${avail.total} ${avail.total === 1 ? "unidad" : "unidades"}` : "Sin stock"}
                                 </option>
                               );
                             })}
@@ -1346,18 +1366,21 @@ export default function Product({ addToCart }) {
                             const av = getSizeAvailability(productStock, "dama", selectedSizeDama);
                             return av.total > 0 ? (
                               <div className="double-stock-info-wrap">
-                                <span className={`double-stock-status-pill ${isAdmin && av.total <= 2 ? "low" : "ok"}`}>
-                                  <i className="bi bi-check2-circle"></i> {isAdmin ? `${av.total} unids disponibles ${av.total <= 2 ? "(Últimas)" : ""}` : "Disponible en stock"}
+                                <span className={`double-stock-status-pill ${av.total <= 2 ? "low" : "ok"}`}>
+                                  <i className="bi bi-check2-circle"></i>
+                                  <span>Stock total</span>
+                                  <strong className="stock-count-number">{av.total}</strong>
+                                  <span>{av.total === 1 ? "unidad" : "unidades"}</span>
                                 </span>
-                                {isAdmin && (
-                                  <span className="double-stock-breakdown">
-                                    Centro: {(av.bodega || 0) + (av.limaCentro || 0)} - Miraflores: {av.miraflores}
-                                  </span>
-                                )}
                               </div>
                             ) : (
                               <span className="double-stock-badge-text order">
-                                <i className="bi bi-clock-history"></i> Fabricación a pedido en taller
+                                <span className="double-stock-status-pill out">
+                                  <i className="bi bi-clock-history"></i>
+                                  <span>Stock total</span>
+                                  <strong className="stock-count-number">0</strong>
+                                  <span>unidades</span>
+                                </span>
                               </span>
                             );
                           })()}
@@ -1376,18 +1399,21 @@ export default function Product({ addToCart }) {
                             const av = getSizeAvailability(productStock, "varon", selectedSizeVaron);
                             return av.total > 0 ? (
                               <div className="double-stock-info-wrap">
-                                <span className={`double-stock-status-pill ${isAdmin && av.total <= 2 ? "low" : "ok"}`}>
-                                  <i className="bi bi-check2-circle"></i> {isAdmin ? `${av.total} unids disponibles ${av.total <= 2 ? "(Últimas)" : ""}` : "Disponible en stock"}
+                                <span className={`double-stock-status-pill ${av.total <= 2 ? "low" : "ok"}`}>
+                                  <i className="bi bi-check2-circle"></i>
+                                  <span>Stock total</span>
+                                  <strong className="stock-count-number">{av.total}</strong>
+                                  <span>{av.total === 1 ? "unidad" : "unidades"}</span>
                                 </span>
-                                {isAdmin && (
-                                  <span className="double-stock-breakdown">
-                                    Centro: {(av.bodega || 0) + (av.limaCentro || 0)} - Miraflores: {av.miraflores}
-                                  </span>
-                                )}
                               </div>
                             ) : (
                               <span className="double-stock-badge-text order">
-                                <i className="bi bi-clock-history"></i> Fabricación a pedido en taller
+                                <span className="double-stock-status-pill out">
+                                  <i className="bi bi-clock-history"></i>
+                                  <span>Stock total</span>
+                                  <strong className="stock-count-number">0</strong>
+                                  <span>unidades</span>
+                                </span>
                               </span>
                             );
                           })()}
@@ -1419,8 +1445,8 @@ export default function Product({ addToCart }) {
                         {DAMA_SIZES.map((sz) => {
                           const avail = getSizeAvailability(productStock, "dama", sz.number);
                           return (
-                            <option key={sz.number} value={sz.number}>
-                              {sz.label} ({isAdmin ? (avail.total > 0 ? `${avail.total} en stock` : "Sin stock") : (avail.total > 0 ? "Disponible" : "A pedido")})
+                            <option key={sz.number} value={sz.number} disabled={avail.total === 0}>
+                              {sz.label} · {avail.total > 0 ? `${avail.total} ${avail.total === 1 ? "unidad" : "unidades"}` : "Sin stock"}
                             </option>
                           );
                         })}
@@ -1446,39 +1472,6 @@ export default function Product({ addToCart }) {
                         *Precio válido de la web: Tallas Americanas (4 al 8) o Tallas Nacionales (8 al 17). Otras medidas consulta para la cotización
                       </p>
 
-                      {/* Stock General por Talla (Dama) */}
-                      {selectedSizeDama !== "asesor" && (
-                        <div className="size-stock-general">
-                          {(() => {
-                            const av = getSizeAvailability(productStock, "dama", selectedSizeDama);
-                            return av.total > 0 ? (
-                              <div className={`stock-general-badge ${isAdmin && av.total <= 2 ? "low-stock" : "in-stock"}`}>
-                                <i className={isAdmin && av.total <= 2 ? "bi bi-exclamation-circle-fill" : "bi bi-check-circle-fill"}></i>
-                                {isAdmin ? (
-                                  <div style={{ display: "flex", flexDirection: "column", gap: "2px" }}>
-                                    <span>
-                                      Stock disponible: <strong>{av.total} {av.total === 1 ? "unidad" : "unidades"}</strong>
-                                      {av.total <= 2 ? " (Últimas unidades)" : ""}
-                                    </span>
-                                    <span style={{ fontSize: "11px", opacity: 0.85 }}>
-                                      Centro: <strong>{(av.bodega || 0) + (av.limaCentro || 0)}</strong> - Miraflores: <strong>{av.miraflores}</strong>
-                                    </span>
-                                  </div>
-                                ) : (
-                                  <span>
-                                    Disponible en stock (Entrega inmediata)
-                                  </span>
-                                )}
-                              </div>
-                            ) : (
-                              <div className="stock-general-badge out-of-stock">
-                                <i className="bi bi-clock-history"></i>
-                                <span>Disponible a pedido (Fabricación en taller)</span>
-                              </div>
-                            );
-                          })()}
-                        </div>
-                      )}
                     </div>
                   )}
                 </div>
@@ -2103,6 +2096,9 @@ export default function Product({ addToCart }) {
                   <div><strong>Talla Dama:</strong> {selectedSizeDama === "asesor" ? "Asesoría de Cortesía" : `Talla ${selectedSizeDama} (${DAMA_SIZES.find(s => s.number === selectedSizeDama)?.diameter || ""})`}</div>
                 )
               )}
+              {selectedSizePriceAdjustment > 0 && (
+                <div><strong>Adicional por talla:</strong> +{formatPrice(selectedSizePriceAdjustment)}</div>
+              )}
               {product.hasGemSelection && (
                 <div><strong>Silueta de Gema:</strong> Corte {selectedGemShape.name} {selectedGemShapePriceDelta > 0 ? `(+${formatPrice(selectedGemShapePriceDelta)})` : "(Incluida)"}</div>
               )}
@@ -2139,7 +2135,7 @@ export default function Product({ addToCart }) {
               <div style={{ borderTop: "1px dashed #e8e4db", paddingTop: "8px", marginTop: "10px", fontSize: "13px" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
                   <span style={{ color: "#475467" }}>1. {product.type === "anillo" ? "Anillo" : "Joya"}:</span>
-                  <span style={{ fontWeight: "700", color: "#113B3A" }}>{formatPrice(isCompromisoOrPromesa ? (totalCompromisoPrice - (selectedPresentationObj?.price || 0)) : (currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta))}</span>
+                  <span style={{ fontWeight: "700", color: "#113B3A" }}>{formatPrice(isCompromisoOrPromesa ? (totalCompromisoPrice - (selectedPresentationObj?.price || 0)) : (currentMetalPrice + selectedSizePriceAdjustment + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta))}</span>
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                   <span style={{ color: "#475467" }}>2. Estuche / Cofre:</span>
@@ -2150,7 +2146,7 @@ export default function Product({ addToCart }) {
               </div>
               <div style={{ borderTop: "1px solid #e8e4db", paddingTop: "10px", marginTop: "10px", fontSize: "17px", fontWeight: "700", color: "#17241e", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <span>Total:</span>
-                <span>{formatPrice(isCompromisoOrPromesa ? totalCompromisoPrice : (currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta + (selectedPresentationObj?.price || 0)))}</span>
+                <span>{formatPrice(isCompromisoOrPromesa ? totalCompromisoPrice : currentGeneralPrice)}</span>
               </div>
             </div>
 
@@ -2211,9 +2207,10 @@ export default function Product({ addToCart }) {
                         estimatedDeliveryDate: deliveryDateFormatted,
                         selectedPresentation: selectedPresentationObj?.name,
                         presentationPrice: selectedPresentationObj?.price || 0,
+                        sizePriceAdjustment: selectedSizePriceAdjustment,
                         platinoCarePlan: platinoCarePlan,
                         platinoCareTitle: platinoCarePlan === "plus" ? "Platino Care + (Premium)" : "Platino Care Cortesía",
-                        price: isCompromisoOrPromesa ? totalCompromisoPrice : (currentMetalPrice + (platinoCarePlan === "plus" && !isAccesorio ? carePlusPrice : 0) + selectedGemShapePriceDelta + (selectedPresentationObj?.price || 0)),
+                        price: isCompromisoOrPromesa ? totalCompromisoPrice : currentGeneralPrice,
                         image: mainImage || product.image,
                       };
                       addToCart(customProduct, { skipConfirmation: true });

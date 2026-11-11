@@ -336,6 +336,9 @@ export const createProduct = (productData) => {
     hasGemSelection: productData.hasGemSelection ?? true,
     hasGemTypeSelection: productData.hasGemTypeSelection !== undefined ? productData.hasGemTypeSelection : (productData.hasGemSelection ?? true),
     enabledGemTypes: productData.enabledGemTypes || null,
+    gemTypePrices: productData.gemTypePrices || {},
+    gemTypeModes: productData.gemTypeModes || {},
+    customGemTypes: Array.isArray(productData.customGemTypes) ? productData.customGemTypes : [],
     hasDoubleSizes: productData.hasDoubleSizes ?? false,
     hasPresentationChoice: productData.hasPresentationChoice ?? true,
     presentationOptions: productData.presentationOptions || [

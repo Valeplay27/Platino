@@ -35,7 +35,9 @@ import {
   DAMA_SIZES,
   VARON_SIZES,
   getProductStock,
+  getSizePrice,
   updateProductStock,
+  updateSizePrice,
   updateSingleStockItem,
   updateMultipleStockItems,
   copyProductStockToTargets,
@@ -112,6 +114,17 @@ const getMinBlockDateString = () => {
   const month = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${year}-${month}-${day}`;
+};
+
+const matchesInventorySizeSearch = (size, search) => {
+  const query = search.trim().toLocaleLowerCase();
+  if (!query) return true;
+
+  const normalizedQuery = query.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  if (size.label.toLocaleLowerCase().includes(normalizedQuery)) return true;
+
+  const numericQuery = normalizedQuery.replace(/\D/g, "");
+  return numericQuery !== "" && String(Number(size.number)).includes(String(Number(numericQuery)));
 };
 
 // ========================================================
@@ -1012,6 +1025,7 @@ export default function AdminCitas() {
     "diamante-lab": "add",
     "diamante-natural": "quote",
   });
+  const [formCustomGemTypes, setFormCustomGemTypes] = useState([]);
   const [formGemShapePrices, setFormGemShapePrices] = useState({});
 
   useEffect(() => {
@@ -1098,6 +1112,7 @@ export default function AdminCitas() {
   const [inventorySearch, setInventorySearch] = useState("");
   const [inventorySavedFeedback, setInventorySavedFeedback] = useState("");
   const [allInventoryMap, setAllInventoryMap] = useState(() => getAllStoredInventory());
+  const [inventorySizePriceDrafts, setInventorySizePriceDrafts] = useState({});
 
   // Detectar parámetros en URL para navegación directa a pestañas y joyas (ej: ?tab=inventario&prod=anillo-9-promesas)
   useEffect(() => {
@@ -1425,6 +1440,29 @@ export default function AdminCitas() {
     setAllInventoryMap(getAllStoredInventory());
   };
 
+  const handleSizePriceChange = (gender, sizeNum, value) => {
+    if (!currentInventoryProduct) return;
+    if (!canEditBodega) {
+      alert("Acceso Restringido: Solo usuarios con permiso global pueden modificar el precio por talla.");
+      return;
+    }
+
+    const price = value.trim() === "" ? 0 : Number(value);
+    if (!Number.isFinite(price) || price < 0) {
+      alert("Ingresa un precio por talla válido, igual o mayor a cero.");
+      return;
+    }
+
+    const updatedInventory = updateSizePrice(currentInventoryProduct.id, gender, sizeNum, price);
+    setAllInventoryMap(updatedInventory);
+    const draftKey = `${currentInventoryProduct.id}:${gender}:${sizeNum}`;
+    setInventorySizePriceDrafts((drafts) => {
+      const nextDrafts = { ...drafts };
+      delete nextDrafts[draftKey];
+      return nextDrafts;
+    });
+  };
+
   // Botón rápido +/-
   const handleStockStepChange = (gender, sizeNum, locationId, delta) => {
     if (!currentInventoryProduct) return;
@@ -1517,7 +1555,27 @@ export default function AdminCitas() {
   };
 
   const handleSaveInventoryNotice = () => {
-    saveAllInventory(allInventoryMap);
+    let inventoryToSave = getAllStoredInventory();
+    const pendingPrices = Object.entries(inventorySizePriceDrafts);
+
+    for (const [draftKey, value] of pendingPrices) {
+      const match = draftKey.match(/^(.*):(dama|varon):([^:]+)$/);
+      if (!match) continue;
+
+      const [, productId, gender, sizeNum] = match;
+      const price = value.trim() === "" ? 0 : Number(value);
+      if (!Number.isFinite(price) || price < 0) {
+        alert(`Ingresa un precio válido para la talla ${sizeNum}, igual o mayor a cero.`);
+        return;
+      }
+
+      updateSizePrice(productId, gender, sizeNum, price);
+      inventoryToSave = getAllStoredInventory();
+    }
+
+    saveAllInventory(inventoryToSave);
+    setAllInventoryMap(inventoryToSave);
+    setInventorySizePriceDrafts({});
     setInventorySavedFeedback("✓ ¡Inventario sincronizado y guardado con éxito en todo el catálogo y módulos!");
     setTimeout(() => setInventorySavedFeedback(""), 4000);
   };
@@ -2230,6 +2288,7 @@ export default function AdminCitas() {
       "diamante-lab": "1200",
       "diamante-natural": "2800",
     });
+    setFormCustomGemTypes([]);
     setFormEnabledGemTypes({
       "zirconita": true,
       "zirconita-swarovski": true,
@@ -2457,6 +2516,7 @@ export default function AdminCitas() {
     setFormEnabledGemTypes(
       prod.enabledGemTypes && typeof prod.enabledGemTypes === "object"
         ? {
+            ...prod.enabledGemTypes,
             "zirconita": prod.enabledGemTypes["zirconita"] !== false,
             "zirconita-swarovski": prod.enabledGemTypes["zirconita-swarovski"] !== false,
             "moissanita": prod.enabledGemTypes["moissanita"] !== false,
@@ -2470,6 +2530,17 @@ export default function AdminCitas() {
             "diamante-lab": true,
             "diamante-natural": true,
           }
+    );
+    setFormCustomGemTypes(
+      Array.isArray(prod.customGemTypes)
+        ? prod.customGemTypes.filter((gem) => gem && typeof gem.id === "string")
+            .map((gem) => ({
+              id: gem.id,
+              name: typeof gem.name === "string" ? gem.name : "",
+              subtitle: typeof gem.subtitle === "string" ? gem.subtitle : "",
+              certificateBadge: typeof gem.certificateBadge === "string" ? gem.certificateBadge : "",
+            }))
+        : []
     );
     setFormGemShapePrices(prod.gemShapePrices && typeof prod.gemShapePrices === "object" ? { ...prod.gemShapePrices } : {});
 
@@ -2993,6 +3064,7 @@ export default function AdminCitas() {
       enabledGemTypes: formEnabledGemTypes,
       gemTypePrices: formGemTypePrices,
       gemTypeModes: formGemTypeModes,
+      customGemTypes: formCustomGemTypes.filter((gem) => gem.name.trim()),
       availableGemShapes: formAvailableGemShapes,
       defaultGemShape: formDefaultGemShape,
       gemShapeConfigs: formGemShapeConfigs,
@@ -7283,6 +7355,7 @@ export default function AdminCitas() {
                   <tr>
                     <th className="inventory-col-talla" style={{ width: "160px" }}>Talla Oficial</th>
                     <th style={{ width: "130px" }}>Diámetro Int.</th>
+                    <th style={{ width: "150px" }} title="Precio asociado a esta talla">Precio (S/.)</th>
                     <th style={{ width: "160px" }}>
                       <span style={{ color: "#3b5bdb" }}>
                         <i className="bi bi-building-fill"></i> Bodega {!canEditBodega && "🔒"}
@@ -7300,14 +7373,16 @@ export default function AdminCitas() {
                     </th>
                     <th style={{ width: "120px" }}>Total</th>
                     <th style={{ width: "150px" }}>Disponibilidad</th>
-                    <th style={{ width: "170px" }}>Acción Rápida</th>
                   </tr>
                 </thead>
                 <tbody>
                   {(inventoryGenderTab === "dama" ? DAMA_SIZES : VARON_SIZES)
-                    .filter((sz) => !inventorySearch || sz.label.toLowerCase().includes(inventorySearch.toLowerCase()) || sz.number.includes(inventorySearch))
+                    .filter((sz) => matchesInventorySizeSearch(sz, inventorySearch))
                     .map((sz) => {
                       const item = currentProductStock?.[inventoryGenderTab]?.[sz.number] || { bodega: 0, "lima-centro": 0, miraflores: 0 };
+                      const priceDraftKey = `${currentInventoryProduct?.id}:${inventoryGenderTab}:${sz.number}`;
+                      const sizePrice = getSizePrice(currentProductStock, inventoryGenderTab, sz.number);
+                      const sizePriceValue = inventorySizePriceDrafts[priceDraftKey] ?? String(sizePrice);
                       const b = item.bodega || 0;
                       const lc = item["lima-centro"] || 0;
                       const m = item.miraflores || 0;
@@ -7330,6 +7405,28 @@ export default function AdminCitas() {
                           </td>
                           <td style={{ color: "#5d6d65", fontSize: "12px" }}>
                             {sz.diameter}
+                          </td>
+                          <td>
+                            <div className="inventory-size-price-input">
+                              <span>S/.</span>
+                              <input
+                                type="number"
+                                min="0"
+                                step="0.01"
+                                value={sizePriceValue}
+                                disabled={!canEditBodega}
+                                aria-label={`Precio de talla ${sz.number}`}
+                                title={canEditBodega ? "Precio asociado a esta talla" : "Requiere autorización de Vladimir"}
+                                onChange={(e) => setInventorySizePriceDrafts((drafts) => ({
+                                  ...drafts,
+                                  [priceDraftKey]: e.target.value,
+                                }))}
+                                onBlur={(e) => handleSizePriceChange(inventoryGenderTab, sz.number, e.target.value)}
+                                onKeyDown={(e) => {
+                                  if (e.key === "Enter") e.currentTarget.blur();
+                                }}
+                              />
+                            </div>
                           </td>
                           {/* Almacén 1: Bodega */}
                           <td>
@@ -7451,61 +7548,6 @@ export default function AdminCitas() {
                               <i className={tot > 0 ? "bi bi-check-circle-fill" : "bi bi-x-circle-fill"}></i>{" "}
                               {statusText}
                             </span>
-                          </td>
-                          {/* Acciones Rápidas */}
-                          <td>
-                            <div style={{ display: "flex", gap: "6px" }}>
-                              <button
-                                type="button"
-                                className="btn-batch-action"
-                                disabled={!canEditBodega}
-                                style={{
-                                  padding: "4px 8px",
-                                  fontSize: "11px",
-                                  opacity: canEditBodega ? 1 : 0.4,
-                                  cursor: canEditBodega ? "pointer" : "not-allowed",
-                                }}
-                                onClick={() => handleStockStepChange(inventoryGenderTab, sz.number, "bodega", 1)}
-                                title={canEditBodega ? "Añadir +1 pieza a Bodega" : "Requiere autorización de Vladimir"}
-                              >
-                                +1 Bod {!canEditBodega && "🔒"}
-                              </button>
-                              {canEditBodega ? (
-                                <button
-                                  type="button"
-                                  className="btn-batch-action"
-                                  style={{ padding: "4px 8px", fontSize: "11px" }}
-                                  onClick={() => {
-                                    handleStockStepMultiple(inventoryGenderTab, sz.number, { "lima-centro": 1, miraflores: 1 });
-                                  }}
-                                  title="Añadir +1 pieza a cada sede"
-                                >
-                                  +1 Sedes
-                                </button>
-                              ) : (
-                                <button
-                                  type="button"
-                                  className="btn-batch-action"
-                                  style={{
-                                    padding: "4px 8px",
-                                    fontSize: "11px",
-                                    background: "#eef6f1",
-                                    borderColor: "#a4d4b8",
-                                    color: "#137748",
-                                    fontWeight: "600",
-                                  }}
-                                  onClick={() => {
-                                    const mySede = effectiveUser?.sede;
-                                    if (mySede) {
-                                      handleStockStepChange(inventoryGenderTab, sz.number, mySede, 1);
-                                    }
-                                  }}
-                                  title={`Añadir +1 pieza a ${effectiveUser?.sedeLabel || "mi sede"}`}
-                                >
-                                  +1 Mi Sede
-                                </button>
-                              )}
-                            </div>
                           </td>
                         </tr>
                       );
@@ -12844,6 +12886,23 @@ export default function AdminCitas() {
                     Configura las siluetas de diamantes o gemas disponibles específicamente para este diseño y personaliza los textos técnicos e informativos que se mostrarán en vivo al cliente en el <strong>Paso 2: Elige la Forma de tu Gema</strong>.
                   </p>
 
+                  <div style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    gap: "8px",
+                    background: "#eef6f1",
+                    border: "1px solid #c9dfd1",
+                    borderRadius: "7px",
+                    padding: "8px 10px",
+                    marginBottom: "12px",
+                    color: "#315b43",
+                    fontSize: "11.5px",
+                    lineHeight: "1.45",
+                  }}>
+                    <i className="bi bi-info-circle" style={{ marginTop: "1px" }}></i>
+                    <span>Las gemas se guardan junto con este producto. Al terminar, usa el botón <strong>{editingProduct ? "Guardar cambios" : "Crear producto"}</strong> al final del formulario.</span>
+                  </div>
+
                   {/* Toggle para habilitar/deshabilitar gemas en este producto */}
                   <label style={{
                     display: "flex",
@@ -12897,13 +12956,40 @@ export default function AdminCitas() {
                             <button
                               type="button"
                               onClick={() => {
-                                setFormEnabledGemTypes({
+                                const id = `gema-personalizada-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                                setFormCustomGemTypes((prev) => [
+                                  ...prev,
+                                  { id, name: "", subtitle: "", certificateBadge: "" },
+                                ]);
+                                setFormEnabledGemTypes((prev) => ({ ...prev, [id]: true }));
+                                setFormGemTypePrices((prev) => ({ ...prev, [id]: "0" }));
+                                setFormGemTypeModes((prev) => ({ ...prev, [id]: "add" }));
+                              }}
+                              style={{
+                                fontSize: "11px",
+                                padding: "4px 8px",
+                                borderRadius: "6px",
+                                border: "1px solid #113B3A",
+                                background: "#113B3A",
+                                color: "#ffffff",
+                                cursor: "pointer",
+                                fontWeight: "600",
+                              }}
+                            >
+                              + Agregar gema
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setFormEnabledGemTypes((prev) => ({
+                                  ...prev,
                                   "zirconita": true,
                                   "zirconita-swarovski": true,
                                   "moissanita": true,
                                   "diamante-lab": true,
                                   "diamante-natural": true,
-                                });
+                                  ...Object.fromEntries(formCustomGemTypes.map((gem) => [gem.id, true])),
+                                }));
                               }}
                               style={{
                                 fontSize: "11px",
@@ -12921,13 +13007,15 @@ export default function AdminCitas() {
                             <button
                               type="button"
                               onClick={() => {
-                                setFormGemTypePrices({
+                                setFormGemTypePrices((prev) => ({
+                                  ...prev,
                                   "zirconita": "0",
                                   "zirconita-swarovski": "80",
                                   "moissanita": "350",
                                   "diamante-lab": "1200",
                                   "diamante-natural": "2800",
-                                });
+                                  ...Object.fromEntries(formCustomGemTypes.map((gem) => [gem.id, prev[gem.id] || "0"])),
+                                }));
                               }}
                               style={{
                                 fontSize: "11px",
@@ -12945,13 +13033,15 @@ export default function AdminCitas() {
                             <button
                               type="button"
                               onClick={() => {
-                                setFormGemTypePrices({
+                                setFormGemTypePrices((prev) => ({
+                                  ...prev,
                                   "zirconita": "0",
                                   "zirconita-swarovski": "0",
                                   "moissanita": "0",
                                   "diamante-lab": "0",
                                   "diamante-natural": "0",
-                                });
+                                  ...Object.fromEntries(formCustomGemTypes.map((gem) => [gem.id, "0"])),
+                                }));
                               }}
                               style={{
                                 fontSize: "11px",
@@ -12979,6 +13069,11 @@ export default function AdminCitas() {
                             { id: "moissanita", name: "Moissanita GRA", hint: "Certificado GRA" },
                             { id: "diamante-lab", name: "Diamante Lab IGI", hint: "Certificado IGI" },
                             { id: "diamante-natural", name: "Diamante Natural GIA", hint: "Certificado GIA" },
+                            ...formCustomGemTypes.map((gem) => ({
+                              ...gem,
+                              custom: true,
+                              hint: gem.subtitle || "Gema personalizada",
+                            })),
                           ].map((item) => {
                             const isEnabled = formEnabledGemTypes[item.id] !== false;
                             const currentMode = formGemTypeModes[item.id] || (item.id === "diamante-natural" ? "quote" : "add");
@@ -13006,8 +13101,43 @@ export default function AdminCitas() {
                               >
                                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "6px", marginBottom: "2px" }}>
                                   <div style={{ fontSize: "11.5px", fontWeight: "700", color: isEnabled ? "#113B3A" : "#64748b" }}>
-                                    {item.name}
+                                    {item.custom ? (item.name || "Nueva gema") : item.name}
                                   </div>
+                                  {item.custom && (
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setFormCustomGemTypes((prev) => prev.filter((gem) => gem.id !== item.id));
+                                        setFormEnabledGemTypes((prev) => {
+                                          const next = { ...prev };
+                                          delete next[item.id];
+                                          return next;
+                                        });
+                                        setFormGemTypePrices((prev) => {
+                                          const next = { ...prev };
+                                          delete next[item.id];
+                                          return next;
+                                        });
+                                        setFormGemTypeModes((prev) => {
+                                          const next = { ...prev };
+                                          delete next[item.id];
+                                          return next;
+                                        });
+                                      }}
+                                      aria-label={`Eliminar ${item.name || "gema personalizada"}`}
+                                      title="Eliminar esta gema personalizada"
+                                      style={{
+                                        border: "none",
+                                        background: "transparent",
+                                        color: "#b42318",
+                                        cursor: "pointer",
+                                        fontSize: "13px",
+                                        padding: "0 2px",
+                                      }}
+                                    >
+                                      <i className="bi bi-trash3"></i>
+                                    </button>
+                                  )}
                                   <label
                                     style={{
                                       display: "inline-flex",
@@ -13041,8 +13171,52 @@ export default function AdminCitas() {
                                   </label>
                                 </div>
 
+                                {item.custom && (
+                                  <div style={{ display: "grid", gap: "5px", marginBottom: "3px" }}>
+                                    <input
+                                      type="text"
+                                      value={item.name}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        setFormCustomGemTypes((prev) => prev.map((gem) =>
+                                          gem.id === item.id ? { ...gem, name: value } : gem
+                                        ));
+                                      }}
+                                      placeholder="Nombre de la gema (ej. Rubí)"
+                                      aria-label="Nombre de la gema personalizada"
+                                      style={{ width: "100%", boxSizing: "border-box", padding: "5px 7px", fontSize: "11px", border: "1px solid #c7dcd0", borderRadius: "5px" }}
+                                    />
+                                    <input
+                                      type="text"
+                                      value={item.subtitle}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        setFormCustomGemTypes((prev) => prev.map((gem) =>
+                                          gem.id === item.id ? { ...gem, subtitle: value } : gem
+                                        ));
+                                      }}
+                                      placeholder="Descripción breve (opcional)"
+                                      aria-label="Descripción de la gema personalizada"
+                                      style={{ width: "100%", boxSizing: "border-box", padding: "5px 7px", fontSize: "11px", border: "1px solid #c7dcd0", borderRadius: "5px" }}
+                                    />
+                                    <input
+                                      type="text"
+                                      value={item.certificateBadge}
+                                      onChange={(e) => {
+                                        const value = e.target.value;
+                                        setFormCustomGemTypes((prev) => prev.map((gem) =>
+                                          gem.id === item.id ? { ...gem, certificateBadge: value } : gem
+                                        ));
+                                      }}
+                                      placeholder="Certificado (opcional)"
+                                      aria-label="Certificado de la gema personalizada"
+                                      style={{ width: "100%", boxSizing: "border-box", padding: "5px 7px", fontSize: "11px", border: "1px solid #c7dcd0", borderRadius: "5px" }}
+                                    />
+                                  </div>
+                                )}
+
                                 <div style={{ fontSize: "10px", color: "#64748b" }}>
-                                  {item.hint}
+                                  {item.custom ? (item.subtitle || "Gema personalizada") : item.hint}
                                 </div>
 
                                 {isEnabled ? (
@@ -14045,8 +14219,8 @@ export default function AdminCitas() {
                     transition: "all 0.15s ease"
                   }}
                 >
-                  <span>{editingProduct ? "Continuar / Guardar Cambios" : "Continuar / Crear Joya"}</span>
-                  <i className="bi bi-arrow-right"></i>
+                  <span>{editingProduct ? "Guardar cambios" : "Crear producto"}</span>
+                  <i className={editingProduct ? "bi bi-check2" : "bi bi-plus-lg"}></i>
                 </button>
               </div>
               </form>

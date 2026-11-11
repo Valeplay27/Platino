@@ -1863,6 +1863,41 @@
   margin: 0;
 }
 
+.inventory-size-price-input {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 105px;
+  padding: 0 8px;
+  border: 1px solid #d4cdc0;
+  border-radius: 6px;
+  background: #fff;
+  color: #64746b;
+  font-size: 12px;
+}
+
+.inventory-size-price-input:focus-within {
+  border-color: #137748;
+  box-shadow: 0 0 0 2px rgba(19, 119, 72, 0.12);
+}
+
+.inventory-size-price-input input {
+  width: 72px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: #172620;
+  font: inherit;
+  font-weight: 700;
+}
+
+.inventory-size-price-input input:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
 /* Badges de Disponibilidad */
 .inv-status-badge {
   display: inline-flex;

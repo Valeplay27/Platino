@@ -353,12 +353,19 @@
 .product-config-side {
   display: flex;
   flex-direction: column;
-  gap: 24px;
+  gap: 12px;
 }
 
 .config-header-row {
   border-bottom: none;
-  padding-bottom: 6px;
+  padding-bottom: 2px;
+}
+
+.config-title-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
 .config-product-subtitle {
@@ -367,7 +374,7 @@
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: #7d8982;
-  margin: 0 0 6px 0;
+  margin: 0 0 4px 0;
 }
 
 .config-product-title {
@@ -375,14 +382,15 @@
   font-size: clamp(28px, 3vw, 36px);
   font-weight: 600;
   color: #17241e;
-  margin: 0 0 12px 0;
+  margin: 0;
   line-height: 1.15;
 }
 
 .config-price-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
+  margin-top: 6px;
 }
 
 .config-product-price {
@@ -393,6 +401,7 @@
 }
 
 .btn-favoritos {
+  flex-shrink: 0;
   background: #ffffff;
   border: 1.5px solid #1a2720;
   color: #1a2720;
@@ -431,18 +440,18 @@
 /* Config Block: Metal Selector */
 .config-block {
   border-bottom: 1px solid #ebe6dc;
-  padding-bottom: 24px;
+  padding-bottom: 10px;
 }
 
 .config-block-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 14px;
+  margin-bottom: 8px;
 }
 
 .config-block-title {
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -454,7 +463,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 6px;
   flex-wrap: wrap;
 }
 
@@ -702,15 +711,45 @@
   font-weight: 700;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 7px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 9999px;
 }
 
 .double-stock-status-pill.ok {
+  background: #f0fdf4;
+  border-color: #bbf7d0;
   color: #15803d;
 }
 
 .double-stock-status-pill.low {
+  background: #fffbeb;
+  border-color: #fde68a;
   color: #b45309;
+}
+
+.double-stock-status-pill.out {
+  background: #fef2f2;
+  border-color: #fecaca;
+  color: #991b1b;
+}
+
+.stock-count-number {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #113b3a;
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 1px 3px rgba(17, 59, 58, 0.12);
+  box-sizing: border-box;
 }
 
 .double-stock-breakdown {
@@ -989,6 +1028,13 @@
 .stock-general-badge.out-of-stock i {
   color: #dc2626;
   font-size: 14px;
+}
+
+.stock-general-badge > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* Config Block: Gem Shape Selector */
@@ -2067,8 +2113,8 @@
 }
 
 .step-mini-header {
-  margin-bottom: 18px;
-  padding-bottom: 12px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
   border-bottom: 1px solid #ebd9a9;
 }
 
@@ -2076,21 +2122,22 @@
   display: inline-block;
   background: #f4ede1;
   color: #8c6e2d;
-  font-size: 11px;
+  font-size: 9.5px;
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  padding: 3px 10px;
+  padding: 2px 8px;
   border-radius: 9999px;
-  margin-bottom: 6px;
+  margin-bottom: 3px;
 }
 
 .step-heading-text {
   font-family: var(--font-serif);
-  font-size: 20px;
+  font-size: 18px;
   color: #0f2a24;
   margin: 0;
   letter-spacing: -0.01em;
+  line-height: 1.15;
 }
 
 .wizard-step-action-footer {
@@ -2480,7 +2527,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  margin: 18px 0 16px 0;
+  margin: 6px 0 12px 0;
 }
 .step-progress-tag {
   font-size: 11px;
@@ -2718,28 +2765,30 @@
 
 .gem-types-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-top: 14px;
-  margin-bottom: 24px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+  margin-bottom: 26px;
+  align-items: stretch;
 }
 @media (max-width: 600px) {
   .gem-types-grid {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
   }
 }
 .gem-type-card {
   background: #ffffff;
   border: 1.5px solid #e2e8f0;
   border-radius: 14px;
-  padding: 14px 10px 12px;
+  padding: 16px 12px 14px;
   text-align: center;
   cursor: pointer;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   align-items: center;
-  min-height: 145px;
+  min-height: 170px;
   box-sizing: border-box;
   transition: all 0.2s ease;
 }

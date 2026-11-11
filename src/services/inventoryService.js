@@ -285,14 +285,55 @@ export function getProductStock(productId, hasDoubleSizes = false) {
   return all[productId];
 }
 
+export function getSizePrice(stock, gender, sizeNum) {
+  const sizeKey = normalizeSizeKey(gender, sizeNum);
+  const price = Number(stock?.sizePrices?.[gender]?.[sizeKey]);
+  return Number.isFinite(price) && price > 0 ? price : 0;
+}
+
+export function updateSizePrice(productId, gender, sizeNum, price) {
+  if (!productId) return;
+  const numericPrice = Number(price);
+  if (!Number.isFinite(numericPrice) || numericPrice < 0) {
+    throw new Error("El precio por talla debe ser un monto válido mayor o igual a cero.");
+  }
+
+  const all = { ...getAllStoredInventory() };
+  const existing = all[productId];
+  const productStock = existing?.dama && existing?.varon
+    ? existing
+    : (all["_master_"]
+      ? JSON.parse(JSON.stringify(all["_master_"]))
+      : generateDefaultProductStock(productId, true));
+  const sizeKey = normalizeSizeKey(gender, sizeNum);
+
+  all[productId] = {
+    ...productStock,
+    sizePrices: {
+      ...productStock.sizePrices,
+      [gender]: {
+        ...productStock.sizePrices?.[gender],
+        [sizeKey]: numericPrice,
+      },
+    },
+  };
+  saveAllInventory(all);
+  return all;
+}
+
 /**
  * Actualiza el inventario completo de un producto
  */
 export function updateProductStock(productId, newStockData) {
   if (!productId) return;
   const all = getAllStoredInventory();
-  all[productId] = newStockData;
-  all["_master_"] = JSON.parse(JSON.stringify(newStockData));
+  all[productId] = {
+    ...newStockData,
+    sizePrices: newStockData.sizePrices || all[productId]?.sizePrices,
+  };
+  const masterStock = JSON.parse(JSON.stringify(newStockData));
+  delete masterStock.sizePrices;
+  all["_master_"] = masterStock;
   saveAllInventory(all);
   return newStockData;
 }
@@ -392,7 +433,13 @@ export function copyProductStockToTargets(sourceProductId, targetProductIds = []
 
   targetProductIds.forEach((id) => {
     if (id !== sourceProductId) {
-      all[id] = JSON.parse(JSON.stringify(sourceStock));
+      const targetStock = JSON.parse(JSON.stringify(sourceStock));
+      if (all[id]?.sizePrices) {
+        targetStock.sizePrices = all[id].sizePrices;
+      } else {
+        delete targetStock.sizePrices;
+      }
+      all[id] = targetStock;
     }
   });
 

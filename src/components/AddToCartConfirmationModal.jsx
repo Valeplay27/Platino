@@ -122,7 +122,7 @@ export default function AddToCartConfirmationModal({
             className="add-cart-confirmation-continue"
             onClick={onContinue}
           >
-            Continuar
+            Seguir comprando
           </button>
         </div>
       </section>

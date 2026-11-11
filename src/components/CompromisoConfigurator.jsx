@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { formatPrice } from "../data/products";
-import { DAMA_SIZES } from "../services/inventoryService";
+import { DAMA_SIZES, getSizeAvailability } from "../services/inventoryService";
 import { DiamondCutIcon } from "./GemstoneIcons";
 import { getAssetUrl } from "../utils/assetHelper";
 
@@ -47,8 +47,20 @@ export function getProductGemTypes(product) {
   const customPrices = product?.gemTypePrices || {};
   const customModes = product?.gemTypeModes || {};
   const enabledMap = product?.enabledGemTypes;
+  const customTypes = Array.isArray(product?.customGemTypes)
+    ? product.customGemTypes
+        .filter((gem) => gem && typeof gem.id === "string" && gem.id && typeof gem.name === "string" && gem.name.trim())
+        .filter((gem) => !COMPROMISO_GEM_TYPES.some((defaultGem) => defaultGem.id === gem.id))
+        .map((gem) => ({
+          id: gem.id,
+          name: gem.name.trim(),
+          subtitle: typeof gem.subtitle === "string" ? gem.subtitle.trim() : "",
+          certificateBadge: typeof gem.certificateBadge === "string" ? gem.certificateBadge.trim() : "",
+          priceDelta: 0,
+        }))
+    : [];
 
-  const filtered = COMPROMISO_GEM_TYPES.filter((gem) => {
+  const filtered = [...COMPROMISO_GEM_TYPES, ...customTypes].filter((gem) => {
     if (!enabledMap || typeof enabledMap !== "object") return true;
     return enabledMap[gem.id] !== false;
   });
@@ -90,6 +102,8 @@ export default function CompromisoConfigurator({
   selectedMetal = { name: "Plata 950", id: "plata-950" },
   handleSelectMetal = () => {},
   currentMetalPrice = 0,
+  sizePriceAdjustment = 0,
+  productStock = {},
   selectedSizeDama = "asesor",
   setSelectedSizeDama = () => {},
   hasEngraving = false,
@@ -169,7 +183,7 @@ export default function CompromisoConfigurator({
       `📏 *Talla:* ${sizeStr}%0A` +
       `🎁 *Estuche:* ${cofreStr}%0A` +
       `✍️ *Grabado interno:* ${engravingStr}%0A` +
-      `💰 *Base Metal/Estuche:* ${formatPrice(currentMetalPrice + cofrePrice)}%0A%0A` +
+      `💰 *Base Metal/Estuche:* ${formatPrice(currentMetalPrice + sizePriceAdjustment + cofrePrice)}%0A%0A` +
       `¿Podrían facilitarme la cotización exacta del Diamante Natural según peso en quilates (ct), pureza y disponibilidad? Muchas gracias.`;
 
     return `https://wa.me/51927357217?text=${text}`;
@@ -199,7 +213,7 @@ export default function CompromisoConfigurator({
   };
 
   const cofrePrice = Number(selectedPresentationObj?.price || 0);
-  const ringPrice = totalPrice > cofrePrice ? (totalPrice - cofrePrice) : (currentMetalPrice + (hasGemTypes ? (selectedGemType?.priceDelta || 0) : 0));
+  const ringPrice = totalPrice > cofrePrice ? (totalPrice - cofrePrice) : (currentMetalPrice + sizePriceAdjustment + (hasGemTypes ? (selectedGemType?.priceDelta || 0) : 0));
 
   const handleModifyFromModal = () => {
     setModalOpen(false);
@@ -282,11 +296,14 @@ export default function CompromisoConfigurator({
               className="select-talla-dropdown-clean"
             >
               <option value="asesor">¿No sabes tu talla? Solicitar asesoramiento de medida</option>
-              {DAMA_SIZES.map((sz) => (
-                <option key={sz.number} value={sz.number}>
-                  {sz.label}
-                </option>
-              ))}
+              {DAMA_SIZES.map((sz) => {
+                const availability = getSizeAvailability(productStock, "dama", sz.number);
+                return (
+                  <option key={sz.number} value={sz.number} disabled={availability.total === 0}>
+                    {sz.label} · {availability.total > 0 ? `${availability.total} ${availability.total === 1 ? "unidad" : "unidades"}` : "Sin stock"}
+                  </option>
+                );
+              })}
             </select>
 
             <div className="size-advice-whatsapp-box">
@@ -411,6 +428,7 @@ export default function CompromisoConfigurator({
                     {gemCutLabel}
                   </div>
                   <h4 className="gem-type-name">{gem.name}</h4>
+                  {gem.subtitle && <span className="gem-type-subtitle">{gem.subtitle}</span>}
                   {gem.certificateBadge && (
                     <span className="gem-type-cert-badge">{gem.certificateBadge}</span>
                   )}
@@ -631,6 +649,12 @@ export default function CompromisoConfigurator({
                   {selectedSizeDama === "asesor" ? "Asesoramiento de Medida" : `${selectedSizeDama} Nacional`}
                 </span>
               </div>
+              {sizePriceAdjustment > 0 && (
+                <div className="summary-detail-row">
+                  <span className="summary-lbl">Adicional por talla:</span>
+                  <span className="summary-val">+{formatPrice(sizePriceAdjustment)}</span>
+                </div>
+              )}
               <div className="summary-detail-row">
                 <span className="summary-lbl">Cofre:</span>
                 <span className="summary-val">
@@ -678,7 +702,7 @@ export default function CompromisoConfigurator({
                 <span className="summary-total-lbl">{isQuoteOnly ? "Total Base Estimado:" : "Total:"}</span>
                 <span className="summary-total-val">
                   {isQuoteOnly
-                    ? `${formatPrice(currentMetalPrice + cofrePrice)} + Cotización GIA`
+                    ? `${formatPrice(currentMetalPrice + sizePriceAdjustment + cofrePrice)} + Cotización GIA`
                     : formatPrice(totalPrice)}
                 </span>
               </div>
@@ -759,7 +783,7 @@ export default function CompromisoConfigurator({
                       title="Agregar esta joya al carrito de compras"
                     >
                       <i className="bi bi-bag-plus"></i>
-                      <span>Continuar</span>
+                      <span>Seguir comprando</span>
                     </button>
                   </div>
                 </>
@@ -813,7 +837,7 @@ export default function CompromisoConfigurator({
                       title="Agregar esta joya al carrito de compras"
                     >
                       <i className="bi bi-bag-plus"></i>
-                      <span>Continuar</span>
+                      <span>Seguir comprando</span>
                     </button>
                   </div>
 
