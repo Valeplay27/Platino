@@ -25,7 +25,6 @@ import CartDrawer from './components/CartDrawer'
 import AddToCartConfirmationModal from './components/AddToCartConfirmationModal'
 import { getStoredGemstones } from './services/gemstonesService'
 import ApiDataBootstrap from './components/ApiDataBootstrap'
-import MaintenanceNoticeModal from './components/MaintenanceNoticeModal'
 import LuxuryNotification from './components/LuxuryNotification'
 import './App.css'
 
@@ -269,7 +268,6 @@ function App() {
           </Routes>
         </main>
         <Footer />
-        <MaintenanceNoticeModal />
         <AuthModal />
         <CartDrawer
           isOpen={isCartDrawerOpen}
