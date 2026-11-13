@@ -765,7 +765,7 @@
   margin: 0 auto;
   padding: 32px 36px 36px;
   display: grid;
-  grid-template-columns: 1.15fr 1fr 1fr 1.6fr 1.4fr;
+  grid-template-columns: minmax(0, 0.85fr) minmax(0, 0.75fr) minmax(0, 0.85fr) minmax(0, 2.5fr) minmax(0, 1fr);
   gap: 36px;
   align-items: stretch;
 }
@@ -892,10 +892,48 @@
   transform: scale(1.15);
 }
 
-/* Columna 4: Colección Gemas Selectas (Cuadrícula 2x2) */
+/* Opciones de gema con muestras de color */
 .megamenu-col-gemas .megamenu-col-title {
-  text-align: center;
-  letter-spacing: 0.16em;
+  text-align: left;
+  letter-spacing: 0.14em;
+}
+
+.gemas-menu-columns {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.gemas-menu-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.gemas-menu-list a {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
+  white-space: nowrap;
+}
+
+.gem-menu-color {
+  width: 16px;
+  height: 16px;
+  display: inline-block;
+  flex: 0 0 16px;
+  filter: drop-shadow(0 1px 1px rgba(17, 59, 58, 0.22));
+}
+
+.gemas-menu-list .gem-menu-more {
+  color: #113B3A;
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.gemas-menu-list .gem-menu-more:hover {
+  color: #C6AC7F;
 }
 
 .gemas-selectas-grid {
@@ -1195,6 +1233,7 @@
 
 /* Megamenú de Joyería */
 .joyeria-megamenu-container {
+  --joyeria-heading-top-offset: 24px;
   grid-template-columns: 2.85fr 1fr 1fr;
   gap: 44px;
   align-items: start;
@@ -1202,7 +1241,7 @@
 
 .joyeria-seccion-ella {
   background-color: #f7f7f7;
-  padding: 24px 28px 28px;
+  padding: var(--joyeria-heading-top-offset) 28px 28px;
   border-radius: 4px;
 }
 
@@ -1255,7 +1294,7 @@
 }
 
 .joyeria-col-regular {
-  padding-top: 6px;
+  padding-top: var(--joyeria-heading-top-offset);
 }
 
 /* 3. Footer Styles */
@@ -1874,6 +1913,16 @@
     list-style: none !important;
     padding: 0 !important;
     margin: 0 !important;
+  }
+
+  .gemas-menu-columns {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 4px !important;
+  }
+
+  .gemas-menu-list a {
+    white-space: normal;
   }
 
   .megamenu-links-list li {

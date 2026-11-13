@@ -1,6 +1,7 @@
 import { useState, useMemo, useEffect, useRef } from "react";
 import { useParams, useSearchParams, Link } from "react-router-dom";
 import ProductCard from "../components/ProductCard";
+import { getProductGemTypes } from "../components/CompromisoConfigurator";
 import { CATEGORY_INFO } from "../data/products";
 import { getCatalogProducts } from "../services/catalogService";
 import { getGemCollectionOptions } from "../services/gemCollectionService";
@@ -17,10 +18,12 @@ const FORMA_LABELS = {
 
 const ESTILO_LABELS = {
   solitario: "Solitario",
-  "3-piedras": "3 Piedras",
-  "con-pave": "Con Pavé",
-  moderno: "Moderno",
+  "pedreria-lateral": "Pedrería lateral",
   vintage: "Vintage",
+  halo: "Con Halo",
+  moderno: "Moderno",
+  "3-piedras": "3 Piedras",
+  "con-pave": "Pedrería lateral",
   "con-gemas": "Con Gemas",
   clasicos: "Clásicos",
   clasico: "Clásicos",
@@ -33,6 +36,7 @@ const ESTILO_LABELS = {
 const METAL_LABELS = {
   "plata-950": "Plata Ley 950",
   "plata-oro-18k": "Plata con Oro 18k",
+  "oro-18k": "Oro 18k",
   "oro-natural-18k": "Oro 18k Natural",
   "oro-amarillo-18k": "Oro 18k Amarillo",
   "oro-rosado-18k": "Oro 18k Rosa",
@@ -42,10 +46,15 @@ const METAL_LABELS = {
 };
 
 const GEMA_LABELS = {
-  diamante: "Diamante Fino",
+  zirconita: "Zirconita / Zirconita Swarovski",
+  moissanita: "Moissanita",
+  "diamante-lab": "Diamante de Laboratorio",
+  "diamante-natural": "Diamante Natural",
   esmeralda: "Esmeralda Colombiana",
   rubi: "Rubí Pasión",
-  zafiro: "Zafiro Royal",
+  zafiro: "Zafiro Azul",
+  topacio: "Topacio",
+  amatista: "Amatista",
 };
 
 const SUBCAT_LABELS = {
@@ -89,8 +98,8 @@ const FORMA_PILL_OPTIONS = [
   { value: "redondo", label: "Redondo" },
   { value: "oval", label: "Oval" },
   { value: "marquesa", label: "Marquesa" },
-  { value: "esmeralda", label: "Esmeralda" },
   { value: "corazon", label: "Corazón" },
+  { value: "esmeralda", label: "Esmeralda" },
   { value: "otros", label: "Otros Cortes" },
   { value: "radiante", label: "Radiante" },
   { value: "pera", label: "Pera" },
@@ -103,11 +112,10 @@ const FORMA_PILL_OPTIONS = [
 
 const ESTILO_COMPROMISO_PILL_OPTIONS = [
   { value: "solitario", label: "Solitarios" },
-  { value: "3-piedras", label: "3 Piedras" },
-  { value: "con-pave", label: "Con Pavé" },
+  { value: "halo", label: "Con Halo" },
+  { value: "pedreria-lateral", label: "Pedrería lateral" },
   { value: "moderno", label: "Modernos" },
   { value: "vintage", label: "Vintage" },
-  { value: "con-gemas", label: "Con Gemas" },
 ];
 
 const ESTILO_BODA_PILL_OPTIONS = [
@@ -184,39 +192,18 @@ const ESTILO_GENERAL_PILL_OPTIONS = [
   { value: "con-pedreria", label: "Con Pedrería" },
   { value: "sin-pedreria", label: "Sin Pedrería" },
   { value: "con-textura", label: "Con Textura" },
-  { value: "3-piedras", label: "3 Piedras" },
-  { value: "con-pave", label: "Con Pavé" },
+  { value: "halo", label: "Con Halo" },
+  { value: "pedreria-lateral", label: "Pedrería lateral" },
   { value: "moderno", label: "Modernos" },
   { value: "vintage", label: "Vintage" },
   { value: "con-gemas", label: "Con Gemas" },
 ];
 
 const MATERIAL_PILL_OPTIONS = [
-  {
-    isGroup: true,
-    label: "Plata",
-    items: [{ value: "plata-950", label: "Plata 950" }],
-  },
-  {
-    isGroup: true,
-    label: "Plata con Oro 18k",
-    items: [{ value: "plata-oro-18k", label: "Plata con Oro" }],
-  },
-  {
-    isGroup: true,
-    label: "Oro 18 Quilates",
-    items: [
-      { value: "oro-natural-18k", label: "Oro 18k Natural" },
-      { value: "oro-amarillo-18k", label: "Oro 18k Amarillo" },
-      { value: "oro-rosado-18k", label: "Oro 18k Rosa" },
-      { value: "oro-blanco-18k", label: "Oro 18k Blanco" },
-    ],
-  },
-  {
-    isGroup: true,
-    label: "Platino",
-    items: [{ value: "platino", label: "Platino 950" }],
-  },
+  { value: "plata-950", label: "Plata 950" },
+  { value: "plata-oro-18k", label: "Plata con Oro 18k" },
+  { value: "oro-18k", label: "Oro 18k" },
+  { value: "platino", label: "Platino 950" },
 ];
 
 const FILTER_ALL_LABELS = {
@@ -354,6 +341,13 @@ function MinimalPillFilter({ label, value, onChange, options, isActive, alignRig
                 className={`minimal-dropdown-item ${value === opt.value ? "selected" : ""}`}
                 onClick={() => handleSelect(opt.value)}
               >
+                {opt.color && (
+                  <span
+                    className="minimal-option-gem-swatch"
+                    style={{ backgroundColor: opt.color }}
+                    aria-hidden="true"
+                  />
+                )}
                 <span>{opt.label}</span>
                 {value === opt.value && <i className="bi bi-check2"></i>}
               </button>
@@ -874,18 +868,13 @@ function Category({ addToCart }) {
         if (targetEstilo === "solitario") {
           return pStyle === "solitario" || pName.includes("solitario") || pBadge.includes("solitario");
         }
-        if (targetEstilo === "3-piedras" || targetEstilo === "tres-piedras") {
+        if (targetEstilo === "pedreria-lateral" || targetEstilo === "con-pave" || targetEstilo === "pave") {
           return (
-            pStyle === "3-piedras" ||
-            pName.includes("tres piedras") ||
-            pName.includes("3 piedras") ||
-            pName.includes("trilog") ||
-            pBadge.includes("trilog")
-          );
-        }
-        if (targetEstilo === "con-pave" || targetEstilo === "pave") {
-          return (
+            pStyle === "pedreria-lateral" ||
             pStyle === "con-pave" ||
+            pName.includes("lateral") ||
+            pName.includes("pedrería") ||
+            pName.includes("pedreria") ||
             pName.includes("pavé") ||
             pName.includes("pave") ||
             pBadge.includes("pavé") ||
@@ -893,6 +882,23 @@ function Category({ addToCart }) {
             pDesc.includes("pavé") ||
             pDesc.includes("pave") ||
             p.id === "anillo-9-promesas"
+          );
+        }
+        if (targetEstilo === "halo") {
+          return (
+            pStyle === "halo" ||
+            pName.includes("halo") ||
+            pBadge.includes("halo") ||
+            pDesc.includes("halo")
+          );
+        }
+        if (targetEstilo === "3-piedras" || targetEstilo === "tres-piedras") {
+          return (
+            pStyle === "3-piedras" ||
+            pName.includes("tres piedras") ||
+            pName.includes("3 piedras") ||
+            pName.includes("trilog") ||
+            pBadge.includes("trilog")
           );
         }
         if (targetEstilo === "moderno") {
@@ -1008,21 +1014,45 @@ function Category({ addToCart }) {
         const pBadge = normalize(p.badge);
         const pDesc = normalize(p.description);
         const pCategories = Array.isArray(p.categories) ? p.categories.map(normalize) : [];
+        const searchableGemText = `${pGem} ${pName} ${pBadge} ${pDesc} ${pCategories.join(" ")}`;
+        const productGemTypes = getProductGemTypes(p);
+        const hasGemType = (ids) =>
+          productGemTypes.some((gem) => {
+            const gemId = normalize(gem.id);
+            const gemName = normalize(gem.name);
+            return ids.some((id) => gemId === id || gemName.includes(id));
+          });
 
         if (targetGema === "diamante") {
           return (
             pGem === "diamante" ||
+            hasGemType(["diamante-lab", "diamante-natural"]) ||
             (!pGem && (pName.includes("diamante") || pBadge.includes("diamante") || pDesc.includes("diamante") || p.category?.includes("compromiso")))
           );
         }
+        if (targetGema === "zirconita") {
+          return hasGemType(["zirconita", "zirconita-swarovski"]) || searchableGemText.includes("zirconita") || searchableGemText.includes("circonita");
+        }
+        if (targetGema === "moissanita") {
+          return hasGemType(["moissanita"]) || searchableGemText.includes("moissanita");
+        }
+        if (targetGema === "diamante-lab" || targetGema === "diamante-laboratorio") {
+          return hasGemType(["diamante-lab"]) || searchableGemText.includes("diamante lab") || searchableGemText.includes("lab grown") || searchableGemText.includes("laboratorio");
+        }
+        if (targetGema === "diamante-natural") {
+          return hasGemType(["diamante-natural"]) || searchableGemText.includes("diamante natural") || pGem === "diamante-natural";
+        }
         if (targetGema === "esmeralda") {
-          return pGem === "esmeralda" || pName.includes("esmeralda") || pBadge.includes("esmeralda") || pDesc.includes("esmeralda");
+          return hasGemType(["esmeralda"]) || searchableGemText.includes("esmeralda");
         }
         if (targetGema === "rubi" || targetGema === "rubí") {
-          return pGem === "rubi" || pName.includes("rubí") || pName.includes("rubi") || pBadge.includes("rubí") || pBadge.includes("rubi");
+          return hasGemType(["rubi"]) || searchableGemText.includes("rubi");
         }
-        if (targetGema === "zafiro") {
-          return pGem === "zafiro" || pName.includes("zafiro") || pBadge.includes("zafiro") || pDesc.includes("zafiro");
+        if (targetGema === "zafiro" || targetGema === "zafiro-azul") {
+          return hasGemType(["zafiro"]) || searchableGemText.includes("zafiro");
+        }
+        if (targetGema === "topacio" || targetGema === "amatista") {
+          return hasGemType([targetGema]) || searchableGemText.includes(targetGema);
         }
         const categoryLabel = normalize(gemCollectionOptions.find((option) => option.id === gemaParam)?.label);
         return (
@@ -1052,6 +1082,18 @@ function Category({ addToCart }) {
         }
         if (activeMetal.includes("plata-950") || activeMetal === "plata 950") {
           return metals.some((m) => m.id === "plata-950" || (m.name.toLowerCase().includes("plata") && !m.name.toLowerCase().includes("oro")));
+        }
+        if (activeMetal === "oro-18k" || activeMetal === "oro 18k") {
+          const isGold18k = (metal) => {
+            const id = (metal.id || "").toLowerCase();
+            const name = (metal.name || "").toLowerCase();
+            return (id.includes("oro-18k") || (name.includes("oro") && name.includes("18k"))) && !id.includes("plata") && !name.includes("plata");
+          };
+          return (
+            metals.some(isGold18k) ||
+            isGold18k({ id: pMetal, name: pMetal }) ||
+            (pSub.includes("oro") && pSub.includes("18k") && !pSub.includes("plata"))
+          );
         }
         if (activeMetal.includes("oro-natural") || activeMetal.includes("natural")) {
           return (
@@ -1421,6 +1463,7 @@ function Category({ addToCart }) {
                   options={gemCollectionOptions.filter((option) => option.id).map((option) => ({
                     value: option.id,
                     label: option.label,
+                    color: option.color || "#b8b8ba",
                   }))}
                   isActive={Boolean(gemaParam)}
                 />

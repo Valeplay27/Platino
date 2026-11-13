@@ -97,6 +97,7 @@ import { getReclamaciones } from "../services/reclamacionesService";
 import AdminReclamacionesTab from "../components/AdminReclamacionesTab";
 import AdminPlatinoCareTab from "../components/AdminPlatinoCareTab";
 import AdminGemstonesTab from "../components/AdminGemstonesTab";
+import AdminFaqsTab from "../components/AdminFaqsTab";
 import { uploadImageFile, convertBase64ToImageFile } from "../utils/imageUploadService";
 import {
   getImageInputValue,
@@ -546,13 +547,10 @@ const CATALOG_SUBTYPE_OPTIONS_BY_GROUP = {
 const RING_STYLE_OPTIONS_BY_SUBTYPE = {
   "anillo-compromiso": [
     { id: "solitario", label: "Solitario" },
-    { id: "3-piedras", label: "3 Piedras" },
-    { id: "con-pave", label: "Con Pavé" },
-    { id: "moderno", label: "Moderno / Bisel" },
+    { id: "pedreria-lateral", label: "Pedrería lateral" },
     { id: "vintage", label: "Vintage" },
-    { id: "con-gemas", label: "Con Gemas" },
-    { id: "naturaleza", label: "Inspirado en la Naturaleza" },
-    { id: "conjunto-nupcial", label: "Conjunto Nupcial" },
+    { id: "halo", label: "Halo" },
+    { id: "moderno", label: "Moderno" },
   ],
   "aros-boda": [
     { id: "clasicos", label: "Clásicos" },
@@ -571,14 +569,12 @@ const RING_STYLE_OPTIONS_BY_SUBTYPE = {
   "aros-alianzas": [
     { id: "clasicos", label: "Clásicos" },
     { id: "con-pedreria", label: "Con Pedrería" },
-    { id: "sin-pedreria", label: "Sin Pedrería" },
     { id: "moderno", label: "Moderno" },
     { id: "vintage", label: "Vintage" },
   ],
   "alianzas-amor": [
     { id: "clasicos", label: "Clásicos" },
     { id: "con-pedreria", label: "Con Pedrería" },
-    { id: "sin-pedreria", label: "Sin Pedrería" },
     { id: "moderno", label: "Moderno" },
     { id: "vintage", label: "Vintage" },
   ],
@@ -658,6 +654,12 @@ export default function AdminCitas() {
     )
       return "home_images";
     if (
+      location.pathname === "/admin/faqs" ||
+      location.pathname === "/admin/preguntas-frecuentes" ||
+      searchParams.get("tab") === "faqs"
+    )
+      return "faqs";
+    if (
       location.pathname === "/admin/permisos" ||
       searchParams.get("tab") === "permisos"
     )
@@ -731,7 +733,7 @@ export default function AdminCitas() {
     const initialTab = getTabFromLocation();
     if (["finanzas", "pedidos", "citas"].includes(initialTab)) return "operaciones";
     if (["catalogo", "gemas", "inventario"].includes(initialTab)) return "catalogo";
-    if (["home_images"].includes(initialTab)) return "tienda";
+    if (["home_images", "faqs"].includes(initialTab)) return "tienda";
     if (["permisos", "claves", "reclamaciones", "platino_care"].includes(initialTab)) return "administracion";
     return "operaciones";
   });
@@ -741,7 +743,7 @@ export default function AdminCitas() {
       setSelectedAdminCategory("operaciones");
     } else if (["catalogo", "gemas", "inventario"].includes(activeTab)) {
       setSelectedAdminCategory("catalogo");
-    } else if (["home_images"].includes(activeTab)) {
+    } else if (["home_images", "faqs"].includes(activeTab)) {
       setSelectedAdminCategory("tienda");
     } else if (["permisos", "claves", "reclamaciones", "platino_care"].includes(activeTab)) {
       setSelectedAdminCategory("administracion");
@@ -906,6 +908,7 @@ export default function AdminCitas() {
   const [formHomeImageTitle, setFormHomeImageTitle] = useState("");
   const [formHomeImageSubtitle, setFormHomeImageSubtitle] = useState("");
   const [formHomeImageButtonText, setFormHomeImageButtonText] = useState("");
+  const [formHomeImageProductId, setFormHomeImageProductId] = useState("");
 
   // Campos del modal de producto / imagen
   const [formName, setFormName] = useState("");
@@ -915,7 +918,7 @@ export default function AdminCitas() {
   const [formSubtype, setFormSubtype] = useState("anillo-compromiso");
   const [formGender, setFormGender] = useState("mujer");
   const [formStyle, setFormStyle] = useState("solitario");
-  const [formGem, setFormGem] = useState("diamante");
+  const [formGem, setFormGem] = useState("diamante-natural");
   const [gemCollectionOptions, setGemCollectionOptions] = useState(() => getGemCollectionOptions());
   const [newGemCollectionLabel, setNewGemCollectionLabel] = useState("");
   const [formPrice, setFormPrice] = useState("");
@@ -998,6 +1001,8 @@ export default function AdminCitas() {
   const [formMetalImages, setFormMetalImages] = useState({});
   const [formMetalGalleries, setFormMetalGalleries] = useState({});
   const [formShowDeliveryEstimate, setFormShowDeliveryEstimate] = useState(true);
+  const [formAllowsEntallado, setFormAllowsEntallado] = useState(true);
+  const [formEntalladoCustomMessage, setFormEntalladoCustomMessage] = useState("");
   const [formHasGemSelection, setFormHasGemSelection] = useState(true);
   const [formHasGemTypeSelection, setFormHasGemTypeSelection] = useState(true);
   const [formAvailableGemShapes, setFormAvailableGemShapes] = useState(() => (Array.isArray(MASTER_GEM_SHAPES) ? MASTER_GEM_SHAPES.map((s) => s.id) : []));
@@ -2274,6 +2279,8 @@ export default function AdminCitas() {
     setFormMetalImages(initImages);
     setFormMetalGalleries(initGalleries);
     setFormShowDeliveryEstimate(initialGroup !== "anillos");
+    setFormAllowsEntallado(true);
+    setFormEntalladoCustomMessage("");
     setFormHasGemSelection(true);
     const masterShapes = Array.isArray(MASTER_GEM_SHAPES) ? MASTER_GEM_SHAPES : [];
     const allShapeIds = masterShapes.map((s) => s.id);
@@ -3016,6 +3023,8 @@ export default function AdminCitas() {
     const activeSubOpt = activeGroupOpts.find((o) => o.id === formSubtypeOptionId);
     const styleSlugMap = {
       solitario: "anillos-solitarios",
+      "pedreria-lateral": "anillos-pedreria-lateral",
+      halo: "anillos-halo",
       "3-piedras": "anillos-tres-piedras",
       "con-pave": "anillos-pave",
       vintage: "anillos-vintage",
@@ -3079,6 +3088,8 @@ export default function AdminCitas() {
       availableMetals: activeMetalsObjects,
       selectedMetal: finalSelectedMetal,
       showDeliveryEstimate: isRingGroup ? false : formShowDeliveryEstimate,
+      allowsEntallado: formAllowsEntallado,
+      entalladoCustomMessage: formEntalladoCustomMessage.trim() || undefined,
       hasPresentationChoice: true,
       boxImages: finalBoxImages,
       boxNames: finalBoxNames,
@@ -3145,6 +3156,7 @@ export default function AdminCitas() {
     setFormHomeImageTitle(item.title || item.name || "");
     setFormHomeImageSubtitle(item.subtitle || "");
     setFormHomeImageButtonText(item.buttonText || "");
+    setFormHomeImageProductId(item.productId || "");
     setHomeImageModalOpen(true);
   };
 
@@ -3176,6 +3188,13 @@ export default function AdminCitas() {
     }
     if (formHomeImageButtonText !== undefined) {
       extras.buttonText = formHomeImageButtonText;
+    }
+    if (editingHomeKey.startsWith("newModel")) {
+      const selectedProduct = catalogList.find(
+        (product) => String(product.id) === String(formHomeImageProductId)
+      );
+      extras.productId = selectedProduct?.id || "";
+      extras.path = selectedProduct ? `/producto/${selectedProduct.id}` : "";
     }
 
     const updated = updateSingleHomeImage(editingHomeKey, formHomeImageSrc, extras);
@@ -3247,6 +3266,18 @@ export default function AdminCitas() {
         : "Barra superior desactivada. Se ocultó de la tienda."
     );
     setTimeout(() => setFeedbackMsg(""), 4500);
+  };
+
+  const handleToggleJewelryWatches = () => {
+    const nextState = !homeImagesData.jewelryMenuWatches?.active;
+    const updated = updateSingleHomeImage("jewelryMenuWatches", undefined, { active: nextState });
+    setHomeImagesData(updated);
+    setFeedbackMsg(
+      nextState
+        ? "Relojes ahora está visible en el menú Para Él."
+        : "Relojes quedó oculto en el menú Para Él."
+    );
+    setTimeout(() => setFeedbackMsg(""), 4000);
   };
 
   const handleSaveAnnouncement = (e) => {
@@ -5539,6 +5570,8 @@ export default function AdminCitas() {
                   ? "Control de Pedidos y Fabricación en Taller"
                   : activeTab === "home_images"
                   ? "Panel Administrativo - Imágenes del Inicio"
+                  : activeTab === "faqs"
+                  ? "Panel Administrativo - Preguntas Frecuentes"
                   : activeTab === "finanzas"
                   ? "Control de Pagos & Validación de Pedidos"
                   : activeTab === "permisos"
@@ -5578,6 +5611,8 @@ export default function AdminCitas() {
                 ? "Gestiona los pedidos de clientes, actualiza en tiempo real la etapa de fabricación de las joyas (Taller, Engaste, Calidad, Envío) y agrega notas de orfebrería."
                 : activeTab === "home_images"
                 ? "Cambia las imágenes del inicio: banners de compromiso/boda, categorías, estilos de anillos, editoriales y mosaico."
+                : activeTab === "faqs"
+                ? "Administra las preguntas y respuestas que aparecen en las fichas de producto de la tienda."
                 : activeTab === "finanzas"
                 ? "Supervisa los pedidos de los clientes, valida si el pago fue realizado y confirma por qué medio de pago se efectuó la transacción (BanBif, Banco de la Nación, BCP, Interbank, IziPay, Pichincha, Fondo Platino, Efectivo)."
                 : activeTab === "permisos"
@@ -5604,7 +5639,7 @@ export default function AdminCitas() {
           const getCategoryFromTab = (tab) => {
             if (["finanzas", "pedidos", "citas"].includes(tab)) return "operaciones";
             if (["catalogo", "gemas", "inventario"].includes(tab)) return "catalogo";
-            if (["home_images"].includes(tab)) return "tienda";
+            if (["home_images", "faqs"].includes(tab)) return "tienda";
             if (["permisos", "claves", "reclamaciones", "platino_care"].includes(tab)) return "administracion";
             return "operaciones";
           };
@@ -5690,6 +5725,14 @@ export default function AdminCitas() {
                   icon: "bi-images",
                   route: "/admin/imagenes",
                   visible: isEffectiveMaster || userHasPermission("home_images"),
+                },
+                {
+                  id: "faqs",
+                  label: "Preguntas Frecuentes",
+                  icon: "bi-patch-question-fill",
+                  route: "/admin/faqs",
+                  badge: "FAQs",
+                  visible: isEffectiveMaster || userHasPermission("catalogo") || userHasPermission("home_images"),
                 },
                 {
                   id: "nosotros_link",
@@ -6246,7 +6289,7 @@ export default function AdminCitas() {
               </div>
             </div>
           </div>
-        ) : activeTab === "platino_care" || activeTab === "gemas" || activeTab === "home_images" || activeTab === "claves" ? null : (
+        ) : activeTab === "platino_care" || activeTab === "gemas" || activeTab === "home_images" || activeTab === "faqs" || activeTab === "claves" ? null : (
           <div className="admin-metrics-row">
             <div className="metric-card">
               <div className="metric-icon-box">
@@ -8096,6 +8139,42 @@ export default function AdminCitas() {
               </div>
             </div>
 
+            {(homeSectionFilter === "Menú de Joyas" || homeSectionFilter === "todas") && (
+              <div
+                style={{
+                  background: "#ffffff",
+                  border: "1.5px solid #e2e8f0",
+                  borderRadius: "14px",
+                  padding: "20px 24px",
+                  marginBottom: "24px",
+                  boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  flexWrap: "wrap",
+                  gap: "16px",
+                }}
+              >
+                <div>
+                  <h4 style={{ margin: 0, fontSize: "16px", color: "#0f172a", fontWeight: "700" }}>
+                    Mostrar Relojes en “Para Él”
+                  </h4>
+                  <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: "#64748b" }}>
+                    Está oculto por defecto. Actívalo cuando empiecen a manejar relojes.
+                  </p>
+                </div>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: "10px", fontSize: "13px", fontWeight: "700", color: "#334155", cursor: "pointer" }}>
+                  <input
+                    type="checkbox"
+                    checked={Boolean(homeImagesData.jewelryMenuWatches?.active)}
+                    onChange={handleToggleJewelryWatches}
+                    style={{ width: "18px", height: "18px", accentColor: "#113B3A" }}
+                  />
+                  {homeImagesData.jewelryMenuWatches?.active ? "Activo" : "Inactivo"}
+                </label>
+              </div>
+            )}
+
             {/* ========================================================
                 EDITOR ESPECÍFICO: BANNERS HERO PRINCIPALES (COMPROMISO & MATRIMONIO)
                 ======================================================== */}
@@ -8485,6 +8564,99 @@ export default function AdminCitas() {
                         };
                         setHomeImagesData(updated);
                       }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {homeSectionFilter === "Nuevos modelos" && (
+              <div
+                style={{
+                  background: "#ffffff",
+                  border: "1.5px solid #e2e8f0",
+                  borderRadius: "14px",
+                  padding: "22px 24px",
+                  marginBottom: "24px",
+                  boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", marginBottom: "16px" }}>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: "16px", color: "#0f172a", fontWeight: "700" }}>
+                      Encabezado de la Sección: Nuevos Modelos
+                    </h4>
+                    <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: "#64748b" }}>
+                      Edita el título y subtítulo; debajo puedes elegir las joyas y cargar sus imágenes manualmente.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleSaveSectionHeader(
+                        "sectionNewModels",
+                        homeImagesData.sectionNewModels?.title || "Reciente en Platino Perú",
+                        homeImagesData.sectionNewModels?.subtitle || "Descubre nuestras últimas incorporaciones."
+                      )
+                    }
+                    style={{
+                      background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "10px",
+                      padding: "10px 18px",
+                      fontSize: "12.5px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "7px",
+                    }}
+                  >
+                    <i className="bi bi-check2-circle" style={{ color: "#C6AC7F" }}></i>
+                    Guardar Encabezado
+                  </button>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "6px" }}>
+                      Título Principal
+                    </label>
+                    <input
+                      type="text"
+                      className="filter-select"
+                      style={{ width: "100%", height: "42px", borderRadius: "8px" }}
+                      value={homeImagesData.sectionNewModels?.title || "Reciente en Platino Perú"}
+                      onChange={(e) =>
+                        setHomeImagesData((current) => ({
+                          ...current,
+                          sectionNewModels: {
+                            ...current.sectionNewModels,
+                            title: e.target.value,
+                          },
+                        }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "6px" }}>
+                      Subtítulo Descriptivo
+                    </label>
+                    <input
+                      type="text"
+                      className="filter-select"
+                      style={{ width: "100%", height: "42px", borderRadius: "8px" }}
+                      value={homeImagesData.sectionNewModels?.subtitle || "Descubre nuestras últimas incorporaciones."}
+                      onChange={(e) =>
+                        setHomeImagesData((current) => ({
+                          ...current,
+                          sectionNewModels: {
+                            ...current.sectionNewModels,
+                            subtitle: e.target.value,
+                          },
+                        }))
+                      }
                     />
                   </div>
                 </div>
@@ -9713,7 +9885,6 @@ export default function AdminCitas() {
                       <ul style={{ margin: 0, paddingLeft: "16px", fontSize: "11px", color: "#64748b", lineHeight: "1.6" }}>
                         <li>Clásicos</li>
                         <li>Con Pedrería</li>
-                        <li>Sin Pedrería</li>
                         <li>Moderno</li>
                         <li>Vintage</li>
                       </ul>
@@ -9741,7 +9912,9 @@ export default function AdminCitas() {
             )}
 
             {/* Grid de Tarjetas de Imágenes (para todas las demás secciones) */}
-            {homeSectionFilter !== "The Fall Edit & The New Classics" && homeSectionFilter !== "Megamenú: Aros de Boda & Amor y Promesa" && (
+            {homeSectionFilter !== "The Fall Edit & The New Classics" &&
+              homeSectionFilter !== "Megamenú: Aros de Boda & Amor y Promesa" &&
+              homeSectionFilter !== "Menú de Joyas" && (
               <div
                 style={{
                   display: "grid",
@@ -9752,6 +9925,7 @@ export default function AdminCitas() {
                 {filteredHomeItems
                   .filter(([key]) => {
                     if (key.startsWith("megamenu")) return false;
+                    if (key === "jewelryMenuWatches") return false;
                     if (homeSectionFilter === "todas" && (key.startsWith("hero") || key.startsWith("cat"))) return false;
                     if (homeSectionFilter === "Banners Principales (Hero)") return false;
                     if (homeSectionFilter === "Comprar joyas por categoría") return false;
@@ -9859,19 +10033,26 @@ export default function AdminCitas() {
                           overflow: "hidden",
                         }}
                       >
-                        <img
-                          src={item.image}
-                          alt={item.label || item.name || key}
-                          style={{
-                            width: "100%",
-                            height: "100%",
-                            objectFit: "cover",
-                            display: "block",
-                          }}
-                          onError={(e) => {
-                            e.target.src = "/images/cat-compromiso.jpg";
-                          }}
-                        />
+                        {item.image ? (
+                          <img
+                            src={item.image}
+                            alt={item.label || item.name || key}
+                            style={{
+                              width: "100%",
+                              height: "100%",
+                              objectFit: "cover",
+                              display: "block",
+                            }}
+                            onError={(e) => {
+                              e.target.src = "/images/cat-compromiso.jpg";
+                            }}
+                          />
+                        ) : (
+                          <div style={{ height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: "8px", color: "#cbd5e1", background: "#f8fafc" }}>
+                            <i className="bi bi-cloud-arrow-up" style={{ fontSize: "30px" }}></i>
+                            <span style={{ fontSize: "12px", fontWeight: "700" }}>Sube una imagen para este modelo</span>
+                          </div>
+                        )}
                         <div
                           style={{
                             position: "absolute",
@@ -9933,9 +10114,11 @@ export default function AdminCitas() {
                                 <strong style={{ color: "#0f172a" }}>"{item.name}"</strong>
                               </>
                             ) : (
-                              item.description ||
-                              item.subtitle ||
-                              (item.path ? `Ruta destino: ${item.path}` : "Fotografía destacada de portada")
+                              key.startsWith("newModel")
+                                ? catalogList.find((product) => String(product.id) === String(item.productId))?.name || "Aún no has seleccionado una joya."
+                                : item.description ||
+                                  item.subtitle ||
+                                  (item.path ? `Ruta destino: ${item.path}` : "Fotografía destacada de portada")
                             )}
                           </div>
                         </div>
@@ -9964,8 +10147,26 @@ export default function AdminCitas() {
                             title="Cambiar fotografía y textos asociados"
                           >
                             <i className="bi bi-camera-fill" style={{ color: "#C6AC7F" }}></i>
-                            Cambiar Foto y Título
+                            {item.image ? "Cambiar Foto y Título" : "Agregar Foto y Producto"}
                           </button>
+
+                          {key.startsWith("newModel") && item.image && (
+                            <button
+                              type="button"
+                              onClick={() => handleClearMegamenuImage(key)}
+                              title="Quitar esta imagen del bloque Nuevos Modelos"
+                              style={{
+                                background: "#fef2f2",
+                                color: "#b91c1c",
+                                border: "1px solid #fecaca",
+                                borderRadius: "10px",
+                                padding: "11px 14px",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <i className="bi bi-trash3-fill"></i>
+                            </button>
+                          )}
 
                           {key === "showroomSecondary" && item.image && (
                             <button
@@ -9993,6 +10194,18 @@ export default function AdminCitas() {
               </div>
             )}
           </div>
+          )
+        )}
+
+        {activeTab === "faqs" && (
+          !userHasPermission("catalogo") && !userHasPermission("home_images") && !isEffectiveMaster ? (
+            renderAccessGuard(
+              "home_images",
+              "Preguntas Frecuentes",
+              "Permite administrar las preguntas y respuestas visibles en las fichas de producto."
+            )
+          ) : (
+            <AdminFaqsTab isMaster={isEffectiveMaster} />
           )
         )}
 
@@ -14424,6 +14637,41 @@ export default function AdminCitas() {
                     </div>
                   </div>
                 </div>
+
+                {editingHomeKey?.startsWith("newModel") && (
+                  <div className="catalog-form-group" style={{ marginBottom: "16px" }}>
+                    <label style={{ fontWeight: "700", color: "#0f172a", fontSize: "12.5px" }}>
+                      Joya que se abrirá al hacer clic
+                    </label>
+                    <select
+                      className="catalog-form-input"
+                      style={{ borderRadius: "10px" }}
+                      value={formHomeImageProductId}
+                      onChange={(e) => {
+                        const productId = e.target.value;
+                        const selectedProduct = catalogList.find(
+                          (product) => String(product.id) === String(productId)
+                        );
+                        setFormHomeImageProductId(productId);
+                        if (selectedProduct) {
+                          setFormHomeImageTitle(selectedProduct.name || "");
+                        }
+                      }}
+                    >
+                      <option value="">Seleccionar una joya del catálogo</option>
+                      {catalogList
+                        .filter((product) => product && !product.isGemstone)
+                        .map((product) => (
+                          <option key={product.id} value={product.id}>
+                            {product.name}
+                          </option>
+                        ))}
+                    </select>
+                    <small style={{ fontSize: "11.5px", color: "#64748b", marginTop: "4px", display: "block" }}>
+                      Solo aparecen joyas del catálogo; las gemas no se incluyen en esta sección.
+                    </small>
+                  </div>
+                )}
 
                 {/* Campo de Título / Nombre visible (se oculta para piezas individuales del mosaico) */}
                 {!editingHomeKey?.startsWith("mosaic") && (

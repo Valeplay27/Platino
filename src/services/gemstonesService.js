@@ -9,7 +9,7 @@
  */
 export const getGemCertificateDisplay = (gem) => {
   if (!gem) return "";
-  const raw = (gem.certNumber || "").trim();
+  const raw = (gem.certNumber || "").trim().replace(/\s*\([^\)]*l[aá]ser[^\)]*\)/gi, "").trim();
   if (raw.startsWith("http://") || raw.startsWith("https://")) {
     try {
       const url = new URL(raw);
@@ -137,10 +137,17 @@ export const normalizeGemstone = (g) => {
   const units = Math.max(0, isNaN(rawUnits) ? 0 : rawUnits);
   const inStock = units > 0 && g.inStock !== false;
 
+  const cleanCert = (g.certNumber || "").replace(/\s*\([^\)]*l[aá]ser[^\)]*\)/gi, "").trim();
+
   return {
     ...g,
+    certNumber: cleanCert,
+    table: g.table || "58%",
+    depth: g.depth || "62.1%",
+    fluorescence: g.fluorescence || "Ninguna",
     units,
     inStock,
+    isRealPhoto: g.isRealPhoto !== false,
     certUrl: (g.certUrl || "").trim(),
     price: Number(g.price) || 0,
     priceFormatted: g.priceFormatted || `S/. ${(Number(g.price) || 0).toLocaleString("es-PE")}`,

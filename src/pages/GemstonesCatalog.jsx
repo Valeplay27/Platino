@@ -55,6 +55,8 @@ export default function GemstonesCatalog({ addToCart, cart = [] }) {
   const [selectedMmRange, setSelectedMmRange] = useState("todos");
   const [selectedCaratRange, setSelectedCaratRange] = useState("todos");
   const [sortBy, setSortBy] = useState("destacados");
+  const [showPhotoBadges, setShowPhotoBadges] = useState(true);
+  const toggleShowPhotoBadges = () => setShowPhotoBadges((visible) => !visible);
 
   // Modal de detalle de gema
   const [detailGem, setDetailGem] = useState(null);
@@ -686,23 +688,49 @@ export default function GemstonesCatalog({ addToCart, cart = [] }) {
                   )}
                 </h2>
                 <p className="results-subtext">
-                  Gemas con grabado láser en el filetín y certificado físico GIA / IGI.
+                  Gemas con certificación física oficial GIA, IGI o GEMLAB.
                 </p>
               </div>
 
               {/* Ordenamiento */}
-              <div className="results-sort-box">
-                <label>Ordenar por:</label>
-                <select
-                  value={sortBy}
-                  onChange={(e) => setSortBy(e.target.value)}
-                  className="results-sort-select"
+              <div className="results-sort-box" style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={toggleShowPhotoBadges}
+                  style={{
+                    padding: "6px 14px",
+                    borderRadius: "20px",
+                    fontSize: "12px",
+                    fontWeight: "700",
+                    border: showPhotoBadges ? "1.5px solid #113B3A" : "1.5px solid #cbd5e1",
+                    background: showPhotoBadges ? "#113B3A" : "#f8fafc",
+                    color: showPhotoBadges ? "#ffffff" : "#475569",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: "6px",
+                    transition: "all 0.2s ease",
+                    boxShadow: "0 1px 2px rgba(0,0,0,0.04)"
+                  }}
+                  title={showPhotoBadges ? "Insignia 'Foto Real' activada. Haz clic para quitarla de todas las gemas." : "Insignia 'Foto Real' desactivada (oculta). Haz clic para mostrarla."}
                 >
-                  <option value="destacados">Recomendadas Platino</option>
-                  <option value="precio-menor">Precio: Menor a Mayor</option>
-                  <option value="precio-mayor">Precio: Mayor a Menor</option>
-                  <option value="carat-mayor">Mayor Quilate (Carat)</option>
-                </select>
+                  <i className={showPhotoBadges ? "bi bi-camera-fill" : "bi bi-eye-slash"}></i>
+                  <span>Insignia &quot;Foto Real&quot;: <strong style={{ color: showPhotoBadges ? "#ffffff" : "#113B3A" }}>{showPhotoBadges ? "Activada" : "Desactivada"}</strong></span>
+                </button>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                  <label style={{ margin: 0 }}>Ordenar por:</label>
+                  <select
+                    value={sortBy}
+                    onChange={(e) => setSortBy(e.target.value)}
+                    className="results-sort-select"
+                  >
+                    <option value="destacados">Recomendadas Platino</option>
+                    <option value="precio-menor">Precio: Menor a Mayor</option>
+                    <option value="precio-mayor">Precio: Mayor a Menor</option>
+                    <option value="carat-mayor">Mayor Quilate (Carat)</option>
+                  </select>
+                </div>
               </div>
             </div>
 
@@ -832,9 +860,11 @@ export default function GemstonesCatalog({ addToCart, cart = [] }) {
                               className="gem-photo-img"
                               loading="lazy"
                             />
-                            <span className="photo-verified-tag">
-                              <i className="bi bi-camera-fill"></i> Foto Real
-                            </span>
+                            {showPhotoBadges && gem.isRealPhoto !== false && (
+                              <span className="photo-verified-tag">
+                                <i className="bi bi-camera-fill"></i> Foto Real
+                              </span>
+                            )}
                           </div>
                         ) : (
                           <GemstoneStoneVisual
@@ -1078,7 +1108,7 @@ export default function GemstonesCatalog({ addToCart, cart = [] }) {
                     <div className="atelier-step-arrow">→</div>
                     <div className="atelier-step">
                       <span className="step-num">3</span>
-                      <span className="step-text">Grabado Láser & Estuche de Lujo</span>
+                      <span className="step-text">Grabado Personalizado & Estuche de Lujo</span>
                     </div>
                   </div>
                 </div>
@@ -1162,9 +1192,11 @@ export default function GemstonesCatalog({ addToCart, cart = [] }) {
                         alt={detailGem.name}
                         className="gem-modal-photo-img"
                       />
-                      <span className="photo-verified-tag">
-                        <i className="bi bi-camera-fill"></i> Fotografía Real
-                      </span>
+                      {showPhotoBadges && detailGem.isRealPhoto !== false && (
+                        <span className="photo-verified-tag">
+                          <i className="bi bi-camera-fill"></i> Fotografía Real
+                        </span>
+                      )}
                     </div>
                   ) : (
                     <GemstoneStoneVisual
@@ -1210,7 +1242,7 @@ export default function GemstonesCatalog({ addToCart, cart = [] }) {
                         Certificado Oficial {detailGem.certificate}
                       </div>
                       <div style={{ fontSize: "12px", color: "rgba(255,255,255,0.85)" }}>
-                        Nº {detailGem.certNumber}
+                        Nº {String(detailGem.certNumber || "").replace(/\s*\([^\)]*l[aá]ser[^\)]*\)/gi, "").trim()}
                       </div>
                     </div>
                   </div>

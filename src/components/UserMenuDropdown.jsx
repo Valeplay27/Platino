@@ -77,6 +77,7 @@ export default function UserMenuDropdown() {
   const canSeePagos = isMaster || hasPermission(user, "finanzas");
   const canSeeNosotros = isMaster || hasPermission(user, "nosotros");
   const canSeeReclamaciones = isMaster || hasPermission(user, "reclamaciones");
+  const canSeeFaqs = isMaster || isAdmin || canSeeImagenes || canSeeNosotros || canSeeCatalogo;
 
   return (
     <div className="user-menu-container" ref={containerRef}>
@@ -213,7 +214,7 @@ export default function UserMenuDropdown() {
                 )}
 
                 {/* 3. TIENDA & CONTENIDO WEB */}
-                {(canSeeImagenes || canSeeNosotros) && (
+                {(canSeeImagenes || canSeeNosotros || canSeeFaqs) && (
                   <>
                     <li className="user-dropdown-divider"></li>
                     <li className="user-dropdown-section-title">
@@ -252,6 +253,18 @@ export default function UserMenuDropdown() {
                         >
                           <i className="bi bi-newspaper"></i>
                           <span>Blog & Educación (Publicaciones)</span>
+                        </Link>
+                      </li>
+                    )}
+                    {canSeeFaqs && (
+                      <li>
+                        <Link
+                          to="/admin/faqs"
+                          className="user-dropdown-item"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          <i className="bi bi-question-circle"></i>
+                          <span>Preguntas Frecuentes (FAQs)</span>
                         </Link>
                       </li>
                     )}

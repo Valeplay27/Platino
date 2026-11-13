@@ -13,6 +13,29 @@ import { DiamondCutIcon } from "./GemstoneIcons";
 import platinoLogoWordmark from "../assets/platino-peru-logo.png?inline";
 import "../../styles/layout.css";
 
+const GEM_MENU_PALETTES = {
+  neutral: { base: "#b9c0c6", light: "#ffffff", mid: "#e5e9ec", dark: "#727b84" },
+  blue: { base: "#246ca5", light: "#a6dbf3", mid: "#4b9bd0", dark: "#103b68" },
+  green: { base: "#24986b", light: "#b6efd2", mid: "#50bd8c", dark: "#0b5b40" },
+  red: { base: "#c33e54", light: "#ffc4cc", mid: "#e56a7c", dark: "#741d34" },
+  cyan: { base: "#28b1c0", light: "#c2f4f4", mid: "#55d0d5", dark: "#087383" },
+  purple: { base: "#8154a3", light: "#e2d0f7", mid: "#aa7bcc", dark: "#4a2d68" },
+};
+
+function GemMenuSwatch({ tone }) {
+  const palette = GEM_MENU_PALETTES[tone] || GEM_MENU_PALETTES.neutral;
+
+  return (
+    <svg className="gem-menu-color" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="8" cy="8" r="7.2" fill={palette.base} stroke={palette.dark} strokeWidth="0.5" />
+      <path d="M3.1 5.2 6.1 2.7h3.8l3 2.5-2.2 2.2H5.3Z" fill={palette.light} opacity="0.9" />
+      <path d="m2 6.2 3.3 1.2L7.1 14l-4.2-2.5Z" fill={palette.dark} opacity="0.6" />
+      <path d="m5.3 7.4 5.4 0 2.2-2.2-.7 5.7L7.1 14Z" fill={palette.mid} opacity="0.8" />
+      <path d="m3.1 5.2 2.2 2.2m6.8 0 2.2-2.2M5.3 7.4 7.1 14m3.6-6.6L7.1 14" fill="none" stroke={palette.light} strokeWidth="0.45" opacity="0.85" />
+    </svg>
+  );
+}
+
 const Navbar = ({ cartCount = 0, onOpenCart }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -359,15 +382,15 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                           </Link>
                         </li>
                         <li>
-                          <Link to="/categoria/anillo-compromiso?forma=esmeralda" onClick={handleNavClick}>
-                            <DiamondCutIcon shape="esmeralda" size={20} />
-                            <span>ESMERALDA</span>
-                          </Link>
-                        </li>
-                        <li>
                           <Link to="/categoria/anillo-compromiso?forma=corazon" onClick={handleNavClick}>
                             <DiamondCutIcon shape="corazon" size={20} />
                             <span>CORAZÓN</span>
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/anillo-compromiso?forma=esmeralda" onClick={handleNavClick}>
+                            <DiamondCutIcon shape="esmeralda" size={20} />
+                            <span>ESMERALDA</span>
                           </Link>
                         </li>
                         <li>
@@ -389,13 +412,13 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                           </Link>
                         </li>
                         <li>
-                          <Link to="/categoria/anillo-compromiso?estilo=3-piedras" onClick={handleNavClick}>
-                            3 PIEDRAS
+                          <Link to="/categoria/anillo-compromiso?estilo=halo" onClick={handleNavClick}>
+                            CON HALO
                           </Link>
                         </li>
                         <li>
-                          <Link to="/categoria/anillo-compromiso?estilo=con-pave" onClick={handleNavClick}>
-                            CON PAVÉ
+                          <Link to="/categoria/anillo-compromiso?estilo=pedreria-lateral" onClick={handleNavClick}>
+                            PEDRERÍA LATERAL
                           </Link>
                         </li>
                         <li>
@@ -431,121 +454,82 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                           </Link>
                         </li>
                         <li>
-                          <Link to="/categoria/anillo-compromiso?metal=oro-natural-18k" onClick={handleNavClick}>
-                            ORO NATURAL 18K
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/anillo-compromiso?metal=oro-amarillo-18k" onClick={handleNavClick}>
-                            ORO AMARILLO 18K
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/anillo-compromiso?metal=oro-rosado-18k" onClick={handleNavClick}>
-                            ORO ROSADO 18K
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/anillo-compromiso?metal=oro-blanco-18k" onClick={handleNavClick}>
-                            ORO BLANCO 18K
+                          <Link to="/categoria/anillo-compromiso?metal=oro-18k" onClick={handleNavClick}>
+                            ORO 18K
                           </Link>
                         </li>
                       </ul>
                     </div>
 
-                    {/* Columna 4: COLECCIÓN GEMAS SELECTAS */}
+                    {/* Columna 4: GEMAS */}
                     <div className="megamenu-col megamenu-col-gemas">
-                      <h4 className="megamenu-col-title text-center">COLECCIÓN GEMAS SELECTAS</h4>
-                      <div className="gemas-selectas-grid">
-                        <Link to="/categoria/anillo-compromiso?gema=diamante" className="gema-selecta-item" onClick={handleNavClick}>
-                          <div className="gema-selecta-img-box">
-                            <img src={getAssetUrl("/images/cat-compromiso.jpg")} alt="Diamante Solitario" />
-                            <div className="gema-selecta-overlay">
-                              <span className="gema-name-label">DIAMANTE</span>
-                            </div>
-                            <div className="gema-hover-info">
-                              <span className="gema-hover-badge">DUREZA 10 MOHS</span>
-                              <h5 className="gema-hover-title">DIAMANTE</h5>
-                              <p className="gema-hover-desc">Máximo brillo y pureza. Símbolo supremo de amor eterno certificado.</p>
-                              <span className="gema-hover-action">Ver modelos <i className="bi bi-arrow-right"></i></span>
-                            </div>
-                          </div>
-                        </Link>
-                        <Link to="/categoria/anillo-compromiso?gema=esmeralda" className="gema-selecta-item" onClick={handleNavClick}>
-                          <div className="gema-selecta-img-box">
-                            <img src={getAssetUrl("/images/cat-promesa.jpg")} alt="Esmeralda Colombiana" onError={(e) => { e.currentTarget.src = getAssetUrl("/images/cat-compromiso.jpg"); }} />
-                            <div className="gema-selecta-overlay">
-                              <span className="gema-name-label">ESMERALDA</span>
-                            </div>
-                            <div className="gema-hover-info">
-                              <span className="gema-hover-badge">VERDE BOTÁNICO</span>
-                              <h5 className="gema-hover-title">ESMERALDA</h5>
-                              <p className="gema-hover-desc">Gema noble de esperanza, renacimiento y magnetismo único.</p>
-                              <span className="gema-hover-action">Ver modelos <i className="bi bi-arrow-right"></i></span>
-                            </div>
-                          </div>
-                        </Link>
-                        <Link to="/categoria/anillo-compromiso?gema=rubi" className="gema-selecta-item" onClick={handleNavClick}>
-                          <div className="gema-selecta-img-box">
-                            <img src={getAssetUrl("/images/secret-garden-rose.jpg")} alt="Rubí Real" onError={(e) => { e.currentTarget.src = getAssetUrl("/images/cat-compromiso.jpg"); }} />
-                            <div className="gema-selecta-overlay">
-                              <span className="gema-name-label">RUBÍ</span>
-                            </div>
-                            <div className="gema-hover-info">
-                              <span className="gema-hover-badge">ROJO CARMESÍ</span>
-                              <h5 className="gema-hover-title">RUBÍ</h5>
-                              <p className="gema-hover-desc">Piedra de la pasión viva, fuego interior y lealtad imperecedera.</p>
-                              <span className="gema-hover-action">Ver modelos <i className="bi bi-arrow-right"></i></span>
-                            </div>
-                          </div>
-                        </Link>
-                        <Link to="/categoria/anillo-compromiso?gema=zafiro" className="gema-selecta-item" onClick={handleNavClick}>
-                          <div className="gema-selecta-img-box">
-                            <img src={getAssetUrl("/images/collar-cristal-blue.jpg")} alt="Zafiro Azul" onError={(e) => { e.currentTarget.src = getAssetUrl("/images/cat-compromiso.jpg"); }} />
-                            <div className="gema-selecta-overlay">
-                              <span className="gema-name-label">ZAFIRO</span>
-                            </div>
-                            <div className="gema-hover-info">
-                              <span className="gema-hover-badge">AZUL CELESTIAL</span>
-                              <h5 className="gema-hover-title">ZAFIRO</h5>
-                              <p className="gema-hover-desc">Emblema histórico de fidelidad sincera, sabiduría y realeza.</p>
-                              <span className="gema-hover-action">Ver modelos <i className="bi bi-arrow-right"></i></span>
-                            </div>
-                          </div>
-                        </Link>
+                      <h4 className="megamenu-col-title">SEGÚN GEMAS</h4>
+                      <div className="gemas-menu-columns">
+                        <ul className="megamenu-links-list gemas-menu-list">
+                          <li>
+                            <Link to="/categoria/anillo-compromiso?gema=zirconita" onClick={handleNavClick}>
+                              <GemMenuSwatch tone="neutral" />
+                              Zirconita / Zirconita Swarovski
+                            </Link>
+                          </li>
+                          <li>
+                            <Link to="/categoria/anillo-compromiso?gema=moissanita" onClick={handleNavClick}>
+                              <GemMenuSwatch tone="neutral" />
+                              Moissanita
+                            </Link>
+                          </li>
+                          <li>
+                            <Link to="/categoria/anillo-compromiso?gema=diamante-lab" onClick={handleNavClick}>
+                              <GemMenuSwatch tone="neutral" />
+                              Diamante de Laboratorio
+                            </Link>
+                          </li>
+                          <li>
+                            <Link to="/categoria/anillo-compromiso?gema=diamante-natural" onClick={handleNavClick}>
+                              <GemMenuSwatch tone="neutral" />
+                              Diamante Natural
+                            </Link>
+                          </li>
+                        </ul>
+                        <ul className="megamenu-links-list gemas-menu-list">
+                          <li>
+                            <Link to="/categoria/anillo-compromiso?gema=zafiro" onClick={handleNavClick}>
+                              <GemMenuSwatch tone="blue" />
+                              Zafiro Azul
+                            </Link>
+                          </li>
+                          <li>
+                            <Link to="/categoria/anillo-compromiso?gema=esmeralda" onClick={handleNavClick}>
+                              <GemMenuSwatch tone="green" />
+                              Esmeralda
+                            </Link>
+                          </li>
+                          <li>
+                            <Link to="/categoria/anillo-compromiso?gema=rubi" onClick={handleNavClick}>
+                              <GemMenuSwatch tone="red" />
+                              Rubí
+                            </Link>
+                          </li>
+                          <li>
+                            <Link to="/categoria/anillo-compromiso?gema=topacio" onClick={handleNavClick}>
+                              <GemMenuSwatch tone="cyan" />
+                              Topacio
+                            </Link>
+                          </li>
+                          <li>
+                            <Link to="/categoria/anillo-compromiso?gema=amatista" onClick={handleNavClick}>
+                              <GemMenuSwatch tone="purple" />
+                              Amatista
+                            </Link>
+                          </li>
+                          <li>
+                            <Link to="/catalogo-gemas" className="gem-menu-more" onClick={handleNavClick}>
+                              Ver más / Otras gemas
+                            </Link>
+                          </li>
+                        </ul>
                       </div>
-                      <Link to="/catalogo-gemas" className="megamenu-gemas-footer-link" onClick={handleNavClick}>
-                        DIAMANTE NATURAL Y LAB GROWN
-                      </Link>
 
-                      {/* Lista de texto para móvil (sin imágenes) */}
-                      <ul className="megamenu-links-list mobile-gemas-text-list">
-                        <li>
-                          <Link to="/categoria/anillo-compromiso?gema=diamante" onClick={handleNavClick}>
-                            DIAMANTE
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/anillo-compromiso?gema=esmeralda" onClick={handleNavClick}>
-                            ESMERALDA
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/anillo-compromiso?gema=rubi" onClick={handleNavClick}>
-                            RUBÍ
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/anillo-compromiso?gema=zafiro" onClick={handleNavClick}>
-                            ZAFIRO
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/catalogo-gemas" onClick={handleNavClick}>
-                            DIAMANTE NATURAL Y LAB GROWN
-                          </Link>
-                        </li>
-                      </ul>
                     </div>
 
                     {/* Columna 5: BLOG (Fondo Suave Gris/Blanco) */}
@@ -740,11 +724,6 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                         <li>
                           <Link to="/categoria/amor-promesa?subcat=alianzas-amor&estilo=con-pedreria" onClick={handleNavClick}>
                             CON PEDRERÍA
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/amor-promesa?subcat=alianzas-amor&estilo=sin-pedreria" onClick={handleNavClick}>
-                            SIN PEDRERÍA
                           </Link>
                         </li>
                         <li>
@@ -1029,11 +1008,6 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                           </Link>
                           <ul className="megamenu-links-list joyeria-dash-list">
                             <li>
-                              <Link to="/categoria/joyeria?genero=mujer&tipo=aretes-bebes" onClick={handleNavClick}>
-                                <span className="dash-bullet">-</span> ARETES PARA BEBÉS
-                              </Link>
-                            </li>
-                            <li>
                               <Link to="/categoria/joyeria?genero=mujer&tipo=aretes-pegados" onClick={handleNavClick}>
                                 <span className="dash-bullet">-</span> ARETES PEGADOS
                               </Link>
@@ -1041,6 +1015,15 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                             <li>
                               <Link to="/categoria/joyeria?genero=mujer&tipo=aretes-colgantes" onClick={handleNavClick}>
                                 <span className="dash-bullet">-</span> ARETES COLGANTES
+                              </Link>
+                            </li>
+                            <li>
+                              <Link
+                                to="/categoria/joyeria?genero=mujer&tipo=aretes"
+                                className="megamenu-ver-todos"
+                                onClick={handleNavClick}
+                              >
+                                VER TODO
                               </Link>
                             </li>
                           </ul>
@@ -1054,7 +1037,7 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                           <ul className="megamenu-links-list joyeria-dash-list">
                             <li>
                               <Link to="/categoria/joyeria?genero=mujer&tipo=collares-vestir" onClick={handleNavClick}>
-                                <span className="dash-bullet">-</span> DE VESTIR
+                                <span className="dash-bullet">-</span> CON PEDRERÍA
                               </Link>
                             </li>
                             <li>
@@ -1123,6 +1106,11 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                           </Link>
                         </li>
                         <li>
+                          <Link to="/categoria/anillos-compromiso" onClick={handleNavClick}>
+                            AROS DE COMPROMISO
+                          </Link>
+                        </li>
+                        <li>
                           <Link to="/categoria/joyeria?genero=hombre&tipo=cadenas" onClick={handleNavClick}>
                             CADENAS
                           </Link>
@@ -1132,9 +1120,20 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                             PULSERAS
                           </Link>
                         </li>
+                        {homeImages.jewelryMenuWatches?.active && (
+                          <li>
+                            <Link to="/categoria/joyeria?genero=hombre&tipo=relojes" onClick={handleNavClick}>
+                              RELOJES
+                            </Link>
+                          </li>
+                        )}
                         <li>
-                          <Link to="/categoria/joyeria?genero=hombre&tipo=relojes" onClick={handleNavClick}>
-                            RELOJES
+                          <Link
+                            to="/categoria/joyeria?genero=hombre"
+                            className="megamenu-ver-todos"
+                            onClick={handleNavClick}
+                          >
+                            VER TODO
                           </Link>
                         </li>
                       </ul>
@@ -1150,8 +1149,8 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                           </Link>
                         </li>
                         <li>
-                          <Link to="/categoria/joyeria?genero=kids&tipo=cadenas" onClick={handleNavClick}>
-                            CADENAS
+                          <Link to="/categoria/joyeria?genero=kids&tipo=aretes-bebes" onClick={handleNavClick}>
+                            ARETES PARA BEBÉ
                           </Link>
                         </li>
                         <li>

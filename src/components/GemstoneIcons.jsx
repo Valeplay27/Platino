@@ -58,17 +58,13 @@ export function DiamondCutIcon({ shape = "redondo", size = 48, strokeWidth, clas
     case "esmeralda": // Emerald Cut
       return (
         <svg {...commonProps}>
-          {/* Octagonal outer step cut */}
-          <polygon points="26,10 74,10 90,26 90,74 74,90 26,90 10,74 10,26" strokeWidth="2" />
-          {/* Middle step */}
-          <polygon points="32,20 68,20 80,32 80,68 68,80 32,80 20,68 20,32" strokeWidth="1.3" />
-          {/* Table / Inner rect */}
-          <polygon points="38,28 62,28 72,38 72,62 62,72 38,72 28,62 28,38" strokeWidth="1.1" />
-          {/* Corner facet lines */}
-          <line x1="10" y1="26" x2="28" y2="38" />
-          <line x1="90" y1="26" x2="72" y2="38" />
-          <line x1="90" y1="74" x2="72" y2="62" />
-          <line x1="10" y1="74" x2="28" y2="62" />
+          <polygon points="18,22 82,22 90,30 90,70 82,78 18,78 10,70 10,30" strokeWidth="2" />
+          <polygon points="24,28 76,28 82,34 82,66 76,72 24,72 18,66 18,34" strokeWidth="1.3" />
+          <polygon points="30,34 70,34 74,38 74,62 70,66 30,66 26,62 26,38" strokeWidth="1.1" />
+          <line x1="10" y1="30" x2="26" y2="38" />
+          <line x1="90" y1="30" x2="74" y2="38" />
+          <line x1="90" y1="70" x2="74" y2="62" />
+          <line x1="10" y1="70" x2="26" y2="62" />
         </svg>
       );
 

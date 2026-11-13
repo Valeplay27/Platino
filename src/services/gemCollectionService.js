@@ -5,21 +5,26 @@ const GEM_COLLECTION_UPDATED_EVENT = "gem_collection_options_updated";
 
 export const DEFAULT_GEM_COLLECTION_OPTIONS = [
   { id: "", label: "Todas / Sin filtro de gema específica" },
-  { id: "diamante", label: "Diamante (Natural / Lab Grown)" },
-  { id: "esmeralda", label: "Esmeralda" },
-  { id: "rubi", label: "Rubí" },
-  { id: "zafiro", label: "Zafiro" },
+  { id: "zirconita", label: "Zirconita / Zirconita Swarovski", color: "#b8b8ba" },
+  { id: "moissanita", label: "Moissanita", color: "#b8b8ba" },
+  { id: "diamante-lab", label: "Diamante de Laboratorio", color: "#b8b8ba" },
+  { id: "diamante-natural", label: "Diamante Natural", color: "#b8b8ba" },
+  { id: "zafiro", label: "Zafiro Azul", color: "#286da8" },
+  { id: "esmeralda", label: "Esmeralda", color: "#35a16e" },
+  { id: "rubi", label: "Rubí", color: "#c33e54" },
+  { id: "topacio", label: "Topacio", color: "#36b5c5" },
+  { id: "amatista", label: "Amatista", color: "#8154a3" },
 ];
 
 export const getGemCollectionOptions = () => {
   const stored = getRemoteData(GEM_COLLECTION_NAMESPACE, []);
   const customOptions = Array.isArray(stored)
-    ? stored.filter((option) => option && typeof option.id === "string" && option.id && typeof option.label === "string")
+    ? stored.filter((option) => option && typeof option.id === "string" && option.id && option.id !== "diamante" && typeof option.label === "string")
     : [];
   const options = new Map(DEFAULT_GEM_COLLECTION_OPTIONS.map((option) => [option.id, option]));
 
   customOptions.forEach((option) => {
-    options.set(option.id, { id: option.id, label: option.label });
+    options.set(option.id, { ...options.get(option.id), id: option.id, label: option.label });
   });
 
   return Array.from(options.values());
@@ -29,7 +34,7 @@ export const saveGemCollectionOptions = (options) => {
   const normalizedOptions = Array.from(
     new Map(
       (Array.isArray(options) ? options : [])
-        .filter((option) => option && typeof option.id === "string" && option.id && typeof option.label === "string")
+        .filter((option) => option && typeof option.id === "string" && option.id && option.id !== "diamante" && typeof option.label === "string")
         .map((option) => [option.id, { id: option.id, label: option.label.trim() }])
         .filter(([, option]) => option.label)
     ).values()

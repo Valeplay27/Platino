@@ -128,6 +128,8 @@ export default function CompromisoConfigurator({
   const setCurrentStep = propSetCurrentStep !== undefined ? propSetCurrentStep : setLocalStep;
   const navigate = useNavigate();
   const [modalOpen, setModalOpen] = useState(false);
+  const [whatsappSedeModalOpen, setWhatsappSedeModalOpen] = useState(false);
+  const [selectedOrderSede, setSelectedOrderSede] = useState("lima-centro");
   const hasGemTypes = product?.hasGemTypeSelection !== false && product?.hasGemSelection !== false && (!product?.enabledGemTypes || Object.values(product.enabledGemTypes).some((v) => v !== false));
 
   // Al llegar al paso 3, mostrar la caja en el visor principal de la izquierda
@@ -171,45 +173,58 @@ export default function CompromisoConfigurator({
     product?.gemTypeModes?.[selectedGemType?.id] === "quote"
   );
 
-  const getWhatsAppQuoteUrl = () => {
+  const getWhatsAppQuoteUrl = (sedeId = selectedOrderSede) => {
+    const isMiraflores = sedeId === "miraflores";
+    const phone = isMiraflores ? "51984281116" : "51927357217";
+    const sedeName = isMiraflores ? "Sede Miraflores (Av. Larco 345)" : "Sede Lima Centro (Jr. de la Unión 446)";
+
     const sizeStr = selectedSizeDama === "asesor" ? "Solicito Asesoramiento de Medida" : `${selectedSizeDama} Nacional`;
     const cofreStr = selectedPresentationObj?.name?.replace(/ \(Recomendado\)/i, "")?.replace(/ \(Incluido de Cortesía\)/i, "") || "Classic";
     const engravingStr = hasEngraving ? (engravingText ? `Si ("${engravingText}")` : "Si") : "No";
 
-    const text = `¡Hola Platino Perú! Deseo solicitar una cotización personalizada para este anillo de compromiso con Diamante Natural Certificado GIA:%0A%0A` +
+    const text = `¡Hola Platino Perú (${sedeName})! Deseo solicitar una cotización personalizada para este anillo de compromiso con Diamante Natural Certificado GIA:%0A%0A` +
       `💎 *Producto:* ${productName}%0A` +
       `💍 *Metal:* ${metalName}%0A` +
       `✨ *Gema Solicitada:* ${gemName} (Certificación GIA Internacional)%0A` +
       `📏 *Talla:* ${sizeStr}%0A` +
       `🎁 *Estuche:* ${cofreStr}%0A` +
       `✍️ *Grabado interno:* ${engravingStr}%0A` +
-      `💰 *Base Metal/Estuche:* ${formatPrice(currentMetalPrice + sizePriceAdjustment + cofrePrice)}%0A%0A` +
+      `💰 *Base Metal/Estuche:* ${formatPrice(currentMetalPrice + sizePriceAdjustment + cofrePrice)}%0A` +
+      `📍 *Sede de Coordinación:* ${sedeName}%0A%0A` +
       `¿Podrían facilitarme la cotización exacta del Diamante Natural según peso en quilates (ct), pureza y disponibilidad? Muchas gracias.`;
 
-    return `https://wa.me/51927357217?text=${text}`;
+    return `https://wa.me/${phone}?text=${text}`;
   };
 
-  const getWhatsAppOrderUrl = () => {
+  const getWhatsAppOrderUrl = (sedeId = selectedOrderSede) => {
+    const isMiraflores = sedeId === "miraflores";
+    const phone = isMiraflores ? "51984281116" : "51927357217";
+    const sedeName = isMiraflores ? "Sede Miraflores (Av. Larco 345)" : "Sede Lima Centro (Jr. de la Unión 446)";
+
     const sizeStr = selectedSizeDama === "asesor" ? "Solicita Asesoramiento de Medida" : `${selectedSizeDama} Nacional`;
     const cofreStr = selectedPresentationObj?.name?.replace(/ \(Recomendado\)/i, "")?.replace(/ \(Incluido de Cortesía\)/i, "") || "Classic";
     const engravingStr = hasEngraving ? (engravingText ? `Si (${engravingText})` : "Si") : "No";
 
-    const text = `¡Hola Platino Perú! Deseo realizar el pedido de este anillo de compromiso personalizado:%0A%0A` +
-      `*Producto:* ${productName}%0A` +
-      `*Metal:* ${metalName}%0A` +
-      (hasGemTypes ? `*Pedrería:* ${gemName}%0A` : "") +
-      `*Talla:* ${sizeStr}%0A` +
-      `*Cofre:* ${cofreStr}%0A` +
-      `*Grabado interno:* ${engravingStr}%0A` +
-      `*Total:* ${formatPrice(totalPrice)}%0A%0A` +
+    const text = `¡Hola Platino Perú (${sedeName})! Deseo realizar el pedido de este anillo de compromiso personalizado:%0A%0A` +
+      `💍 *Producto:* ${productName}%0A` +
+      `✨ *Metal:* ${metalName}%0A` +
+      (hasGemTypes ? `💎 *Pedrería:* ${gemName}%0A` : "") +
+      `📏 *Talla:* ${sizeStr}%0A` +
+      `🎁 *Estuche:* ${cofreStr}%0A` +
+      `✍️ *Grabado interno:* ${engravingStr}%0A` +
+      `💰 *Total:* ${formatPrice(totalPrice)}%0A` +
+      `📍 *Sede de Coordinación:* ${sedeName}%0A%0A` +
       `¿Podrían confirmarme la disponibilidad y cómo procedemos?`;
 
-    return `https://wa.me/51927357217?text=${text}`;
+    return `https://wa.me/${phone}?text=${text}`;
   };
 
-  const getSizeAdviceWhatsAppUrl = () => {
-    const text = `¡Hola Platino Perú! Deseo recibir asesoramiento sobre la medida y talla exacta para el anillo *${productName}* en ${metalName}.`;
-    return `https://wa.me/51927357217?text=${encodeURIComponent(text)}`;
+  const getSizeAdviceWhatsAppUrl = (sedeId = "lima-centro") => {
+    const isMiraflores = sedeId === "miraflores";
+    const phone = isMiraflores ? "51984281116" : "51927357217";
+    const sedeName = isMiraflores ? "Sede Miraflores" : "Sede Lima Centro";
+    const text = `¡Hola Platino Perú (${sedeName})! Deseo recibir asesoramiento sobre la medida y talla exacta para el anillo *${productName}* en ${metalName}.`;
+    return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
   };
 
   const cofrePrice = Number(selectedPresentationObj?.price || 0);
@@ -306,20 +321,35 @@ export default function CompromisoConfigurator({
               })}
             </select>
 
-            <div className="size-advice-whatsapp-box">
+            <div className="size-advice-whatsapp-box" style={{ marginTop: "12px", marginBottom: "8px" }}>
               <div className="size-advice-whatsapp-text">
                 <i className="bi bi-question-circle"></i>
-                <span>¿No estás seguro de la talla?</span>
+                <span>¿No estás seguro de la talla? Recibe asesoría por WhatsApp:</span>
               </div>
-              <a
-                href={getSizeAdviceWhatsAppUrl()}
-                target="_blank"
-                rel="noreferrer"
-                className="btn-size-whatsapp"
-              >
-                <i className="bi bi-whatsapp"></i>
-                <span>ASESORAMIENTO VÍA WHATSAPP</span>
-              </a>
+              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", width: "100%", marginTop: "6px" }}>
+                <a
+                  href={getSizeAdviceWhatsAppUrl("lima-centro")}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-size-whatsapp"
+                  style={{ flex: 1, minWidth: "140px", justifyContent: "center" }}
+                  title="Asesoría vía WhatsApp con Sede Lima Centro (Jr. de la Unión)"
+                >
+                  <i className="bi bi-whatsapp"></i>
+                  <span>Lima Centro</span>
+                </a>
+                <a
+                  href={getSizeAdviceWhatsAppUrl("miraflores")}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="btn-size-whatsapp"
+                  style={{ flex: 1, minWidth: "140px", justifyContent: "center", background: "#15803d" }}
+                  title="Asesoría vía WhatsApp con Sede Miraflores (Av. Larco)"
+                >
+                  <i className="bi bi-whatsapp"></i>
+                  <span>Miraflores</span>
+                </a>
+              </div>
             </div>
 
             <p className="size-price-note">
@@ -711,10 +741,9 @@ export default function CompromisoConfigurator({
             <div className="summary-modal-actions" style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
               {isQuoteOnly ? (
                 <>
-                  <a
-                    href={getWhatsAppQuoteUrl()}
-                    target="_blank"
-                    rel="noreferrer"
+                  <button
+                    type="button"
+                    onClick={() => setWhatsappSedeModalOpen(true)}
                     className="btn-modal-whatsapp"
                     style={{
                       background: "#0f766e",
@@ -727,14 +756,15 @@ export default function CompromisoConfigurator({
                       padding: "13px 20px",
                       borderRadius: "9999px",
                       fontWeight: "800",
-                      textDecoration: "none",
+                      border: "none",
+                      cursor: "pointer",
                       boxShadow: "0 4px 14px rgba(15, 118, 110, 0.3)",
                       fontSize: "13px",
                     }}
                   >
                     <i className="bi bi-whatsapp" style={{ fontSize: "17px" }}></i>
                     <span>SOLICITAR COTIZACIÓN VIA WHATSAPP</span>
-                  </a>
+                  </button>
 
                   <div style={{ display: "flex", gap: "10px", width: "100%" }}>
                     <button
@@ -842,16 +872,15 @@ export default function CompromisoConfigurator({
                   </div>
 
                   <div style={{ display: "flex", gap: "10px", width: "100%" }}>
-                    <a
-                      href={getWhatsAppOrderUrl()}
-                      target="_blank"
-                      rel="noreferrer"
+                    <button
+                      type="button"
+                      onClick={() => setWhatsappSedeModalOpen(true)}
                       className="btn-modal-whatsapp"
-                      style={{ flex: 1 }}
+                      style={{ flex: 1, border: "none", cursor: "pointer" }}
                     >
                       <i className="bi bi-whatsapp" style={{ fontSize: "15px" }}></i>
                       <span>PEDIDO WHATSAPP</span>
-                    </a>
+                    </button>
 
                     <button
                       type="button"
@@ -865,6 +894,231 @@ export default function CompromisoConfigurator({
                 </>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ========================================================
+          MODAL: SELECCIÓN DE SEDE PARA ATENCIÓN WHATSAPP
+          ======================================================== */}
+      {whatsappSedeModalOpen && (
+        <div
+          className="summary-modal-overlay"
+          style={{ zIndex: 100000 }}
+          onClick={() => setWhatsappSedeModalOpen(false)}
+        >
+          <div
+            className="summary-modal-card"
+            style={{ maxWidth: "480px", textAlign: "left", animation: "modalFadeIn 0.25s ease-out" }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <button
+              type="button"
+              className="summary-modal-close"
+              onClick={() => setWhatsappSedeModalOpen(false)}
+              title="Cerrar"
+            >
+              <i className="bi bi-x-lg"></i>
+            </button>
+
+            <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "8px" }}>
+              <div style={{
+                width: "38px",
+                height: "38px",
+                borderRadius: "50%",
+                backgroundColor: "#25d366",
+                color: "#ffffff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "20px",
+                flexShrink: 0,
+                boxShadow: "0 3px 10px rgba(37,211,102,0.35)"
+              }}>
+                <i className="bi bi-whatsapp"></i>
+              </div>
+              <div>
+                <span style={{ fontSize: "11px", fontWeight: "700", color: "#c5a059", letterSpacing: "1px", textTransform: "uppercase", display: "block" }}>
+                  Atención WhatsApp Oficial
+                </span>
+                <h3 style={{ margin: 0, fontSize: "17px", fontWeight: "800", color: "#113b3a" }}>
+                  ¿Con qué sede deseas comunicarte?
+                </h3>
+              </div>
+            </div>
+
+            <p style={{ fontSize: "12.5px", color: "#64748b", margin: "6px 0 16px 0", lineHeight: "1.4" }}>
+              Elige tu boutique de preferencia para coordinar tu pedido y recibir asesoría directa:
+            </p>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px", marginBottom: "16px" }}>
+              {/* Sede Lima Centro */}
+              <a
+                href={isQuoteOnly ? getWhatsAppQuoteUrl("lima-centro") : getWhatsAppOrderUrl("lima-centro")}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setWhatsappSedeModalOpen(false)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "14px 16px",
+                  borderRadius: "14px",
+                  border: "1.5px solid #e2e8f0",
+                  backgroundColor: "#ffffff",
+                  textDecoration: "none",
+                  transition: "all 0.2s ease",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.03)"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "#16a34a";
+                  e.currentTarget.style.backgroundColor = "#f0fdf4";
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "#e2e8f0";
+                  e.currentTarget.style.backgroundColor = "#ffffff";
+                  e.currentTarget.style.transform = "none";
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div style={{
+                    width: "42px",
+                    height: "42px",
+                    borderRadius: "10px",
+                    backgroundColor: "#e6f4ea",
+                    color: "#166534",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "20px",
+                    flexShrink: 0
+                  }}>
+                    🏛️
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "14px", fontWeight: "800", color: "#113b3a" }}>
+                      Sede Lima Centro
+                    </div>
+                    <div style={{ fontSize: "11.5px", color: "#64748b" }}>
+                      Jr. de la Unión 446 (Plaza de Armas)
+                    </div>
+                    <div style={{ fontSize: "11.5px", fontWeight: "700", color: "#166534", marginTop: "2px" }}>
+                      <i className="bi bi-whatsapp"></i> 927 357 217
+                    </div>
+                  </div>
+                </div>
+
+                <span style={{
+                  backgroundColor: "#25d366",
+                  color: "#ffffff",
+                  padding: "8px 14px",
+                  borderRadius: "9999px",
+                  fontSize: "12px",
+                  fontWeight: "700",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  flexShrink: 0
+                }}>
+                  <span>Contactar</span> <i className="bi bi-arrow-right"></i>
+                </span>
+              </a>
+
+              {/* Sede Miraflores */}
+              <a
+                href={isQuoteOnly ? getWhatsAppQuoteUrl("miraflores") : getWhatsAppOrderUrl("miraflores")}
+                target="_blank"
+                rel="noreferrer"
+                onClick={() => setWhatsappSedeModalOpen(false)}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  padding: "14px 16px",
+                  borderRadius: "14px",
+                  border: "1.5px solid #e2e8f0",
+                  backgroundColor: "#ffffff",
+                  textDecoration: "none",
+                  transition: "all 0.2s ease",
+                  boxShadow: "0 2px 8px rgba(0,0,0,0.03)"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "#16a34a";
+                  e.currentTarget.style.backgroundColor = "#f0fdf4";
+                  e.currentTarget.style.transform = "translateY(-1px)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "#e2e8f0";
+                  e.currentTarget.style.backgroundColor = "#ffffff";
+                  e.currentTarget.style.transform = "none";
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                  <div style={{
+                    width: "42px",
+                    height: "42px",
+                    borderRadius: "10px",
+                    backgroundColor: "#e0f2fe",
+                    color: "#0369a1",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: "20px",
+                    flexShrink: 0
+                  }}>
+                    🌊
+                  </div>
+                  <div>
+                    <div style={{ fontSize: "14px", fontWeight: "800", color: "#113b3a" }}>
+                      Sede Miraflores
+                    </div>
+                    <div style={{ fontSize: "11.5px", color: "#64748b" }}>
+                      Av. José Larco 345 (Multicentro)
+                    </div>
+                    <div style={{ fontSize: "11.5px", fontWeight: "700", color: "#166534", marginTop: "2px" }}>
+                      <i className="bi bi-whatsapp"></i> 984 281 116
+                    </div>
+                  </div>
+                </div>
+
+                <span style={{
+                  backgroundColor: "#25d366",
+                  color: "#ffffff",
+                  padding: "8px 14px",
+                  borderRadius: "9999px",
+                  fontSize: "12px",
+                  fontWeight: "700",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  flexShrink: 0
+                }}>
+                  <span>Contactar</span> <i className="bi bi-arrow-right"></i>
+                </span>
+              </a>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setWhatsappSedeModalOpen(false)}
+              style={{
+                width: "100%",
+                padding: "10px",
+                background: "#f1f5f9",
+                color: "#475569",
+                border: "none",
+                borderRadius: "9999px",
+                fontSize: "12px",
+                fontWeight: "700",
+                cursor: "pointer",
+                transition: "background 0.2s ease"
+              }}
+              onMouseEnter={(e) => { e.currentTarget.style.background = "#e2e8f0"; }}
+              onMouseLeave={(e) => { e.currentTarget.style.background = "#f1f5f9"; }}
+            >
+              Volver al Resumen
+            </button>
           </div>
         </div>
       )}

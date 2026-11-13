@@ -75,6 +75,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
     wholesaleMinQty: "",
     wholesalePrice: "",
     image: "", // Fotografía de la gema subida por el admin
+    isRealPhoto: true, // Mostrar u ocultar la etiqueta "Foto Real"
   };
 
   const [formData, setFormData] = useState(initialForm);
@@ -172,6 +173,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
       inStock: gemUnits > 0 && gem.inStock !== false,
       certUrl: gem.certUrl || "",
       image: gem.image || "",
+      isRealPhoto: gem.isRealPhoto !== false,
       wholesaleMinQty: gem.wholesaleMinQty !== undefined && gem.wholesaleMinQty !== null ? gem.wholesaleMinQty : "",
       wholesalePrice: gem.wholesalePrice !== undefined && gem.wholesalePrice !== null ? gem.wholesalePrice : "",
       table: gem.table !== undefined ? gem.table : "58%",
@@ -217,6 +219,7 @@ export default function AdminGemstonesTab({ isMaster = true }) {
       wholesalePrice: wholesalePriceNum,
       units: unitsNum,
       inStock: isAvailable,
+      isRealPhoto: formData.isRealPhoto !== false,
     };
 
     if (editingGem) {
@@ -820,12 +823,28 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                   marginBottom: "16px",
                 }}
               >
-                <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "12px" }}>
-                  <i className="bi bi-gem" style={{ color: "#113B3A", fontSize: "14px" }}></i>
-                  <strong style={{ fontSize: "13px", color: "#113B3A" }}>
-                    Proporciones y Detalles Técnicos (Ficha de la Gema)
-                  </strong>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px", flexWrap: "wrap", gap: "8px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <i className="bi bi-sliders2-vertical" style={{ color: "#113B3A", fontSize: "16px" }}></i>
+                    <strong style={{ fontSize: "13.5px", color: "#113B3A" }}>
+                      7. Proporciones y Especificaciones Técnicas (Ficha Técnica)
+                    </strong>
+                  </div>
+                  <span style={{
+                    background: "#e8f5e9",
+                    color: "#1b5e20",
+                    border: "1px solid #c8e6c9",
+                    padding: "3px 10px",
+                    borderRadius: "12px",
+                    fontSize: "11px",
+                    fontWeight: "700"
+                  }}>
+                    Tabla (%), Profundidad (%) y Fluorescencia
+                  </span>
                 </div>
+                <p style={{ fontSize: "12px", color: "#52635b", margin: "0 0 14px 0" }}>
+                  Aquí puedes editar la proporción de <strong>Tabla (%)</strong>, <strong>Profundidad (%)</strong>, <strong>Fluorescencia</strong>, <strong>Pulido</strong> y <strong>Simetría</strong> que se visualizan en los detalles de la gema.
+                </p>
 
                 <div className="form-row-3" style={{ marginBottom: "12px" }}>
                   <div className="form-field-group" style={{ marginBottom: 0 }}>
@@ -1125,10 +1144,83 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                       <span className="photo-thumb-title">
                         ✓ {getImageInputValue(formData.image)}
                       </span>
-                      <span className="photo-thumb-sub">Los clientes verán esta imagen real en la tarjeta y en la ficha técnica de la gema.</span>
+                      <span className="photo-thumb-sub">
+                        {formData.isRealPhoto !== false
+                          ? "Los clientes verán esta imagen con la insignia 'Foto Real'."
+                          : "Imagen referencial/catálogo (la insignia 'Foto Real' permanecerá oculta para los clientes)."}
+                      </span>
                     </div>
                   </div>
                 )}
+
+                {/* Opción para activar / desactivar la insignia "Foto Real" (SIEMPRE VISIBLE) */}
+                <div
+                  style={{
+                    marginTop: "14px",
+                    padding: "12px 16px",
+                    background: formData.isRealPhoto !== false ? "#f0fdf4" : "#f8fafc",
+                    border: formData.isRealPhoto !== false ? "1.5px solid #86efac" : "1.5px dashed #cbd5e1",
+                    borderRadius: "10px",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: "12px",
+                    cursor: "pointer",
+                    transition: "all 0.2s ease",
+                  }}
+                  onClick={() =>
+                    setFormData((prev) => ({
+                      ...prev,
+                      isRealPhoto: prev.isRealPhoto === false ? true : false,
+                    }))
+                  }
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <input
+                      type="checkbox"
+                      id="toggle-real-photo"
+                      checked={formData.isRealPhoto !== false}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, isRealPhoto: e.target.checked }))
+                      }
+                      onClick={(e) => e.stopPropagation()}
+                      style={{ width: "20px", height: "20px", accentColor: "#113B3A", cursor: "pointer" }}
+                    />
+                    <div>
+                      <label
+                        htmlFor="toggle-real-photo"
+                        style={{
+                          margin: 0,
+                          cursor: "pointer",
+                          fontSize: "13.5px",
+                          fontWeight: "700",
+                          color: "#113B3A",
+                          display: "block",
+                        }}
+                      >
+                        Insignia &quot;Foto Real&quot;: {formData.isRealPhoto !== false ? "✓ VISIBLE EN LA TIENDA" : "✕ OCULTA (Foto de Internet)"}
+                      </label>
+                      <span style={{ fontSize: "11.5px", color: "#52635b" }}>
+                        {formData.isRealPhoto !== false
+                          ? "Marcado: En el catálogo y tarjeta se mostrará la insignia '📷 Foto Real' sobre la imagen."
+                          : "Desmarcado: Se mostrará la imagen limpia sin la insignia (ideal para fotos de internet o referenciales)."}
+                      </span>
+                    </div>
+                  </div>
+                  <span
+                    style={{
+                      fontSize: "11.5px",
+                      fontWeight: "700",
+                      padding: "5px 12px",
+                      borderRadius: "12px",
+                      background: formData.isRealPhoto !== false ? "#113B3A" : "#64748b",
+                      color: "#ffffff",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {formData.isRealPhoto !== false ? "📷 Insignia Activa" : "🌐 De Internet (Oculta)"}
+                  </span>
+                </div>
               </div>
 
               {/* 10. TÍTULO / NOMBRE DE LA GEMA */}
@@ -1217,9 +1309,11 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                           alt={formData.name || "Gema Platino"}
                           className="gem-photo-img"
                         />
-                        <span className="photo-tag">
-                          <i className="bi bi-camera-fill"></i> Foto Real
-                        </span>
+                        {formData.isRealPhoto !== false && (
+                          <span className="photo-tag">
+                            <i className="bi bi-camera-fill"></i> Foto Real
+                          </span>
+                        )}
                       </div>
                     ) : (
                       <GemstoneStoneVisual
@@ -1574,9 +1668,38 @@ export default function AdminGemstonesTab({ isMaster = true }) {
                             <DiamondCutIcon shape={gem.shape} size={32} />
                           )}
                           {gem.image && (
-                            <span className="thumb-photo-dot" title="Tiene fotografía real"></span>
+                            <span className="thumb-photo-dot" title={gem.isRealPhoto !== false ? "Foto Real activa" : "Foto de internet"}></span>
                           )}
                         </div>
+                        {gem.image ? (
+                          <button
+                            type="button"
+                            onClick={() => handleToggleRealPhoto(gem)}
+                            style={{
+                              marginTop: "6px",
+                              padding: "3px 8px",
+                              fontSize: "10px",
+                              fontWeight: "700",
+                              borderRadius: "6px",
+                              border: gem.isRealPhoto !== false ? "1px solid #113B3A" : "1px solid #94a3b8",
+                              background: gem.isRealPhoto !== false ? "#113B3A" : "#f1f5f9",
+                              color: gem.isRealPhoto !== false ? "#ffffff" : "#475569",
+                              cursor: "pointer",
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: "4px",
+                              whiteSpace: "nowrap",
+                            }}
+                            title="Haz clic para activar o desactivar la insignia 'Foto Real' para esta gema"
+                          >
+                            <i className={gem.isRealPhoto !== false ? "bi bi-camera-fill" : "bi bi-globe"}></i>
+                            {gem.isRealPhoto !== false ? "Foto Real" : "De Internet"}
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: "10px", color: "#8a9a92", display: "block", marginTop: "4px" }}>
+                            Render 3D
+                          </span>
+                        )}
                       </td>
 
                       {/* Nombre y Certificado */}
@@ -1630,7 +1753,13 @@ export default function AdminGemstonesTab({ isMaster = true }) {
 
                       {/* Dimensiones */}
                       <td style={{ fontSize: "12px", color: "#44554d" }}>
-                        {gem.dimensions}
+                        <div style={{ fontWeight: "600" }}>{gem.dimensions || "—"}</div>
+                        <div style={{ fontSize: "11px", color: "#6a7971", marginTop: "3px" }}>
+                          Tabla: <strong>{gem.table || "58%"}</strong> · Prof: <strong>{gem.depth || "62.1%"}</strong>
+                        </div>
+                        <div style={{ fontSize: "10.5px", color: "#71857c" }}>
+                          Fluor: <strong>{gem.fluorescence || "Ninguna"}</strong>
+                        </div>
                       </td>
 
                       {/* Precio */}

@@ -446,10 +446,33 @@
 }
 
 .ring-style-img-wrapper {
+  position: relative;
   width: 100%;
   aspect-ratio: 1 / 1.15;
   overflow: hidden;
   background-color: #f7f6f2;
+}
+
+.new-model-badge {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  padding: 5px 9px;
+  border-radius: 999px;
+  background: #113b3a;
+  color: #ffffff;
+  font-family: var(--font-sans);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.new-models-empty {
+  margin: 28px 0 0;
+  color: #647069;
+  font-family: var(--font-sans);
+  font-size: 13px;
 }
 
 .ring-style-img {

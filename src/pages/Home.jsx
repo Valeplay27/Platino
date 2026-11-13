@@ -22,11 +22,11 @@ const DIAMOND_SHAPES_BE = [
 ];
 
 const TRUST_BADGES = [
-  { icon: "bi bi-truck", label: "ENVÍO A TODO EL PERÚ" },
-  { icon: "bi bi-shield-check", label: "GARANTÍA Y MANTENIMIENTO" },
-  { icon: "bi bi-headset", label: "ASESORÍA PERSONALIZADA" },
   { icon: "bi bi-gem", label: "RESPALDO GEMOLÓGICO" },
-  { icon: "bi bi-circle", label: "ENTALLADO GRATUITO" },
+  { icon: "bi bi-shield-check", label: "GARANTÍA Y MANTENIMIENTO" },
+  { icon: "bi bi-truck", label: "ENVÍO A TODO EL PERÚ" },
+  { icon: "bi bi-headset", label: "ASESORÍA PRESENCIAL Y VIRTUAL" },
+  { icon: "bi bi-pencil-square", label: "DISEÑOS PERSONALIZABLES" },
 ];
 
 export default function Home() {
@@ -174,38 +174,8 @@ export default function Home() {
     }
   };
 
-  const ringStyles = [
-    {
-      name: homeImages.styleNaturaleza?.name || "Anillos inspirados en la naturaleza",
-      img: getAssetUrl(homeImages.styleNaturaleza?.image || "/images/style-naturaleza.jpg"),
-      path: "/categoria/anillos-naturaleza",
-    },
-    {
-      name: homeImages.styleVintage?.name || "Anillos antiguos y vintage",
-      img: getAssetUrl(homeImages.styleVintage?.image || "/images/style-vintage.jpg"),
-      path: "/categoria/anillos-vintage",
-    },
-    {
-      name: homeImages.styleTresPiedras?.name || "Anillos de tres piedras",
-      img: getAssetUrl(homeImages.styleTresPiedras?.image || "/images/style-tres-piedras.jpg"),
-      path: "/categoria/anillos-tres-piedras",
-    },
-    {
-      name: homeImages.styleSolitarios?.name || "Anillos solitarios",
-      img: getAssetUrl(homeImages.styleSolitarios?.image || "/images/style-solitarios.jpg"),
-      path: "/categoria/anillos-solitarios",
-    },
-    {
-      name: homeImages.styleNupciales?.name || "Conjuntos nupciales",
-      img: getAssetUrl(homeImages.styleNupciales?.image || "/images/style-nupciales.jpg"),
-      path: "/categoria/conjuntos-nupciales",
-    },
-    {
-      name: homeImages.styleBisel?.name || "Anillos de bisel",
-      img: getAssetUrl(homeImages.styleBisel?.image || "/images/style-bisel.jpg"),
-      path: "/categoria/anillos-bisel",
-    },
-  ];
+  const newModels = Array.from({ length: 6 }, (_, index) => homeImages[`newModel${index + 1}`])
+    .filter((item) => item?.image && item.productId);
 
   return (
     <div className="home-page">
@@ -375,32 +345,37 @@ export default function Home() {
         </div>
       </section>
 
-      {/* 4. ANILLOS DE COMPROMISO DIGNOS DE OBSESIÓN */}
+      {/* 4. NUEVOS MODELOS */}
       <section className="ring-styles-section">
         <div className="section-header-left">
           <h2 className="section-title">
-            {homeImages.sectionRingStyles?.title || "Anillos de compromiso dignos de obsesión"}
+            {homeImages.sectionNewModels?.title || "Reciente en Platino Perú"}
           </h2>
           <p className="section-subtitle">
-            {homeImages.sectionRingStyles?.subtitle || "Arte y artesanía en cada detalle."}
+            {homeImages.sectionNewModels?.subtitle || "Descubre nuestras últimas incorporaciones."}
           </p>
         </div>
 
-        <div className="ring-styles-grid">
-          {ringStyles.map((style, idx) => (
-            <Link key={idx} to={style.path} className="ring-style-card">
-              <div className="ring-style-img-wrapper">
-                <img
-                  src={style.img}
-                  alt={style.name}
-                  className="ring-style-img"
-                  loading="lazy"
-                />
-              </div>
-              <span className="ring-style-title">{style.name}</span>
-            </Link>
-          ))}
-        </div>
+        {newModels.length > 0 ? (
+          <div className="ring-styles-grid">
+            {newModels.map((item) => (
+              <Link key={item.id} to={item.path || `/producto/${item.productId}`} className="ring-style-card">
+                <div className="ring-style-img-wrapper">
+                  <img
+                    src={getAssetUrl(item.image)}
+                    alt={item.name || item.label}
+                    className="ring-style-img"
+                    loading="lazy"
+                  />
+                  <span className="new-model-badge">Nuevo modelo</span>
+                </div>
+                <span className="ring-style-title">{item.name || item.label}</span>
+              </Link>
+            ))}
+          </div>
+        ) : (
+          <p className="new-models-empty">Selecciona y publica hasta seis modelos desde el dashboard.</p>
+        )}
       </section>
 
       {/* 5. EDITORIAL: THE FALL EDIT & THE NEW CLASSICS */}

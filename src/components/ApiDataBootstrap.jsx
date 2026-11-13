@@ -9,6 +9,7 @@ import { DEFAULT_NOSOTROS_CONTENT } from "../services/nosotrosService";
 import { DEFAULT_EDUCACION_POSTS } from "../services/educacionService";
 import { DEFAULT_CATEGORY_MARGINS } from "../services/financeService";
 import { DEFAULT_PLATINO_CARE_CONFIG } from "../services/platinoCareService";
+import { DEFAULT_FAQS } from "../services/faqsService";
 import { getPermissionsMatrix, getPermissionRequests } from "../services/permissionsService";
 import { migrateLegacyBrowserData } from "../services/legacyMigration";
 import platinoLogoWordmark from "../assets/platino-peru-logo.png?inline";
@@ -25,6 +26,7 @@ const publicDefaults = {
   inventory: getAllStoredInventory(),
   nosotros: DEFAULT_NOSOTROS_CONTENT,
   educacion: DEFAULT_EDUCACION_POSTS,
+  platino_faqs: DEFAULT_FAQS,
   finance: DEFAULT_CATEGORY_MARGINS,
   care_config: DEFAULT_PLATINO_CARE_CONFIG,
 };

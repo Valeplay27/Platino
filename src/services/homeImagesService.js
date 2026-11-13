@@ -129,6 +129,26 @@ export const DEFAULT_HOME_IMAGES = {
     title: "Anillos de compromiso dignos de obsesión",
     subtitle: "Arte y artesanía en cada detalle.",
   },
+  sectionNewModels: {
+    id: "sectionNewModels",
+    isSectionHeader: true,
+    label: "Encabezado de Sección: Nuevos Modelos",
+    section: "Nuevos modelos",
+    title: "Reciente en Platino Perú",
+    subtitle: "Descubre nuestras últimas incorporaciones.",
+  },
+  jewelryMenuWatches: {
+    id: "jewelryMenuWatches",
+    label: "Visibilidad de Relojes en el menú Para Él",
+    section: "Menú de Joyas",
+    active: false,
+  },
+  newModel1: { id: "newModel1", label: "Nuevo modelo 1", section: "Nuevos modelos", image: "", name: "", productId: "", path: "" },
+  newModel2: { id: "newModel2", label: "Nuevo modelo 2", section: "Nuevos modelos", image: "", name: "", productId: "", path: "" },
+  newModel3: { id: "newModel3", label: "Nuevo modelo 3", section: "Nuevos modelos", image: "", name: "", productId: "", path: "" },
+  newModel4: { id: "newModel4", label: "Nuevo modelo 4", section: "Nuevos modelos", image: "", name: "", productId: "", path: "" },
+  newModel5: { id: "newModel5", label: "Nuevo modelo 5", section: "Nuevos modelos", image: "", name: "", productId: "", path: "" },
+  newModel6: { id: "newModel6", label: "Nuevo modelo 6", section: "Nuevos modelos", image: "", name: "", productId: "", path: "" },
   styleNaturaleza: {
     id: "styleNaturaleza",
     name: "Anillos inspirados en la naturaleza",
@@ -335,12 +355,14 @@ export const saveHomeImages = (data) => {
 export const HOME_SECTIONS = [
   { id: "all", name: "Todas las Secciones", section: "todas", icon: "bi-grid-fill" },
   { id: "megamenus", name: "★ Megamenús (Aros de Boda & Amor y Promesa)", section: "Megamenú: Aros de Boda & Amor y Promesa", icon: "bi-menu-app-fill" },
+  { id: "jewelry_menu", name: "Menú de Joyas", section: "Menú de Joyas", icon: "bi-gem" },
   { id: "hero", name: "1. Banners Hero", section: "Banners Principales (Hero)", icon: "bi-star-fill" },
   { id: "rings", name: "2. Anillos Dinos de Obsesión", section: "Anillos dignos de obsesión", icon: "bi-gem" },
-  { id: "fall_classics", name: "3. The Fall Edit & The New Classics (7 Fotos)", section: "The Fall Edit & The New Classics", icon: "bi-images" },
-  { id: "sedes", name: "4. Showroom & Sedes (1 o 2 Fotos)", section: "Nuestras Sedes & Showroom", icon: "bi-geo-alt-fill" },
-  { id: "categories", name: "5. Categorías de Joyas", section: "Comprar joyas por categoría", icon: "bi-tags-fill" },
-  { id: "gems", name: "6. Selector de Gemas", section: "Selector de Gemas / Corte", icon: "bi-diamond-fill" },
+  { id: "new_models", name: "3. Nuevos Modelos", section: "Nuevos modelos", icon: "bi-stars" },
+  { id: "fall_classics", name: "4. The Fall Edit & The New Classics (7 Fotos)", section: "The Fall Edit & The New Classics", icon: "bi-images" },
+  { id: "sedes", name: "5. Showroom & Sedes (1 o 2 Fotos)", section: "Nuestras Sedes & Showroom", icon: "bi-geo-alt-fill" },
+  { id: "categories", name: "6. Categorías de Joyas", section: "Comprar joyas por categoría", icon: "bi-tags-fill" },
+  { id: "gems", name: "7. Selector de Gemas", section: "Selector de Gemas / Corte", icon: "bi-diamond-fill" },
 ];
 
 // Actualizar una sola imagen o textos
