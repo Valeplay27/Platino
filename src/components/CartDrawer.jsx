@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { formatPrice } from "../data/products";
 import { getAssetUrl } from "../utils/assetHelper";
+import { isItemGemstone } from "../services/gemstonesService";
 import "../../styles/cartDrawer.css";
 
 export default function CartDrawer({
@@ -14,6 +15,7 @@ export default function CartDrawer({
 }) {
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  const isGemOnly = cart.length > 0 && cart.every((item) => isItemGemstone(item));
 
   // Cerrar al presionar la tecla Escape
   useEffect(() => {
@@ -252,7 +254,7 @@ export default function CartDrawer({
 
                     {/* Tags de especificación de la joya */}
                     <div className="cart-drawer-item-tags">
-                      {Boolean(item.selectedMetal || item.metal) && (
+                      {Boolean(!isItemGemstone(item) && (item.selectedMetal || item.metal)) && (
                         <span className="cart-drawer-tag-pill metal">
                           <i className="bi bi-gem"></i>
                           {typeof (item.selectedMetal || item.metal) === "object"
@@ -278,7 +280,7 @@ export default function CartDrawer({
                         </span>
                       )}
 
-                      {Boolean(item.selectedSize || item.size) && (
+                      {Boolean(!isItemGemstone(item) && (item.selectedSize || item.size)) && (
                         <span className="cart-drawer-tag-pill">
                           <i className="bi bi-rulers"></i>
                           {typeof (item.selectedSize || item.size) === "object"
@@ -360,12 +362,21 @@ export default function CartDrawer({
         {/* Resumen inferior y Botones de Checkout */}
         {cart.length > 0 && (
           <footer className="cart-drawer-footer">
-            <div className="cart-drawer-perks-row">
-              <span className="cart-drawer-perk-item">
-                <i className="bi bi-truck"></i> Envío asegurado a todo el Perú
-              </span>
-              <strong style={{ color: "#15803d" }}>Gratis</strong>
-            </div>
+            {!isGemOnly ? (
+              <div className="cart-drawer-perks-row">
+                <span className="cart-drawer-perk-item">
+                  <i className="bi bi-truck"></i> Envío a todo el Perú
+                </span>
+                <strong style={{ color: "#15803d" }}>Gratis</strong>
+              </div>
+            ) : (
+              <div className="cart-drawer-perks-row">
+                <span className="cart-drawer-perk-item">
+                  <i className="bi bi-shield-check"></i> Certificado gemológico oficial
+                </span>
+                <strong style={{ color: "#15803d" }}>Incluido</strong>
+              </div>
+            )}
 
             <div className="cart-drawer-total-row">
               <span className="cart-drawer-total-label">Subtotal estimado:</span>

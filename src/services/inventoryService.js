@@ -378,6 +378,44 @@ export function updateSingleStockItem(productId, gender, sizeNum, locationId, ne
 }
 
 /**
+ * Disminuye el stock de una talla vendida cuando se registra un pedido
+ */
+export function decrementProductStock(productId, gender, sizeNum, quantity = 1, preferredLocation = "lima-centro") {
+  if (!sizeNum || sizeNum === "asesor") return;
+  const all = getAllStoredInventory();
+  const targetGender = gender || "dama";
+  const normKey = normalizeSizeKey(targetGender, sizeNum);
+  const qty = Number(quantity || 1);
+
+  if (!all["_master_"]) all["_master_"] = generateDefaultProductStock("_master_", true);
+  if (!all["_master_"][targetGender]) all["_master_"][targetGender] = {};
+  if (!all["_master_"][targetGender][normKey]) {
+    all["_master_"][targetGender][normKey] = { bodega: 0, "lima-centro": 0, miraflores: 0 };
+  }
+
+  const masterLocs = all["_master_"][targetGender][normKey];
+  let remaining = qty;
+  const locs = [preferredLocation, "bodega", "lima-centro", "miraflores"].filter((v, i, a) => a.indexOf(v) === i);
+  for (const loc of locs) {
+    if (remaining <= 0) break;
+    const cur = Number(masterLocs[loc] || 0);
+    if (cur > 0) {
+      const take = Math.min(cur, remaining);
+      masterLocs[loc] = cur - take;
+      remaining -= take;
+    }
+  }
+
+  Object.keys(all).forEach((pKey) => {
+    if (all[pKey] && all[pKey][targetGender] && all[pKey][targetGender][normKey]) {
+      all[pKey][targetGender][normKey] = { ...masterLocs };
+    }
+  });
+
+  saveAllInventory(all);
+}
+
+/**
  * Actualiza múltiples almacenes para una talla en un solo paso atómico
  */
 export function updateMultipleStockItems(productId, gender, sizeNum, locationDeltaOrQtyMap, isDelta = false) {
@@ -422,6 +460,8 @@ export function updateMultipleStockItems(productId, gender, sizeNum, locationDel
   saveAllInventory(all);
   return productId && all[productId] ? all[productId] : all["_master_"];
 }
+
+
 
 /**
  * Copia el stock de un producto a múltiples productos seleccionados

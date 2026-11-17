@@ -1,24 +1,41 @@
 import { useState, useEffect } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
+import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useAuth } from '../context/useAuth'
 import { formatPrice } from '../data/products'
 import { createOrder } from '../services/ordersService'
-import { getStoredGemstones } from '../services/gemstonesService'
+import { getStoredGemstones, isItemGemstone } from '../services/gemstonesService'
+import {
+  PERU_DEPARTMENTS_AND_PROVINCES,
+  PERU_DEPARTMENTS,
+  calculateShippingCost
+} from '../data/peruLocations'
+import { validatePromotionCode } from '../services/promotionsService'
 import '../../styles/checkout.css'
 
 function Checkout({ cart, clearCart }) {
   const { user, openAuthModal } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
 
   const [name, setName] = useState(user?.name || '')
   const [dni, setDni] = useState(user?.dni || '')
   const [email, setEmail] = useState(user?.email || '')
   const [phone, setPhone] = useState(user?.phone || '+51 912 345 678')
-  const [deliveryType, setDeliveryType] = useState('recojo_sede')
-  const [sedeRecojo, setSedeRecojo] = useState('Sede Miraflores - Av. José Larco 345 Tda S-9')
-  const [shippingAddress, setShippingAddress] = useState('')
+  const [deliveryType, setDeliveryType] = useState(() => location.state?.deliveryType || 'recojo_sede')
+  const [sedeRecojo, setSedeRecojo] = useState(() => location.state?.sedeRecojo || 'Sede Miraflores - Av. Larco 345 (Multicentro)')
+  const [shippingAddress, setShippingAddress] = useState(() => location.state?.shippingAddress || '')
+  const [selectedDepartment, setSelectedDepartment] = useState(() => location.state?.department || 'Lima')
+  const [selectedProvince, setSelectedProvince] = useState(() => {
+    if (location.state?.province) return location.state.province
+    const provs = PERU_DEPARTMENTS_AND_PROVINCES[location.state?.department || 'Lima'] || []
+    return provs[0] || 'Lima'
+  })
+  const [selectedDistrict, setSelectedDistrict] = useState(() => location.state?.district || '')
+
   const paymentMethod = 'BCP'
   const [isProcessing, setIsProcessing] = useState(false)
+
+  const isGemOnly = cart.length > 0 && cart.every((item) => isItemGemstone(item));
 
   useEffect(() => {
     if (!user) return
@@ -28,8 +45,54 @@ function Checkout({ cart, clearCart }) {
     if (user.phone) setPhone((prev) => (prev === '+51 912 345 678' || !prev ? user.phone : prev))
   }, [user])
 
-  const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const [promoCodeInput, setPromoCodeInput] = useState('')
+  const [appliedPromo, setAppliedPromo] = useState(null)
+  const [promoFeedback, setPromoFeedback] = useState(null)
+
+  const subtotal = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
   const totalQuantity = cart.reduce((sum, item) => sum + item.quantity, 0)
+
+  const baseShippingCost = calculateShippingCost({
+    isGemOnly,
+    deliveryType,
+    department: selectedDepartment
+  })
+
+  const promoDiscount = appliedPromo ? Number(appliedPromo.discountAmount || 0) : 0
+  const shippingDiscount = appliedPromo && appliedPromo.type === 'envio' ? promoDiscount : 0
+  const productDiscount = appliedPromo && appliedPromo.type === 'producto' ? promoDiscount : 0
+  const effectiveShippingCost = Math.max(0, baseShippingCost - shippingDiscount)
+  const total = Math.max(0, subtotal - productDiscount + effectiveShippingCost)
+
+  const handleApplyPromo = (e) => {
+    e?.preventDefault()
+    if (!promoCodeInput.trim()) return
+    const result = validatePromotionCode(promoCodeInput, {
+      subtotal,
+      shippingCost: baseShippingCost,
+      deliveryType,
+      cartItems: cart
+    })
+    if (result.valid) {
+      setAppliedPromo(result)
+      setPromoFeedback({ type: 'success', message: result.message })
+    } else {
+      setAppliedPromo(null)
+      setPromoFeedback({ type: 'error', message: result.message })
+    }
+  }
+
+  const handleRemovePromo = () => {
+    setAppliedPromo(null)
+    setPromoCodeInput('')
+    setPromoFeedback(null)
+  }
+
+  const handleDepartmentChange = (newDept) => {
+    setSelectedDepartment(newDept)
+    const provinces = PERU_DEPARTMENTS_AND_PROVINCES[newDept] || []
+    setSelectedProvince(provinces[0] || '')
+  }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
@@ -68,6 +131,10 @@ function Checkout({ cart, clearCart }) {
     const maxDeliveryDays = cart.reduce((max, i) => Math.max(max, i.deliveryDays || 2), 2);
     const targetDeliveryDate = cart.find((i) => i.estimatedDeliveryDate)?.estimatedDeliveryDate || `${maxDeliveryDays} días hábiles`;
 
+    const fullShippingAddress = deliveryType === 'envio_domicilio'
+      ? `${shippingAddress.trim()}${selectedDistrict.trim() ? `, Distrito: ${selectedDistrict.trim()}` : ''}${selectedProvince.trim() ? `, Provincia: ${selectedProvince.trim()}` : ''}, Dpto: ${selectedDepartment.trim()}`
+      : ''
+
     const orderPayload = {
       clientName: name.trim() || 'Cliente Platino',
       clientDni: dni.trim(),
@@ -75,27 +142,43 @@ function Checkout({ cart, clearCart }) {
       clientPhone: phone.trim() || '+51 912 345 678',
       deliveryType,
       sedeRecojo: deliveryType === 'recojo_sede' ? sedeRecojo : '',
-      shippingAddress: deliveryType === 'envio_domicilio' ? shippingAddress : '',
+      shippingAddress: fullShippingAddress,
+      department: deliveryType === 'envio_domicilio' ? selectedDepartment : '',
+      province: deliveryType === 'envio_domicilio' ? selectedProvince : '',
+      district: deliveryType === 'envio_domicilio' ? selectedDistrict : '',
+      shippingCost: effectiveShippingCost,
+      subtotal,
+      promoCode: appliedPromo?.code || null,
+      promoDiscount: promoDiscount || 0,
+      promoType: appliedPromo?.type || null,
       deliveryDays: maxDeliveryDays,
       estimatedCompletion: targetDeliveryDate,
       total,
       paymentMethod,
-      items: cart.map((item) => ({
-        id: item.id,
-        name: item.name,
-        metal: item.selectedMetal || (typeof item.metal === 'string' ? item.metal : item.metal?.name) || 'Oro 18K Blanco',
-        size: item.selectedSize || item.size || 'Estándar',
-        gemstone: item.selectedGemstone || item.gemstone || 'Diamante Natural',
-        engraving: item.engraving || (item.hasEngraving && item.engravingText ? `${item.engravingText} (${item.engravingStyle === 'cursiva' ? 'Cursiva Romántica' : 'Mayúsculas Clásicas'})` : null),
-        needsSizeAdvice: Boolean(item.needsSizeAdvice || (typeof item.size === 'string' && item.size.toLowerCase().includes('asesor')) || (typeof item.selectedSize === 'string' && item.selectedSize.toLowerCase().includes('asesor'))),
-        stockUnits: item.stockUnits,
-        deliveryDays: item.deliveryDays || 2,
-        estimatedDeliveryDate: item.estimatedDeliveryDate || '',
-        platinoCarePlan: item.platinoCarePlan || 'cortesia',
-        price: item.price,
-        quantity: item.quantity,
-        image: item.image || (item.images && item.images[0]) || '/images/secret-garden-white.jpg',
-      })),
+      items: cart.map((item) => {
+        const isGem = isItemGemstone(item);
+        return {
+          id: item.id,
+          name: item.name,
+          isGemstone: isGem,
+          metal: isGem ? null : (item.selectedMetal || (typeof item.metal === 'string' ? item.metal : item.metal?.name) || 'Oro 18K Blanco'),
+          size: isGem ? null : (item.selectedSize || item.size || 'Estándar'),
+          gemstone: isGem ? (item.gemstone || item.name || 'Gema Certificada') : (item.selectedGemstone || item.gemstone || 'Diamante Natural'),
+          carat: item.carat || null,
+          shape: item.shape || item.selectedShape || null,
+          certificate: item.certificate || null,
+          certNumber: item.certNumber || null,
+          engraving: isGem ? null : (item.engraving || (item.hasEngraving && item.engravingText ? `${item.engravingText} (${item.engravingStyle === 'cursiva' ? 'Cursiva Romántica' : 'Mayúsculas Clásicas'})` : null)),
+          needsSizeAdvice: isGem ? false : Boolean(item.needsSizeAdvice || (typeof item.size === 'string' && item.size.toLowerCase().includes('asesor')) || (typeof item.selectedSize === 'string' && item.selectedSize.toLowerCase().includes('asesor'))),
+          stockUnits: item.stockUnits,
+          deliveryDays: item.deliveryDays || 2,
+          estimatedDeliveryDate: item.estimatedDeliveryDate || '',
+          platinoCarePlan: item.platinoCarePlan || 'cortesia',
+          price: item.price,
+          quantity: item.quantity,
+          image: item.image || (item.images && item.images[0]) || '/images/secret-garden-white.jpg',
+        };
+      }),
     }
 
     try {
@@ -133,7 +216,7 @@ function Checkout({ cart, clearCart }) {
         <form className="checkout-form" onSubmit={handleSubmit}>
           <section className="checkout-summary">
             <h2 className="checkout-section-title">
-              Resumen de Joyas ({totalQuantity} {totalQuantity === 1 ? 'pieza' : 'piezas'})
+              {isGemOnly ? `Resumen de Gemas (${totalQuantity} ${totalQuantity === 1 ? 'gema' : 'gemas'})` : `Resumen de Joyas (${totalQuantity} ${totalQuantity === 1 ? 'pieza' : 'piezas'})`}
             </h2>
             {cart.map((item, idx) => (
               <div
@@ -145,20 +228,31 @@ function Checkout({ cart, clearCart }) {
                     <strong>{item.name}</strong> × {item.quantity}
                   </div>
                   <div className="checkout-summary-specs">
-                    {item.selectedMetal && (
-                      <span>{typeof item.selectedMetal === 'object' ? item.selectedMetal.name : item.selectedMetal} {item.metalPrice ? `(${formatPrice(item.metalPrice)})` : ''}</span>
-                    )}
-                    {(item.selectedShape || item.selectedGemShape) && (
-                      <span>· Corte {item.selectedShape || item.selectedGemShape} {item.shapePrice > 0 ? `(+${formatPrice(item.shapePrice)})` : ''}</span>
-                    )}
-                    {(item.selectedGemstone || item.gemstone) && (
-                      <span>· 💎 {item.selectedGemstone || item.gemstone} {item.gemPrice > 0 ? `(+${formatPrice(item.gemPrice)})` : ''}</span>
-                    )}
-                    {item.selectedPresentation && item.presentationPrice > 0 && (
-                      <span>· Cofre (+{formatPrice(item.presentationPrice)})</span>
-                    )}
-                    {(item.selectedSize || item.size) && (
-                      <span>· Talla: {item.selectedSize || item.size}</span>
+                    {item.isGemstone ? (
+                      <span>
+                        {item.carat ? `· ${item.carat} ct ` : ''}
+                        {item.shape ? `· Corte ${item.shape} ` : ''}
+                        {item.certificate ? `· Cert: ${item.certificate} ` : ''}
+                        {item.certNumber ? `#${item.certNumber}` : ''}
+                      </span>
+                    ) : (
+                      <>
+                        {item.selectedMetal && (
+                          <span>{typeof item.selectedMetal === 'object' ? item.selectedMetal.name : item.selectedMetal} {item.metalPrice ? `(${formatPrice(item.metalPrice)})` : ''}</span>
+                        )}
+                        {(item.selectedShape || item.selectedGemShape) && (
+                          <span>· Corte {item.selectedShape || item.selectedGemShape} {item.shapePrice > 0 ? `(+${formatPrice(item.shapePrice)})` : ''}</span>
+                        )}
+                        {(item.selectedGemstone || item.gemstone) && (
+                          <span>· 💎 {item.selectedGemstone || item.gemstone} {item.gemPrice > 0 ? `(+${formatPrice(item.gemPrice)})` : ''}</span>
+                        )}
+                        {item.selectedPresentation && item.presentationPrice > 0 && (
+                          <span>· Cofre (+{formatPrice(item.presentationPrice)})</span>
+                        )}
+                        {(item.selectedSize || item.size) && (
+                          <span>· Talla: {item.selectedSize || item.size}</span>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -167,6 +261,115 @@ function Checkout({ cart, clearCart }) {
                 </span>
               </div>
             ))}
+            {/* Sección de Cupón / Código Promocional */}
+            <div
+              style={{
+                background: '#fcfbf8',
+                border: '1px solid #ebd9b8',
+                borderRadius: '8px',
+                padding: '12px 14px',
+                marginTop: '16px',
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', fontWeight: '700', color: '#113b3a', marginBottom: '8px' }}>
+                <i className="bi bi-tag-fill" style={{ color: '#c5a059' }}></i>
+                <span>¿Tienes un cupón o código de descuento?</span>
+              </div>
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <input
+                  type="text"
+                  placeholder="Ej. ENVIOGRATIS o PLATINO10"
+                  value={promoCodeInput}
+                  disabled={Boolean(appliedPromo)}
+                  onChange={(e) => setPromoCodeInput(e.target.value.toUpperCase())}
+                  style={{
+                    flex: 1,
+                    minHeight: '38px',
+                    padding: '6px 10px',
+                    fontSize: '12.5px',
+                    fontWeight: '700',
+                    letterSpacing: '0.04em',
+                    textTransform: 'uppercase',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '6px',
+                    background: appliedPromo ? '#f1f5f9' : '#ffffff',
+                  }}
+                />
+                {appliedPromo ? (
+                  <button
+                    type="button"
+                    onClick={handleRemovePromo}
+                    style={{
+                      background: '#fee2e2',
+                      color: '#991b1b',
+                      border: 'none',
+                      padding: '6px 12px',
+                      borderRadius: '6px',
+                      fontWeight: '700',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Quitar
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleApplyPromo}
+                    style={{
+                      background: '#113b3a',
+                      color: '#ffffff',
+                      border: 'none',
+                      padding: '6px 14px',
+                      borderRadius: '6px',
+                      fontWeight: '700',
+                      fontSize: '12px',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    Aplicar
+                  </button>
+                )}
+              </div>
+              {promoFeedback && (
+                <p
+                  style={{
+                    margin: '6px 0 0',
+                    fontSize: '11.5px',
+                    fontWeight: '600',
+                    color: promoFeedback.type === 'success' ? '#15803d' : '#b91c1c',
+                  }}
+                >
+                  {promoFeedback.message}
+                </p>
+              )}
+            </div>
+
+            <div style={{ marginTop: '16px', borderTop: '1px solid #e2e8f0', paddingTop: '12px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13.5px', color: '#64748b' }}>
+                <span>Subtotal:</span>
+                <span style={{ fontWeight: 600, color: '#1e293b' }}>{formatPrice(subtotal)}</span>
+              </div>
+
+              {appliedPromo && productDiscount > 0 && (
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13.5px', color: '#166534' }}>
+                  <span>Descuento ({appliedPromo.code}):</span>
+                  <span style={{ fontWeight: 700 }}>- {formatPrice(productDiscount)}</span>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px', fontSize: '13.5px', color: '#64748b' }}>
+                <span>Costo de Envío:</span>
+                <span style={{ fontWeight: 600, color: effectiveShippingCost === 0 ? '#166534' : '#113B3A' }}>
+                  {deliveryType === 'recojo_sede'
+                    ? 'Gratis (Retiro en Sede)'
+                    : effectiveShippingCost === 0
+                      ? (shippingDiscount > 0 ? `Gratis (Cupón ${appliedPromo.code})` : `Gratis (${selectedDepartment})`)
+                      : `${formatPrice(effectiveShippingCost)} (${selectedDepartment})`}
+                </span>
+              </div>
+            </div>
+
             <div className="checkout-total">
               <span>Total a Pagar:</span>
               <span>{formatPrice(total)}</span>
@@ -229,21 +432,116 @@ function Checkout({ cart, clearCart }) {
             <label className="field">
               Sede para el retiro
               <select value={sedeRecojo} onChange={(e) => setSedeRecojo(e.target.value)}>
-                <option value="Sede Miraflores - Av. José Larco 345 Tda S-9">Sede Miraflores - Av. José Larco 345 Tda S-9</option>
-                <option value="Sede Lima Centro - Jr. de la Unión 446 Tda 128">Sede Lima Centro - Jr. de la Unión 446 Tda 128</option>
+                <option value="Sede Miraflores - Av. Larco 345 (Multicentro)">Sede Miraflores - Av. Larco 345 (Multicentro)</option>
+                <option value="Sede Lima Centro - Jr. de la Unión 446">Sede Lima Centro - Jr. de la Unión 446</option>
               </select>
             </label>
           ) : (
-            <label className="field">
-              Dirección de envío completa
-              <input
-                required
-                type="text"
-                placeholder="Av. / Calle, número, departamento y distrito"
-                value={shippingAddress}
-                onChange={(e) => setShippingAddress(e.target.value)}
-              />
-            </label>
+            <>
+              {/* 1. Dirección exacta con Buscador Asistido Google Maps */}
+              <label className="field" style={{ margin: '8px 0 14px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
+                  <span>Dirección de envío completa (Av. / Calle, número, dpto y urbanización) *</span>
+                  <a
+                    href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${shippingAddress || ''} ${selectedDistrict} ${selectedProvince} ${selectedDepartment} Peru`)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ fontSize: '11.5px', color: '#166534', textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '4px', fontWeight: '700' }}
+                    title="Buscar y verificar dirección exacta en Google Maps"
+                  >
+                    <i className="bi bi-geo-alt-fill" style={{ color: '#ea4335' }}></i>
+                    <span>Buscar en Google Maps</span>
+                  </a>
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    required
+                    type="text"
+                    placeholder="Av. / Calle, número, departamento, urbanización o referencia"
+                    value={shippingAddress}
+                    onChange={(e) => setShippingAddress(e.target.value)}
+                    style={{ paddingRight: '38px' }}
+                  />
+                  <span style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8', pointerEvents: 'none' }}>
+                    <i className="bi bi-search"></i>
+                  </span>
+                </div>
+              </label>
+
+              {/* 2. Ubicación Geográfica debajo de la dirección: Departamento, Provincia y Distrito */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '12px', margin: '0 0 16px' }}>
+                <label className="field" style={{ margin: 0 }}>
+                  Departamento *
+                  <select
+                    required
+                    value={selectedDepartment}
+                    onChange={(e) => handleDepartmentChange(e.target.value)}
+                  >
+                    {PERU_DEPARTMENTS.map((dept) => (
+                      <option key={dept} value={dept}>
+                        {dept}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="field" style={{ margin: 0 }}>
+                  Provincia *
+                  <select
+                    required
+                    value={selectedProvince}
+                    onChange={(e) => setSelectedProvince(e.target.value)}
+                  >
+                    {(PERU_DEPARTMENTS_AND_PROVINCES[selectedDepartment] || []).map((prov) => (
+                      <option key={prov} value={prov}>
+                        {prov}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="field" style={{ margin: 0 }}>
+                  Distrito *
+                  <input
+                    required
+                    type="text"
+                    placeholder="Escribe tu distrito (ej. Miraflores)"
+                    value={selectedDistrict}
+                    onChange={(e) => setSelectedDistrict(e.target.value)}
+                  />
+                </label>
+              </div>
+
+              {/* Tarifa de Envío Informativa */}
+              <div
+                style={{
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  padding: '10px 14px',
+                  marginBottom: '16px',
+                  fontSize: '12.5px',
+                  color: '#334155',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                }}
+              >
+                <i className="bi bi-truck" style={{ color: '#166534', fontSize: '16px' }} />
+                <span>
+                  <strong>Tarifa de envío para {selectedDepartment}:</strong>{' '}
+                  {effectiveShippingCost === 0 ? (
+                    <span style={{ color: '#166534', fontWeight: 'bold' }}>
+                      {shippingDiscount > 0 ? `Envío Gratis (Cupón ${appliedPromo.code})` : 'Envío Gratis'}
+                    </span>
+                  ) : (
+                    <span style={{ color: '#0f172a', fontWeight: 'bold' }}>
+                      {formatPrice(effectiveShippingCost)} (Envío a {selectedDepartment})
+                    </span>
+                  )}
+                </span>
+              </div>
+            </>
           )}
 
           <aside className="checkout-payment-note" aria-label="Instrucciones de pago">

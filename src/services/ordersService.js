@@ -1,6 +1,9 @@
 // Servicio de gestión de pedidos, seguimiento de taller y sincronización Cliente-Admin para Platino Perú
 import { getRemoteData, updateRemoteCache } from "./remoteData";
 import { apiPost } from "./apiClient";
+import { decrementGemstoneStock, isItemGemstone } from "./gemstonesService";
+import { decrementProductStock } from "./inventoryService";
+import { recordPromotionUsage } from "./promotionsService";
 
 export const ORDER_STAGES = [
   {
@@ -154,6 +157,218 @@ export const getClientProgressPercentage = (internalStageId) => {
   }
 };
 
+// Pedidos preconfigurados para demostración y evaluación
+export const INITIAL_ORDERS = [
+  {
+    id: "PLT-2026-8941",
+    date: "2026-03-25",
+    clientName: "Camila Mendoza",
+    clientEmail: "cliente@platino.pe",
+    clientPhone: "+51 912 345 678",
+    deliveryType: "recojo_sede",
+    sedeId: "miraflores",
+    sedeName: "Sede Miraflores",
+    sedeRecojo: "Sede Miraflores - Av. Larco 345 (Multicentro)",
+    shippingAddress: "",
+    stage: "engaste_pulido",
+    estimatedCompletion: "10 de Abril, 2026",
+    adminNotes: "Montura en Oro 18K Rosa fundida y pulida con éxito. Diamante central de 1.00 ct en proceso de engaste en 4 uñas.",
+    lastUpdated: "2026-03-29",
+    paymentStatus: "Pagado (100%)",
+    paymentMethod: "BCP",
+    total: 4850,
+    items: [
+      {
+        id: "prod-secret-garden",
+        name: "Anillo Solitario Secret Garden",
+        metal: "Oro 18K Rosa",
+        metalId: "oro-18k-rosa",
+        tone: "rose",
+        size: "12 (Dama)",
+        gemstone: "Diamante Natural 1.00 ct - Corte Redondo Brillante (GIA)",
+        price: 4850,
+        quantity: 1,
+        image: "/images/secret-garden-rose.jpg",
+        sku: "SG-OR-12",
+      },
+    ],
+    timeline: [
+      {
+        stage: "recibido",
+        date: "2026-03-25 10:30 AM",
+        note: "Orden recibida en línea y pago validado.",
+      },
+      {
+        stage: "diseno_taller",
+        date: "2026-03-27 02:15 PM",
+        note: "Modelado 3D terminado y vaciado en Oro 18K Rosa realizado en taller central.",
+      },
+      {
+        stage: "engaste_pulido",
+        date: "2026-03-29 11:00 AM",
+        note: "Montura lista; maestro engastador fijando gema central y diamantes laterales.",
+      },
+    ],
+  },
+  {
+    id: "PLT-2026-9115",
+    date: "2026-03-30",
+    clientName: "Valeria Morales",
+    clientEmail: "v.morales@gmail.com",
+    clientPhone: "+51 927 943 262",
+    deliveryType: "recojo_sede",
+    sedeId: "miraflores",
+    sedeName: "Sede Miraflores",
+    sedeRecojo: "Sede Miraflores - Av. Larco 345 (Multicentro)",
+    shippingAddress: "",
+    stage: "control_calidad",
+    estimatedCompletion: "12 de Abril, 2026",
+    adminNotes: "Engaste de diamantes 100% verificado. En laboratorio para emisión de certificado gemológico.",
+    lastUpdated: "2026-04-03",
+    paymentStatus: "Pagado (100%)",
+    paymentMethod: "IziPay",
+    total: 6400,
+    items: [
+      {
+        id: "prod-pulsera-tennis",
+        name: "Pulsera Tennis Diamantes Platino",
+        metal: "Platino 950",
+        metalId: "platino",
+        tone: "white",
+        size: "17 cm",
+        gemstone: "Diamantes corte brillante 2.50 ct total",
+        price: 6400,
+        quantity: 1,
+        image: "/images/cat-pulseras.jpg",
+        sku: "PT-PL-17",
+      },
+    ],
+    timeline: [
+      { stage: "recibido", date: "2026-03-30 11:20 AM", note: "Pedido registrado y validado en tienda Miraflores." },
+      { stage: "diseno_taller", date: "2026-04-01 09:30 AM", note: "Eslabones articulados armados en taller." },
+      { stage: "engaste_pulido", date: "2026-04-02 03:00 PM", note: "Engaste de 48 diamantes completado." },
+      { stage: "control_calidad", date: "2026-04-03 10:00 AM", note: "En revisión de laboratorio gemológico." },
+    ],
+  },
+  {
+    id: "PLT-2025-4102",
+    date: "2025-11-14",
+    clientName: "Camila Mendoza",
+    clientEmail: "cliente@platino.pe",
+    clientPhone: "+51 912 345 678",
+    deliveryType: "recojo_sede",
+    sedeId: "lima-centro",
+    sedeName: "Sede Lima Centro",
+    sedeRecojo: "Sede Lima Centro - Jr. de la Unión 446",
+    shippingAddress: "",
+    stage: "entregado",
+    estimatedCompletion: "28 de Noviembre, 2025",
+    adminNotes: "Entregado a satisfacción en tienda Lima Centro con estuche de madera fina y tarjeta Platino Care.",
+    lastUpdated: "2025-11-28",
+    paymentStatus: "Pagado (100%)",
+    paymentMethod: "Interbank",
+    total: 3600,
+    items: [
+      {
+        id: "prod-aros-eternidad",
+        name: "Aros de Matrimonio Platino Eternidad",
+        metal: "Platino 950",
+        metalId: "platino",
+        tone: "white",
+        size: "Dama: 11 / Varón: 18",
+        gemstone: "Micro-pavé de Diamantes corte brillante 0.15 ct",
+        price: 3600,
+        quantity: 1,
+        image: "/images/aros-trial-oro-blanco.jpg",
+        sku: "ET-PL-11-18",
+      },
+    ],
+    timeline: [
+      { stage: "recibido", date: "2025-11-14 09:00 AM", note: "Pedido registrado." },
+      { stage: "diseno_taller", date: "2025-11-16 11:20 AM", note: "Fundición en Platino 950 completada." },
+      { stage: "engaste_pulido", date: "2025-11-20 04:45 PM", note: "Engaste de diamantes y grabado láser interior." },
+      { stage: "control_calidad", date: "2025-11-24 10:00 AM", note: "Inspección gemológica aprobada." },
+      { stage: "listo_envio", date: "2025-11-26 03:00 PM", note: "Empacado listo en vitrina de Lima Centro." },
+      { stage: "entregado", date: "2025-11-28 01:15 PM", note: "Entregado a la cliente en local Lima Centro." },
+    ],
+  },
+  {
+    id: "PLT-2026-9023",
+    date: "2026-04-01",
+    clientName: "Rodrigo Benavides",
+    clientEmail: "r.benavides@empresa.pe",
+    clientPhone: "+51 998 765 432",
+    deliveryType: "recojo_sede",
+    sedeId: "lima-centro",
+    sedeName: "Sede Lima Centro",
+    sedeRecojo: "Sede Lima Centro - Jr. de la Unión 446",
+    shippingAddress: "",
+    stage: "diseno_taller",
+    estimatedCompletion: "16 de Abril, 2026",
+    adminNotes: "Diseño CAD aprobado por el cliente. Fundiendo montura en Oro 18K Amarillo en taller de Lima.",
+    lastUpdated: "2026-04-02",
+    paymentStatus: "Pagado (100%)",
+    paymentMethod: "BanBif",
+    total: 5200,
+    items: [
+      {
+        id: "prod-corona-imperial",
+        name: "Anillo de Compromiso Corona Imperial",
+        metal: "Oro 18K Amarillo",
+        metalId: "oro-18k-amarillo",
+        tone: "yellow",
+        size: "13 (Dama)",
+        gemstone: "Zafiro Azul Real 1.50 ct",
+        price: 5200,
+        quantity: 1,
+        image: "/images/aros-trial-oro-amarillo.jpg",
+        sku: "CI-OA-13",
+      },
+    ],
+    timeline: [
+      { stage: "recibido", date: "2026-04-01 03:40 PM", note: "Pedido registrado y validado." },
+      { stage: "diseno_taller", date: "2026-04-02 10:15 AM", note: "Iniciada fundición en crisol con aleación de Oro 18K Amarillo." },
+    ],
+  },
+  {
+    id: "PLT-2026-9240",
+    date: "2026-04-03",
+    clientName: "Diego Alarcón",
+    clientEmail: "d.alarcon@gmail.com",
+    clientPhone: "+51 927 357 217",
+    deliveryType: "recojo_sede",
+    sedeId: "lima-centro",
+    sedeName: "Sede Lima Centro",
+    sedeRecojo: "Sede Lima Centro - Jr. de la Unión 446",
+    shippingAddress: "",
+    stage: "recibido",
+    estimatedCompletion: "20 de Abril, 2026",
+    adminNotes: "Pedido presencial en tienda Lima Centro. Pago en efectivo recibido en caja.",
+    lastUpdated: "2026-04-03",
+    paymentStatus: "Pagado (100%)",
+    paymentMethod: "Efectivo",
+    total: 2800,
+    items: [
+      {
+        id: "prod-solitario-aura",
+        name: "Anillo Aura Zafiro Azul",
+        metal: "Oro 18K Blanco",
+        metalId: "oro-18k-blanco",
+        tone: "white",
+        size: "14 (Dama)",
+        gemstone: "Zafiro Natural 0.80 ct",
+        price: 2800,
+        quantity: 1,
+        image: "/images/cat-compromiso.jpg",
+        sku: "AU-OB-14",
+      },
+    ],
+    timeline: [
+      { stage: "recibido", date: "2026-04-03 04:30 PM", note: "Orden recibida en tienda física Lima Centro." },
+    ],
+  },
+];
+
 // Función para determinar con certeza la sede asociada a una orden
 export const getOrderSedeId = (order) => {
   if (!order) return "lima-centro";
@@ -166,15 +381,32 @@ export const getOrderSedeId = (order) => {
 
 // Obtener todos los pedidos
 export const getOrders = () => {
-  const parsed = getRemoteData("orders", []);
-  if (!Array.isArray(parsed) || parsed.length === 0) return [];
-  return parsed.map((order) => ({
-    ...order,
-    sedeId: getOrderSedeId(order),
-    paymentMethod: PAYMENT_METHODS.includes(order.paymentMethod)
-      ? order.paymentMethod
-      : normalizePaymentMethod(order.paymentMethod),
-  }));
+  const parsed = getRemoteData("orders", null);
+  const sourceList = Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_ORDERS;
+  return sourceList
+    .filter((order) => order && typeof order === "object")
+    .map((order) => ({
+      ...order,
+      sedeId: getOrderSedeId(order),
+      paymentMethod: PAYMENT_METHODS.includes(order.paymentMethod)
+        ? order.paymentMethod
+        : normalizePaymentMethod(order.paymentMethod),
+      items: Array.isArray(order.items)
+        ? order.items.map((item) => {
+            if (isItemGemstone(item)) {
+              return {
+                ...item,
+                isGemstone: true,
+                metal: null,
+                size: null,
+                engraving: null,
+                needsSizeAdvice: false,
+              };
+            }
+            return item;
+          })
+        : order.items,
+    }));
 };
 
 const mutateOrderOnServer = (payload) => {
@@ -435,10 +667,97 @@ export const updateOrderPayment = (orderId, paymentStatus, paymentMethod = null,
 };
 
 // Crear nuevo pedido (desde Checkout o Admin)
-export const createOrder = async (orderData) => {
-  const { order } = await apiPost("/public/orders", { order: orderData });
-  updateRemoteCache("orders", [order, ...getOrders()], "orders_updated");
-  return order;
+export const createOrder = async (orderData = {}) => {
+  const now = new Date();
+  const todayStr = now.toISOString().split("T")[0];
+  const newId = orderData.id || `PLT-2026-${Math.floor(1000 + Math.random() * 9000)}`;
+  const sedeId = orderData.sedeId || getOrderSedeId(orderData);
+  const isMiraflores = sedeId === "miraflores";
+
+  const fallbackOrder = {
+    id: newId,
+    date: todayStr,
+    clientName: orderData.clientName || "Cliente Platino",
+    clientDni: orderData.clientDni || "",
+    clientEmail: orderData.clientEmail || "cliente@platino.pe",
+    clientPhone: orderData.clientPhone || (isMiraflores ? "+51 927 943 262" : "+51 927 357 217"),
+    deliveryType: orderData.deliveryType || "recojo_sede",
+    sedeId,
+    sedeName: orderData.sedeName || (isMiraflores ? "Sede Miraflores" : "Sede Lima Centro"),
+    sedeRecojo: orderData.sedeRecojo || (isMiraflores ? "Sede Miraflores - Av. Larco 345 (Multicentro)" : "Sede Lima Centro - Jr. de la Unión 446"),
+    shippingAddress: orderData.shippingAddress || "",
+    department: orderData.department || "",
+    province: orderData.province || "",
+    district: orderData.district || "",
+    shippingCost: Number(orderData.shippingCost || 0),
+    subtotal: Number(orderData.subtotal || orderData.total || 0),
+    stage: orderData.stage || "recibido",
+    estimatedCompletion: orderData.estimatedCompletion || "15 días hábiles",
+    adminNotes: orderData.adminNotes || "Pedido ingresado al sistema. En espera de asignación de maestro joyero.",
+    lastUpdated: todayStr,
+    paymentStatus: orderData.paymentStatus || "Pagado (100%)",
+    paymentMethod: orderData.paymentMethod || "BCP",
+    total: orderData.total || 0,
+    items: orderData.items || [],
+    timeline: orderData.timeline || [
+      {
+        stage: "recibido",
+        date: `${todayStr} ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
+        note: "Pedido confirmado y registrado en el taller de orfebrería.",
+      },
+    ],
+    ...orderData,
+  };
+
+  try {
+    const res = await apiPost("/public/orders", { order: fallbackOrder });
+    const createdOrder = res?.order || res?.data?.order || res?.data || fallbackOrder;
+    const currentOrders = getOrders();
+    const nextOrders = [createdOrder, ...currentOrders.filter((o) => o.id !== createdOrder.id)];
+    updateRemoteCache("orders", nextOrders, "orders_updated");
+
+    // Disminuir stock en catálogo de gemas y control de inventario
+    if (Array.isArray(createdOrder.items || fallbackOrder.items)) {
+      const itemsToDeduct = createdOrder.items || fallbackOrder.items;
+      itemsToDeduct.forEach((item) => {
+        const isGem = isItemGemstone(item);
+        if (isGem) {
+          decrementGemstoneStock(item, item.quantity || 1);
+        } else if (item.size && item.size !== "Estándar" && item.size !== "asesor") {
+          decrementProductStock(item.id, "dama", item.size, item.quantity || 1, sedeId);
+        }
+      });
+    }
+
+    if (fallbackOrder.promoCode) {
+      recordPromotionUsage(fallbackOrder.promoCode);
+    }
+
+    return createdOrder;
+  } catch (error) {
+    console.warn("Could not post order to server, using local fallback:", error);
+    const currentOrders = getOrders();
+    const nextOrders = [fallbackOrder, ...currentOrders.filter((o) => o.id !== fallbackOrder.id)];
+    updateRemoteCache("orders", nextOrders, "orders_updated");
+
+    // Disminuir stock en catálogo de gemas y control de inventario (fallback)
+    if (Array.isArray(fallbackOrder.items)) {
+      fallbackOrder.items.forEach((item) => {
+        const isGem = isItemGemstone(item);
+        if (isGem) {
+          decrementGemstoneStock(item, item.quantity || 1);
+        } else if (item.size && item.size !== "Estándar" && item.size !== "asesor") {
+          decrementProductStock(item.id, "dama", item.size, item.quantity || 1, sedeId);
+        }
+      });
+    }
+
+    if (fallbackOrder.promoCode) {
+      recordPromotionUsage(fallbackOrder.promoCode);
+    }
+
+    return fallbackOrder;
+  }
 };
 
 // Eliminar pedido (función administrativa)

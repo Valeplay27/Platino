@@ -78,6 +78,8 @@ export default function UserMenuDropdown() {
   const canSeeNosotros = isMaster || hasPermission(user, "nosotros");
   const canSeeReclamaciones = isMaster || hasPermission(user, "reclamaciones");
   const canSeeFaqs = isMaster || isAdmin || canSeeImagenes || canSeeNosotros || canSeeCatalogo;
+  const canSeeEnvios = isMaster || canSeePagos || isAdmin;
+  const canSeePromociones = isMaster || canSeePagos || canSeeCatalogo || isAdmin;
 
   return (
     <div className="user-menu-container" ref={containerRef}>
@@ -161,6 +163,30 @@ export default function UserMenuDropdown() {
                         >
                           <i className="bi bi-calendar2-check"></i>
                           <span>Citas & Horarios</span>
+                        </Link>
+                      </li>
+                    )}
+                    {canSeeEnvios && (
+                      <li>
+                        <Link
+                          to="/admin/envios"
+                          className="user-dropdown-item"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          <i className="bi bi-truck"></i>
+                          <span>Tarifas de Envíos</span>
+                        </Link>
+                      </li>
+                    )}
+                    {canSeePromociones && (
+                      <li>
+                        <Link
+                          to="/admin/promociones"
+                          className="user-dropdown-item"
+                          onClick={() => setDropdownOpen(false)}
+                        >
+                          <i className="bi bi-tag-fill"></i>
+                          <span>Cupones & Promociones</span>
                         </Link>
                       </li>
                     )}

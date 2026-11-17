@@ -132,12 +132,10 @@ const SUBCAT_PROMESA_PILL_OPTIONS = [
 ];
 
 const ESTILO_PROMESA_PILL_OPTIONS = [
-  { value: "clasicos", label: "Clásicos" },
-  { value: "con-pedreria", label: "Con Pedrería" },
-  { value: "sin-pedreria", label: "Sin Pedrería" },
-  { value: "moderno", label: "Moderno" },
+  { value: "solitario", label: "Solitarios" },
+  { value: "pedreria-lateral", label: "Con Pedrería Lateral" },
   { value: "vintage", label: "Vintage" },
-  { value: "gemas-naturales", label: "Gemas Naturales" },
+  { value: "gemas-naturales", label: "Con Gemas Naturales" },
 ];
 
 const GENERO_PILL_OPTIONS = [
@@ -202,7 +200,17 @@ const ESTILO_GENERAL_PILL_OPTIONS = [
 const MATERIAL_PILL_OPTIONS = [
   { value: "plata-950", label: "Plata 950" },
   { value: "plata-oro-18k", label: "Plata con Oro 18k" },
-  { value: "oro-18k", label: "Oro 18k" },
+  {
+    isGroup: true,
+    label: "Oro 18k",
+    items: [
+      { value: "oro-18k", label: "Oro 18k (Todos los tonos)" },
+      { value: "oro-amarillo-18k", label: "Oro Amarillo 18k" },
+      { value: "oro-blanco-18k", label: "Oro Blanco 18k" },
+      { value: "oro-rosado-18k", label: "Oro Rosa 18k" },
+      { value: "oro-natural-18k", label: "Oro 18k Natural" },
+    ],
+  },
   { value: "platino", label: "Platino 950" },
 ];
 

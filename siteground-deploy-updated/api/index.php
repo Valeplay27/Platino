@@ -1698,6 +1698,7 @@ function route(PDO $pdo): void
             'laboratories', 'inventory', 'appointments', 'blocked_slots', 'orders',
             'favorites', 'finance', 'nosotros', 'permissions', 'permission_requests',
             'reclamations', 'care_config', 'care_clients', 'recovery_logs', 'educacion',
+            'platino_faqs',
         ];
         if (!in_array($namespace, $allowedNamespaces, true)) {
             respond(422, ['error' => 'Espacio de datos no válido.']);
@@ -2318,6 +2319,7 @@ function routeWithoutDatabase(): void
             'laboratories', 'inventory', 'appointments', 'blocked_slots', 'orders',
             'favorites', 'finance', 'nosotros', 'permissions', 'permission_requests',
             'reclamations', 'care_config', 'care_clients', 'recovery_logs', 'educacion',
+            'platino_faqs',
         ];
         if (!in_array($namespace, $allowedNamespaces, true)) {
             respond(422, ['error' => 'Espacio de datos no válido.']);

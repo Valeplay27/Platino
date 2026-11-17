@@ -38,7 +38,7 @@ export const INITIAL_ADMIN_ACCOUNTS = [
     adminType: "sede",
     sede: "miraflores",
     sedeLabel: "Sede Miraflores",
-    phone: "+51 984 281 116",
+    phone: "+51 927 943 262",
     avatarBadge: "🌊",
     title: "Administrador Sede Miraflores",
     registeredAt: "2026-01-15",

@@ -266,6 +266,10 @@ function App() {
             <Route path="/admin/catalogo-gemas" element={<AdminCitas />} />
             <Route path="/admin/faqs" element={<AdminCitas />} />
             <Route path="/admin/preguntas-frecuentes" element={<AdminCitas />} />
+            <Route path="/admin/envios" element={<AdminCitas />} />
+            <Route path="/admin/tarifas-envios" element={<AdminCitas />} />
+            <Route path="/admin/promociones" element={<AdminCitas />} />
+            <Route path="/admin/cupones" element={<AdminCitas />} />
             <Route path="/dashboard" element={<AdminCitas />} />
           </Routes>
         </main>

@@ -98,6 +98,8 @@ import AdminReclamacionesTab from "../components/AdminReclamacionesTab";
 import AdminPlatinoCareTab from "../components/AdminPlatinoCareTab";
 import AdminGemstonesTab from "../components/AdminGemstonesTab";
 import AdminFaqsTab from "../components/AdminFaqsTab";
+import AdminShippingTab from "../components/AdminShippingTab";
+import AdminPromotionsTab from "../components/AdminPromotionsTab";
 import { uploadImageFile, convertBase64ToImageFile } from "../utils/imageUploadService";
 import {
   getImageInputValue,
@@ -560,11 +562,10 @@ const RING_STYLE_OPTIONS_BY_SUBTYPE = {
     { id: "vintage", label: "Vintage" },
   ],
   "anillo-promesa": [
-    { id: "clasicos", label: "Clásicos" },
-    { id: "con-pedreria", label: "Con Pedrería" },
-    { id: "sin-pedreria", label: "Sin Pedrería" },
-    { id: "moderno", label: "Moderno" },
-    { id: "gemas-naturales", label: "Gemas Naturales" },
+    { id: "solitario", label: "Solitario" },
+    { id: "pedreria-lateral", label: "Con Pedrería Lateral" },
+    { id: "vintage", label: "Vintage" },
+    { id: "gemas-naturales", label: "Con Gemas Naturales" },
   ],
   "aros-alianzas": [
     { id: "clasicos", label: "Clásicos" },
@@ -685,6 +686,20 @@ export default function AdminCitas() {
     )
       return "platino_care";
     if (
+      location.pathname === "/admin/envios" ||
+      location.pathname === "/admin/tarifas-envios" ||
+      searchParams.get("tab") === "tarifas_envios" ||
+      searchParams.get("tab") === "envios"
+    )
+      return "tarifas_envios";
+    if (
+      location.pathname === "/admin/promociones" ||
+      location.pathname === "/admin/cupones" ||
+      searchParams.get("tab") === "promociones" ||
+      searchParams.get("tab") === "cupones"
+    )
+      return "promociones";
+    if (
       location.pathname === "/admin/gemas" ||
       location.pathname === "/admin/diamantes" ||
       searchParams.get("tab") === "gemas" ||
@@ -731,7 +746,7 @@ export default function AdminCitas() {
   // Categoría del módulo administrativo actualmente activa
   const [selectedAdminCategory, setSelectedAdminCategory] = useState(() => {
     const initialTab = getTabFromLocation();
-    if (["finanzas", "pedidos", "citas"].includes(initialTab)) return "operaciones";
+    if (["finanzas", "pedidos", "citas", "tarifas_envios", "promociones"].includes(initialTab)) return "operaciones";
     if (["catalogo", "gemas", "inventario"].includes(initialTab)) return "catalogo";
     if (["home_images", "faqs"].includes(initialTab)) return "tienda";
     if (["permisos", "claves", "reclamaciones", "platino_care"].includes(initialTab)) return "administracion";
@@ -739,7 +754,7 @@ export default function AdminCitas() {
   });
 
   useEffect(() => {
-    if (["finanzas", "pedidos", "citas"].includes(activeTab)) {
+    if (["finanzas", "pedidos", "citas", "tarifas_envios", "promociones"].includes(activeTab)) {
       setSelectedAdminCategory("operaciones");
     } else if (["catalogo", "gemas", "inventario"].includes(activeTab)) {
       setSelectedAdminCategory("catalogo");
@@ -1007,6 +1022,7 @@ export default function AdminCitas() {
   const [formHasGemTypeSelection, setFormHasGemTypeSelection] = useState(true);
   const [formAvailableGemShapes, setFormAvailableGemShapes] = useState(() => (Array.isArray(MASTER_GEM_SHAPES) ? MASTER_GEM_SHAPES.map((s) => s.id) : []));
   const [formDefaultGemShape, setFormDefaultGemShape] = useState("redondo");
+  const [formGemDimensions, setFormGemDimensions] = useState("6.0mm");
   const [formGemShapeConfigs, setFormGemShapeConfigs] = useState({});
   const [formActiveGemShapeTab, setFormActiveGemShapeTab] = useState("redondo");
   const [formEnabledGemTypes, setFormEnabledGemTypes] = useState({
@@ -1282,10 +1298,13 @@ export default function AdminCitas() {
 
   // Pedidos pertenecientes a la sede asignada (o todos si es Vladimir / Master)
   const effectiveSedeOrders = useMemo(() => {
+    const validOrders = Array.isArray(ordersList)
+      ? ordersList.filter((order) => order && typeof order === "object" && !Array.isArray(order))
+      : [];
     if (isGlobalOrdersView || !userAssignedSede) {
-      return ordersList;
+      return validOrders;
     }
-    return ordersList.filter((o) => getOrderSedeId(o) === userAssignedSede);
+    return validOrders.filter((order) => getOrderSedeId(order) === userAssignedSede);
   }, [ordersList, isGlobalOrdersView, userAssignedSede]);
 
   // Obtener la lista dinámica de materiales únicos presentes en los pedidos
@@ -2115,7 +2134,7 @@ export default function AdminCitas() {
       }
       return true;
     });
-  }, [ordersList, paymentStatusFilter, paymentSearchQuery]);
+  }, [effectiveSedeOrders, paymentStatusFilter, paymentSearchQuery]);
 
   const handleUpdatePaymentStatus = (orderId, newStatus) => {
     const current = ordersList.find((o) => o.id === orderId);
@@ -2286,6 +2305,7 @@ export default function AdminCitas() {
     const allShapeIds = masterShapes.map((s) => s.id);
     setFormAvailableGemShapes(allShapeIds);
     setFormDefaultGemShape("redondo");
+    setFormGemDimensions("6.0mm");
     setFormGemShapeConfigs({});
     setFormActiveGemShapeTab("redondo");
     setFormGemTypePrices({
@@ -2538,6 +2558,7 @@ export default function AdminCitas() {
             "diamante-natural": true,
           }
     );
+    setFormGemDimensions(prod.gemDimensions || "6.0mm");
     setFormCustomGemTypes(
       Array.isArray(prod.customGemTypes)
         ? prod.customGemTypes.filter((gem) => gem && typeof gem.id === "string")
@@ -2546,6 +2567,9 @@ export default function AdminCitas() {
               name: typeof gem.name === "string" ? gem.name : "",
               subtitle: typeof gem.subtitle === "string" ? gem.subtitle : "",
               certificateBadge: typeof gem.certificateBadge === "string" ? gem.certificateBadge : "",
+              shape: typeof gem.shape === "string" ? gem.shape : (typeof gem.corte === "string" ? gem.corte : "redondo"),
+              dimensions: typeof gem.dimensions === "string" ? gem.dimensions : (typeof gem.medidas === "string" ? gem.medidas : ""),
+              cutLabel: typeof gem.cutLabel === "string" ? gem.cutLabel : "",
             }))
         : []
     );
@@ -3076,6 +3100,8 @@ export default function AdminCitas() {
       customGemTypes: formCustomGemTypes.filter((gem) => gem.name.trim()),
       availableGemShapes: formAvailableGemShapes,
       defaultGemShape: formDefaultGemShape,
+      gemShape: formDefaultGemShape,
+      gemDimensions: (formGemDimensions || "6.0mm").trim(),
       gemShapeConfigs: formGemShapeConfigs,
       gemShapePrices: formGemShapePrices,
       badge: formBadge.trim(),
@@ -5584,6 +5610,10 @@ export default function AdminCitas() {
                   ? "Libro de Reclamaciones Virtual - Supervisión Legal (INDECOPI)"
                   : activeTab === "platino_care"
                   ? "Gestión y Tarifas de Platino Care (Garantías)"
+                  : activeTab === "tarifas_envios"
+                  ? "Tarifas de Envíos a Domicilio & Provincias"
+                  : activeTab === "promociones"
+                  ? "Códigos Promocionales & Cupones de Descuento"
                   : activeTab === "gemas"
                   ? "Gestión y Creación de Diamantes & Gemas Certificadas"
                   : "Panel Administrativo de Citas"}
@@ -5625,6 +5655,10 @@ export default function AdminCitas() {
                 ? "Auditoría oficial del Libro de Reclamaciones conforme a la Ley N° 29571. Revisa quejas y reclamos y registra la respuesta legal del proveedor (plazo máximo: 15 días hábiles)."
                 : activeTab === "platino_care"
                 ? "Configura las coberturas del programa de garantía oficial Platino Care, precios y planes visibles en la tienda."
+                : activeTab === "tarifas_envios"
+                ? "Configura las tarifas de envío a domicilio para Lima Metropolitana, Callao y Provincias, y define precios especiales por departamento."
+                : activeTab === "promociones"
+                ? "Crea y administra cupones con descuento aplicable al envío a domicilio o directamente al valor de los productos."
                 : activeTab === "gemas"
                 ? "Crea y administra gemas con atributos GIA/IGI, pureza, quilates, dimensiones, corte y fotografías de alta resolución."
                 : "Gestiona reservas, revisa observaciones de clientes y bloquea u habilita horarios de atención."}
@@ -5637,7 +5671,7 @@ export default function AdminCitas() {
             ======================================================== */}
         {(() => {
           const getCategoryFromTab = (tab) => {
-            if (["finanzas", "pedidos", "citas"].includes(tab)) return "operaciones";
+            if (["finanzas", "pedidos", "citas", "tarifas_envios", "promociones"].includes(tab)) return "operaciones";
             if (["catalogo", "gemas", "inventario"].includes(tab)) return "catalogo";
             if (["home_images", "faqs"].includes(tab)) return "tienda";
             if (["permisos", "claves", "reclamaciones", "platino_care"].includes(tab)) return "administracion";
@@ -5675,6 +5709,20 @@ export default function AdminCitas() {
                   icon: "bi-calendar2-check",
                   route: "/admin/citas",
                   visible: isEffectiveMaster || userHasPermission("citas"),
+                },
+                {
+                  id: "tarifas_envios",
+                  label: "Tarifas de Envíos",
+                  icon: "bi-truck",
+                  route: "/admin/envios",
+                  visible: isEffectiveMaster || userHasPermission("finanzas"),
+                },
+                {
+                  id: "promociones",
+                  label: "Cupones & Promociones",
+                  icon: "bi-tag-fill",
+                  route: "/admin/promociones",
+                  visible: isEffectiveMaster || userHasPermission("finanzas") || userHasPermission("catalogo"),
                 },
               ],
             },
@@ -9634,6 +9682,1585 @@ export default function AdminCitas() {
                       border: "1px solid #e2e8f0",
                     }}
                   >
+                    {/* Col 1: AROS DE ALIANZAS (Configurable) */}
+                    <div
+                      style={{
+                        background: "#fcfbf9",
+                        border: "1.5px solid #dcd4c5",
+                        borderRadius: "10px",
+                        padding: "14px",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "space-between",
+                        boxShadow: "0 2px 8px rgba(198, 172, 127, 0.12)",
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                          <span style={{ fontSize: "9.5px", fontWeight: "800", color: "#b48c48", textTransform: "uppercase" }}>
+                            Columna 1 (Portada)
+                          </span>
+                          <span style={{ fontSize: "9.5px", background: homeImagesData.megamenuAlianzasAros?.image ? "#dcfce7" : "#fef3c7", color: homeImagesData.megamenuAlianzasAros?.image ? "#15803d" : "#b45309", padding: "1px 6px", borderRadius: "4px", fontWeight: "700" }}>
+                            {homeImagesData.megamenuAlianzasAros?.image ? "Con Foto" : "Placeholder"}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "12px", fontWeight: "700", color: "#113B3A", marginBottom: "8px", textAlign: "center" }}>
+                          AROS DE ALIANZAS
+                        </div>
+                        <div
+                          style={{
+                            width: "100%",
+                            height: "130px",
+                            borderRadius: "6px",
+                            overflow: "hidden",
+                            background: "#f1f5f9",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            border: "1px dashed #cbd5e1",
+                            marginBottom: "10px",
+                            position: "relative",
+                          }}
+                        >
+                          {homeImagesData.megamenuAlianzasAros?.image ? (
+                            <img
+                              src={homeImagesData.megamenuAlianzasAros.image}
+                              alt="Aros de Alianzas"
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                          ) : (
+                            <div style={{ textAlign: "center", padding: "8px" }}>
+                              <i className="bi bi-image" style={{ fontSize: "20px", color: "#94a3b8", display: "block" }}></i>
+                              <span style={{ fontSize: "9.5px", fontWeight: "700", color: "#94a3b8", letterSpacing: "0.06em" }}>
+                                COLOCAR<br />IMAGEN<br />AROS DE ALIANZAS
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditHomeImage("megamenuAlianzasAros", homeImagesData.megamenuAlianzasAros || {})}
+                          style={{
+                            width: "100%",
+                            padding: "8px 10px",
+                            background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                            color: "#ffffff",
+                            border: "none",
+                            borderRadius: "6px",
+                            fontSize: "11px",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "5px",
+                            boxShadow: "0 2px 6px rgba(17, 59, 58, 0.15)",
+                          }}
+                        >
+                          <i className="bi bi-camera-fill" style={{ color: "#C6AC7F" }}></i>
+                          {homeImagesData.megamenuAlianzasAros?.image ? "Cambiar Imagen" : "Subir Imagen"}
+                        </button>
+                        {homeImagesData.megamenuAlianzasAros?.image && (
+                          <button
+                            type="button"
+                            onClick={() => handleClearMegamenuImage("megamenuAlianzasAros")}
+                            style={{
+                              width: "100%",
+                              padding: "4px 8px",
+                              background: "transparent",
+                              color: "#b91c1c",
+                              border: "1px solid #fecaca",
+                              borderRadius: "6px",
+                              fontSize: "10px",
+                              fontWeight: "600",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Quitar Imagen
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Col 2: Informativa */}
+                    <div style={{ background: "#f8fafc", padding: "14px", borderRadius: "8px", border: "1px solid #f1f5f9", opacity: 0.85 }}>
+                      <div style={{ fontSize: "10px", fontWeight: "800", color: "#94a3b8", textTransform: "uppercase", marginBottom: "4px" }}>
+                        Columna 2 (Menú)
+                      </div>
+                      <div style={{ fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "8px" }}>
+                        ALIANZAS DE AMOR
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: "16px", fontSize: "11px", color: "#64748b", lineHeight: "1.6" }}>
+                        <li>Clásicos</li>
+                        <li>Con Pedrería</li>
+                        <li>Moderno</li>
+                        <li>Vintage</li>
+                        <li>Ver Todo</li>
+                      </ul>
+                    </div>
+
+                    {/* Col 3: Informativa */}
+                    <div style={{ background: "#f8fafc", padding: "14px", borderRadius: "8px", border: "1px solid #f1f5f9", opacity: 0.85 }}>
+                      <div style={{ fontSize: "10px", fontWeight: "800", color: "#94a3b8", textTransform: "uppercase", marginBottom: "4px" }}>
+                        Columna 3 (Menú)
+                      </div>
+                      <div style={{ fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "8px" }}>
+                        SEGÚN MATERIAL
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: "16px", fontSize: "11px", color: "#64748b", lineHeight: "1.6" }}>
+                        <li>Plata 950</li>
+                        <li>Plata con Oro 18k</li>
+                        <li>Oro 18k</li>
+                      </ul>
+                    </div>
+
+                    {/* Col 4: ANILLO DE PROMESA (Configurable) */}
+                    <div
+                      style={{
+                        background: "#fcfbf9",
+                        border: "1.5px solid #dcd4c5",
+                        borderRadius: "10px",
+                        padding: "14px",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "space-between",
+                        boxShadow: "0 2px 8px rgba(198, 172, 127, 0.12)",
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                          <span style={{ fontSize: "9.5px", fontWeight: "800", color: "#b48c48", textTransform: "uppercase" }}>
+                            Columna 4 (Portada)
+                          </span>
+                          <span style={{ fontSize: "9.5px", background: homeImagesData.megamenuPromesaAnillo?.image ? "#dcfce7" : "#fef3c7", color: homeImagesData.megamenuPromesaAnillo?.image ? "#15803d" : "#b45309", padding: "1px 6px", borderRadius: "4px", fontWeight: "700" }}>
+                            {homeImagesData.megamenuPromesaAnillo?.image ? "Con Foto" : "Placeholder"}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "12px", fontWeight: "700", color: "#113B3A", marginBottom: "8px", textAlign: "center" }}>
+                          ANILLO DE PROMESA
+                        </div>
+                        <div
+                          style={{
+                            width: "100%",
+                            height: "130px",
+                            borderRadius: "6px",
+                            overflow: "hidden",
+                            background: "#f1f5f9",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            border: "1px dashed #cbd5e1",
+                            marginBottom: "10px",
+                            position: "relative",
+                          }}
+                        >
+                          {homeImagesData.megamenuPromesaAnillo?.image ? (
+                            <img
+                              src={homeImagesData.megamenuPromesaAnillo.image}
+                              alt="Anillo de Promesa"
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                          ) : (
+                            <div style={{ textAlign: "center", padding: "8px" }}>
+                              <i className="bi bi-image" style={{ fontSize: "20px", color: "#94a3b8", display: "block" }}></i>
+                              <span style={{ fontSize: "9.5px", fontWeight: "700", color: "#94a3b8", letterSpacing: "0.06em" }}>
+                                COLOCAR<br />IMAGEN<br />ANILLO PROMESA
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditHomeImage("megamenuPromesaAnillo", homeImagesData.megamenuPromesaAnillo || {})}
+                          style={{
+                            width: "100%",
+                            padding: "8px 10px",
+                            background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                            color: "#ffffff",
+                            border: "none",
+                            borderRadius: "6px",
+                            fontSize: "11px",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "5px",
+                            boxShadow: "0 2px 6px rgba(17, 59, 58, 0.15)",
+                          }}
+                        >
+                          <i className="bi bi-camera-fill" style={{ color: "#C6AC7F" }}></i>
+                          {homeImagesData.megamenuPromesaAnillo?.image ? "Cambiar Imagen" : "Subir Imagen"}
+                        </button>
+                        {homeImagesData.megamenuPromesaAnillo?.image && (
+                          <button
+                            type="button"
+                            onClick={() => handleClearMegamenuImage("megamenuPromesaAnillo")}
+                            style={{
+                              width: "100%",
+                              padding: "4px 8px",
+                              background: "transparent",
+                              color: "#b91c1c",
+                              border: "1px solid #fecaca",
+                              borderRadius: "6px",
+                              fontSize: "10px",
+                              fontWeight: "600",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Quitar Imagen
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Col 5: Informativa */}
+                    <div style={{ background: "#f8fafc", padding: "14px", borderRadius: "8px", border: "1px solid #f1f5f9", opacity: 0.85 }}>
+                      <div style={{ fontSize: "10px", fontWeight: "800", color: "#94a3b8", textTransform: "uppercase", marginBottom: "4px" }}>
+                        Columna 5 (Menú)
+                      </div>
+                      <div style={{ fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "8px" }}>
+                        ANILLO DE PROMESA
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: "16px", fontSize: "11px", color: "#64748b", lineHeight: "1.6" }}>
+                        <li>Solitario</li>
+                        <li>Con Pedrería Lateral</li>
+                        <li>Vintage</li>
+                        <li>Con Gemas Naturales</li>
+                        <li>Ver Todo</li>
+                      </ul>
+                    </div>
+
+                    {/* Col 6: Informativa */}
+                    <div style={{ background: "#f8fafc", padding: "14px", borderRadius: "8px", border: "1px solid #f1f5f9", opacity: 0.85 }}>
+                      <div style={{ fontSize: "10px", fontWeight: "800", color: "#94a3b8", textTransform: "uppercase", marginBottom: "4px" }}>
+                        Columna 6 (Menú)
+                      </div>
+                      <div style={{ fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "8px" }}>
+                        SEGÚN MATERIAL
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: "16px", fontSize: "11px", color: "#64748b", lineHeight: "1.6" }}>
+                        <li>Plata 950</li>
+                        <li>Plata con Oro 18k</li>
+                        <li>Oro 18k</li>
+                      </ul>
+                    </div>                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================
+                EDITOR ESPECÍFICO: CARRUSEL DE CATEGORÍAS (6 FOTOS)
+                ======================================================== */}
+            {(homeSectionFilter === "Comprar joyas por categoría" || homeSectionFilter === "todas") && (
+              <div
+                style={{
+                  background: "#ffffff",
+                  border: "1.5px solid #e2e8f0",
+                  borderRadius: "16px",
+                  padding: "26px",
+                  marginBottom: "30px",
+                  boxShadow: "0 4px 18px rgba(15, 23, 42, 0.05)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", flexWrap: "wrap", gap: "16px", marginBottom: "20px", paddingBottom: "16px", borderBottom: "1px solid #f1f5f9" }}>
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
+                    <div
+                      style={{
+                        width: "44px",
+                        height: "44px",
+                        borderRadius: "12px",
+                        background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                        color: "#C6AC7F",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "20px",
+                        flexShrink: 0,
+                      }}
+                    >
+                      <i className="bi bi-tags-fill"></i>
+                    </div>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                        <span style={{ background: "rgba(198, 172, 127, 0.2)", color: "#8a6d3b", padding: "2px 10px", borderRadius: "999px", fontSize: "10.5px", fontWeight: "800", textTransform: "uppercase" }}>
+                          Carrusel Deslizable
+                        </span>
+                        <span style={{ fontSize: "12px", color: "#64748b" }}>· 6 Categorías de Joyas</span>
+                      </div>
+                      <h4 style={{ margin: 0, fontSize: "19px", color: "#0f172a", fontWeight: "700", fontFamily: "var(--font-serif)" }}>
+                        Comprar Joyas por Categoría (6 Fotografías)
+                      </h4>
+                      <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#64748b" }}>
+                        Las fotografías que rotan en la tira de navegación de joyas. Haz clic en "Cambiar Foto" para actualizar cualquiera de ellas.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))", gap: "16px" }}>
+                  {[
+                    { key: "catCompromiso", defaultImg: "/images/cat-compromiso.jpg", label: "Anillo de Compromiso" },
+                    { key: "catBoda", defaultImg: "/images/cat-boda.jpg", label: "Aros de Boda" },
+                    { key: "catPromesa", defaultImg: "/images/cat-promesa.jpg", label: "Anillo de Promesa" },
+                    { key: "catAlianzas", defaultImg: "/images/cat-alianzas.jpg", label: "Aros de Alianzas" },
+                    { key: "catPulseras", defaultImg: "/images/cat-pulseras.jpg", label: "Pulseras" },
+                    { key: "catCollares", defaultImg: "/images/cat-collares.jpg", label: "Collares" },
+                  ].map(({ key, defaultImg, label }) => {
+                    const item = homeImagesData[key] || {};
+                    return (
+                      <div
+                        key={key}
+                        style={{
+                          background: "#faf9f6",
+                          border: "1.5px solid #e7e2d8",
+                          borderRadius: "12px",
+                          padding: "14px",
+                          display: "flex",
+                          flexDirection: "column",
+                          justifyContent: "space-between",
+                          textAlign: "center",
+                          boxShadow: "0 2px 6px rgba(0,0,0,0.03)",
+                        }}
+                      >
+                        <div>
+                          <div
+                            style={{
+                              width: "100%",
+                              aspectRatio: "1 / 1.05",
+                              borderRadius: "8px",
+                              overflow: "hidden",
+                              background: "#f1f5f9",
+                              marginBottom: "10px",
+                              border: "1px solid #eae5db",
+                            }}
+                          >
+                            <img
+                              src={item.image || defaultImg}
+                              alt={item.name || label}
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                              onError={(e) => { e.currentTarget.src = defaultImg; }}
+                            />
+                          </div>
+                          <div style={{ fontSize: "12px", fontWeight: "700", color: "#113B3A", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                            {item.name || label}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditHomeImage(key, item)}
+                          style={{
+                            width: "100%",
+                            padding: "8px 10px",
+                            background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                            color: "#ffffff",
+                            border: "none",
+                            borderRadius: "6px",
+                            fontSize: "11px",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "5px",
+                            boxShadow: "0 2px 6px rgba(17, 59, 58, 0.15)",
+                          }}
+                        >
+                          <i className="bi bi-camera-fill" style={{ color: "#C6AC7F" }}></i> Cambiar Foto
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* EDITOR ESPECÍFICO: Anillos dignos de obsesión (Título principal + Subtítulo) */}
+            {homeSectionFilter === "Anillos dignos de obsesión" && (
+              <div
+                style={{
+                  background: "#ffffff",
+                  border: "1.5px solid #e2e8f0",
+                  borderRadius: "14px",
+                  padding: "22px 24px",
+                  marginBottom: "24px",
+                  boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", marginBottom: "16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div
+                      style={{
+                        width: "42px",
+                        height: "42px",
+                        borderRadius: "10px",
+                        background: "#f4efe6",
+                        color: "#8a6d3b",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "20px",
+                      }}
+                    >
+                      💍
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: "16px", color: "#0f172a", fontWeight: "700" }}>
+                        Encabezado de la Sección: Estilos de Anillos
+                      </h4>
+                      <p style={{ margin: 0, fontSize: "12.5px", color: "#64748b" }}>
+                        Personaliza el título principal y subtítulo que aparecen encima de las 6 siluetas de anillos.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleSaveSectionHeader(
+                        "sectionRingStyles",
+                        homeImagesData.sectionRingStyles?.title || "Anillos de compromiso dignos de obsesión",
+                        homeImagesData.sectionRingStyles?.subtitle || "Arte y artesanía en cada detalle."
+                      )
+                    }
+                    style={{
+                      background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "10px",
+                      padding: "10px 18px",
+                      fontSize: "12.5px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "7px",
+                      boxShadow: "0 4px 10px rgba(17, 59, 58, 0.18)",
+                    }}
+                  >
+                    <i className="bi bi-check2-circle" style={{ color: "#C6AC7F" }}></i> Guardar Encabezado
+                  </button>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "6px" }}>
+                      Título Principal de la Sección
+                    </label>
+                    <input
+                      type="text"
+                      className="filter-select"
+                      style={{ width: "100%", height: "42px", borderRadius: "8px" }}
+                      value={homeImagesData.sectionRingStyles?.title || "Anillos de compromiso dignos de obsesión"}
+                      onChange={(e) => {
+                        const updated = {
+                          ...homeImagesData,
+                          sectionRingStyles: {
+                            ...homeImagesData.sectionRingStyles,
+                            title: e.target.value,
+                          },
+                        };
+                        setHomeImagesData(updated);
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "6px" }}>
+                      Subtítulo Descriptivo
+                    </label>
+                    <input
+                      type="text"
+                      className="filter-select"
+                      style={{ width: "100%", height: "42px", borderRadius: "8px" }}
+                      value={homeImagesData.sectionRingStyles?.subtitle || "Arte y artesanía en cada detalle."}
+                      onChange={(e) => {
+                        const updated = {
+                          ...homeImagesData,
+                          sectionRingStyles: {
+                            ...homeImagesData.sectionRingStyles,
+                            subtitle: e.target.value,
+                          },
+                        };
+                        setHomeImagesData(updated);
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {homeSectionFilter === "Nuevos modelos" && (
+              <div
+                style={{
+                  background: "#ffffff",
+                  border: "1.5px solid #e2e8f0",
+                  borderRadius: "14px",
+                  padding: "22px 24px",
+                  marginBottom: "24px",
+                  boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", marginBottom: "16px" }}>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: "16px", color: "#0f172a", fontWeight: "700" }}>
+                      Encabezado de la Sección: Nuevos Modelos
+                    </h4>
+                    <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: "#64748b" }}>
+                      Edita el título y subtítulo; debajo puedes elegir las joyas y cargar sus imágenes manualmente.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleSaveSectionHeader(
+                        "sectionNewModels",
+                        homeImagesData.sectionNewModels?.title || "Reciente en Platino Perú",
+                        homeImagesData.sectionNewModels?.subtitle || "Descubre nuestras últimas incorporaciones."
+                      )
+                    }
+                    style={{
+                      background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "10px",
+                      padding: "10px 18px",
+                      fontSize: "12.5px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "7px",
+                    }}
+                  >
+                    <i className="bi bi-check2-circle" style={{ color: "#C6AC7F" }}></i>
+                    Guardar Encabezado
+                  </button>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "6px" }}>
+                      Título Principal
+                    </label>
+                    <input
+                      type="text"
+                      className="filter-select"
+                      style={{ width: "100%", height: "42px", borderRadius: "8px" }}
+                      value={homeImagesData.sectionNewModels?.title || "Reciente en Platino Perú"}
+                      onChange={(e) =>
+                        setHomeImagesData((current) => ({
+                          ...current,
+                          sectionNewModels: {
+                            ...current.sectionNewModels,
+                            title: e.target.value,
+                          },
+                        }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "6px" }}>
+                      Subtítulo Descriptivo
+                    </label>
+                    <input
+                      type="text"
+                      className="filter-select"
+                      style={{ width: "100%", height: "42px", borderRadius: "8px" }}
+                      value={homeImagesData.sectionNewModels?.subtitle || "Descubre nuestras últimas incorporaciones."}
+                      onChange={(e) =>
+                        setHomeImagesData((current) => ({
+                          ...current,
+                          sectionNewModels: {
+                            ...current.sectionNewModels,
+                            subtitle: e.target.value,
+                          },
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* VISTA ESPECÍFICA: The Fall Edit & The New Classics (2 Cuadros: 1 de Textos + 1 de las 7 Fotos) */}
+            {homeSectionFilter === "The Fall Edit & The New Classics" && (
+              <div style={{ marginBottom: "26px" }}>
+                {/* CUADRO 1: SOLO TEXTOS DE LA SECCIÓN */}
+                <div
+                  style={{
+                    background: "#ffffff",
+                    border: "1.5px solid #e2e8f0",
+                    borderRadius: "14px",
+                    padding: "24px",
+                    marginBottom: "24px",
+                    boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", marginBottom: "18px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <div
+                        style={{
+                          width: "42px",
+                          height: "42px",
+                          borderRadius: "10px",
+                          background: "#e6f0ee",
+                          color: "#113B3A",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "20px",
+                        }}
+                      >
+                        <i className="bi bi-journal-richtext"></i>
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: "16.5px", color: "#0f172a", fontWeight: "700" }}>
+                          Textos Editoriales de la Sección
+                        </h4>
+                        <p style={{ margin: 0, fontSize: "12.5px", color: "#64748b" }}>
+                          Configura los títulos y llamados a la acción del bloque izquierdo (The Fall Edit) y derecho (The New Classics).
+                        </p>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleSaveFallEditTexts}
+                      style={{
+                        background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                        color: "#ffffff",
+                        border: "none",
+                        borderRadius: "10px",
+                        padding: "11px 22px",
+                        fontSize: "13px",
+                        fontWeight: "700",
+                        cursor: "pointer",
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "8px",
+                        boxShadow: "0 4px 12px rgba(17, 59, 58, 0.2)",
+                      }}
+                    >
+                      <i className="bi bi-check2-circle" style={{ color: "#C6AC7F", fontSize: "15px" }}></i>
+                      Guardar Textos Editoriales
+                    </button>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))", gap: "20px" }}>
+                    {/* Columna Izquierda: The Fall Edit */}
+                    <div style={{ background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: "12px", padding: "18px" }}>
+                      <h5 style={{ margin: "0 0 14px 0", fontSize: "13.5px", color: "#113B3A", fontWeight: "700", display: "flex", alignItems: "center", gap: "6px" }}>
+                        <i className="bi bi-layout-sidebar"></i> Bloque Izquierdo (The Fall Edit)
+                      </h5>
+
+                      <div style={{ marginBottom: "12px" }}>
+                        <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "4px" }}>
+                          Título Principal:
+                        </label>
+                        <input
+                          type="text"
+                          className="filter-select"
+                          style={{ width: "100%", height: "40px", borderRadius: "8px" }}
+                          value={homeImagesData.editorialFall?.title || "The Fall Edit"}
+                          onChange={(e) => {
+                            setHomeImagesData({
+                              ...homeImagesData,
+                              editorialFall: { ...homeImagesData.editorialFall, title: e.target.value },
+                            });
+                          }}
+                          placeholder="Ej. The Fall Edit"
+                        />
+                      </div>
+
+                      <div style={{ marginBottom: "12px" }}>
+                        <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "4px" }}>
+                          Subtítulo / Párrafo:
+                        </label>
+                        <textarea
+                          className="filter-select"
+                          style={{ width: "100%", height: "72px", padding: "8px 12px", resize: "vertical", borderRadius: "8px" }}
+                          value={homeImagesData.editorialFall?.subtitle || ""}
+                          onChange={(e) => {
+                            setHomeImagesData({
+                              ...homeImagesData,
+                              editorialFall: { ...homeImagesData.editorialFall, subtitle: e.target.value },
+                            });
+                          }}
+                          placeholder="Descripción..."
+                        />
+                      </div>
+
+                      <div>
+                        <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "4px" }}>
+                          Texto del Botón:
+                        </label>
+                        <input
+                          type="text"
+                          className="filter-select"
+                          style={{ width: "100%", height: "40px", borderRadius: "8px" }}
+                          value={homeImagesData.editorialFall?.buttonText || "SHOP NOW"}
+                          onChange={(e) => {
+                            setHomeImagesData({
+                              ...homeImagesData,
+                              editorialFall: { ...homeImagesData.editorialFall, buttonText: e.target.value },
+                            });
+                          }}
+                          placeholder="Ej. SHOP NOW"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Columna Derecha: The New Classics */}
+                    <div style={{ background: "#fdfbf7", border: "1px solid #e7dfd1", borderRadius: "12px", padding: "18px", display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                      <div>
+                        <h5 style={{ margin: "0 0 14px 0", fontSize: "13.5px", color: "#113B3A", fontWeight: "700", display: "flex", alignItems: "center", gap: "6px" }}>
+                          <i className="bi bi-grid-3x2-gap-fill" style={{ color: "#C6AC7F" }}></i> Bloque Derecho (Collage The New Classics)
+                        </h5>
+
+                        <div>
+                          <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "4px" }}>
+                            Título Central en Cursiva sobre el Collage:
+                          </label>
+                          <input
+                            type="text"
+                            className="filter-select"
+                            style={{ width: "100%", height: "40px", borderRadius: "8px" }}
+                            value={homeImagesData.editorialClassics?.title || "The New Classics"}
+                            onChange={(e) => {
+                              setHomeImagesData({
+                                ...homeImagesData,
+                                editorialClassics: { ...homeImagesData.editorialClassics, title: e.target.value },
+                              });
+                            }}
+                            placeholder="Ej. The New Classics"
+                          />
+                          <small style={{ fontSize: "11.5px", color: "#64748b", marginTop: "6px", display: "block" }}>
+                            Este texto se superpone en tipografía script blanca sobre el mosaico de 6 fotografías.
+                          </small>
+                        </div>
+                      </div>
+
+                      <div style={{ marginTop: "20px", padding: "12px 14px", background: "#f4efe6", borderRadius: "8px", fontSize: "12px", color: "#5c4b2b", border: "1px solid #e6dac6" }}>
+                        <i className="bi bi-stars"></i> Los cambios se actualizan instantáneamente en la portada al guardar.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* CUADRO 2: CUADRO DE LAS 7 FOTOGRAFÍAS */}
+                <div
+                  style={{
+                    background: "#ffffff",
+                    border: "1.5px solid #e2e8f0",
+                    borderRadius: "14px",
+                    padding: "24px",
+                    boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", marginBottom: "18px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                      <div
+                        style={{
+                          width: "42px",
+                          height: "42px",
+                          borderRadius: "10px",
+                          background: "#113B3A",
+                          color: "#C6AC7F",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: "20px",
+                        }}
+                      >
+                        <i className="bi bi-camera-fill"></i>
+                      </div>
+                      <div>
+                        <h4 style={{ margin: 0, fontSize: "16.5px", color: "#0f172a", fontWeight: "700" }}>
+                          Mosaico Fotográfico Editorial (7 Fotografías)
+                        </h4>
+                        <p style={{ margin: 0, fontSize: "12.5px", color: "#64748b" }}>
+                          Actualiza la fotografía principal izquierda o cualquiera de las 6 piezas del collage derecho.
+                        </p>
+                      </div>
+                    </div>
+                    <span style={{ fontSize: "11.5px", background: "#e6f0ee", color: "#113B3A", padding: "5px 12px", borderRadius: "999px", fontWeight: "700" }}>
+                      1 Foto Editorial + 6 Fotos de Collage
+                    </span>
+                  </div>
+
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "20px", alignItems: "stretch" }}>
+                    {/* Foto 1: Editorial Izquierda */}
+                    <div style={{ border: "1.5px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", background: "#ffffff", display: "flex", flexDirection: "column" }}>
+                      <div style={{ padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <strong style={{ fontSize: "13px", color: "#0f172a" }}>Foto 1: Editorial Izquierda (The Fall Edit)</strong>
+                        <span style={{ fontSize: "10.5px", background: "#113B3A", color: "#C6AC7F", padding: "3px 9px", borderRadius: "999px", fontWeight: "700" }}>Principal</span>
+                      </div>
+                      <div style={{ position: "relative", height: "320px", overflow: "hidden", background: "#0c231b" }}>
+                        <img
+                          src={homeImagesData.editorialFall?.image || "/images/editorial-fall.jpg"}
+                          alt="Foto Editorial"
+                          style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                          onError={(e) => {
+                            e.target.src = "/images/editorial-fall.jpg";
+                          }}
+                        />
+                        <div style={{ position: "absolute", bottom: "16px", left: "16px", right: "16px", background: "rgba(17, 59, 58, 0.88)", backdropFilter: "blur(6px)", padding: "12px 16px", borderRadius: "10px", color: "#ffffff", border: "1px solid rgba(198, 172, 127, 0.35)" }}>
+                          <div style={{ fontSize: "15px", fontFamily: "var(--font-serif)", fontWeight: "600", color: "#e6cfa8" }}>{homeImagesData.editorialFall?.title || "The Fall Edit"}</div>
+                          <div style={{ fontSize: "11.5px", opacity: 0.9, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{homeImagesData.editorialFall?.subtitle}</div>
+                        </div>
+                      </div>
+                      <div style={{ padding: "14px 16px", background: "#ffffff", borderTop: "1px solid #f1f5f9" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditHomeImage("editorialFall", homeImagesData.editorialFall || {})}
+                          style={{
+                            width: "100%",
+                            padding: "11px 16px",
+                            background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                            color: "#ffffff",
+                            border: "none",
+                            borderRadius: "10px",
+                            fontSize: "12.5px",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "8px",
+                            boxShadow: "0 4px 10px rgba(17, 59, 58, 0.16)",
+                          }}
+                        >
+                          <i className="bi bi-camera-fill" style={{ color: "#C6AC7F" }}></i> Cambiar Fotografía Principal
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Fotos 2 a 7: Mosaico 6 Fotos */}
+                    <div style={{ border: "1.5px solid #e2e8f0", borderRadius: "12px", overflow: "hidden", background: "#ffffff", display: "flex", flexDirection: "column" }}>
+                      <div style={{ padding: "12px 16px", background: "#f8fafc", borderBottom: "1px solid #e2e8f0", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                        <strong style={{ fontSize: "13px", color: "#0f172a" }}>Fotos 2 a 7: Collage Continuo (The New Classics)</strong>
+                        <span style={{ fontSize: "10.5px", background: "#e6f0ee", color: "#113B3A", padding: "3px 9px", borderRadius: "999px", fontWeight: "700" }}>6 Piezas</span>
+                      </div>
+
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gridTemplateRows: "repeat(2, 1fr)", gap: "6px", padding: "10px", background: "#0f241d", flex: 1, minHeight: "320px" }}>
+                        {[
+                          { key: "mosaic1", num: 2, label: "Pieza 1" },
+                          { key: "mosaic2", num: 3, label: "Pieza 2" },
+                          { key: "mosaic3", num: 4, label: "Pieza 3" },
+                          { key: "mosaic4", num: 5, label: "Pieza 4" },
+                          { key: "mosaic5", num: 6, label: "Pieza 5" },
+                          { key: "mosaic6", num: 7, label: "Pieza 6" },
+                        ].map(({ key, num, label }) => {
+                          const item = homeImagesData[key] || {};
+                          return (
+                            <div
+                              key={key}
+                              style={{
+                                position: "relative",
+                                aspectRatio: "1",
+                                overflow: "hidden",
+                                borderRadius: "6px",
+                                background: "#17372b",
+                              }}
+                            >
+                              <img
+                                src={item.image || `/images/${key}.jpg`}
+                                alt={label}
+                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                onError={(e) => {
+                                  e.target.src = "/images/cat-compromiso.jpg";
+                                }}
+                              />
+                              <div
+                                style={{
+                                  position: "absolute",
+                                  inset: 0,
+                                  background: "linear-gradient(to top, rgba(11, 40, 32, 0.85) 0%, rgba(11, 40, 32, 0.25) 100%)",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  alignItems: "center",
+                                  justifyContent: "flex-end",
+                                  gap: "6px",
+                                  padding: "10px 6px",
+                                  textAlign: "center",
+                                }}
+                              >
+                                <span style={{ fontSize: "10.5px", fontWeight: "700", color: "#e6cfa8" }}>
+                                  Foto {num} · {label}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleOpenEditHomeImage(key, item)}
+                                  style={{
+                                    border: "1px solid rgba(198, 172, 127, 0.5)",
+                                    background: "#ffffff",
+                                    color: "#113B3A",
+                                    padding: "5px 10px",
+                                    borderRadius: "6px",
+                                    fontSize: "11px",
+                                    fontWeight: "700",
+                                    cursor: "pointer",
+                                    boxShadow: "0 2px 6px rgba(0,0,0,0.25)",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                  }}
+                                >
+                                  <i className="bi bi-camera-fill"></i> Cambiar
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                      <div style={{ padding: "11px 14px", background: "#f8fafc", borderTop: "1px solid #e2e8f0", fontSize: "12px", color: "#475569", textAlign: "center" }}>
+                        <i className="bi bi-magic" style={{ color: "#113B3A" }}></i> Las 6 fotografías forman un collage interactivo con zoom en la portada.
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* EDITOR ESPECÍFICO: Showroom & Sedes (1 o 2 Fotos Opcionales + Textos) */}
+            {homeSectionFilter === "Nuestras Sedes & Showroom" && (
+              <div
+                style={{
+                  background: "#ffffff",
+                  border: "1.5px solid #e2e8f0",
+                  borderRadius: "14px",
+                  padding: "22px 24px",
+                  marginBottom: "24px",
+                  boxShadow: "0 4px 14px rgba(15, 23, 42, 0.04)",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "12px", marginBottom: "16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                    <div
+                      style={{
+                        width: "42px",
+                        height: "42px",
+                        borderRadius: "10px",
+                        background: "#f4efe6",
+                        color: "#8a6d3b",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "20px",
+                      }}
+                    >
+                      🏛️
+                    </div>
+                    <div>
+                      <h4 style={{ margin: 0, fontSize: "16px", color: "#0f172a", fontWeight: "700" }}>
+                        Textos de Nuestras Sedes y Showroom
+                      </h4>
+                      <p style={{ margin: 0, fontSize: "12.5px", color: "#64748b" }}>
+                        Configura el título principal, subtítulo y administra 1 o 2 fotografías del Showroom en la portada.
+                      </p>
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      handleSaveSectionHeader(
+                        "showroom",
+                        homeImagesData.showroom?.title || "Estamos aquí para ti, en persona y en línea",
+                        homeImagesData.showroom?.subtitle || "Ya sea en una tienda cercana a usted o en línea, seleccionamos su cita solo para usted."
+                      )
+                    }
+                    style={{
+                      background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                      color: "#ffffff",
+                      border: "none",
+                      borderRadius: "10px",
+                      padding: "10px 18px",
+                      fontSize: "12.5px",
+                      fontWeight: "700",
+                      cursor: "pointer",
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: "7px",
+                      boxShadow: "0 4px 10px rgba(17, 59, 58, 0.18)",
+                    }}
+                  >
+                    <i className="bi bi-check2-circle" style={{ color: "#C6AC7F" }}></i> Guardar Textos de Showroom
+                  </button>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))", gap: "16px" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "6px" }}>
+                      Título Principal
+                    </label>
+                    <input
+                      type="text"
+                      className="filter-select"
+                      style={{ width: "100%", height: "42px", borderRadius: "8px" }}
+                      value={homeImagesData.showroom?.title || "Estamos aquí para ti, en persona y en línea"}
+                      onChange={(e) => {
+                        const updated = {
+                          ...homeImagesData,
+                          showroom: {
+                            ...homeImagesData.showroom,
+                            title: e.target.value,
+                          },
+                        };
+                        setHomeImagesData(updated);
+                      }}
+                    />
+                  </div>
+
+                  <div>
+                    <label style={{ display: "block", fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "6px" }}>
+                      Subtítulo / Descripción
+                    </label>
+                    <input
+                      type="text"
+                      className="filter-select"
+                      style={{ width: "100%", height: "42px", borderRadius: "8px" }}
+                      value={homeImagesData.showroom?.subtitle || "Ya sea en una tienda cercana a usted o en línea, seleccionamos su cita solo para usted."}
+                      onChange={(e) => {
+                        const updated = {
+                          ...homeImagesData,
+                          showroom: {
+                            ...homeImagesData.showroom,
+                            subtitle: e.target.value,
+                          },
+                        };
+                        setHomeImagesData(updated);
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ========================================================
+                EDITOR ESPECÍFICO DE MEGAMENÚS: AROS DE BODA Y AMOR Y PROMESA
+                ======================================================== */}
+            {(homeSectionFilter === "Megamenú: Aros de Boda & Amor y Promesa" || homeSectionFilter === "todas") && (
+              <div
+                style={{
+                  background: "#ffffff",
+                  border: "1.5px solid #e2e8f0",
+                  borderRadius: "16px",
+                  padding: "26px",
+                  marginBottom: "32px",
+                  boxShadow: "0 4px 18px rgba(15, 23, 42, 0.05)",
+                }}
+              >
+                {/* Cabecera del Panel de Megamenús */}
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "flex-start",
+                    justifyContent: "space-between",
+                    flexWrap: "wrap",
+                    gap: "16px",
+                    marginBottom: "24px",
+                    paddingBottom: "18px",
+                    borderBottom: "1px solid #f1f5f9",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "flex-start", gap: "14px" }}>
+                    <div
+                      style={{
+                        width: "46px",
+                        height: "46px",
+                        borderRadius: "12px",
+                        background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                        color: "#C6AC7F",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontSize: "22px",
+                        flexShrink: 0,
+                        boxShadow: "0 4px 12px rgba(17, 59, 58, 0.18)",
+                      }}
+                    >
+                      <i className="bi bi-menu-app-fill"></i>
+                    </div>
+                    <div>
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "4px" }}>
+                        <span
+                          style={{
+                            background: "rgba(198, 172, 127, 0.2)",
+                            color: "#8a6d3b",
+                            border: "1px solid rgba(198, 172, 127, 0.4)",
+                            padding: "2px 10px",
+                            borderRadius: "999px",
+                            fontSize: "10.5px",
+                            fontWeight: "800",
+                            letterSpacing: "0.06em",
+                            textTransform: "uppercase",
+                          }}
+                        >
+                          Navegación Superior
+                        </span>
+                        <span style={{ fontSize: "12px", color: "#64748b" }}>· 5 Espacios de Imágenes en Megamenús</span>
+                      </div>
+                      <h4 style={{ margin: 0, fontSize: "20px", color: "#0f172a", fontWeight: "700", fontFamily: "var(--font-serif)" }}>
+                        Gestor Visual de Imágenes para Megamenús
+                      </h4>
+                      <p style={{ margin: "4px 0 0 0", fontSize: "13px", color: "#64748b", lineHeight: "1.5" }}>
+                        Diseñado con la distribución exacta de la barra de navegación para que identifiques al instante en qué columna y menú se verá cada fotografía.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ========================================================
+                    SUB-PANEL 1: MEGAMENÚ AROS DE BODA
+                    ======================================================== */}
+                <div
+                  style={{
+                    background: "#faf9f6",
+                    border: "1px solid #e7e2d8",
+                    borderRadius: "14px",
+                    padding: "20px 22px",
+                    marginBottom: "26px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", marginBottom: "16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span
+                        style={{
+                          background: "#113B3A",
+                          color: "#ffffff",
+                          fontSize: "11px",
+                          fontWeight: "700",
+                          padding: "3px 10px",
+                          borderRadius: "6px",
+                          letterSpacing: "0.05em",
+                        }}
+                      >
+                        MEGAMENÚ 1
+                      </span>
+                      <h5 style={{ margin: 0, fontSize: "16px", color: "#113B3A", fontWeight: "700" }}>
+                        AROS DE BODA (3 Espacios de Imágenes)
+                      </h5>
+                    </div>
+                    <span style={{ fontSize: "12px", color: "#78716c" }}>
+                      Columnas 3, 4 y 5 del menú desplegado
+                    </span>
+                  </div>
+
+                  {/* Visualización de las 5 columnas del Megamenú Aros de Boda */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                      gap: "14px",
+                      background: "#ffffff",
+                      padding: "16px",
+                      borderRadius: "10px",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
+                    {/* Col 1: Informativa */}
+                    <div style={{ background: "#f8fafc", padding: "14px", borderRadius: "8px", border: "1px solid #f1f5f9", opacity: 0.85 }}>
+                      <div style={{ fontSize: "10px", fontWeight: "800", color: "#94a3b8", textTransform: "uppercase", marginBottom: "4px" }}>
+                        Columna 1 (Menú)
+                      </div>
+                      <div style={{ fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "10px" }}>
+                        SEGÚN MATERIAL
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: "16px", fontSize: "11px", color: "#64748b", lineHeight: "1.7" }}>
+                        <li>Plata 950</li>
+                        <li>Plata con Oro 18k</li>
+                        <li>Oro Natural 18k</li>
+                        <li>Oro Amarillo 18k</li>
+                        <li>Oro Rosado 18k</li>
+                        <li>Oro Blanco 18k</li>
+                      </ul>
+                    </div>
+
+                    {/* Col 2: Informativa */}
+                    <div style={{ background: "#f8fafc", padding: "14px", borderRadius: "8px", border: "1px solid #f1f5f9", opacity: 0.85 }}>
+                      <div style={{ fontSize: "10px", fontWeight: "800", color: "#94a3b8", textTransform: "uppercase", marginBottom: "4px" }}>
+                        Columna 2 (Menú)
+                      </div>
+                      <div style={{ fontSize: "12px", fontWeight: "700", color: "#334155", marginBottom: "10px" }}>
+                        SEGÚN ESTILO
+                      </div>
+                      <ul style={{ margin: 0, paddingLeft: "16px", fontSize: "11px", color: "#64748b", lineHeight: "1.7" }}>
+                        <li>Clásicos</li>
+                        <li>Con Pedrería</li>
+                        <li>Con Textura</li>
+                        <li>Moderno</li>
+                        <li>Vintage</li>
+                        <li>Ver Todo</li>
+                      </ul>
+                    </div>
+
+                    {/* Col 3: PORTA AROS (Configurable) */}
+                    <div
+                      style={{
+                        background: "#fcfbf9",
+                        border: "1.5px solid #dcd4c5",
+                        borderRadius: "10px",
+                        padding: "14px",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "space-between",
+                        boxShadow: "0 2px 8px rgba(198, 172, 127, 0.12)",
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                          <span style={{ fontSize: "9.5px", fontWeight: "800", color: "#b48c48", textTransform: "uppercase" }}>
+                            Columna 3
+                          </span>
+                          <span style={{ fontSize: "9.5px", background: homeImagesData.megamenuPortaAros?.image ? "#dcfce7" : "#fef3c7", color: homeImagesData.megamenuPortaAros?.image ? "#15803d" : "#b45309", padding: "1px 6px", borderRadius: "4px", fontWeight: "700" }}>
+                            {homeImagesData.megamenuPortaAros?.image ? "Con Foto" : "Placeholder"}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "12px", fontWeight: "700", color: "#113B3A", marginBottom: "8px", textAlign: "center" }}>
+                          PORTA AROS
+                        </div>
+                        <div
+                          style={{
+                            width: "100%",
+                            height: "130px",
+                            borderRadius: "6px",
+                            overflow: "hidden",
+                            background: "#f1f5f9",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            border: "1px dashed #cbd5e1",
+                            marginBottom: "10px",
+                            position: "relative",
+                          }}
+                        >
+                          {homeImagesData.megamenuPortaAros?.image ? (
+                            <img
+                              src={homeImagesData.megamenuPortaAros.image}
+                              alt="Porta Aros"
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                          ) : (
+                            <div style={{ textAlign: "center", padding: "8px" }}>
+                              <i className="bi bi-image" style={{ fontSize: "20px", color: "#94a3b8", display: "block" }}></i>
+                              <span style={{ fontSize: "10px", fontWeight: "700", color: "#94a3b8", letterSpacing: "0.08em" }}>
+                                COLOCAR<br />IMAGEN
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditHomeImage("megamenuPortaAros", homeImagesData.megamenuPortaAros || {})}
+                          style={{
+                            width: "100%",
+                            padding: "8px 10px",
+                            background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                            color: "#ffffff",
+                            border: "none",
+                            borderRadius: "6px",
+                            fontSize: "11px",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "5px",
+                            boxShadow: "0 2px 6px rgba(17, 59, 58, 0.15)",
+                          }}
+                        >
+                          <i className="bi bi-camera-fill" style={{ color: "#C6AC7F" }}></i>
+                          {homeImagesData.megamenuPortaAros?.image ? "Cambiar Imagen" : "Subir Imagen"}
+                        </button>
+                        {homeImagesData.megamenuPortaAros?.image && (
+                          <button
+                            type="button"
+                            onClick={() => handleClearMegamenuImage("megamenuPortaAros")}
+                            style={{
+                              width: "100%",
+                              padding: "4px 8px",
+                              background: "transparent",
+                              color: "#b91c1c",
+                              border: "1px solid #fecaca",
+                              borderRadius: "6px",
+                              fontSize: "10px",
+                              fontWeight: "600",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Quitar Imagen
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Col 4: COPAS DECORADAS (Configurable) */}
+                    <div
+                      style={{
+                        background: "#fcfbf9",
+                        border: "1.5px solid #dcd4c5",
+                        borderRadius: "10px",
+                        padding: "14px",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "space-between",
+                        boxShadow: "0 2px 8px rgba(198, 172, 127, 0.12)",
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                          <span style={{ fontSize: "9.5px", fontWeight: "800", color: "#b48c48", textTransform: "uppercase" }}>
+                            Columna 4
+                          </span>
+                          <span style={{ fontSize: "9.5px", background: homeImagesData.megamenuCopas?.image ? "#dcfce7" : "#fef3c7", color: homeImagesData.megamenuCopas?.image ? "#15803d" : "#b45309", padding: "1px 6px", borderRadius: "4px", fontWeight: "700" }}>
+                            {homeImagesData.megamenuCopas?.image ? "Con Foto" : "Placeholder"}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "12px", fontWeight: "700", color: "#113B3A", marginBottom: "8px", textAlign: "center" }}>
+                          COPAS DECORADAS
+                        </div>
+                        <div
+                          style={{
+                            width: "100%",
+                            height: "130px",
+                            borderRadius: "6px",
+                            overflow: "hidden",
+                            background: "#f1f5f9",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            border: "1px dashed #cbd5e1",
+                            marginBottom: "10px",
+                            position: "relative",
+                          }}
+                        >
+                          {homeImagesData.megamenuCopas?.image ? (
+                            <img
+                              src={homeImagesData.megamenuCopas.image}
+                              alt="Copas Decoradas"
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                          ) : (
+                            <div style={{ textAlign: "center", padding: "8px" }}>
+                              <i className="bi bi-image" style={{ fontSize: "20px", color: "#94a3b8", display: "block" }}></i>
+                              <span style={{ fontSize: "10px", fontWeight: "700", color: "#94a3b8", letterSpacing: "0.08em" }}>
+                                COLOCAR<br />IMAGEN
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditHomeImage("megamenuCopas", homeImagesData.megamenuCopas || {})}
+                          style={{
+                            width: "100%",
+                            padding: "8px 10px",
+                            background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                            color: "#ffffff",
+                            border: "none",
+                            borderRadius: "6px",
+                            fontSize: "11px",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "5px",
+                            boxShadow: "0 2px 6px rgba(17, 59, 58, 0.15)",
+                          }}
+                        >
+                          <i className="bi bi-camera-fill" style={{ color: "#C6AC7F" }}></i>
+                          {homeImagesData.megamenuCopas?.image ? "Cambiar Imagen" : "Subir Imagen"}
+                        </button>
+                        {homeImagesData.megamenuCopas?.image && (
+                          <button
+                            type="button"
+                            onClick={() => handleClearMegamenuImage("megamenuCopas")}
+                            style={{
+                              width: "100%",
+                              padding: "4px 8px",
+                              background: "transparent",
+                              color: "#b91c1c",
+                              border: "1px solid #fecaca",
+                              borderRadius: "6px",
+                              fontSize: "10px",
+                              fontWeight: "600",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Quitar Imagen
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Col 5: CUADROS (Configurable) */}
+                    <div
+                      style={{
+                        background: "#fcfbf9",
+                        border: "1.5px solid #dcd4c5",
+                        borderRadius: "10px",
+                        padding: "14px",
+                        display: "flex",
+                        flexDirection: "column",
+                        justifyContent: "space-between",
+                        boxShadow: "0 2px 8px rgba(198, 172, 127, 0.12)",
+                      }}
+                    >
+                      <div>
+                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+                          <span style={{ fontSize: "9.5px", fontWeight: "800", color: "#b48c48", textTransform: "uppercase" }}>
+                            Columna 5
+                          </span>
+                          <span style={{ fontSize: "9.5px", background: homeImagesData.megamenuCuadros?.image ? "#dcfce7" : "#fef3c7", color: homeImagesData.megamenuCuadros?.image ? "#15803d" : "#b45309", padding: "1px 6px", borderRadius: "4px", fontWeight: "700" }}>
+                            {homeImagesData.megamenuCuadros?.image ? "Con Foto" : "Placeholder"}
+                          </span>
+                        </div>
+                        <div style={{ fontSize: "12px", fontWeight: "700", color: "#113B3A", marginBottom: "8px", textAlign: "center" }}>
+                          CUADROS
+                        </div>
+                        <div
+                          style={{
+                            width: "100%",
+                            height: "130px",
+                            borderRadius: "6px",
+                            overflow: "hidden",
+                            background: "#f1f5f9",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            border: "1px dashed #cbd5e1",
+                            marginBottom: "10px",
+                            position: "relative",
+                          }}
+                        >
+                          {homeImagesData.megamenuCuadros?.image ? (
+                            <img
+                              src={homeImagesData.megamenuCuadros.image}
+                              alt="Cuadros"
+                              style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            />
+                          ) : (
+                            <div style={{ textAlign: "center", padding: "8px" }}>
+                              <i className="bi bi-image" style={{ fontSize: "20px", color: "#94a3b8", display: "block" }}></i>
+                              <span style={{ fontSize: "10px", fontWeight: "700", color: "#94a3b8", letterSpacing: "0.08em" }}>
+                                COLOCAR<br />IMAGEN
+                              </span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                        <button
+                          type="button"
+                          onClick={() => handleOpenEditHomeImage("megamenuCuadros", homeImagesData.megamenuCuadros || {})}
+                          style={{
+                            width: "100%",
+                            padding: "8px 10px",
+                            background: "linear-gradient(135deg, #113B3A 0%, #1a5654 100%)",
+                            color: "#ffffff",
+                            border: "none",
+                            borderRadius: "6px",
+                            fontSize: "11px",
+                            fontWeight: "700",
+                            cursor: "pointer",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "5px",
+                            boxShadow: "0 2px 6px rgba(17, 59, 58, 0.15)",
+                          }}
+                        >
+                          <i className="bi bi-camera-fill" style={{ color: "#C6AC7F" }}></i>
+                          {homeImagesData.megamenuCuadros?.image ? "Cambiar Imagen" : "Subir Imagen"}
+                        </button>
+                        {homeImagesData.megamenuCuadros?.image && (
+                          <button
+                            type="button"
+                            onClick={() => handleClearMegamenuImage("megamenuCuadros")}
+                            style={{
+                              width: "100%",
+                              padding: "4px 8px",
+                              background: "transparent",
+                              color: "#b91c1c",
+                              border: "1px solid #fecaca",
+                              borderRadius: "6px",
+                              fontSize: "10px",
+                              fontWeight: "600",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Quitar Imagen
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ========================================================
+                    SUB-PANEL 2: MEGAMENÚ AMOR Y PROMESA
+                    ======================================================== */}
+                <div
+                  style={{
+                    background: "#faf9f6",
+                    border: "1px solid #e7e2d8",
+                    borderRadius: "14px",
+                    padding: "20px 22px",
+                  }}
+                >
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "10px", marginBottom: "16px" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                      <span
+                        style={{
+                          background: "#113B3A",
+                          color: "#ffffff",
+                          fontSize: "11px",
+                          fontWeight: "700",
+                          padding: "3px 10px",
+                          borderRadius: "6px",
+                          letterSpacing: "0.05em",
+                        }}
+                      >
+                        MEGAMENÚ 2
+                      </span>
+                      <h5 style={{ margin: 0, fontSize: "16px", color: "#113B3A", fontWeight: "700" }}>
+                        AMOR Y PROMESA (2 Espacios de Imágenes)
+                      </h5>
+                    </div>
+                    <span style={{ fontSize: "12px", color: "#78716c" }}>
+                      Columnas 1 y 4 del menú desplegado
+                    </span>
+                  </div>
+
+                  {/* Visualización de las 6 columnas del Megamenú Amor y Promesa */}
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                      gap: "14px",
+                      background: "#ffffff",
+                      padding: "16px",
+                      borderRadius: "10px",
+                      border: "1px solid #e2e8f0",
+                    }}
+                  >
                     {/* Col 1: ANILLO DE PROMESA (Configurable) */}
                     <div
                       style={{
@@ -12048,6 +13675,20 @@ export default function AdminCitas() {
         )}
 
         {/* ========================================================
+            TAB 8B: TARIFAS DE ENVÍOS A DOMICILIO Y PROVINCIAS
+            ======================================================== */}
+        {activeTab === "tarifas_envios" && (
+          <AdminShippingTab />
+        )}
+
+        {/* ========================================================
+            TAB 8C: CÓDIGOS PROMOCIONALES & CUPONES
+            ======================================================== */}
+        {activeTab === "promociones" && (
+          <AdminPromotionsTab />
+        )}
+
+        {/* ========================================================
             TAB 9: GESTIÓN DE GEMAS & DIAMANTES CERTIFICADOS
             ======================================================== */}
         {activeTab === "gemas" && (
@@ -13165,6 +14806,45 @@ export default function AdminCitas() {
                             </div>
                           </div>
 
+                          {/* Medidas y Silueta general por defecto del producto */}
+                          <div style={{ display: "flex", gap: "10px", alignItems: "center", background: "#ffffff", padding: "8px 12px", borderRadius: "8px", border: "1px solid #d0e4d7", width: "100%", boxSizing: "border-box" }}>
+                            <div style={{ flex: 1 }}>
+                              <label style={{ display: "block", fontSize: "11px", fontWeight: "700", color: "#113B3A", marginBottom: "2px" }}>
+                                Medida / Dimensión por defecto (ej. 6.0mm, 7x5mm):
+                              </label>
+                              <input
+                                type="text"
+                                value={formGemDimensions}
+                                onChange={(e) => setFormGemDimensions(e.target.value)}
+                                placeholder="Ej: 6.0mm, 7x5mm, 1.00ct"
+                                style={{ width: "100%", boxSizing: "border-box", padding: "5px 8px", fontSize: "11px", border: "1px solid #cbd5e1", borderRadius: "5px" }}
+                              />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <label style={{ display: "block", fontSize: "11px", fontWeight: "700", color: "#113B3A", marginBottom: "2px" }}>
+                                Silueta / Corte por defecto del producto:
+                              </label>
+                              <select
+                                value={formDefaultGemShape}
+                                onChange={(e) => setFormDefaultGemShape(e.target.value)}
+                                style={{ width: "100%", padding: "5px 8px", fontSize: "11px", border: "1px solid #cbd5e1", borderRadius: "5px", background: "#fff" }}
+                              >
+                                <option value="redondo">Redondo</option>
+                                <option value="oval">Oval</option>
+                                <option value="princesa">Princesa</option>
+                                <option value="esmeralda">Esmeralda</option>
+                                <option value="cojin">Cojín / Cushion</option>
+                                <option value="pera">Pera</option>
+                                <option value="marquesa">Marquesa</option>
+                                <option value="corazon">Corazón</option>
+                                <option value="radiante">Radiante</option>
+                                <option value="asscher">Asscher</option>
+                                <option value="baguette">Baguette</option>
+                                <option value="trillante">Trillante</option>
+                              </select>
+                            </div>
+                          </div>
+
                           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
                             <button
                               type="button"
@@ -13172,7 +14852,7 @@ export default function AdminCitas() {
                                 const id = `gema-personalizada-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
                                 setFormCustomGemTypes((prev) => [
                                   ...prev,
-                                  { id, name: "", subtitle: "", certificateBadge: "" },
+                                  { id, name: "", subtitle: "", certificateBadge: "", shape: formDefaultGemShape || "redondo", dimensions: formGemDimensions || "6.0mm", cutLabel: "" },
                                 ]);
                                 setFormEnabledGemTypes((prev) => ({ ...prev, [id]: true }));
                                 setFormGemTypePrices((prev) => ({ ...prev, [id]: "0" }));
@@ -13421,10 +15101,78 @@ export default function AdminCitas() {
                                           gem.id === item.id ? { ...gem, certificateBadge: value } : gem
                                         ));
                                       }}
-                                      placeholder="Certificado (opcional)"
+                                      placeholder="Certificado (opcional, ej. GEMLAB)"
                                       aria-label="Certificado de la gema personalizada"
                                       style={{ width: "100%", boxSizing: "border-box", padding: "5px 7px", fontSize: "11px", border: "1px solid #c7dcd0", borderRadius: "5px" }}
                                     />
+
+                                    {/* Configuración de Corte y Medidas de la Gema */}
+                                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px" }}>
+                                      <div>
+                                        <label style={{ display: "block", fontSize: "9.5px", fontWeight: "700", color: "#113B3A", marginBottom: "1px" }}>
+                                          Corte / Silueta:
+                                        </label>
+                                        <select
+                                          value={item.shape || item.corte || (item.subtitle && ["oval","esmeralda","pera","marquesa","princesa","cojin","cojín","corazon","corazón","radiante","asscher","baguette","trillante","redondo"].find(s => item.subtitle.toLowerCase().includes(s))?.replace("í","i")?.replace("ó","o")) || "redondo"}
+                                          onChange={(e) => {
+                                            const val = e.target.value;
+                                            setFormCustomGemTypes((prev) => prev.map((gem) =>
+                                              gem.id === item.id ? { ...gem, shape: val } : gem
+                                            ));
+                                          }}
+                                          style={{ width: "100%", padding: "4px 6px", fontSize: "10.5px", border: "1px solid #c7dcd0", borderRadius: "5px", background: "#fff" }}
+                                        >
+                                          <option value="redondo">Redondo</option>
+                                          <option value="oval">Oval</option>
+                                          <option value="princesa">Princesa</option>
+                                          <option value="esmeralda">Esmeralda</option>
+                                          <option value="cojin">Cojín / Cushion</option>
+                                          <option value="pera">Pera</option>
+                                          <option value="marquesa">Marquesa</option>
+                                          <option value="corazon">Corazón</option>
+                                          <option value="radiante">Radiante</option>
+                                          <option value="asscher">Asscher</option>
+                                          <option value="baguette">Baguette</option>
+                                          <option value="trillante">Trillante</option>
+                                        </select>
+                                      </div>
+
+                                      <div>
+                                        <label style={{ display: "block", fontSize: "9.5px", fontWeight: "700", color: "#113B3A", marginBottom: "1px" }}>
+                                          Medida (ej. 7x5mm):
+                                        </label>
+                                        <input
+                                          type="text"
+                                          value={item.dimensions || item.medidas || ""}
+                                          onChange={(e) => {
+                                            const val = e.target.value;
+                                            setFormCustomGemTypes((prev) => prev.map((gem) =>
+                                              gem.id === item.id ? { ...gem, dimensions: val } : gem
+                                            ));
+                                          }}
+                                          placeholder="Ej: 7x5mm, 6.0mm"
+                                          style={{ width: "100%", boxSizing: "border-box", padding: "4px 6px", fontSize: "10.5px", border: "1px solid #c7dcd0", borderRadius: "5px" }}
+                                        />
+                                      </div>
+                                    </div>
+
+                                    <div>
+                                      <label style={{ display: "block", fontSize: "9.5px", fontWeight: "700", color: "#113B3A", marginBottom: "1px" }}>
+                                        Texto en franja (ej. CORTE OVAL | 7x5mm):
+                                      </label>
+                                      <input
+                                        type="text"
+                                        value={item.cutLabel || ""}
+                                        onChange={(e) => {
+                                          const val = e.target.value;
+                                          setFormCustomGemTypes((prev) => prev.map((gem) =>
+                                            gem.id === item.id ? { ...gem, cutLabel: val } : gem
+                                          ));
+                                        }}
+                                        placeholder={`Auto: CORTE ${(item.shape || item.corte || (item.subtitle && ["oval","esmeralda","pera","marquesa","princesa","cojin","cojín","corazon","corazón","radiante","asscher","baguette","trillante","redondo"].find(s => item.subtitle.toLowerCase().includes(s))) || "OVAL").toUpperCase()} | ${item.dimensions || formGemDimensions || "6.0mm"}`}
+                                        style={{ width: "100%", boxSizing: "border-box", padding: "4px 6px", fontSize: "10.5px", border: "1px solid #c7dcd0", borderRadius: "5px" }}
+                                      />
+                                    </div>
                                   </div>
                                 )}
 

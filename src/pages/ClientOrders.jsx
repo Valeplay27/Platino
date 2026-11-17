@@ -16,6 +16,7 @@ import {
 } from "../services/platinoCareService";
 import { getUserFavorites, removeFromFavorites } from "../services/favoritesService";
 import { formatPrice } from "../data/products";
+import { isItemGemstone } from "../services/gemstonesService";
 import "../../styles/orders.css";
 
 export default function ClientOrders({ addToCart }) {
@@ -1193,41 +1194,75 @@ export default function ClientOrders({ addToCart }) {
                           >
                             {item.name}
                           </h4>
-                          <div className="order-item-tags">
-                            {item.metal && (
-                              <span className="order-item-tag" style={{ background: "#fef3c7", color: "#92400e" }}>
-                                <i className="bi bi-palette2" style={{ marginRight: "4px" }}></i>
-                                {item.metal}
-                              </span>
-                            )}
-                            {item.size && (
-                              <span className="order-item-tag">
-                                <i className="bi bi-rulers" style={{ marginRight: "4px" }}></i>
-                                Talla: {item.size}
-                              </span>
-                            )}
-                            {item.engraving && (
-                              <span className="order-item-tag" style={{ background: "#fef3c7", color: "#92400e", fontWeight: "600" }}>
-                                <i className="bi bi-pen-fill" style={{ marginRight: "4px" }}></i>
-                                Grabado: «{item.engraving}»
-                              </span>
-                            )}
-                            {(item.needsSizeAdvice || (typeof item.size === "string" && item.size.toLowerCase().includes("asesor"))) && (
-                              <span className="order-item-tag" style={{ background: "#eff6ff", color: "#1d4ed8", fontWeight: "600" }}>
-                                <i className="bi bi-info-circle-fill" style={{ marginRight: "4px" }}></i>
-                                Asesoría de Medida Solicitada
-                              </span>
-                            )}
-                            <span className="order-item-tag">
-                              Cantidad: {item.quantity || 1}
-                            </span>
-                          </div>
-                          {item.gemstone && (
-                            <p className="order-item-gem">
-                              <i className="bi bi-gem" style={{ color: "#c5a059", marginRight: "5px" }}></i>
-                              {item.gemstone}
-                            </p>
-                          )}
+                          {(() => {
+                            const isGem = isItemGemstone(item);
+
+                            return (
+                              <>
+                                <div className="order-item-tags">
+                                  {isGem ? (
+                                    <>
+                                      <span className="order-item-tag" style={{ background: "#ecfdf5", color: "#065f46", fontWeight: "700" }}>
+                                        <i className="bi bi-gem" style={{ marginRight: "4px" }}></i>
+                                        Gema Certificada
+                                      </span>
+                                      {item.carat && (
+                                        <span className="order-item-tag" style={{ background: "#f8fafc", color: "#334155", fontWeight: "600" }}>
+                                          {item.carat} ct
+                                        </span>
+                                      )}
+                                      {item.shape && (
+                                        <span className="order-item-tag" style={{ background: "#f8fafc", color: "#334155" }}>
+                                          Corte {item.shape}
+                                        </span>
+                                      )}
+                                      {item.certificate && (
+                                        <span className="order-item-tag" style={{ background: "#fef3c7", color: "#92400e" }}>
+                                          Cert: {item.certificate} {item.certNumber ? `#${item.certNumber}` : ""}
+                                        </span>
+                                      )}
+                                    </>
+                                  ) : (
+                                    <>
+                                      {item.metal && (
+                                        <span className="order-item-tag" style={{ background: "#fef3c7", color: "#92400e" }}>
+                                          <i className="bi bi-palette2" style={{ marginRight: "4px" }}></i>
+                                          {item.metal}
+                                        </span>
+                                      )}
+                                      {item.size && (
+                                        <span className="order-item-tag">
+                                          <i className="bi bi-rulers" style={{ marginRight: "4px" }}></i>
+                                          Talla: {item.size}
+                                        </span>
+                                      )}
+                                      {item.engraving && (
+                                        <span className="order-item-tag" style={{ background: "#fef3c7", color: "#92400e", fontWeight: "600" }}>
+                                          <i className="bi bi-pen-fill" style={{ marginRight: "4px" }}></i>
+                                          Grabado: «{item.engraving}»
+                                        </span>
+                                      )}
+                                      {(item.needsSizeAdvice || (typeof item.size === "string" && item.size.toLowerCase().includes("asesor"))) && (
+                                        <span className="order-item-tag" style={{ background: "#eff6ff", color: "#1d4ed8", fontWeight: "600" }}>
+                                          <i className="bi bi-info-circle-fill" style={{ marginRight: "4px" }}></i>
+                                          Asesoría de Medida Solicitada
+                                        </span>
+                                      )}
+                                    </>
+                                  )}
+                                  <span className="order-item-tag">
+                                    Cantidad: {item.quantity || 1}
+                                  </span>
+                                </div>
+                                {!isGem && item.gemstone && (
+                                  <p className="order-item-gem">
+                                    <i className="bi bi-gem" style={{ color: "#c5a059", marginRight: "5px" }}></i>
+                                    {item.gemstone}
+                                  </p>
+                                )}
+                              </>
+                            );
+                          })()}
                         </div>
 
                         <div className="order-item-price-col">
@@ -1357,31 +1392,66 @@ export default function ClientOrders({ addToCart }) {
                         <h3 style={{ fontFamily: "var(--font-serif)", fontSize: "22px", color: "#0f2a24", margin: "0 0 6px" }}>
                           {item.name}
                         </h3>
-                        <p style={{ fontSize: "13.5px", color: "#68776f", margin: "0 0 12px" }}>
-                          Pieza de alta orfebrería realizada bajo pedido en taller de maestros joyeros.
-                        </p>
+                        {(() => {
+                          const isGem = isItemGemstone(item);
 
-                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "14px" }}>
-                          <span style={{ background: "#e8f3ee", color: "#0f2a24", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "700" }}>
-                            {item.metal || "Metal Fino"}
-                          </span>
-                          <span style={{ background: "#f5f2eb", color: "#4d5953", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "600" }}>
-                            Talla: {item.size || "12"}
-                          </span>
-                          {item.engraving && (
-                            <span style={{ background: "#fef3c7", color: "#92400e", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "700" }}>
-                              <i className="bi bi-pen-fill" style={{ marginRight: "4px" }}></i> Grabado: «{item.engraving}»
-                            </span>
-                          )}
-                          {(item.needsSizeAdvice || (typeof item.size === "string" && item.size.toLowerCase().includes("asesor"))) && (
-                            <span style={{ background: "#eff6ff", color: "#1d4ed8", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "700" }}>
-                              <i className="bi bi-info-circle-fill" style={{ marginRight: "4px" }}></i> Asesoría de Medida
-                            </span>
-                          )}
-                          <span style={{ background: "#fdf8ee", color: "#b45309", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "600" }}>
-                            Certificado GIA Incluido
-                          </span>
-                        </div>
+                          if (isGem) {
+                            return (
+                              <>
+                                <p style={{ fontSize: "13.5px", color: "#68776f", margin: "0 0 12px" }}>
+                                  Gema fina certificada con reporte gemológico oficial de autenticidad y características.
+                                </p>
+                                <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "14px" }}>
+                                  <span style={{ background: "#ecfdf5", color: "#065f46", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "700" }}>
+                                    <i className="bi bi-gem"></i> Gema Preciosa
+                                  </span>
+                                  {item.carat && (
+                                    <span style={{ background: "#f8fafc", color: "#334155", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "600" }}>
+                                      {item.carat} ct
+                                    </span>
+                                  )}
+                                  {item.shape && (
+                                    <span style={{ background: "#f8fafc", color: "#334155", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "600" }}>
+                                      Corte {item.shape}
+                                    </span>
+                                  )}
+                                  <span style={{ background: "#fdf8ee", color: "#b45309", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "600" }}>
+                                    Certificado Gemológico Oficial
+                                  </span>
+                                </div>
+                              </>
+                            );
+                          }
+
+                          return (
+                            <>
+                              <p style={{ fontSize: "13.5px", color: "#68776f", margin: "0 0 12px" }}>
+                                Pieza de alta orfebrería realizada bajo pedido en taller de maestros joyeros.
+                              </p>
+                              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "14px" }}>
+                                <span style={{ background: "#e8f3ee", color: "#0f2a24", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "700" }}>
+                                  {item.metal || "Metal Fino"}
+                                </span>
+                                <span style={{ background: "#f5f2eb", color: "#4d5953", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "600" }}>
+                                  Talla: {item.size || "12"}
+                                </span>
+                                {item.engraving && (
+                                  <span style={{ background: "#fef3c7", color: "#92400e", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "700" }}>
+                                    <i className="bi bi-pen-fill" style={{ marginRight: "4px" }}></i> Grabado: «{item.engraving}»
+                                  </span>
+                                )}
+                                {(item.needsSizeAdvice || (typeof item.size === "string" && item.size.toLowerCase().includes("asesor"))) && (
+                                  <span style={{ background: "#eff6ff", color: "#1d4ed8", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "700" }}>
+                                    <i className="bi bi-info-circle-fill" style={{ marginRight: "4px" }}></i> Asesoría de Medida
+                                  </span>
+                                )}
+                                <span style={{ background: "#fdf8ee", color: "#b45309", padding: "4px 10px", borderRadius: "6px", fontSize: "12px", fontWeight: "600" }}>
+                                  Certificado Platino Incluido
+                                </span>
+                              </div>
+                            </>
+                          );
+                        })()}
 
                         <div style={{ fontSize: "20px", fontWeight: "700", color: "#0f2a24" }}>
                           {formatPrice(item.price * (item.quantity || 1))}
@@ -1391,32 +1461,70 @@ export default function ClientOrders({ addToCart }) {
 
                     {/* Especificaciones Técnicas */}
                     <div className="order-detail-spec-grid">
-                      <div className="order-detail-spec-item">
-                        <label>Aleación / Metal</label>
-                        <span>{item.metal || "Oro 18K / Platino 950"}</span>
-                      </div>
-                      <div className="order-detail-spec-item">
-                        <label>Medida Exacta</label>
-                        <span>{item.size || "Talla Estándar"}</span>
-                      </div>
-                      <div className="order-detail-spec-item">
-                        <label>Gema Central / Diamante</label>
-                        <span>{item.gemstone || "Diamante Natural GIA"}</span>
-                      </div>
-                      <div className="order-detail-spec-item">
-                        <label>Grabado Personalizado</label>
-                        <span style={{ color: item.engraving ? "#b45309" : "inherit", fontWeight: item.engraving ? "700" : "normal" }}>
-                          {item.engraving ? `«${item.engraving}»` : "No solicitado"}
-                        </span>
-                      </div>
-                      <div className="order-detail-spec-item">
-                        <label>Asesoría de Medida</label>
-                        <span>
-                          {item.needsSizeAdvice || (typeof item.size === "string" && item.size.toLowerCase().includes("asesor"))
-                            ? "Sí (Kit anillero / WhatsApp / Boutique)"
-                            : "Medida confirmada"}
-                        </span>
-                      </div>
+                      {(() => {
+                        const isGem = isItemGemstone(item);
+
+                        if (isGem) {
+                          return (
+                            <>
+                              <div className="order-detail-spec-item">
+                                <label>Tipo de Artículo</label>
+                                <span style={{ color: "#166534", fontWeight: "700" }}>Gema Preciosa Certificada</span>
+                              </div>
+                              <div className="order-detail-spec-item">
+                                <label>Quilataje / Medida</label>
+                                <span>{item.carat ? `${item.carat} ct` : (item.name || "Gema Seleccionada")}</span>
+                              </div>
+                              <div className="order-detail-spec-item">
+                                <label>Corte / Talla</label>
+                                <span>{item.shape ? `Corte ${item.shape}` : "Corte Excelente"}</span>
+                              </div>
+                              <div className="order-detail-spec-item">
+                                <label>Certificación Gemológica</label>
+                                <span style={{ color: "#92400e", fontWeight: "700" }}>
+                                  {item.certificate ? `${item.certificate} ${item.certNumber ? `#${item.certNumber}` : ""}` : "Certificado Oficial GemLab"}
+                                </span>
+                              </div>
+                              <div className="order-detail-spec-item">
+                                <label>Modalidad de Compra</label>
+                                <span>Gema Suelta (Inversión / Colección)</span>
+                              </div>
+                            </>
+                          );
+                        }
+
+                        return (
+                          <>
+                            <div className="order-detail-spec-item">
+                              <label>Aleación / Metal</label>
+                              <span>{item.metal || "Oro 18K / Platino 950"}</span>
+                            </div>
+                            <div className="order-detail-spec-item">
+                              <label>Medida Exacta</label>
+                              <span>{item.size || "Talla Estándar"}</span>
+                            </div>
+                            <div className="order-detail-spec-item">
+                              <label>Gema Central / Diamante</label>
+                              <span>{item.gemstone || "Diamante Natural GIA"}</span>
+                            </div>
+                            <div className="order-detail-spec-item">
+                              <label>Grabado Personalizado</label>
+                              <span style={{ color: item.engraving ? "#b45309" : "inherit", fontWeight: item.engraving ? "700" : "normal" }}>
+                                {item.engraving ? `«${item.engraving}»` : "No solicitado"}
+                              </span>
+                            </div>
+                            <div className="order-detail-spec-item">
+                              <label>Asesoría de Medida</label>
+                              <span>
+                                {item.needsSizeAdvice || (typeof item.size === "string" && item.size.toLowerCase().includes("asesor"))
+                                  ? "Sí (Kit anillero / WhatsApp / Boutique)"
+                                  : "Medida confirmada"}
+                              </span>
+                            </div>
+                          </>
+                        );
+                      })()}
+
                       <div className="order-detail-spec-item">
                         <label>Tiempo Estimado Taller</label>
                         <span style={{ fontWeight: "700", color: (detailModalOrder.deliveryDays === 7 || item.deliveryDays === 7) ? "#b45309" : "#15803d" }}>

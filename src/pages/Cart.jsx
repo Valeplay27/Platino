@@ -2,11 +2,26 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { formatPrice } from "../data/products";
 import { getAssetUrl } from "../utils/assetHelper";
+import { PERU_DEPARTMENTS, calculateShippingCost } from "../data/peruLocations";
+import { isItemGemstone } from "../services/gemstonesService";
 
 function Cart({ cart, updateQuantity }) {
   const [isBagJumping, setIsBagJumping] = useState(false);
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0);
   const total = cart.reduce((sum, item) => sum + item.price * item.quantity, 0);
+
+  const isGemOnly = cart.length > 0 && cart.every((item) => isItemGemstone(item));
+  const [deliveryType, setDeliveryType] = useState("recojo_sede"); // 'recojo_sede' | 'envio_domicilio'
+  const [sedeRecojo, setSedeRecojo] = useState("Sede Miraflores - Av. Larco 345 (Multicentro)");
+  const [selectedDepartment, setSelectedDepartment] = useState("Lima");
+  const [shippingDest, setShippingDest] = useState("");
+
+  const shippingCost = calculateShippingCost({
+    isGemOnly,
+    deliveryType,
+    department: selectedDepartment,
+  });
+  const cartFinalTotal = total + shippingCost;
 
   const triggerBagHop = () => {
     setIsBagJumping(true);
@@ -355,7 +370,7 @@ function Cart({ cart, updateQuantity }) {
                       </h3>
 
                       <div style={{ display: "flex", flexWrap: "wrap", gap: "6px", marginBottom: "8px" }}>
-                        {item.selectedMetal && (
+                        {!isItemGemstone(item) && item.selectedMetal && (
                           <span
                             style={{
                               background: "#f4f1ea",
@@ -400,7 +415,7 @@ function Cart({ cart, updateQuantity }) {
                             {item.gemPrice > 0 ? ` (+${formatPrice(item.gemPrice)})` : ""}
                           </span>
                         )}
-                        {(item.selectedSizeDama || item.selectedSizeVaron || item.size) && (
+                        {!isItemGemstone(item) && (item.selectedSizeDama || item.selectedSizeVaron || item.size) && (
                           <span
                             style={{
                               background: "#f4f1ea",
@@ -611,20 +626,166 @@ function Cart({ cart, updateQuantity }) {
                 Resumen de tu Orden
               </h2>
 
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", fontSize: "14px", color: "#506057" }}>
-                <span>Subtotal ({totalItems} {totalItems === 1 ? "joya" : "joyas"})</span>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "14px", fontSize: "14px", color: "#506057" }}>
+                <span>Subtotal ({totalItems} {totalItems === 1 ? (isGemOnly ? "gema" : "joya") : (isGemOnly ? "gemas" : "joyas")})</span>
                 <strong style={{ color: "#173729" }}>{formatPrice(total)}</strong>
               </div>
 
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", fontSize: "14px", color: "#506057" }}>
-                <span>Envío asegurado a todo el Perú</span>
-                <span style={{ color: "#15803d", fontWeight: 700 }}>Gratis</span>
+              {/* Selector de Modalidad de Entrega (Elegir envío o recojo en sede) */}
+              <div
+                style={{
+                  background: "#fbfaf8",
+                  border: "1px solid #ebd9b8",
+                  borderRadius: "12px",
+                  padding: "14px 16px",
+                  marginBottom: "16px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "12.5px", fontWeight: "700", color: "#0f2a24", marginBottom: "10px" }}>
+                  <i className="bi bi-geo-alt-fill" style={{ color: "#c5a059" }}></i>
+                  <span>Modalidad de Entrega:</span>
+                </div>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px", marginBottom: "10px" }}>
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "8px 10px",
+                      borderRadius: "8px",
+                      border: `1.5px solid ${deliveryType === "recojo_sede" ? "#113B3A" : "#d8dfdb"}`,
+                      background: deliveryType === "recojo_sede" ? "#edf5f0" : "#ffffff",
+                      fontSize: "12px",
+                      fontWeight: deliveryType === "recojo_sede" ? 700 : 500,
+                      color: deliveryType === "recojo_sede" ? "#113B3A" : "#4b5563",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="cartDeliveryType"
+                      value="recojo_sede"
+                      checked={deliveryType === "recojo_sede"}
+                      onChange={() => setDeliveryType("recojo_sede")}
+                      style={{ accentColor: "#113B3A", cursor: "pointer" }}
+                    />
+                    <span>Recojo en Sede</span>
+                  </label>
+
+                  <label
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      padding: "8px 10px",
+                      borderRadius: "8px",
+                      border: `1.5px solid ${deliveryType === "envio_domicilio" ? "#113B3A" : "#d8dfdb"}`,
+                      background: deliveryType === "envio_domicilio" ? "#edf5f0" : "#ffffff",
+                      fontSize: "12px",
+                      fontWeight: deliveryType === "envio_domicilio" ? 700 : 500,
+                      color: deliveryType === "envio_domicilio" ? "#113B3A" : "#4b5563",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="cartDeliveryType"
+                      value="envio_domicilio"
+                      checked={deliveryType === "envio_domicilio"}
+                      onChange={() => setDeliveryType("envio_domicilio")}
+                      style={{ accentColor: "#113B3A", cursor: "pointer" }}
+                    />
+                    <span>Envío a Domicilio</span>
+                  </label>
+                </div>
+
+                {deliveryType === "recojo_sede" ? (
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: "4px" }}>
+                      Sede Oficial de Retiro:
+                    </label>
+                    <select
+                      value={sedeRecojo}
+                      onChange={(e) => setSedeRecojo(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "8px 10px",
+                        borderRadius: "8px",
+                        border: "1px solid #cbd5e1",
+                        background: "#ffffff",
+                        fontSize: "12.5px",
+                        color: "#1e293b",
+                        cursor: "pointer",
+                      }}
+                    >
+                      <option value="Sede Miraflores - Av. Larco 345 (Multicentro)">Sede Miraflores - Av. Larco 345 (Multicentro)</option>
+                      <option value="Sede Lima Centro - Jr. de la Unión 446">Sede Lima Centro - Jr. de la Unión 446</option>
+                    </select>
+                    <span style={{ display: "block", fontSize: "11px", color: "#166534", marginTop: "4px", fontWeight: "600" }}>
+                      ✓ Retiro gratuito en vitrina
+                    </span>
+                  </div>
+                ) : (
+                  <div>
+                    <label style={{ display: "block", fontSize: "11px", fontWeight: 700, color: "#64748b", textTransform: "uppercase", marginBottom: "4px" }}>
+                      Departamento de Entrega:
+                    </label>
+                    <select
+                      value={selectedDepartment}
+                      onChange={(e) => setSelectedDepartment(e.target.value)}
+                      style={{
+                        width: "100%",
+                        padding: "8px 10px",
+                        borderRadius: "8px",
+                        border: "1px solid #cbd5e1",
+                        background: "#ffffff",
+                        fontSize: "12.5px",
+                        color: "#1e293b",
+                        cursor: "pointer",
+                        marginBottom: "6px",
+                      }}
+                    >
+                      {PERU_DEPARTMENTS.map((dept) => (
+                        <option key={dept} value={dept}>
+                          {dept}
+                        </option>
+                      ))}
+                    </select>
+
+                    <span style={{ display: "block", fontSize: "11px", color: shippingCost === 0 ? "#166534" : "#1e293b", fontWeight: 600 }}>
+                      {shippingCost === 0
+                        ? "✓ Envío gratuito a " + selectedDepartment
+                        : `Tarifa de envío a ${selectedDepartment}: ${formatPrice(shippingCost)}`}
+                    </span>
+                  </div>
+                )}
               </div>
 
-              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px", fontSize: "14px", color: "#506057" }}>
-                <span>Estuche de lujo & Certificado</span>
-                <span style={{ color: "#15803d", fontWeight: 700 }}>Incluido</span>
+              {/* Resumen de Envío */}
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "12px", fontSize: "14px", color: "#506057" }}>
+                <span>Costo de Envío</span>
+                <span style={{ color: shippingCost === 0 ? "#15803d" : "#113B3A", fontWeight: 700 }}>
+                  {deliveryType === "recojo_sede"
+                    ? "Gratis (Retiro en Sede)"
+                    : shippingCost === 0
+                      ? `Gratis (${selectedDepartment})`
+                      : `${formatPrice(shippingCost)} (${selectedDepartment})`}
+                </span>
               </div>
+
+              {/* Resumen de Estuche / Certificado (Para gema sola se elimina estuche de lujo) */}
+              {!isGemOnly ? (
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px", fontSize: "14px", color: "#506057" }}>
+                  <span>Estuche de lujo & Certificado</span>
+                  <span style={{ color: "#15803d", fontWeight: 700 }}>Incluido</span>
+                </div>
+              ) : (
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px", fontSize: "14px", color: "#506057" }}>
+                  <span>Certificado Gemológico Oficial</span>
+                  <span style={{ color: "#15803d", fontWeight: 700 }}>Incluido</span>
+                </div>
+              )}
 
               <div
                 style={{
@@ -638,12 +799,18 @@ function Cart({ cart, updateQuantity }) {
               >
                 <span style={{ fontSize: "16px", fontWeight: 700, color: "#173729" }}>Total Estimado</span>
                 <span style={{ fontFamily: "var(--font-serif)", fontSize: "24px", fontWeight: 700, color: "var(--platino-green-dark)" }}>
-                  {formatPrice(total)}
+                  {formatPrice(cartFinalTotal)}
                 </span>
               </div>
 
               <Link
                 to="/checkout"
+                state={{
+                  deliveryType,
+                  sedeRecojo,
+                  department: selectedDepartment,
+                  shippingAddress: shippingDest,
+                }}
                 style={{
                   display: "flex",
                   alignItems: "center",

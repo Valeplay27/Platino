@@ -290,6 +290,7 @@ export default function Product({ addToCart }) {
   const isAccesorio =
     prodType === "accesorio" ||
     cat.includes("accesorio") ||
+    cat.includes("joya") ||
     cat.includes("collar") ||
     cat.includes("pulsera") ||
     cat.includes("aretes") ||
@@ -316,8 +317,11 @@ export default function Product({ addToCart }) {
 
   const [selectedGemType, setSelectedGemType] = useState(() => COMPROMISO_GEM_TYPES[0]);
   const [engravingText, setEngravingText] = useState("");
+  const [knowsSize, setKnowsSize] = useState(true);
 
   useEffect(() => {
+    setCurrentStep(1);
+    setKnowsSize(true);
     const availGems = getProductGemTypes(product);
     setSelectedGemType(availGems?.[0] || COMPROMISO_GEM_TYPES[0]);
     setEngravingText("");
@@ -756,25 +760,28 @@ export default function Product({ addToCart }) {
         selectedShape: product?.hasGemSelection ? safeShapeName : undefined,
         selectedGemShape: product?.hasGemSelection ? safeShapeName : undefined,
         shapePrice: selectedGemShapePriceDelta || 0,
-        selectedSize:
-          isAros && targetGender === "ambos"
+        selectedSize: !isAccesorio
+          ? (isAros && targetGender === "ambos"
             ? `Dama: ${selectedSizeDama === "asesor" ? "Asesoría" : selectedSizeDama} / Varón: ${selectedSizeVaron === "asesor" ? "Asesoría" : selectedSizeVaron}`
             : targetGender === "varon"
             ? `Varón: ${selectedSizeVaron === "asesor" ? "Asesoría de medida" : selectedSizeVaron}`
-            : `Mujer: ${selectedSizeDama === "asesor" ? "Asesoría de medida" : selectedSizeDama}`,
-        size:
-          isAros && targetGender === "ambos"
+            : `Mujer: ${selectedSizeDama === "asesor" ? "Asesoría de medida" : selectedSizeDama}`)
+          : undefined,
+        size: !isAccesorio
+          ? (isAros && targetGender === "ambos"
             ? `Dama: ${selectedSizeDama === "asesor" ? "Asesoría" : selectedSizeDama} / Varón: ${selectedSizeVaron === "asesor" ? "Asesoría" : selectedSizeVaron}`
             : targetGender === "varon"
             ? `Varón: ${selectedSizeVaron === "asesor" ? "Asesoría de medida" : selectedSizeVaron}`
-            : `Mujer: ${selectedSizeDama === "asesor" ? "Asesoría de medida" : selectedSizeDama}`,
-        selectedGemstone: product?.hasGemSelection ? safeShapeName : undefined,
-        gemstone: product?.hasGemSelection ? safeShapeName : undefined,
-        hasEngraving: Boolean(hasEngraving),
-        engraving: hasEngraving ? "Sí solicita (Personalización por WhatsApp)" : null,
+            : `Mujer: ${selectedSizeDama === "asesor" ? "Asesoría de medida" : selectedSizeDama}`)
+          : undefined,
+        selectedGemstone: product?.hasGemSelection && !isAccesorio ? safeShapeName : undefined,
+        gemstone: product?.hasGemSelection && !isAccesorio ? safeShapeName : undefined,
+        hasEngraving: Boolean(hasEngraving && !isAccesorio),
+        engraving: hasEngraving && !isAccesorio ? "Sí solicita (Personalización por WhatsApp)" : null,
         needsSizeAdvice:
-          (isAros && targetGender === "ambos" && (selectedSizeDama === "asesor" || selectedSizeVaron === "asesor")) ||
-          (targetGender === "varon" ? selectedSizeVaron === "asesor" : selectedSizeDama === "asesor"),
+          !isAccesorio &&
+          ((isAros && targetGender === "ambos" && (selectedSizeDama === "asesor" || selectedSizeVaron === "asesor")) ||
+          (targetGender === "varon" ? selectedSizeVaron === "asesor" : selectedSizeDama === "asesor")),
         stockUnits: currentTotalStock,
         deliveryDays: shouldShowDelivery ? deliveryDays : undefined,
         estimatedDeliveryDate: shouldShowDelivery ? deliveryDateFormatted : undefined,
@@ -799,7 +806,7 @@ export default function Product({ addToCart }) {
 
   const getWhatsAppMessageUrl = (sedeId = selectedOrderSede) => {
     const isMiraflores = sedeId === "miraflores";
-    const phone = isMiraflores ? "51984281116" : "51927357217";
+    const phone = isMiraflores ? "51927943262" : "51927357217";
     const sedeName = isMiraflores ? "Sede Miraflores (Av. Larco 345)" : "Sede Lima Centro (Jr. de la Unión 446)";
     let sizeDetails = "";
     if (isAros && targetGender === "ambos") {
@@ -809,25 +816,25 @@ export default function Product({ addToCart }) {
       } else {
         const damaAvail = getSizeAvailability(productStock, "dama", selectedSizeDama);
         const varonAvail = getSizeAvailability(productStock, "varon", selectedSizeVaron);
-        const damaStockText = isAdmin ? `${damaAvail.total} unids en stock` : (damaAvail.total > 0 ? "Disponible en stock" : "A pedido");
-        const varonStockText = isAdmin ? `${varonAvail.total} unids en stock` : (varonAvail.total > 0 ? "Disponible en stock" : "A pedido");
-        sizeDetails = `*Tallas (Par de Aros):*%0A- Talla Dama: ${selectedSizeDama} (${damaStockText})%0A- Talla Varón: ${selectedSizeVaron} (${varonStockText})%0A`;
+        const damaStockText = `${damaAvail.total} unids en stock`;
+        const varonStockText = `${varonAvail.total} unids en stock`;
+        sizeDetails = `*Tallas (Par de Aros):*%0A- Talla Dama: ${selectedSizeDama}${isAdmin ? ` (${damaStockText})` : ""}%0A- Talla Varón: ${selectedSizeVaron}${isAdmin ? ` (${varonStockText})` : ""}%0A`;
       }
     } else if (targetGender === "varon") {
       if (selectedSizeVaron === "asesor") {
         sizeDetails = `*Talla Varón:* EL CLIENTE SOLICITA ASESORAMIENTO DE MEDIDA%0A`;
       } else {
         const varonAvail = getSizeAvailability(productStock, "varon", selectedSizeVaron);
-        const varonStockText = isAdmin ? `${varonAvail.total} unids en stock` : (varonAvail.total > 0 ? "Disponible en stock" : "A pedido");
-        sizeDetails = `*Para:* Varón / Caballero%0A*Talla:* Talla ${selectedSizeVaron} (${varonStockText})%0A`;
+        const varonStockText = `${varonAvail.total} unids en stock`;
+        sizeDetails = `*Para:* Varón / Caballero%0A*Talla:* Talla ${selectedSizeVaron}${isAdmin ? ` (${varonStockText})` : ""}%0A`;
       }
     } else if (!isAccesorio) {
       if (selectedSizeDama === "asesor") {
         sizeDetails = `*Talla Dama:* EL CLIENTE SOLICITA ASESORAMIENTO DE MEDIDA%0A`;
       } else {
         const damaAvail = getSizeAvailability(productStock, "dama", selectedSizeDama);
-        const damaStockText = isAdmin ? `${damaAvail.total} unids en stock` : (damaAvail.total > 0 ? "Disponible en stock" : "A pedido");
-        sizeDetails = `*Para:* Mujer / Dama%0A*Talla:* Talla ${selectedSizeDama} (${damaStockText})%0A`;
+        const damaStockText = `${damaAvail.total} unids en stock`;
+        sizeDetails = `*Para:* Mujer / Dama%0A*Talla:* Talla ${selectedSizeDama}${isAdmin ? ` (${damaStockText})` : ""}%0A`;
       }
     }
 
@@ -842,8 +849,8 @@ export default function Product({ addToCart }) {
           ? `*Stock disponible:* ${currentTotalStock} unidades disponibles%0A*Tiempo de entrega:* ${deliveryDays} días hábiles (Listo aprox: ${deliveryDateFormatted})%0A`
           : `*Stock disponible:* ${currentTotalStock} unidades disponibles%0A`)
       : (shouldShowDelivery
-          ? `*Disponibilidad:* ${currentTotalStock > 0 ? "Disponible en stock" : "A pedido"}%0A*Tiempo de entrega:* ${deliveryDays} días hábiles (Listo aprox: ${deliveryDateFormatted})%0A`
-          : `*Disponibilidad:* ${currentTotalStock > 0 ? "Disponible en stock" : "A pedido"}%0A`);
+          ? `*Tiempo de entrega:* ${deliveryDays} días hábiles (Listo aprox: ${deliveryDateFormatted})%0A`
+          : "");
 
     const boxDetails = selectedPresentationObj
       ? `*Estuche:* ${selectedPresentationObj.name}${selectedPresentationObj.price > 0 ? ` (+S/. ${selectedPresentationObj.price})` : " (Incluido)"}%0A`
@@ -855,7 +862,7 @@ export default function Product({ addToCart }) {
         : ""
     }${boxDetails}${engravingDetails}${stockDetails}*Precio:* ${formatPrice(isCompromisoOrPromesa ? totalCompromisoPrice : currentGeneralPrice)}%0A%0A¿Podrían confirmarme la disponibilidad y cómo procedemos con la orden?`;
 
-    return `https://wa.me/51927357217?text=${text}`;
+    return `https://wa.me/${phone}?text=${text}`;
   };
 
   return (
@@ -863,7 +870,7 @@ export default function Product({ addToCart }) {
       {/* ========================================================
           1. BARRA DE PASOS SUPERIOR (CONFIGURATOR HEADER)
           ======================================================== */}
-      {!isCompromisoOrPromesa && (
+      {!isCompromisoOrPromesa && !isAccesorio && (
       <nav className="configurator-steps-header" aria-label="Progreso de configuración">
         <div className="configurator-steps-container">
           <div className="configurator-brand-tag">
@@ -1188,11 +1195,15 @@ export default function Product({ addToCart }) {
                 {formatPrice(isCompromisoOrPromesa ? displayedCompromisoPrice : displayedGeneralPrice)}
               </span>
             </div>
-            {isCompromisoOrPromesa && currentStep === 1 && (
-              <p className="config-product-description">
-                {fixMojibake(product.description || "Breve descripción del producto. Breve descripción. Breve descripción del producto. Breve descripción. Breve descripción del producto.")}
-              </p>
-            )}
+            <p className="config-product-description">
+              {fixMojibake(
+                product.description ||
+                product.subtitle ||
+                (isAros
+                  ? "Juego exclusivo de aros de boda y alianzas de amor elaborado artesanalmente en metales nobles con acabados finos, grabado personalizado y confort ergonómico de por vida."
+                  : "Pieza exclusiva de alta joyería Platino Perú elaborada artesanalmente con acabados finos y diseño excepcional.")
+              )}
+            </p>
           </div>
 
           {isCompromisoOrPromesa ? (
@@ -1201,6 +1212,7 @@ export default function Product({ addToCart }) {
               setCurrentStep={setCurrentStep}
               product={product}
               productStock={productStock}
+              isAdmin={isAdmin}
               selectedMetal={selectedMetal}
               handleSelectMetal={handleSelectMetal}
               currentMetalPrice={currentMetalPrice}
@@ -1222,6 +1234,327 @@ export default function Product({ addToCart }) {
               totalPrice={totalCompromisoPrice}
               onAddToCart={(options) => handleAddToCartDirect(options)}
             />
+          ) : isAccesorio ? (
+            <div className="accesorio-product-detail-view" style={{ display: "flex", flexDirection: "column" }}>
+              {/* SELECCIÓN DE METAL (SI TIENE MÁS DE 1 MATERIAL) */}
+              {product.availableMetals && product.availableMetals.length > 1 && (
+                <div style={{ marginBottom: "12px" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                    <span style={{ fontSize: "11px", fontWeight: "800", letterSpacing: "0.08em", color: "#0f2a24", textTransform: "uppercase" }}>
+                      SELECCIÓN DE METAL:
+                    </span>
+                    <span style={{ fontSize: "12px", color: "#55645c", fontWeight: "600" }}>{selectedMetal?.name}</span>
+                  </div>
+                  <div className="metal-swatches-row">
+                    {product.availableMetals.map((metal) => {
+                      const isSel = selectedMetal?.id === metal.id;
+                      return (
+                        <button
+                          key={metal.id}
+                          type="button"
+                          className={`metal-swatch-circle ${isSel ? "selected" : ""}`}
+                          style={{ background: metal.color, borderColor: metal.border }}
+                          onClick={() => handleSelectMetal(metal)}
+                          title={metal.name}
+                          aria-label={`Seleccionar material ${metal.name}`}
+                        />
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* CORTESÍA PLATINO PERÚ */}
+              <div className="cortesia-platino-section" style={{ borderTop: "1px solid #f1ece4", paddingTop: "14px", marginTop: "10px", marginBottom: "16px" }}>
+                <h4 className="cortesia-platino-title" style={{ fontSize: "11px", fontWeight: "800", letterSpacing: "0.08em", color: "#0f2a24", textTransform: "uppercase", margin: "0 0 10px 0" }}>
+                  CORTESÍA PLATINO PERÚ
+                </h4>
+                <ul className="cortesia-platino-list" style={{ listStyle: "none", padding: 0, margin: 0, display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <li style={{ fontSize: "12.5px", color: "#334155", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span className="bullet-gold" style={{ color: "#c5a059", fontSize: "11px" }}>●</span> Estuche para la pieza
+                  </li>
+                  <li style={{ fontSize: "12.5px", color: "#334155", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span className="bullet-gold" style={{ color: "#c5a059", fontSize: "11px" }}>●</span> Paño de limpieza
+                  </li>
+                  <li style={{ fontSize: "12.5px", color: "#334155", display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span className="bullet-gold" style={{ color: "#c5a059", fontSize: "11px" }}>●</span> Presentación de regalo de la marca
+                  </li>
+                </ul>
+              </div>
+
+              {/* OPCIONES DE PRESENTACIÓN */}
+              {presentationOptionsList && presentationOptionsList.length > 0 && (
+                <div className="presentation-select-section" style={{ marginTop: "6px", marginBottom: "16px" }}>
+                  <h4 className="presentation-section-title" style={{ fontSize: "11px", fontWeight: "800", letterSpacing: "0.08em", color: "#0f2a24", textTransform: "uppercase", margin: "0 0 10px 0" }}>
+                    OPCIONES DE PRESENTACIÓN:
+                  </h4>
+                  <select
+                    value={selectedPresentation}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setSelectedPresentation(val);
+                      const found = presentationOptionsList.find((opt) => opt.id === val);
+                      if (found?.image) {
+                        setMainImage(getAssetUrl(found.image));
+                      }
+                    }}
+                    className="select-presentation-dropdown-clean"
+                    style={{
+                      width: "100%",
+                      padding: "10px 14px",
+                      border: "1px solid #d5ded9",
+                      borderRadius: "8px",
+                      background: "#ffffff",
+                      fontSize: "12.5px",
+                      color: "#1e293b",
+                      cursor: "pointer",
+                    }}
+                  >
+                    {presentationOptionsList.map((opt) => (
+                      <option key={opt.id} value={opt.id}>
+                        {opt.name} {opt.price > 0 ? `(+S/. ${opt.price})` : "(Incluido de Cortesía)"}
+                      </option>
+                    ))}
+                  </select>
+
+                  <div
+                    className="presentation-preview-card"
+                    style={{
+                      background: "#ffffff",
+                      border: "1.5px solid #ece4d8",
+                      borderRadius: "14px",
+                      padding: "12px 14px",
+                      display: "flex",
+                      gap: "14px",
+                      alignItems: "center",
+                      marginTop: "12px",
+                      boxShadow: "0 2px 8px rgba(15, 42, 36, 0.04)",
+                    }}
+                  >
+                    <div
+                      className="presentation-preview-thumb-wrap"
+                      style={{
+                        width: "85px",
+                        height: "85px",
+                        borderRadius: "10px",
+                        position: "relative",
+                        overflow: "hidden",
+                        flexShrink: 0,
+                        background: "#f8fafc",
+                        border: "1px solid #e2e8f0",
+                      }}
+                    >
+                      <img
+                        src={getAssetUrl(selectedPresentationObj?.image || "/images/detail-box-green.jpg")}
+                        alt={selectedPresentationObj?.name || "Estuche Platino"}
+                        className="presentation-preview-thumb"
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                      />
+                      <span
+                        className={`presentation-preview-tag ${(selectedPresentationObj?.price || 0) > 0 ? "extra" : "free"}`}
+                        style={{
+                          position: "absolute",
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          background: (selectedPresentationObj?.price || 0) > 0 ? "rgba(17, 59, 58, 0.9)" : "rgba(19, 119, 72, 0.9)",
+                          color: "#ffffff",
+                          fontSize: "9.5px",
+                          fontWeight: "700",
+                          textAlign: "center",
+                          padding: "2px 4px",
+                        }}
+                      >
+                        {(selectedPresentationObj?.price || 0) > 0 ? `+S/. ${selectedPresentationObj.price}` : "Incluido de Cortesía"}
+                      </span>
+                    </div>
+                    <div className="presentation-preview-body" style={{ flex: 1, minWidth: 0 }}>
+                      <div className="presentation-preview-title-row" style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                        <i className="bi bi-box-seam" style={{ color: "#c5a059", fontSize: "14px" }}></i>
+                        <strong className="presentation-preview-title" style={{ fontSize: "13px", color: "#0f2a24" }}>
+                          {selectedPresentationObj?.name || "Box Platino"}
+                        </strong>
+                      </div>
+                      <p className="presentation-preview-desc" style={{ fontSize: "11.5px", color: "#64748b", margin: "4px 0 8px", lineHeight: "1.35" }}>
+                        {selectedPresentationObj?.description || "Estuche de presentación oficial Platino Perú de alta gama con interiores acolchados y acabados finos."}
+                      </p>
+                      <button
+                        type="button"
+                        className="btn-view-preview-main"
+                        style={{
+                          fontSize: "11px",
+                          padding: "4px 10px",
+                          borderRadius: "20px",
+                          border: "1px solid #cbd5e1",
+                          background: "#f8fafc",
+                          color: "#475467",
+                          cursor: "pointer",
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: "5px",
+                          fontWeight: "600",
+                        }}
+                        onClick={() => {
+                          if (selectedPresentationObj?.image) {
+                            setMainImage(getAssetUrl(selectedPresentationObj.image));
+                          }
+                        }}
+                        title="Ver fotografía de la caja en el visor principal"
+                      >
+                        <i className="bi bi-eye"></i>
+                        <span>Ver en visor principal</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* REALIZAR PEDIDO VÍA WHATSAPP (SEDES LIMA CENTRO Y MIRAFLORES) */}
+              <div
+                className="whatsapp-direct-sedes-card"
+                style={{
+                  background: "#f0fdf4",
+                  border: "1px solid #bbf7d0",
+                  borderRadius: "12px",
+                  padding: "12px 14px",
+                  marginTop: "8px",
+                  marginBottom: "8px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "6px", fontSize: "12.5px", fontWeight: "700", color: "#166534", marginBottom: "8px" }}>
+                  <i className="bi bi-whatsapp"></i>
+                  <span>Realizar pedido vía WhatsApp:</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
+                  <a
+                    href={getWhatsAppMessageUrl("lima-centro")}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      background: "#22c55e",
+                      color: "#ffffff",
+                      padding: "8px 12px",
+                      borderRadius: "20px",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      textDecoration: "none",
+                      boxShadow: "0 2px 6px rgba(34, 197, 94, 0.25)",
+                    }}
+                    title="Pedir vía WhatsApp con Sede Lima Centro"
+                  >
+                    <i className="bi bi-whatsapp"></i>
+                    <span>Lima Centro</span>
+                  </a>
+                  <a
+                    href={getWhatsAppMessageUrl("miraflores")}
+                    target="_blank"
+                    rel="noreferrer"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      background: "#15803d",
+                      color: "#ffffff",
+                      padding: "8px 12px",
+                      borderRadius: "20px",
+                      fontSize: "12px",
+                      fontWeight: "700",
+                      textDecoration: "none",
+                      boxShadow: "0 2px 6px rgba(21, 128, 61, 0.25)",
+                    }}
+                    title="Pedir vía WhatsApp con Sede Miraflores"
+                  >
+                    <i className="bi bi-whatsapp"></i>
+                    <span>Miraflores</span>
+                  </a>
+                </div>
+              </div>
+
+              {/* BOTONES DE ACCIÓN: VOLVER AL CATÁLOGO / AÑADIR AL CARRITO / FINALIZAR COMPRA */}
+              <div style={{ display: "flex", gap: "8px", alignItems: "center", marginTop: "12px", flexWrap: "wrap" }}>
+                <button
+                  type="button"
+                  onClick={handleGoBack}
+                  style={{
+                    flex: "1",
+                    minWidth: "120px",
+                    padding: "10px 14px",
+                    fontSize: "12px",
+                    fontWeight: "600",
+                    color: "#4b5563",
+                    background: "#ffffff",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "20px",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                  }}
+                  title="Volver al catálogo"
+                >
+                  <i className="bi bi-arrow-left"></i>
+                  <span>Volver al catálogo</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleAddToCartDirect({ openCartDrawer: true })}
+                  style={{
+                    flex: "1.2",
+                    minWidth: "140px",
+                    padding: "10px 14px",
+                    fontSize: "12px",
+                    fontWeight: "700",
+                    color: "#ffffff",
+                    background: "#c5a059",
+                    border: "none",
+                    borderRadius: "20px",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    boxShadow: "0 2px 8px rgba(197, 160, 89, 0.35)",
+                  }}
+                  title="Añadir esta joya a la bolsa"
+                >
+                  <i className="bi bi-bag"></i>
+                  <span>AÑADIR AL CARRITO</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleAddToCartDirect({ openCartDrawer: true })}
+                  style={{
+                    flex: "1.2",
+                    minWidth: "140px",
+                    padding: "10px 14px",
+                    fontSize: "12px",
+                    fontWeight: "700",
+                    color: "#ffffff",
+                    background: "#113B3A",
+                    border: "none",
+                    borderRadius: "20px",
+                    cursor: "pointer",
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                    boxShadow: "0 2px 8px rgba(17, 59, 58, 0.3)",
+                  }}
+                  title="Finalizar compra inmediata"
+                >
+                  <i className="bi bi-credit-card"></i>
+                  <span>FINALIZAR COMPRA</span>
+                </button>
+              </div>
+            </div>
           ) : (
             <>
 {/* ========================================================
@@ -1265,20 +1598,212 @@ export default function Product({ addToCart }) {
                 </div>
               )}
 
-              {/* 2. DESPRENDIMIENTO DIRECTO DE TALLAS */}
+              {/* 2. PREGUNTA Y SELECCIÓN DE TALLAS */}
               {!isAccesorio && (
                 <div className="config-block size-config-container">
-                  {isAros ? (
-                    /* Para Aros de Matrimonio y Alianzas: Ambas Tallas (Dama y Varón) */
-                    <div className="double-sizes-block">
-                      {/* Cabecera unificada y despejada */}
-                      <div className="config-block-header double-sizes-header-bar">
-                        <div className="double-sizes-header-title-box">
-                          <i className="bi bi-hearts" style={{ color: "#c5a059", fontSize: "16px" }}></i>
-                          <span className="config-block-title">Tallas del Par de Aros</span>
-                          <span className="double-sizes-header-badge">Dama & Varón</span>
+                  {/* Pregunta: ¿Conoces la talla de tu pareja? */}
+                  <div
+                    className="knows-size-question-container"
+                    style={{
+                      background: "#f8faf9",
+                      border: "1px solid #e2ece7",
+                      borderRadius: "14px",
+                      padding: "12px 16px",
+                      marginBottom: "14px",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      flexWrap: "wrap",
+                      gap: "10px",
+                    }}
+                  >
+                    <span style={{ fontSize: "13px", fontWeight: "700", color: "#0f2a24" }}>
+                      ¿Conoces la talla de tu pareja?
+                    </span>
+                    <div style={{ display: "inline-flex", alignItems: "center", gap: "18px" }}>
+                      <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: "600", color: "#1e293b", cursor: "pointer" }}>
+                        <input
+                          type="radio"
+                          name="productKnowsSize"
+                          checked={knowsSize === true}
+                          onChange={() => setKnowsSize(true)}
+                          style={{ accentColor: "#113B3A", width: "17px", height: "17px", cursor: "pointer" }}
+                        />
+                        <span>Sí</span>
+                      </label>
+                      <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: "600", color: "#1e293b", cursor: "pointer" }}>
+                        <input
+                          type="radio"
+                          name="productKnowsSize"
+                          checked={knowsSize === false}
+                          onChange={() => {
+                            setKnowsSize(false);
+                            setSelectedSizeDama("asesor");
+                            setSelectedSizeVaron("asesor");
+                          }}
+                          style={{ accentColor: "#113B3A", width: "17px", height: "17px", cursor: "pointer" }}
+                        />
+                        <span>No</span>
+                      </label>
+                    </div>
+                  </div>
+
+                  {knowsSize ? (
+                    isAros ? (
+                      /* Para Aros de Matrimonio y Alianzas: Ambas Tallas (Dama y Varón) */
+                      <div className="double-sizes-block">
+                        {/* Cabecera unificada y despejada */}
+                        <div className="config-block-header double-sizes-header-bar">
+                          <div className="double-sizes-header-title-box">
+                            <i className="bi bi-hearts" style={{ color: "#c5a059", fontSize: "16px" }}></i>
+                            <span className="config-block-title">Tallas del Par de Aros</span>
+                            <span className="double-sizes-header-badge">Dama & Varón</span>
+                          </div>
+                          <div className="double-sizes-header-actions">
+                            <button
+                              type="button"
+                              className="link-guia-tallas"
+                              onClick={() => {
+                                setSizeGuideTab("dama");
+                                setSizeGuideOpen(true);
+                              }}
+                            >
+                              <i className="bi bi-rulers"></i> Guía de Tallas
+                            </button>
+                          </div>
                         </div>
-                        <div className="double-sizes-header-actions">
+
+                        {/* Selectores lado a lado con diseño aireado */}
+                        <div className="double-selects-grid">
+                          <div className="double-select-col">
+                            <label className="double-select-label">
+                              <span className="double-select-gender-pill dama">
+                                <i className="bi bi-gender-female"></i> Dama
+                              </span>
+                              <span className="double-select-range-hint">Medida 05 al 27</span>
+                            </label>
+                            <select
+                              value={selectedSizeDama}
+                              onChange={(e) => setSelectedSizeDama(e.target.value)}
+                              className="select-talla-dropdown"
+                            >
+                              <option value="asesor">¿No sabes tu talla? Solicitar asesoramiento de medida</option>
+                              {DAMA_SIZES.map((sz) => {
+                                const avail = getSizeAvailability(productStock, "dama", sz.number);
+                                return (
+                                  <option key={sz.number} value={sz.number}>
+                                    {sz.label}{isAdmin ? ` · ${avail.total > 0 ? `${avail.total} ${avail.total === 1 ? "unidad" : "unidades"}` : "Sin stock"}` : ""}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </div>
+
+                          <div className="double-select-col">
+                            <label className="double-select-label">
+                              <span className="double-select-gender-pill varon">
+                                <i className="bi bi-gender-male"></i> Varón
+                              </span>
+                              <span className="double-select-range-hint">Medida 10 al 37</span>
+                            </label>
+                            <select
+                              value={selectedSizeVaron}
+                              onChange={(e) => setSelectedSizeVaron(e.target.value)}
+                              className="select-talla-dropdown"
+                            >
+                              <option value="asesor">¿No sabes tu talla? Solicitar asesoramiento de medida</option>
+                              {VARON_SIZES.map((sz) => {
+                                const avail = getSizeAvailability(productStock, "varon", sz.number);
+                                return (
+                                  <option key={sz.number} value={sz.number}>
+                                    {sz.label}{isAdmin ? ` · ${avail.total > 0 ? `${avail.total} ${avail.total === 1 ? "unidad" : "unidades"}` : "Sin stock"}` : ""}
+                                  </option>
+                                );
+                              })}
+                            </select>
+                          </div>
+                        </div>
+
+                        <p className="size-price-note" style={{ marginTop: "10px", marginBottom: "14px" }}>
+                          *Precio válido de la web: Tallas Americanas (4 al 8) o Tallas Nacionales (8 al 17). Otras medidas consulta para la cotización
+                        </p>
+
+                        {/* Stock Resumen Solo para Administradores */}
+                        {isAdmin && (
+                          <div className="double-stock-cards-container">
+                            <div className="double-stock-single-card">
+                              <div className="double-stock-pill-row">
+                                <span className="double-stock-dot dama"></span>
+                                <span className="double-stock-item-title">Aro Dama (Talla {selectedSizeDama})</span>
+                              </div>
+                              {selectedSizeDama === "asesor" ? (
+                                <span className="double-stock-badge-text advisor">
+                                  <i className="bi bi-info-circle"></i> Asesoría de medida solicitada
+                                </span>
+                              ) : (() => {
+                                const av = getSizeAvailability(productStock, "dama", selectedSizeDama);
+                                return av.total > 0 ? (
+                                  <div className="double-stock-info-wrap">
+                                    <span className={`double-stock-status-pill ${av.total <= 2 ? "low" : "ok"}`}>
+                                      <i className="bi bi-check2-circle"></i>
+                                      <span>Stock total</span>
+                                      <strong className="stock-count-number">{av.total}</strong>
+                                      <span>{av.total === 1 ? "unidad" : "unidades"}</span>
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="double-stock-badge-text order">
+                                    <span className="double-stock-status-pill out">
+                                      <i className="bi bi-clock-history"></i>
+                                      <span>Stock total</span>
+                                      <strong className="stock-count-number">0</strong>
+                                      <span>unidades</span>
+                                    </span>
+                                  </span>
+                                );
+                              })()}
+                            </div>
+
+                            <div className="double-stock-single-card">
+                              <div className="double-stock-pill-row">
+                                <span className="double-stock-dot varon"></span>
+                                <span className="double-stock-item-title">Aro Varón (Talla {selectedSizeVaron})</span>
+                              </div>
+                              {selectedSizeVaron === "asesor" ? (
+                                <span className="double-stock-badge-text advisor">
+                                  <i className="bi bi-info-circle"></i> Asesoría de medida solicitada
+                                </span>
+                              ) : (() => {
+                                const av = getSizeAvailability(productStock, "varon", selectedSizeVaron);
+                                return av.total > 0 ? (
+                                  <div className="double-stock-info-wrap">
+                                    <span className={`double-stock-status-pill ${av.total <= 2 ? "low" : "ok"}`}>
+                                      <i className="bi bi-check2-circle"></i>
+                                      <span>Stock total</span>
+                                      <strong className="stock-count-number">{av.total}</strong>
+                                      <span>{av.total === 1 ? "unidad" : "unidades"}</span>
+                                    </span>
+                                  </div>
+                                ) : (
+                                  <span className="double-stock-badge-text order">
+                                    <span className="double-stock-status-pill out">
+                                      <i className="bi bi-clock-history"></i>
+                                      <span>Stock total</span>
+                                      <strong className="stock-count-number">0</strong>
+                                      <span>unidades</span>
+                                    </span>
+                                  </span>
+                                );
+                              })()}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      /* Para Anillos Solitarios o Casuales */
+                      <div className="size-dropdown-section">
+                        <div className="config-block-header">
+                          <span className="config-block-title">Talla Dama (05 al 27)</span>
                           <button
                             type="button"
                             className="link-guia-tallas"
@@ -1290,231 +1815,97 @@ export default function Product({ addToCart }) {
                             <i className="bi bi-rulers"></i> Guía de Tallas
                           </button>
                         </div>
-                      </div>
-
-                      {/* Selectores lado a lado con diseño aireado */}
-                      <div className="double-selects-grid">
-                        <div className="double-select-col">
-                          <label className="double-select-label">
-                            <span className="double-select-gender-pill dama">
-                              <i className="bi bi-gender-female"></i> Dama
-                            </span>
-                            <span className="double-select-range-hint">Medida 05 al 27</span>
-                          </label>
-                          <select
-                            value={selectedSizeDama}
-                            onChange={(e) => setSelectedSizeDama(e.target.value)}
-                            className="select-talla-dropdown"
-                          >
-                            <option value="asesor">¿No sabes tu talla? Solicitar asesoramiento de medida</option>
-                            {DAMA_SIZES.map((sz) => {
-                              const avail = getSizeAvailability(productStock, "dama", sz.number);
-                              return (
-                                <option key={sz.number} value={sz.number} disabled={avail.total === 0}>
-                                  {sz.label} · {avail.total > 0 ? `${avail.total} ${avail.total === 1 ? "unidad" : "unidades"}` : "Sin stock"}
-                                </option>
-                              );
-                            })}
-                          </select>
-                        </div>
-
-                        <div className="double-select-col">
-                          <label className="double-select-label">
-                            <span className="double-select-gender-pill varon">
-                              <i className="bi bi-gender-male"></i> Varón
-                            </span>
-                            <span className="double-select-range-hint">Medida 10 al 37</span>
-                          </label>
-                          <select
-                            value={selectedSizeVaron}
-                            onChange={(e) => setSelectedSizeVaron(e.target.value)}
-                            className="select-talla-dropdown"
-                          >
-                            <option value="asesor">¿No sabes tu talla? Solicitar asesoramiento de medida</option>
-                            {VARON_SIZES.map((sz) => {
-                              const avail = getSizeAvailability(productStock, "varon", sz.number);
-                              return (
-                                <option key={sz.number} value={sz.number} disabled={avail.total === 0}>
-                                  {sz.label} · {avail.total > 0 ? `${avail.total} ${avail.total === 1 ? "unidad" : "unidades"}` : "Sin stock"}
-                                </option>
-                              );
-                            })}
-                          </select>
-                        </div>
-                      </div>
-
-                      {/* Banner de Asesoría de Medida Unificado a todo el ancho */}
-                      <div className="size-advice-whatsapp-box" style={{ marginTop: "12px", marginBottom: "8px" }}>
-                        <div className="size-advice-whatsapp-text">
-                          <i className="bi bi-question-circle"></i>
-                          <span>¿No están seguros de la medida exacta? Elige tu sede para asesoramiento:</span>
-                        </div>
-                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", width: "100%", marginTop: "6px" }}>
-                          <a
-                            href={`https://wa.me/51927357217?text=${encodeURIComponent(`¡Hola Platino Perú (Sede Lima Centro)! Deseo recibir asesoramiento sobre las medidas de las alianzas *${product.name}* en ${selectedMetal?.name || "Platino"}.`)}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="btn-size-whatsapp"
-                            style={{ flex: 1, minWidth: "140px", justifyContent: "center" }}
-                            title="Asesoría vía WhatsApp con Sede Lima Centro"
-                          >
-                            <i className="bi bi-whatsapp"></i>
-                            <span>Lima Centro</span>
-                          </a>
-                          <a
-                            href={`https://wa.me/51984281116?text=${encodeURIComponent(`¡Hola Platino Perú (Sede Miraflores)! Deseo recibir asesoramiento sobre las medidas de las alianzas *${product.name}* en ${selectedMetal?.name || "Platino"}.`)}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="btn-size-whatsapp"
-                            style={{ flex: 1, minWidth: "140px", justifyContent: "center", background: "#15803d" }}
-                            title="Asesoría vía WhatsApp con Sede Miraflores"
-                          >
-                            <i className="bi bi-whatsapp"></i>
-                            <span>Miraflores</span>
-                          </a>
-                        </div>
-                      </div>
-
-                      <p className="size-price-note" style={{ marginBottom: "14px" }}>
-                        *Precio válido de la web: Tallas Americanas (4 al 8) o Tallas Nacionales (8 al 17). Otras medidas consulta para la cotización
-                      </p>
-
-                      {/* Stock Resumen Elegante para Ambos Aros */}
-                      <div className="double-stock-cards-container">
-                        <div className="double-stock-single-card">
-                          <div className="double-stock-pill-row">
-                            <span className="double-stock-dot dama"></span>
-                            <span className="double-stock-item-title">Aro Dama (Talla {selectedSizeDama})</span>
-                          </div>
-                          {selectedSizeDama === "asesor" ? (
-                            <span className="double-stock-badge-text advisor">
-                              <i className="bi bi-info-circle"></i> Asesoría de medida solicitada
-                            </span>
-                          ) : (() => {
-                            const av = getSizeAvailability(productStock, "dama", selectedSizeDama);
-                            return av.total > 0 ? (
-                              <div className="double-stock-info-wrap">
-                                <span className={`double-stock-status-pill ${av.total <= 2 ? "low" : "ok"}`}>
-                                  <i className="bi bi-check2-circle"></i>
-                                  <span>Stock total</span>
-                                  <strong className="stock-count-number">{av.total}</strong>
-                                  <span>{av.total === 1 ? "unidad" : "unidades"}</span>
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="double-stock-badge-text order">
-                                <span className="double-stock-status-pill out">
-                                  <i className="bi bi-clock-history"></i>
-                                  <span>Stock total</span>
-                                  <strong className="stock-count-number">0</strong>
-                                  <span>unidades</span>
-                                </span>
-                              </span>
-                            );
-                          })()}
-                        </div>
-
-                        <div className="double-stock-single-card">
-                          <div className="double-stock-pill-row">
-                            <span className="double-stock-dot varon"></span>
-                            <span className="double-stock-item-title">Aro Varón (Talla {selectedSizeVaron})</span>
-                          </div>
-                          {selectedSizeVaron === "asesor" ? (
-                            <span className="double-stock-badge-text advisor">
-                              <i className="bi bi-info-circle"></i> Asesoría de medida solicitada
-                            </span>
-                          ) : (() => {
-                            const av = getSizeAvailability(productStock, "varon", selectedSizeVaron);
-                            return av.total > 0 ? (
-                              <div className="double-stock-info-wrap">
-                                <span className={`double-stock-status-pill ${av.total <= 2 ? "low" : "ok"}`}>
-                                  <i className="bi bi-check2-circle"></i>
-                                  <span>Stock total</span>
-                                  <strong className="stock-count-number">{av.total}</strong>
-                                  <span>{av.total === 1 ? "unidad" : "unidades"}</span>
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="double-stock-badge-text order">
-                                <span className="double-stock-status-pill out">
-                                  <i className="bi bi-clock-history"></i>
-                                  <span>Stock total</span>
-                                  <strong className="stock-count-number">0</strong>
-                                  <span>unidades</span>
-                                </span>
-                              </span>
-                            );
-                          })()}
-                        </div>
-                      </div>
-                    </div>
-                  ) : (
-                    /* Para Anillos de Compromiso, Promesa y Solitarios: Talla Dama de Frente */
-                    <div className="size-dropdown-section">
-                      <div className="config-block-header">
-                        <span className="config-block-title">Talla Dama (05 al 27)</span>
-                        <button
-                          type="button"
-                          className="link-guia-tallas"
-                          onClick={() => {
-                            setSizeGuideTab("dama");
-                            setSizeGuideOpen(true);
-                          }}
+                        <select
+                          value={selectedSizeDama}
+                          onChange={(e) => setSelectedSizeDama(e.target.value)}
+                          className="select-talla-dropdown"
                         >
-                          <i className="bi bi-rulers"></i> Guía de Tallas
-                        </button>
-                      </div>
-                      <select
-                        value={selectedSizeDama}
-                        onChange={(e) => setSelectedSizeDama(e.target.value)}
-                        className="select-talla-dropdown"
-                      >
-                        <option value="asesor">¿No sabes tu talla? Solicitar asesoramiento de medida</option>
-                        {DAMA_SIZES.map((sz) => {
-                          const avail = getSizeAvailability(productStock, "dama", sz.number);
-                          return (
-                            <option key={sz.number} value={sz.number} disabled={avail.total === 0}>
-                              {sz.label} · {avail.total > 0 ? `${avail.total} ${avail.total === 1 ? "unidad" : "unidades"}` : "Sin stock"}
-                            </option>
-                          );
-                        })}
-                      </select>
+                          <option value="asesor">¿No sabes tu talla? Solicitar asesoramiento de medida</option>
+                          {DAMA_SIZES.map((sz) => {
+                            const avail = getSizeAvailability(productStock, "dama", sz.number);
+                            return (
+                              <option key={sz.number} value={sz.number}>
+                                {sz.label}{isAdmin ? ` · ${avail.total > 0 ? `${avail.total} ${avail.total === 1 ? "unidad" : "unidades"}` : "Sin stock"}` : ""}
+                              </option>
+                            );
+                          })}
+                        </select>
 
-                      <div className="size-advice-whatsapp-box" style={{ marginTop: "12px", marginBottom: "8px" }}>
-                        <div className="size-advice-whatsapp-text">
-                          <i className="bi bi-question-circle"></i>
-                          <span>¿No estás seguro de la talla? Elige tu sede para asesoramiento:</span>
-                        </div>
-                        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", width: "100%", marginTop: "6px" }}>
-                          <a
-                            href={`https://wa.me/51927357217?text=${encodeURIComponent(`¡Hola Platino Perú (Sede Lima Centro)! Deseo recibir asesoramiento sobre la medida y talla exacta para la joya *${product.name}* en ${selectedMetal?.name || "Platino"}.`)}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="btn-size-whatsapp"
-                            style={{ flex: 1, minWidth: "140px", justifyContent: "center" }}
-                            title="Asesoría vía WhatsApp con Sede Lima Centro"
-                          >
-                            <i className="bi bi-whatsapp"></i>
-                            <span>Lima Centro</span>
-                          </a>
-                          <a
-                            href={`https://wa.me/51984281116?text=${encodeURIComponent(`¡Hola Platino Perú (Sede Miraflores)! Deseo recibir asesoramiento sobre la medida y talla exacta para la joya *${product.name}* en ${selectedMetal?.name || "Platino"}.`)}`}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="btn-size-whatsapp"
-                            style={{ flex: 1, minWidth: "140px", justifyContent: "center", background: "#15803d" }}
-                            title="Asesoría vía WhatsApp con Sede Miraflores"
-                          >
-                            <i className="bi bi-whatsapp"></i>
-                            <span>Miraflores</span>
-                          </a>
-                        </div>
+                        <p className="size-price-note" style={{ marginTop: "10px", marginBottom: "14px" }}>
+                          *Precio válido de la web: Tallas Americanas (4 al 8) o Tallas Nacionales (8 al 17). Otras medidas consulta para la cotización
+                        </p>
                       </div>
-
-                      <p className="size-price-note" style={{ marginBottom: "14px" }}>
-                        *Precio válido de la web: Tallas Americanas (4 al 8) o Tallas Nacionales (8 al 17). Otras medidas consulta para la cotización
+                    )
+                  ) : (
+                    /* En el caso de decir que NO: Sale el aviso de WhatsApp */
+                    <div
+                      className="size-advice-whatsapp-box-clean"
+                      style={{
+                        background: "#f0fdf4",
+                        border: "1.5px solid #bbf7d0",
+                        borderRadius: "14px",
+                        padding: "14px 16px",
+                        marginTop: "6px",
+                        marginBottom: "14px",
+                      }}
+                    >
+                      <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#166534", fontSize: "13px", fontWeight: "700", marginBottom: "10px" }}>
+                        <i className="bi bi-question-circle-fill"></i>
+                        <span>¿No estás seguro de tu talla? Recibe asesoría por WhatsApp</span>
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                        <a
+                          href={`https://wa.me/51927357217?text=${encodeURIComponent(`¡Hola Platino Perú (Sede Lima Centro)! Deseo recibir asesoramiento sobre las medidas para el modelo *${product.name}* en ${selectedMetal?.name || "Platino"}.`)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn-size-whatsapp"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "6px",
+                            background: "#22c55e",
+                            color: "#ffffff",
+                            padding: "10px 14px",
+                            borderRadius: "20px",
+                            fontSize: "12.5px",
+                            fontWeight: "700",
+                            textDecoration: "none",
+                            boxShadow: "0 2px 6px rgba(34, 197, 94, 0.25)",
+                          }}
+                          title="Asesoría vía WhatsApp con Sede Lima Centro"
+                        >
+                          <i className="bi bi-whatsapp"></i>
+                          <span>Lima Centro</span>
+                        </a>
+                        <a
+                          href={`https://wa.me/51927943262?text=${encodeURIComponent(`¡Hola Platino Perú (Sede Miraflores)! Deseo recibir asesoramiento sobre las medidas para el modelo *${product.name}* en ${selectedMetal?.name || "Platino"}.`)}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="btn-size-whatsapp"
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            gap: "6px",
+                            background: "#15803d",
+                            color: "#ffffff",
+                            padding: "10px 14px",
+                            borderRadius: "20px",
+                            fontSize: "12.5px",
+                            fontWeight: "700",
+                            textDecoration: "none",
+                            boxShadow: "0 2px 6px rgba(21, 128, 61, 0.25)",
+                          }}
+                          title="Asesoría vía WhatsApp con Sede Miraflores"
+                        >
+                          <i className="bi bi-whatsapp"></i>
+                          <span>Miraflores</span>
+                        </a>
+                      </div>
+                      <p style={{ fontSize: "11.5px", color: "#166534", margin: "10px 0 0 0", fontStyle: "italic", lineHeight: "1.4" }}>
+                        *Para este modelo si no hay tallas pequeñas o intermedias debes tener asesoría en WhatsApp
                       </p>
-
                     </div>
                   )}
                 </div>
@@ -1564,9 +1955,11 @@ export default function Product({ addToCart }) {
                       {deliveryDays === 7 ? (
                         <>
                           <span>Tiempo de Entrega: 7 Días Hábiles</span>
-                          <span style={{ fontSize: "11px", background: "#fef3c7", color: "#92400e", padding: "1px 8px", borderRadius: "10px", fontWeight: "700" }}>
-                            Stock de 2 Unidades
-                          </span>
+                          {isAdmin && (
+                            <span style={{ fontSize: "11px", background: "#fef3c7", color: "#92400e", padding: "1px 8px", borderRadius: "10px", fontWeight: "700" }}>
+                              Stock de 2 Unidades
+                            </span>
+                          )}
                         </>
                       ) : (
                         <>
@@ -1658,10 +2051,10 @@ export default function Product({ addToCart }) {
                             onClick={() => setSelectedGemType(gem)}
                           >
                             <div className="gem-type-icon">
-                              <DiamondCutIcon shape={selectedGemShape?.id || product?.gemShape || "redondo"} size={30} />
+                              <DiamondCutIcon shape={gem.shape || gem.corte || (gem.subtitle && ["oval","esmeralda","pera","marquesa","princesa","cojin","cojín","corazon","corazón","radiante","asscher","baguette","trillante","redondo"].find(s => gem.subtitle.toLowerCase().includes(s))?.replace("í","i")?.replace("ó","o")) || selectedGemShape?.id || product?.gemShape || product?.defaultGemShape || "redondo"} size={30} />
                             </div>
                             <div className="gem-type-cut-strip">
-                              CORTE {(selectedGemShape?.name || product?.gemShape || "REDONDO").toUpperCase()} | {product?.gemDimensions || "6.0mm"}
+                              {gem.cutLabel && gem.cutLabel.trim() ? gem.cutLabel.trim().toUpperCase() : `CORTE ${(gem.shape || gem.corte || (gem.subtitle && ["oval","esmeralda","pera","marquesa","princesa","cojin","cojín","corazon","corazón","radiante","asscher","baguette","trillante","redondo"].find(s => gem.subtitle.toLowerCase().includes(s))?.replace("í","i")?.replace("ó","o")) || selectedGemShape?.name || product?.gemShape || product?.defaultGemShape || "REDONDO").toUpperCase()} | ${gem.dimensions || gem.medidas || product?.gemDimensions || "6.0mm"}`}
                             </div>
                             <h4 className="gem-type-name">{gem.name}</h4>
                             {gem.subtitle && <span className="gem-type-subtitle">{gem.subtitle}</span>}
@@ -2150,9 +2543,11 @@ export default function Product({ addToCart }) {
                   <strong>Grabado:</strong> Sí solicita (Personalización por WhatsApp)
                 </div>
               )}
-              <div>
-                <strong>Stock Disponible:</strong> {isAdmin ? `${currentTotalStock} ${currentTotalStock === 1 ? "unidad" : "unidades"}` : (currentTotalStock > 0 ? "Disponible en stock" : "Disponible a pedido")}
-              </div>
+              {isAdmin && (
+                <div>
+                  <strong>Stock Disponible:</strong> {`${currentTotalStock} ${currentTotalStock === 1 ? "unidad" : "unidades"}`}
+                </div>
+              )}
               {shouldShowDelivery && (
                 <div>
                   <strong>Plazo de Entrega:</strong>{" "}
@@ -2382,7 +2777,7 @@ export default function Product({ addToCart }) {
                     <th style={{ padding: "10px 12px", fontWeight: "700" }}>Talla Oficial</th>
                     <th style={{ padding: "10px 12px", fontWeight: "700" }}>Diámetro Interior</th>
                     <th style={{ padding: "10px 12px", fontWeight: "700" }}>Circunferencia</th>
-                    <th style={{ padding: "10px 12px", fontWeight: "700" }}>Disponibilidad en Stock</th>
+                    {isAdmin && <th style={{ padding: "10px 12px", fontWeight: "700" }}>Disponibilidad en Stock</th>}
                   </tr>
                 </thead>
                 <tbody>
@@ -2399,17 +2794,19 @@ export default function Product({ addToCart }) {
                         <td style={{ padding: "9px 12px", color: "#55645c" }}>
                           {sz.circumference}
                         </td>
-                        <td style={{ padding: "9px 12px" }}>
-                          {av.total > 0 ? (
-                            <span style={{ color: "#137748", fontWeight: "600", fontSize: "11px" }}>
-                              <i className="bi bi-check-circle-fill"></i> {isAdmin ? `${av.total} ${av.total === 1 ? "unidad disponible" : "unidades disponibles"}` : "Disponible en stock"}
-                            </span>
-                          ) : (
-                            <span style={{ color: "#8a9690", fontSize: "11px" }}>
-                              A pedido (Fabricación)
-                            </span>
-                          )}
-                        </td>
+                        {isAdmin && (
+                          <td style={{ padding: "9px 12px" }}>
+                            {av.total > 0 ? (
+                              <span style={{ color: "#137748", fontWeight: "600", fontSize: "11px" }}>
+                                <i className="bi bi-check-circle-fill"></i> {av.total} {av.total === 1 ? "unidad disponible" : "unidades disponibles"}
+                              </span>
+                            ) : (
+                              <span style={{ color: "#8a9690", fontSize: "11px" }}>
+                                Sin stock
+                              </span>
+                            )}
+                          </td>
+                        )}
                       </tr>
                     );
                   })}
@@ -2616,7 +3013,7 @@ export default function Product({ addToCart }) {
                     <span>Lima Centro</span>
                   </a>
                   <a
-                    href={`https://wa.me/51984281116?text=${encodeURIComponent(`Hola Platino Perú (Sede Miraflores), necesito asesoramiento de medida para el anillo "${product.name}". ¿Podrían orientarme sobre cómo determinar la talla correcta?`)}`}
+                    href={`https://wa.me/51927943262?text=${encodeURIComponent(`Hola Platino Perú (Sede Miraflores), necesito asesoramiento de medida para el anillo "${product.name}". ¿Podrían orientarme sobre cómo determinar la talla correcta?`)}`}
                     target="_blank"
                     rel="noreferrer"
                     className="btn-book-submit"
@@ -2825,7 +3222,7 @@ export default function Product({ addToCart }) {
                       Av. José Larco 345 (Multicentro)
                     </div>
                     <div style={{ fontSize: "11.5px", fontWeight: "700", color: "#166534", marginTop: "2px" }}>
-                      <i className="bi bi-whatsapp"></i> 984 281 116
+                      <i className="bi bi-whatsapp"></i> 927 943 262
                     </div>
                   </div>
                 </div>

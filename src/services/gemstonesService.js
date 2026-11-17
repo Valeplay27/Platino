@@ -7,6 +7,45 @@
  * Retorna el texto legible del número de certificado para mostrar en pantalla.
  * Si certNumber era una URL completa, extrae el nombre de archivo o código.
  */
+/**
+ * Detecta con certeza si un artículo es una Gema/Diamante suelto (no una joya montada como anillo, aro o arete)
+ */
+export const isItemGemstone = (item) => {
+  if (!item) return false;
+  if (item.isGemstone === true || item.category === "gemas") return true;
+
+  const name = (item.name || "").toLowerCase();
+
+  // Si explícitamente es una pieza de orfebrería montada, no es una gema suelta
+  const isJewelryPiece =
+    name.includes("anillo") ||
+    name.includes("aro") ||
+    name.includes("solitario") ||
+    name.includes("aretes") ||
+    name.includes("arete") ||
+    name.includes("dije") ||
+    name.includes("pulsera") ||
+    name.includes("collar") ||
+    name.includes("churumbela") ||
+    name.includes("alianza");
+
+  if (isJewelryPiece) return false;
+
+  // Si contiene marcadores inequívocos de gemas sueltas
+  return (
+    name.includes("moissanit") || // Moissanite o Moissanita
+    name.includes("diamante") ||
+    name.includes("gema") ||
+    name.includes("zafiro") ||
+    name.includes("rubi") ||
+    name.includes("rubí") ||
+    name.includes("esmeralda") ||
+    name.includes("topacio") ||
+    name.includes("aguamarina") ||
+    Boolean(item.carat && item.certNumber)
+  );
+};
+
 export const getGemCertificateDisplay = (gem) => {
   if (!gem) return "";
   const raw = (gem.certNumber || "").trim().replace(/\s*\([^\)]*l[aá]ser[^\)]*\)/gi, "").trim();
@@ -296,6 +335,39 @@ export const toggleGemstoneStock = (id) => {
 
   saveStoredGemstones([...current]);
   return current[index].inStock;
+};
+
+/**
+ * Disminuye el stock de una gema cuando se realiza una compra
+ */
+export const decrementGemstoneStock = (itemOrId, quantity = 1) => {
+  const current = getStoredGemstones();
+  const idOrKey = typeof itemOrId === "string" ? itemOrId : (itemOrId.cartItemId || itemOrId.id || itemOrId.certNumber || "");
+  const cleanId = idOrKey.replace(/^gem-/, "");
+
+  const index = current.findIndex((g) =>
+    g.id === cleanId ||
+    g.id === idOrKey ||
+    `gem-${g.id || g.certNumber || ""}` === idOrKey ||
+    (g.certNumber && g.certNumber === (itemOrId.certNumber || cleanId))
+  );
+
+  if (index === -1) return null;
+
+  const currentUnits = Number(current[index].units || 0);
+  const qtyNum = Number(quantity || 1);
+  const newUnits = Math.max(0, currentUnits - qtyNum);
+  const inStock = newUnits > 0;
+
+  current[index] = normalizeGemstone({
+    ...current[index],
+    units: newUnits,
+    inStock,
+    updatedAt: new Date().toISOString(),
+  });
+
+  saveStoredGemstones([...current]);
+  return current[index];
 };
 
 /**

@@ -13,7 +13,7 @@ export const PROVEEDOR_INFO = {
       id: "miraflores",
       nombre: "Sede Miraflores",
       direccion: "Av. José Larco 345 Tda S-9, Miraflores, Lima",
-      telefono: "+51 984 281 116",
+      telefono: "+51 927 943 262",
     },
     {
       id: "lima-centro",

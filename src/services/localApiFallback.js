@@ -275,13 +275,18 @@ export function handleLocalApiFallback(rawPath, { method = "GET", body } = {}) {
   }
 
   // 9. Pedidos, Citas, Reclamaciones, Platino Care en modo local
-  if (path === "/orders" && upperMethod === "GET") {
+  if ((path === "/orders" || path === "/public/orders") && upperMethod === "GET") {
     return { orders: readNamespace("orders", []) || [] };
   }
-  if (path === "/orders" && upperMethod === "POST") {
+  if ((path === "/orders" || path === "/public/orders") && upperMethod === "POST") {
     const orders = readNamespace("orders", []) || [];
-    const created = { id: `ORD-${Date.now()}`, createdAt: new Date().toISOString().slice(0, 10), ...body };
-    const next = [created, ...orders];
+    const payload = body?.order || body || {};
+    const created = {
+      id: payload.id || `PLT-2026-${Math.floor(1000 + Math.random() * 9000)}`,
+      date: payload.date || new Date().toISOString().slice(0, 10),
+      ...payload,
+    };
+    const next = [created, ...orders.filter((o) => o && o.id !== created.id)];
     writeNamespace("orders", next);
     return { order: created, orders: next };
   }

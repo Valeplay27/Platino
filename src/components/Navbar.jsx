@@ -593,105 +593,10 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                   <i className={`bi bi-chevron-right mobile-nav-arrow ${promesaMenuOpen ? "arrow-rotated" : ""}`}></i>
                 </button>
 
-                {/* MEGAMENÚ DESPLEGABLE EN DESKTOP PARA AMOR Y PROMESA */}
+                {/* MEGAMENÚ DESPLEGABLE EN DESKTOP PARA ALIANZAS Y PROMESA */}
                 <div className={`promesa-megamenu ${promesaMenuOpen ? "is-visible" : ""}`}>
                   <div className="megamenu-inner-container promesa-megamenu-container">
-                    {/* Columna 1: Tarjeta Imagen ANILLO PROMESA */}
-                    <div className="megamenu-col megamenu-col-card">
-                      <Link to="/categoria/amor-promesa?subcat=anillo-promesa" className="megamenu-boda-card" onClick={handleNavClick}>
-                        <div className="megamenu-card-img-wrapper" style={{ position: "relative" }}>
-                          <img
-                            src={homeImages?.megamenuPromesaAnillo?.image || getAssetUrl("/images/anillo-9-promesas.jpg")}
-                            alt="Anillo de Promesa"
-                            className="megamenu-card-img"
-                            onError={(e) => {
-                              e.currentTarget.src = getAssetUrl("/images/anillo-9-promesas.jpg");
-                            }}
-                          />
-                          {isAdmin && !homeImages?.megamenuPromesaAnillo?.image && (
-                            <div className="megamenu-card-placeholder" style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", textAlign: "center", fontWeight: "700" }}>
-                              <span>CONFIGURAR FOTO<br />(SOLO ADMIN)</span>
-                            </div>
-                          )}
-                        </div>
-                      </Link>
-                    </div>
-
-                    {/* Columna 2: ANILLO DE PROMESA */}
-                    <div className="megamenu-col">
-                      <h4 className="megamenu-col-title">ANILLO DE PROMESA</h4>
-                      <ul className="megamenu-links-list">
-                        <li>
-                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&estilo=clasicos" onClick={handleNavClick}>
-                            CLÁSICOS
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&estilo=con-pedreria" onClick={handleNavClick}>
-                            CON PEDRERÍA
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&estilo=sin-pedreria" onClick={handleNavClick}>
-                            SIN PEDRERÍA
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&estilo=moderno" onClick={handleNavClick}>
-                            MODERNO
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&estilo=gemas-naturales" onClick={handleNavClick}>
-                            GEMAS NATURALES
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa" onClick={handleNavClick}>
-                            VER TODO
-                          </Link>
-                        </li>
-                      </ul>
-                    </div>
-
-                    {/* Columna 3: SEGÚN MATERIAL (Promesa) */}
-                    <div className="megamenu-col">
-                      <h4 className="megamenu-col-title">SEGÚN MATERIAL</h4>
-                      <ul className="megamenu-links-list">
-                        <li>
-                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&metal=plata-950" onClick={handleNavClick}>
-                            PLATA 950
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&metal=plata-oro-18k" onClick={handleNavClick}>
-                            PLATA CON ORO 18K
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&metal=oro-natural-18k" onClick={handleNavClick}>
-                            ORO NATURAL 18K
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&metal=oro-amarillo-18k" onClick={handleNavClick}>
-                            ORO AMARILLO 18K
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&metal=oro-rosado-18k" onClick={handleNavClick}>
-                            ORO ROSADO 18K
-                          </Link>
-                        </li>
-                        <li>
-                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&metal=oro-blanco-18k" onClick={handleNavClick}>
-                            ORO BLANCO 18K
-                          </Link>
-                        </li>
-                      </ul>
-                    </div>
-
-                    {/* Columna 4: Tarjeta Imagen ALIANZAS DE AMOR */}
+                    {/* Columna 1: Tarjeta Imagen ALIANZAS DE AMOR */}
                     <div className="megamenu-col megamenu-col-card">
                       <Link to="/categoria/amor-promesa?subcat=alianzas-amor" className="megamenu-boda-card" onClick={handleNavClick}>
                         <div className="megamenu-card-img-wrapper" style={{ position: "relative" }}>
@@ -712,7 +617,7 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                       </Link>
                     </div>
 
-                    {/* Columna 5: ALIANZAS DE AMOR */}
+                    {/* Columna 2: ALIANZAS DE AMOR */}
                     <div className="megamenu-col">
                       <h4 className="megamenu-col-title">ALIANZAS DE AMOR</h4>
                       <ul className="megamenu-links-list">
@@ -744,7 +649,7 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                       </ul>
                     </div>
 
-                    {/* Columna 6: SEGÚN MATERIAL (Alianzas) */}
+                    {/* Columna 3: SEGÚN MATERIAL (Alianzas) */}
                     <div className="megamenu-col">
                       <h4 className="megamenu-col-title">SEGÚN MATERIAL</h4>
                       <ul className="megamenu-links-list">
@@ -759,23 +664,83 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                           </Link>
                         </li>
                         <li>
-                          <Link to="/categoria/amor-promesa?subcat=alianzas-amor&metal=oro-natural-18k" onClick={handleNavClick}>
-                            ORO NATURAL 18K
+                          <Link to="/categoria/amor-promesa?subcat=alianzas-amor&metal=oro-18k" onClick={handleNavClick}>
+                            ORO 18K
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Columna 4: Tarjeta Imagen ANILLO DE PROMESA */}
+                    <div className="megamenu-col megamenu-col-card">
+                      <Link to="/categoria/amor-promesa?subcat=anillo-promesa" className="megamenu-boda-card" onClick={handleNavClick}>
+                        <div className="megamenu-card-img-wrapper" style={{ position: "relative" }}>
+                          <img
+                            src={homeImages?.megamenuPromesaAnillo?.image || getAssetUrl("/images/anillo-9-promesas.jpg")}
+                            alt="Anillo de Promesa"
+                            className="megamenu-card-img"
+                            onError={(e) => {
+                              e.currentTarget.src = getAssetUrl("/images/anillo-9-promesas.jpg");
+                            }}
+                          />
+                          {isAdmin && !homeImages?.megamenuPromesaAnillo?.image && (
+                            <div className="megamenu-card-placeholder" style={{ position: "absolute", inset: 0, background: "rgba(0,0,0,0.6)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "11px", textAlign: "center", fontWeight: "700" }}>
+                              <span>CONFIGURAR FOTO<br />(SOLO ADMIN)</span>
+                            </div>
+                          )}
+                        </div>
+                      </Link>
+                    </div>
+
+                    {/* Columna 5: ANILLO DE PROMESA */}
+                    <div className="megamenu-col">
+                      <h4 className="megamenu-col-title">ANILLO DE PROMESA</h4>
+                      <ul className="megamenu-links-list">
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&estilo=solitario" onClick={handleNavClick}>
+                            SOLITARIO
                           </Link>
                         </li>
                         <li>
-                          <Link to="/categoria/amor-promesa?subcat=alianzas-amor&metal=oro-amarillo-18k" onClick={handleNavClick}>
-                            ORO AMARILLO 18K
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&estilo=pedreria-lateral" onClick={handleNavClick}>
+                            CON PEDRERÍA LATERAL
                           </Link>
                         </li>
                         <li>
-                          <Link to="/categoria/amor-promesa?subcat=alianzas-amor&metal=oro-rosado-18k" onClick={handleNavClick}>
-                            ORO ROSADO 18K
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&estilo=vintage" onClick={handleNavClick}>
+                            VINTAGE
                           </Link>
                         </li>
                         <li>
-                          <Link to="/categoria/amor-promesa?subcat=alianzas-amor&metal=oro-blanco-18k" onClick={handleNavClick}>
-                            ORO BLANCO 18K
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&estilo=gemas-naturales" onClick={handleNavClick}>
+                            CON GEMAS NATURALES
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa" onClick={handleNavClick}>
+                            VER TODO
+                          </Link>
+                        </li>
+                      </ul>
+                    </div>
+
+                    {/* Columna 6: SEGÚN MATERIAL (Promesa) */}
+                    <div className="megamenu-col">
+                      <h4 className="megamenu-col-title">SEGÚN MATERIAL</h4>
+                      <ul className="megamenu-links-list">
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&metal=plata-950" onClick={handleNavClick}>
+                            PLATA 950
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&metal=plata-oro-18k" onClick={handleNavClick}>
+                            PLATA CON ORO 18K
+                          </Link>
+                        </li>
+                        <li>
+                          <Link to="/categoria/amor-promesa?subcat=anillo-promesa&metal=oro-18k" onClick={handleNavClick}>
+                            ORO 18K
                           </Link>
                         </li>
                       </ul>
@@ -1204,13 +1169,13 @@ const Navbar = ({ cartCount = 0, onOpenCart }) => {
                 <div className="mobile-sede-row">
                   <span className="mobile-sede-name">Miraflores:</span>
                   <a
-                    href="https://wa.me/51984281116"
+                    href="https://wa.me/51927943262"
                     target="_blank"
                     rel="noreferrer"
                     className="mobile-wa-btn"
                     title="WhatsApp Miraflores"
                   >
-                    <i className="bi bi-whatsapp"></i> 984 281 116
+                    <i className="bi bi-whatsapp"></i> 927 943 262
                   </a>
                 </div>
               </div>

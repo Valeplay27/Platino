@@ -122,6 +122,7 @@ export default function CompromisoConfigurator({
   onAddToCart = () => {},
   currentStep: propCurrentStep,
   setCurrentStep: propSetCurrentStep,
+  isAdmin = false,
 }) {
   const [localStep, setLocalStep] = useState(1);
   const currentStep = propCurrentStep !== undefined ? propCurrentStep : localStep;
@@ -130,6 +131,7 @@ export default function CompromisoConfigurator({
   const [modalOpen, setModalOpen] = useState(false);
   const [whatsappSedeModalOpen, setWhatsappSedeModalOpen] = useState(false);
   const [selectedOrderSede, setSelectedOrderSede] = useState("lima-centro");
+  const [knowsSize, setKnowsSize] = useState(true);
   const hasGemTypes = product?.hasGemTypeSelection !== false && product?.hasGemSelection !== false && (!product?.enabledGemTypes || Object.values(product.enabledGemTypes).some((v) => v !== false));
 
   // Al llegar al paso 3, mostrar la caja en el visor principal de la izquierda
@@ -158,10 +160,44 @@ export default function CompromisoConfigurator({
   }, [gemTypes, selectedGemType?.id, selectedGemType?.priceDelta, setSelectedGemType]);
 
   const gemCutLabel = useMemo(() => {
-    const cutName = (product?.gemShape || "REDONDO").toUpperCase();
+    const cutName = (product?.gemShape || product?.defaultGemShape || "REDONDO").toUpperCase();
     const dimensions = product?.gemDimensions || "6.0mm";
     return `CORTE ${cutName} | ${dimensions}`;
-  }, [product?.gemShape, product?.gemDimensions]);
+  }, [product?.gemShape, product?.defaultGemShape, product?.gemDimensions]);
+
+  const getGemCutLabel = (gem) => {
+    if (gem?.cutLabel && gem.cutLabel.trim()) {
+      return gem.cutLabel.trim().toUpperCase();
+    }
+    if (gem?.shape || gem?.corte || gem?.dimensions || gem?.medidas) {
+      const shape = (gem.shape || gem.corte || product?.gemShape || product?.defaultGemShape || "REDONDO").toUpperCase();
+      const dims = gem.dimensions || gem.medidas || product?.gemDimensions || "6.0mm";
+      return `CORTE ${shape} | ${dims}`;
+    }
+    if (gem?.subtitle) {
+      const sub = gem.subtitle.toLowerCase();
+      const knownShapes = ["oval", "esmeralda", "pera", "marquesa", "princesa", "cojin", "cojín", "corazon", "corazón", "radiante", "asscher", "baguette", "trillante", "redondo"];
+      const matched = knownShapes.find((s) => sub.includes(s));
+      if (matched) {
+        const normMatched = matched.replace("í", "i").replace("ó", "o");
+        const dims = product?.gemDimensions || "6.0mm";
+        return `CORTE ${normMatched.toUpperCase()} | ${dims}`;
+      }
+    }
+    return gemCutLabel;
+  };
+
+  const getGemShape = (gem) => {
+    if (gem?.shape) return gem.shape;
+    if (gem?.corte) return gem.corte;
+    if (gem?.subtitle) {
+      const sub = gem.subtitle.toLowerCase();
+      const knownShapes = ["oval", "esmeralda", "pera", "marquesa", "princesa", "cojin", "cojín", "corazon", "corazón", "radiante", "asscher", "baguette", "trillante", "redondo"];
+      const matched = knownShapes.find((s) => sub.includes(s));
+      if (matched) return matched.replace("í", "i").replace("ó", "o");
+    }
+    return product?.gemShape || product?.defaultGemShape || "redondo";
+  };
 
   const productName = product?.name || "Anillo de Compromiso";
   const metalName = selectedMetal?.name || product?.availableMetals?.[0]?.name || "Plata 950";
@@ -175,7 +211,7 @@ export default function CompromisoConfigurator({
 
   const getWhatsAppQuoteUrl = (sedeId = selectedOrderSede) => {
     const isMiraflores = sedeId === "miraflores";
-    const phone = isMiraflores ? "51984281116" : "51927357217";
+    const phone = isMiraflores ? "51927943262" : "51927357217";
     const sedeName = isMiraflores ? "Sede Miraflores (Av. Larco 345)" : "Sede Lima Centro (Jr. de la Unión 446)";
 
     const sizeStr = selectedSizeDama === "asesor" ? "Solicito Asesoramiento de Medida" : `${selectedSizeDama} Nacional`;
@@ -198,7 +234,7 @@ export default function CompromisoConfigurator({
 
   const getWhatsAppOrderUrl = (sedeId = selectedOrderSede) => {
     const isMiraflores = sedeId === "miraflores";
-    const phone = isMiraflores ? "51984281116" : "51927357217";
+    const phone = isMiraflores ? "51927943262" : "51927357217";
     const sedeName = isMiraflores ? "Sede Miraflores (Av. Larco 345)" : "Sede Lima Centro (Jr. de la Unión 446)";
 
     const sizeStr = selectedSizeDama === "asesor" ? "Solicita Asesoramiento de Medida" : `${selectedSizeDama} Nacional`;
@@ -221,7 +257,7 @@ export default function CompromisoConfigurator({
 
   const getSizeAdviceWhatsAppUrl = (sedeId = "lima-centro") => {
     const isMiraflores = sedeId === "miraflores";
-    const phone = isMiraflores ? "51984281116" : "51927357217";
+    const phone = isMiraflores ? "51927943262" : "51927357217";
     const sedeName = isMiraflores ? "Sede Miraflores" : "Sede Lima Centro";
     const text = `¡Hola Platino Perú (${sedeName})! Deseo recibir asesoramiento sobre la medida y talla exacta para el anillo *${productName}* en ${metalName}.`;
     return `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
@@ -301,60 +337,148 @@ export default function CompromisoConfigurator({
 
           {/* 2. TALLA DAMA (05 AL 27) */}
           <div className="config-block-clean">
-            <div className="config-block-header-inline">
-              <span className="config-block-title-bold">TALLA DAMA (05 AL 27)</span>
-            </div>
-
-            <select
-              value={selectedSizeDama}
-              onChange={(e) => setSelectedSizeDama(e.target.value)}
-              className="select-talla-dropdown-clean"
+            <div
+              className="knows-size-question-container"
+              style={{
+                background: "#f8faf9",
+                border: "1px solid #e2ece7",
+                borderRadius: "14px",
+                padding: "12px 16px",
+                marginBottom: "14px",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                flexWrap: "wrap",
+                gap: "10px",
+              }}
             >
-              <option value="asesor">¿No sabes tu talla? Solicitar asesoramiento de medida</option>
-              {DAMA_SIZES.map((sz) => {
-                const availability = getSizeAvailability(productStock, "dama", sz.number);
-                return (
-                  <option key={sz.number} value={sz.number} disabled={availability.total === 0}>
-                    {sz.label} · {availability.total > 0 ? `${availability.total} ${availability.total === 1 ? "unidad" : "unidades"}` : "Sin stock"}
-                  </option>
-                );
-              })}
-            </select>
-
-            <div className="size-advice-whatsapp-box" style={{ marginTop: "12px", marginBottom: "8px" }}>
-              <div className="size-advice-whatsapp-text">
-                <i className="bi bi-question-circle"></i>
-                <span>¿No estás seguro de la talla? Recibe asesoría por WhatsApp:</span>
-              </div>
-              <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", width: "100%", marginTop: "6px" }}>
-                <a
-                  href={getSizeAdviceWhatsAppUrl("lima-centro")}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-size-whatsapp"
-                  style={{ flex: 1, minWidth: "140px", justifyContent: "center" }}
-                  title="Asesoría vía WhatsApp con Sede Lima Centro (Jr. de la Unión)"
-                >
-                  <i className="bi bi-whatsapp"></i>
-                  <span>Lima Centro</span>
-                </a>
-                <a
-                  href={getSizeAdviceWhatsAppUrl("miraflores")}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="btn-size-whatsapp"
-                  style={{ flex: 1, minWidth: "140px", justifyContent: "center", background: "#15803d" }}
-                  title="Asesoría vía WhatsApp con Sede Miraflores (Av. Larco)"
-                >
-                  <i className="bi bi-whatsapp"></i>
-                  <span>Miraflores</span>
-                </a>
+              <span style={{ fontSize: "13px", fontWeight: "700", color: "#0f2a24" }}>
+                ¿Conoces la talla de tu pareja?
+              </span>
+              <div style={{ display: "inline-flex", alignItems: "center", gap: "18px" }}>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: "600", color: "#1e293b", cursor: "pointer" }}>
+                  <input
+                    type="radio"
+                    name="compromisoKnowsSize"
+                    checked={knowsSize === true}
+                    onChange={() => setKnowsSize(true)}
+                    style={{ accentColor: "#113B3A", width: "17px", height: "17px", cursor: "pointer" }}
+                  />
+                  <span>Sí</span>
+                </label>
+                <label style={{ display: "inline-flex", alignItems: "center", gap: "6px", fontSize: "13px", fontWeight: "600", color: "#1e293b", cursor: "pointer" }}>
+                  <input
+                    type="radio"
+                    name="compromisoKnowsSize"
+                    checked={knowsSize === false}
+                    onChange={() => {
+                      setKnowsSize(false);
+                      setSelectedSizeDama("asesor");
+                    }}
+                    style={{ accentColor: "#113B3A", width: "17px", height: "17px", cursor: "pointer" }}
+                  />
+                  <span>No</span>
+                </label>
               </div>
             </div>
 
-            <p className="size-price-note">
-              *Precio válido de la web: Tallas Americanas (4 al 8) o Tallas Nacionales (8 al 17). Otras medidas consulta para la cotización
-            </p>
+            {knowsSize ? (
+              <>
+                <div className="config-block-header-inline">
+                  <span className="config-block-title-bold">TALLA DAMA (05 AL 27)</span>
+                </div>
+
+                <select
+                  value={selectedSizeDama}
+                  onChange={(e) => setSelectedSizeDama(e.target.value)}
+                  className="select-talla-dropdown-clean"
+                >
+                  <option value="asesor">¿No sabes tu talla? Solicitar asesoramiento de medida</option>
+                  {DAMA_SIZES.map((sz) => {
+                    const availability = getSizeAvailability(productStock, "dama", sz.number);
+                    return (
+                      <option key={sz.number} value={sz.number}>
+                        {sz.label}{isAdmin ? ` · ${availability.total > 0 ? `${availability.total} ${availability.total === 1 ? "unidad" : "unidades"}` : "Sin stock"}` : ""}
+                      </option>
+                    );
+                  })}
+                </select>
+
+                <p className="size-price-note" style={{ marginTop: "8px" }}>
+                  *Precio válido de la web: Tallas Americanas (4 al 8) o Tallas Nacionales (8 al 17). Otras medidas consulta para la cotización
+                </p>
+              </>
+            ) : (
+              <div
+                className="size-advice-whatsapp-box-clean"
+                style={{
+                  background: "#f0fdf4",
+                  border: "1.5px solid #bbf7d0",
+                  borderRadius: "14px",
+                  padding: "14px 16px",
+                  marginTop: "6px",
+                  marginBottom: "12px",
+                }}
+              >
+                <div style={{ display: "flex", alignItems: "center", gap: "8px", color: "#166534", fontSize: "13px", fontWeight: "700", marginBottom: "10px" }}>
+                  <i className="bi bi-question-circle-fill"></i>
+                  <span>¿No estás seguro de tu talla? Recibe asesoría por WhatsApp</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                  <a
+                    href={getSizeAdviceWhatsAppUrl("lima-centro")}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-size-whatsapp"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      background: "#22c55e",
+                      color: "#ffffff",
+                      padding: "10px 14px",
+                      borderRadius: "20px",
+                      fontSize: "12.5px",
+                      fontWeight: "700",
+                      textDecoration: "none",
+                      boxShadow: "0 2px 6px rgba(34, 197, 94, 0.25)",
+                    }}
+                    title="Asesoría vía WhatsApp con Sede Lima Centro (Jr. de la Unión)"
+                  >
+                    <i className="bi bi-whatsapp"></i>
+                    <span>Lima Centro</span>
+                  </a>
+                  <a
+                    href={getSizeAdviceWhatsAppUrl("miraflores")}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="btn-size-whatsapp"
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      gap: "6px",
+                      background: "#15803d",
+                      color: "#ffffff",
+                      padding: "10px 14px",
+                      borderRadius: "20px",
+                      fontSize: "12.5px",
+                      fontWeight: "700",
+                      textDecoration: "none",
+                      boxShadow: "0 2px 6px rgba(21, 128, 61, 0.25)",
+                    }}
+                    title="Asesoría vía WhatsApp con Sede Miraflores (Av. Larco)"
+                  >
+                    <i className="bi bi-whatsapp"></i>
+                    <span>Miraflores</span>
+                  </a>
+                </div>
+                <p style={{ fontSize: "11.5px", color: "#166534", margin: "10px 0 0 0", fontStyle: "italic", lineHeight: "1.4" }}>
+                  *Para este modelo si no hay tallas pequeñas o intermedias debes tener asesoría en WhatsApp
+                </p>
+              </div>
+            )}
           </div>
 
           {/* 3. GRABADO PERSONALIZADO */}
@@ -452,10 +576,10 @@ export default function CompromisoConfigurator({
                   onClick={() => setSelectedGemType(gem)}
                 >
                   <div className="gem-type-icon">
-                    <DiamondCutIcon shape={product?.gemShape || "redondo"} size={30} />
+                    <DiamondCutIcon shape={getGemShape(gem)} size={30} />
                   </div>
                   <div className="gem-type-cut-strip">
-                    {gemCutLabel}
+                    {getGemCutLabel(gem)}
                   </div>
                   <h4 className="gem-type-name">{gem.name}</h4>
                   {gem.subtitle && <span className="gem-type-subtitle">{gem.subtitle}</span>}
@@ -1077,7 +1201,7 @@ export default function CompromisoConfigurator({
                       Av. José Larco 345 (Multicentro)
                     </div>
                     <div style={{ fontSize: "11.5px", fontWeight: "700", color: "#166534", marginTop: "2px" }}>
-                      <i className="bi bi-whatsapp"></i> 984 281 116
+                      <i className="bi bi-whatsapp"></i> 927 943 262
                     </div>
                   </div>
                 </div>

@@ -89,8 +89,8 @@ const Footer = () => {
               </li>
               <li>
                 <span>WhatsApp Miraflores:</span>{" "}
-                <a href="https://wa.me/51984281116" target="_blank" rel="noreferrer">
-                  984 281 116
+                <a href="https://wa.me/51927943262" target="_blank" rel="noreferrer">
+                  927 943 262
                 </a>
               </li>
               <li>
