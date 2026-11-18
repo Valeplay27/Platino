@@ -10,7 +10,7 @@ function buildApiUrl(path) {
   return `${API_BASE_URL}/index.php?${params.toString()}`;
 }
 
-function isLocalEnvironment() {
+export function isLocalEnvironment() {
   if (typeof window === "undefined") return false;
   const host = window.location.hostname;
   return (
@@ -71,8 +71,31 @@ export async function apiRequest(path, { method = "GET", body, signal } = {}) {
       signal,
     });
   } catch {
+    if (String(path).startsWith("/public/orders")) {
+      throw new Error("No se pudo conectar con el servidor para registrar el pedido.");
+    }
+    if (String(path).startsWith("/data") && String(path).includes("namespace=orders")) {
+      throw new Error("No se pudo conectar con el servidor para consultar los pedidos.");
+    }
     const res = await handleLocalApiFallback(path, { method, body });
     return res && typeof res === "object" ? { ...res, __localFallback: true } : res;
+  }
+
+  if (String(path).startsWith("/public/orders") &&
+      (response.status === 404 || response.status === 405 || response.status >= 500)) {
+    throw new Error("El servidor no pudo registrar el pedido. Actualiza la API desplegada e intenta nuevamente.");
+  }
+
+  if (String(path).startsWith("/public/orders") &&
+      (response.status === 401 || response.status === 403)) {
+    const payload = await response.json().catch(() => null);
+    throw new Error(payload?.error || "Inicia sesión nuevamente para registrar el pedido.");
+  }
+
+  if (String(path).startsWith("/data") &&
+      String(path).includes("namespace=orders") &&
+      (response.status === 404 || response.status === 405 || response.status >= 500)) {
+    throw new Error("No se pudo consultar la lista de pedidos del servidor.");
   }
 
   // Si el servidor devuelve 404/405/500+, o 401/403 cuando hay sesión local activa, usar fallback local sin perder datos

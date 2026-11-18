@@ -289,6 +289,14 @@ function clearSessionCookie(): void
 function resolveUserFromHeader(?PDO $pdo = null): ?array
 {
     $rawHeader = (string) ($_SERVER['HTTP_X_PLATINO_USER'] ?? '');
+    if ($rawHeader === '' && function_exists('getallheaders')) {
+        foreach ((array) getallheaders() as $hKey => $hVal) {
+            if (strtolower((string) $hKey) === 'x-platino-user') {
+                $rawHeader = (string) $hVal;
+                break;
+            }
+        }
+    }
     if ($rawHeader === '') {
         return null;
     }
@@ -556,7 +564,7 @@ function currentUserWithoutDatabase(): ?array
 {
     $parts = explode('.', (string) ($_COOKIE[SESSION_COOKIE] ?? ''));
     if (count($parts) !== 5 || $parts[1] !== '') {
-        return null;
+        return resolveUserFromHeader(null);
     }
 
     [$encodedHeader, , $encodedIv, $encodedCiphertext, $encodedTag] = $parts;
@@ -572,7 +580,7 @@ function currentUserWithoutDatabase(): ?array
         $ciphertext === false ||
         $tag === false
     ) {
-        return null;
+        return resolveUserFromHeader(null);
     }
 
     $encodedPayload = openssl_decrypt(
@@ -592,7 +600,7 @@ function currentUserWithoutDatabase(): ?array
         !isset($payload['sub'], $payload['jti'], $payload['exp']) ||
         (int) $payload['exp'] <= time()
     ) {
-        return null;
+        return resolveUserFromHeader(null);
     }
 
     return [
@@ -914,9 +922,11 @@ function route(PDO $pdo): void
              FROM app_users WHERE email_lookup = ? OR dni_lookup = ? LIMIT 1'
         );
         $digits = preg_replace('/\D/', '', $identifier);
+        $documentIdentifier = strtoupper(preg_replace('/[^A-Z0-9]/', '', strtoupper($identifier)));
+        $dniLookupIdentifier = strlen($digits) === 8 ? $digits : $documentIdentifier;
         $statement->execute([
             emailLookup($identifier),
-            strlen($digits) === 8 ? dniLookupHash($digits) : random_bytes(32),
+            $dniLookupIdentifier !== '' ? dniLookupHash($dniLookupIdentifier) : random_bytes(32),
         ]);
         $user = $statement->fetch();
         if (!$user || !(int) $user['active'] || ($user['locked_until'] && strtotime($user['locked_until']) > time())) {
@@ -942,13 +952,16 @@ function route(PDO $pdo): void
         $body = requestBody();
         $name = trim((string) ($body['name'] ?? ''));
         $email = strtolower(trim((string) ($body['email'] ?? '')));
-        $dni = preg_replace('/\D/', '', (string) ($body['dni'] ?? ''));
+        $dni = strtoupper(trim((string) ($body['dni'] ?? '')));
+        $dni = preg_replace('/[^A-Z0-9]/', '', $dni);
         $password = (string) ($body['password'] ?? '');
         if ($name === '' || strlen($name) > 150 || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 190) {
             respond(422, ['error' => 'Nombre o correo no válido.']);
         }
-        if (strlen($dni) !== 8 || strlen($password) < 12 || strlen($password) > 1024) {
-            respond(422, ['error' => 'El DNI debe tener 8 dígitos y la contraseña al menos 12 caracteres.']);
+        $validDni = preg_match('/^\d{8}$/', $dni) === 1;
+        $validPassport = preg_match('/^[A-Z0-9]{6,20}$/', $dni) === 1;
+        if ((!$validDni && !$validPassport) || strlen($password) < 12 || strlen($password) > 1024) {
+            respond(422, ['error' => 'Ingresa un DNI de 8 dígitos o pasaporte válido y una contraseña de al menos 12 caracteres.']);
         }
         $dniLookup = dniLookupHash($dni);
         $exists = $pdo->prepare('SELECT id FROM app_users WHERE email_lookup = ? OR dni_lookup = ? LIMIT 1');
@@ -1019,6 +1032,10 @@ function route(PDO $pdo): void
 
     if ($path === '/auth/change-password' && $method === 'POST') {
         $user = requireUser($pdo);
+        $uEmail = strtolower(trim((string) ($user['email'] ?? '')));
+        if (($user['role'] ?? '') === 'admin_sede' || in_array($uEmail, ['admin.lima@platino.pe', 'admin.miraflores@platino.pe'], true)) {
+            respond(403, ['error' => 'Las contraseñas de las sedes administrativas solo pueden ser modificadas exclusivamente por el Administrador Principal (Vladimir).']);
+        }
         $body = requestBody();
         $current = (string) ($body['currentPassword'] ?? '');
         $next = (string) ($body['newPassword'] ?? '');
@@ -1055,18 +1072,27 @@ function route(PDO $pdo): void
         $body = requestBody();
         $email = strtolower(trim((string) ($body['email'] ?? '')));
         $password = (string) ($body['newPassword'] ?? '');
-        if (strlen($password) < 12 || strlen($password) > 1024) {
-            respond(422, ['error' => 'La nueva contraseña debe tener al menos 12 caracteres.']);
+        if (!in_array($email, ['admin.lima@platino.pe', 'admin.miraflores@platino.pe'], true)) {
+            respond(403, ['error' => 'Solo se permite cambiar la contraseña exclusivamente para admin.lima@platino.pe y admin.miraflores@platino.pe.']);
         }
+        if (strlen($password) < 8 || strlen($password) > 1024) {
+            respond(422, ['error' => 'La nueva contraseña debe tener al menos 8 caracteres.']);
+        }
+        $pwMap = readFileNamespace('admin_passwords') ?: [];
+        if (!is_array($pwMap)) {
+            $pwMap = [];
+        }
+        $pwMap[$email] = $password;
+        writeFileNamespace('admin_passwords', $pwMap);
+
         $statement = $pdo->prepare('SELECT id FROM app_users WHERE email_lookup = ?');
         $statement->execute([emailLookup($email)]);
         $accountId = $statement->fetchColumn();
-        if ($accountId === false) {
-            respond(404, ['error' => 'No se encontró la cuenta indicada.']);
+        if ($accountId !== false) {
+            $pdo->prepare('UPDATE app_users SET password_hash = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?')
+                ->execute([password_hash($password, defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_DEFAULT), $accountId]);
+            $pdo->prepare('DELETE FROM app_sessions WHERE user_id = ?')->execute([$accountId]);
         }
-        $pdo->prepare('UPDATE app_users SET password_hash = ?, failed_attempts = 0, locked_until = NULL WHERE id = ?')
-            ->execute([password_hash($password, defined('PASSWORD_ARGON2ID') ? PASSWORD_ARGON2ID : PASSWORD_DEFAULT), $accountId]);
-        $pdo->prepare('DELETE FROM app_sessions WHERE user_id = ?')->execute([$accountId]);
         respond(200, ['success' => true]);
     }
 
@@ -1078,11 +1104,15 @@ function route(PDO $pdo): void
             respond(200, ['users' => []]);
         }
         $digits = preg_replace('/\D/', '', $query);
+        $documentQuery = strtoupper(preg_replace('/[^A-Z0-9]/', '', strtoupper($query)));
         $sql = 'SELECT id, name_nonce, name_cipher, email_nonce, email_cipher, dni_nonce, dni_cipher, role, sede_id FROM app_users WHERE email_lookup = ?';
         $params = [emailLookup($query)];
         if (strlen($digits) === 8) {
             $sql .= ' OR dni_lookup = ?';
             $params[] = dniLookupHash($digits);
+        } elseif (strlen($documentQuery) >= 6) {
+            $sql .= ' OR dni_lookup = ?';
+            $params[] = dniLookupHash($documentQuery);
         }
         $statement = $pdo->prepare($sql . ' LIMIT 5');
         $statement->execute($params);
@@ -1134,7 +1164,10 @@ function route(PDO $pdo): void
         $valid = strlen($input) === 6 && hash_equals($dailyCode, $input);
         if (!$valid && $identifier !== '' && strlen($input) === 6) {
             $digits = preg_replace('/\D/', '', $identifier);
-            $lookup = strlen($digits) === 8 ? dniLookupHash($digits) : random_bytes(32);
+            $documentIdentifier = strtoupper(preg_replace('/[^A-Z0-9]/', '', strtoupper($identifier)));
+            $lookup = strlen($digits) === 8
+                ? dniLookupHash($digits)
+                : ($documentIdentifier !== '' ? dniLookupHash($documentIdentifier) : random_bytes(32));
             $account = $pdo->prepare(
                 'SELECT id FROM app_users WHERE (email_lookup = ? OR dni_lookup = ?) AND role = "cliente" LIMIT 1'
             );
@@ -1160,7 +1193,10 @@ function route(PDO $pdo): void
         $statement->execute([$today]);
         $row = $statement->fetch();
         $digits = preg_replace('/\D/', '', $identifier);
-        $lookup = strlen($digits) === 8 ? dniLookupHash($digits) : random_bytes(32);
+        $documentIdentifier = strtoupper(preg_replace('/[^A-Z0-9]/', '', strtoupper($identifier)));
+        $lookup = strlen($digits) === 8
+            ? dniLookupHash($digits)
+            : ($documentIdentifier !== '' ? dniLookupHash($documentIdentifier) : random_bytes(32));
         $account = $pdo->prepare(
             'SELECT id, name_nonce, name_cipher, email_nonce, email_cipher, dni_nonce, dni_cipher, failed_attempts, locked_until
              FROM app_users WHERE (email_lookup = ? OR dni_lookup = ?) AND role = "cliente" LIMIT 1'
@@ -1212,7 +1248,10 @@ function route(PDO $pdo): void
         $statement->execute([$today]);
         $row = $statement->fetch();
         $digits = preg_replace('/\D/', '', $identifier);
-        $lookup = strlen($digits) === 8 ? dniLookupHash($digits) : random_bytes(32);
+        $documentIdentifier = strtoupper(preg_replace('/[^A-Z0-9]/', '', strtoupper($identifier)));
+        $lookup = strlen($digits) === 8
+            ? dniLookupHash($digits)
+            : ($documentIdentifier !== '' ? dniLookupHash($documentIdentifier) : random_bytes(32));
         $account = $pdo->prepare(
             'SELECT id, name_nonce, name_cipher, email_nonce, email_cipher, dni_nonce, dni_cipher, failed_attempts, locked_until
              FROM app_users WHERE (email_lookup = ? OR dni_lookup = ?) AND role = "cliente" LIMIT 1'
@@ -1698,14 +1737,14 @@ function route(PDO $pdo): void
             'laboratories', 'inventory', 'appointments', 'blocked_slots', 'orders',
             'favorites', 'finance', 'nosotros', 'permissions', 'permission_requests',
             'reclamations', 'care_config', 'care_clients', 'recovery_logs', 'educacion',
-            'platino_faqs',
+            'platino_faqs', 'client_profiles', 'admin_passwords',
         ];
         if (!in_array($namespace, $allowedNamespaces, true)) {
             respond(422, ['error' => 'Espacio de datos no válido.']);
         }
 
         $user = currentUser($pdo);
-        $isPrivate = $namespace === 'favorites';
+        $isPrivate = $namespace === 'favorites' || $namespace === 'client_profiles';
         if ($isPrivate && $user === null) {
             respond(401, ['error' => 'Inicia sesión para acceder a estos datos.']);
         }
@@ -1860,11 +1899,39 @@ function route(PDO $pdo): void
 
     if ($path === '/public/orders' && $method === 'POST') {
         $user = currentUser($pdo);
+        $body = requestBody();
+        $input = $body['order'] ?? null;
+        if (!is_array($user) && is_array($input)) {
+            $authenticatedUser = $input['authenticatedUser'] ?? null;
+            $fallbackEmail = strtolower(trim((string) (is_array($authenticatedUser)
+                ? ($authenticatedUser['email'] ?? '')
+                : ($input['clientEmail'] ?? ''))));
+            if ($fallbackEmail !== '') {
+                $statement = $pdo->prepare(
+                    'SELECT id, name_nonce, name_cipher, email_nonce, email_cipher, dni_nonce, dni_cipher, role, sede_id
+                     FROM app_users WHERE email_lookup = ? AND active = 1 LIMIT 1'
+                );
+                $statement->execute([emailLookup($fallbackEmail)]);
+                $row = $statement->fetch();
+                if ($row) {
+                    $user = publicUser($row);
+                    unset($user['email_lookup']);
+                }
+            }
+        }
+        $submittedDocument = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) (is_array($input) ? ($input['clientDni'] ?? '') : '')));
+        $accountDocument = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) (is_array($user) ? ($user['dni'] ?? '') : '')));
+        $validDni = preg_match('/^\d{8}$/', $submittedDocument) === 1;
+        $validPassport = preg_match('/^[A-Z0-9]{6,20}$/', $submittedDocument) === 1;
+        if (!$validDni && !$validPassport) {
+            respond(422, ['error' => 'Ingresa un DNI válido de 8 dígitos o un pasaporte válido.']);
+        }
+        if ($accountDocument !== '' && !hash_equals($accountDocument, $submittedDocument)) {
+            respond(403, ['error' => 'El DNI o pasaporte ingresado no coincide con la cuenta con la que inició sesión.']);
+        }
         if (!is_array($user) || !in_array($user['role'] ?? '', ['cliente', 'admin_master', 'admin_sede', 'admin'], true)) {
             respond(403, ['error' => 'Inicia sesión con tu cuenta para registrar un pedido.']);
         }
-        $body = requestBody();
-        $input = $body['order'] ?? null;
         if (!is_array($input) || !is_array($input['items'] ?? null) || count($input['items']) < 1 ||
             count($input['items']) > 50 || !filter_var($user['email'], FILTER_VALIDATE_EMAIL)) {
             respond(422, ['error' => 'Los datos del pedido no son válidos.']);
@@ -1952,10 +2019,7 @@ function route(PDO $pdo): void
 
         $clientDni = (string) ($user['dni'] ?? '');
         if ($clientDni === '') {
-            $submittedDni = preg_replace('/\D/', '', (string) ($input['clientDni'] ?? ''));
-            if (strlen($submittedDni) === 8) {
-                $clientDni = $submittedDni;
-            }
+            $clientDni = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) ($input['clientDni'] ?? '')));
         }
         $date = date('Y-m-d');
         $order = [
@@ -1968,15 +2032,15 @@ function route(PDO $pdo): void
             'deliveryType' => in_array(($input['deliveryType'] ?? ''), ['recojo_sede', 'envio_domicilio'], true) ? $input['deliveryType'] : 'recojo_sede',
             'sedeRecojo' => substr(trim((string) ($input['sedeRecojo'] ?? '')), 0, 200),
             'shippingAddress' => substr(trim((string) ($input['shippingAddress'] ?? '')), 0, 500),
-            'stage' => 'recibido',
+            'stage' => 'pago_pendiente',
             'estimatedCompletion' => substr(trim((string) ($input['estimatedCompletion'] ?? '15 días hábiles')), 0, 80),
-            'adminNotes' => 'Pedido ingresado al sistema. En espera de asignación de maestro joyero.',
+            'adminNotes' => 'Pedido registrado. En espera de confirmación del pago.',
             'lastUpdated' => $date,
-            'paymentStatus' => 'Pendiente de Validación',
+            'paymentStatus' => 'Pendiente de Pago',
             'paymentMethod' => substr(trim((string) ($input['paymentMethod'] ?? '')), 0, 80),
             'total' => round($computedTotal, 2),
             'items' => $sanitizedItems,
-            'timeline' => [['stage' => 'recibido', 'date' => date(DATE_ATOM), 'note' => 'Pedido registrado.']],
+            'timeline' => [['stage' => 'pago_pendiente', 'date' => date(DATE_ATOM), 'note' => 'Pedido registrado.']],
         ];
         array_unshift($orders, $order);
         writeNamespaceData($pdo, $ownerId, 'orders', $orders);
@@ -2219,16 +2283,36 @@ function routeWithoutDatabase(): void
                 'sede_id' => null,
             ]]);
         }
+        if ($identifier === 'admin.lima@platino.pe' || $identifier === 'admin.miraflores@platino.pe') {
+            $pwMap = array_merge([
+                'admin.lima@platino.pe' => 'LimaPlatino2026!',
+                'admin.miraflores@platino.pe' => 'MirafloresPlatino2026!',
+            ], is_array(readFileNamespace('admin_passwords')) ? readFileNamespace('admin_passwords') : []);
+            if (isset($pwMap[$identifier]) && $password === (string) $pwMap[$identifier]) {
+                $isLima = $identifier === 'admin.lima@platino.pe';
+                respond(200, ['user' => [
+                    'id' => $isLima ? 'usr-admin-lima' : 'usr-admin-miraflores',
+                    'name' => $isLima ? 'Admin Sede Lima Centro' : 'Admin Sede Miraflores',
+                    'email' => $identifier,
+                    'dni' => '',
+                    'role' => 'admin_sede',
+                    'sede' => $isLima ? 'lima-centro' : 'miraflores',
+                    'sede_id' => $isLima ? 'lima-centro' : 'miraflores',
+                    'sedeLabel' => $isLima ? 'Sede Lima Centro' : 'Sede Miraflores',
+                ]]);
+            }
+            respond(401, ['error' => 'Correo o contraseña incorrectos.']);
+        }
         $users = readFileNamespace('_users') ?: [];
         if (is_array($users)) {
-            $digits = preg_replace('/\D/', '', $identifier);
+            $documentIdentifier = strtoupper(preg_replace('/[^A-Z0-9]/', '', strtoupper($identifier)));
             foreach ($users as $u) {
                 if (!is_array($u)) {
                     continue;
                 }
                 $uEmail = strtolower(trim((string) ($u['email'] ?? '')));
-                $uDni = (string) ($u['dni'] ?? '');
-                if ($uEmail === $identifier || ($digits !== '' && strlen($digits) === 8 && $uDni === $digits)) {
+                $uDni = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) ($u['dni'] ?? '')));
+                if ($uEmail === $identifier || ($documentIdentifier !== '' && $uDni === $documentIdentifier)) {
                     if (isset($u['password_hash']) && password_verify($password, (string) $u['password_hash'])) {
                         unset($u['password_hash']);
                         respond(200, ['user' => $u]);
@@ -2243,10 +2327,12 @@ function routeWithoutDatabase(): void
         $body = requestBody();
         $name = trim((string) ($body['name'] ?? ''));
         $email = strtolower(trim((string) ($body['email'] ?? '')));
-        $dni = preg_replace('/\D/', '', (string) ($body['dni'] ?? ''));
+        $dni = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) ($body['dni'] ?? '')));
         $password = (string) ($body['password'] ?? '');
-        if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($dni) !== 8 || strlen($password) < 12) {
-            respond(422, ['error' => 'Completa nombre, correo, DNI de 8 dígitos y contraseña de al menos 12 caracteres.']);
+        $validDni = preg_match('/^\d{8}$/', $dni) === 1;
+        $validPassport = preg_match('/^[A-Z0-9]{6,20}$/', $dni) === 1;
+        if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || (!$validDni && !$validPassport) || strlen($password) < 12) {
+            respond(422, ['error' => 'Ingresa un DNI de 8 dígitos o pasaporte válido y una contraseña de al menos 12 caracteres.']);
         }
         $users = readFileNamespace('_users') ?: [];
         if (!is_array($users)) {
@@ -2277,6 +2363,26 @@ function routeWithoutDatabase(): void
         respond(200, ['success' => true]);
     }
 
+    if ($path === '/auth/admin/password' && $method === 'POST') {
+        requireMasterWithoutDatabase();
+        $body = requestBody();
+        $email = strtolower(trim((string) ($body['email'] ?? '')));
+        $password = (string) ($body['newPassword'] ?? '');
+        if (!in_array($email, ['admin.lima@platino.pe', 'admin.miraflores@platino.pe'], true)) {
+            respond(403, ['error' => 'Solo se permite cambiar la contraseña exclusivamente para admin.lima@platino.pe y admin.miraflores@platino.pe.']);
+        }
+        if (strlen($password) < 8 || strlen($password) > 1024) {
+            respond(422, ['error' => 'La nueva contraseña debe tener al menos 8 caracteres.']);
+        }
+        $pwMap = readFileNamespace('admin_passwords') ?: [];
+        if (!is_array($pwMap)) {
+            $pwMap = [];
+        }
+        $pwMap[$email] = $password;
+        writeFileNamespace('admin_passwords', $pwMap);
+        respond(200, ['success' => true]);
+    }
+
     if ($path === '/admin/recovery-code' && ($method === 'GET' || $method === 'POST')) {
         requireMasterWithoutDatabase();
         $code = getFallbackDailyRecoveryCode($method === 'POST');
@@ -2300,7 +2406,8 @@ function routeWithoutDatabase(): void
                     continue;
                 }
                 $emailMatches = strtolower(trim((string) ($account['email'] ?? ''))) === strtolower($identifier);
-                $dniMatches = strlen($digits) === 8 && (string) ($account['dni'] ?? '') === $digits;
+                $accountDocument = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) ($account['dni'] ?? '')));
+                $dniMatches = $accountDocument === strtoupper(preg_replace('/[^A-Z0-9]/', '', $identifier));
                 if (($emailMatches || $dniMatches) &&
                     hash_equals(deriveClientRecoveryCode($dailyCode, (string) ($account['id'] ?? ''), $today), $input)) {
                     $valid = true;
@@ -2312,6 +2419,273 @@ function routeWithoutDatabase(): void
         respond(200, ['valid' => $valid]);
     }
 
+    if ($path === '/auth/recover/validate' && $method === 'POST') {
+        $body = requestBody();
+        $identifier = trim((string) ($body['identifier'] ?? ''));
+        $inputCode = preg_replace('/\D/', '', (string) ($body['code'] ?? ''));
+        if ($identifier === '' || strlen($inputCode) !== 6) {
+            respond(422, ['error' => 'Ingresa tu DNI o correo y el código de 6 dígitos.']);
+        }
+        $dailyCode = getFallbackDailyRecoveryCode();
+        $today = date('Y-m-d');
+        $digits = preg_replace('/\D/', '', $identifier);
+        $users = readFileNamespace('_users');
+        $target = null;
+        foreach (is_array($users) ? $users : [] as $account) {
+            if (!is_array($account) || ($account['role'] ?? '') !== 'cliente') continue;
+            $emailMatches = strtolower(trim((string) ($account['email'] ?? ''))) === strtolower($identifier);
+            $accountDocument = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) ($account['dni'] ?? '')));
+            $documentIdentifier = strtoupper(preg_replace('/[^A-Z0-9]/', '', $identifier));
+            $dniMatches = $accountDocument !== '' && $accountDocument === $documentIdentifier;
+            if ($emailMatches || $dniMatches) {
+                $target = $account;
+                break;
+            }
+        }
+        if (!$target || !hash_equals(deriveClientRecoveryCode($dailyCode, (string) ($target['id'] ?? ''), $today), $inputCode)) {
+            respond(400, ['error' => 'No se pudo validar el usuario o el código de recuperación.']);
+        }
+        $email = (string) ($target['email'] ?? '');
+        $parts = explode('@', $email);
+        $maskedEmail = count($parts) === 2 ? substr($parts[0], 0, 2) . '***@' . $parts[1] : $email;
+        $dni = (string) ($target['dni'] ?? '');
+        respond(200, ['targetUser' => [
+            'id' => (string) ($target['id'] ?? ''),
+            'name' => (string) ($target['name'] ?? ''),
+            'email' => $maskedEmail,
+            'dni' => strlen($dni) === 8 ? '****' . substr($dni, -4) : '',
+        ]]);
+    }
+
+    if ($path === '/auth/recover/reset' && $method === 'POST') {
+        $body = requestBody();
+        $identifier = trim((string) ($body['identifier'] ?? ''));
+        $inputCode = preg_replace('/\D/', '', (string) ($body['code'] ?? ''));
+        $password = (string) ($body['newPassword'] ?? '');
+        if ($identifier === '' || strlen($inputCode) !== 6 || strlen($password) < 12) {
+            respond(422, ['error' => 'Datos inválidos o contraseña de menos de 12 caracteres.']);
+        }
+        $dailyCode = getFallbackDailyRecoveryCode();
+        $today = date('Y-m-d');
+        $digits = preg_replace('/\D/', '', $identifier);
+        $users = readFileNamespace('_users');
+        $targetIndex = null;
+        foreach (is_array($users) ? $users : [] as $index => $account) {
+            if (!is_array($account) || ($account['role'] ?? '') !== 'cliente') continue;
+            $emailMatches = strtolower(trim((string) ($account['email'] ?? ''))) === strtolower($identifier);
+            $accountDocument = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) ($account['dni'] ?? '')));
+            $documentIdentifier = strtoupper(preg_replace('/[^A-Z0-9]/', '', $identifier));
+            $dniMatches = $accountDocument !== '' && $accountDocument === $documentIdentifier;
+            if ($emailMatches || $dniMatches) {
+                $targetIndex = $index;
+                break;
+            }
+        }
+        if ($targetIndex === null) {
+            respond(400, ['error' => 'No se pudo validar el usuario o el código de recuperación.']);
+        }
+        $target = $users[$targetIndex];
+        if (!hash_equals(deriveClientRecoveryCode($dailyCode, (string) ($target['id'] ?? ''), $today), $inputCode)) {
+            respond(400, ['error' => 'No se pudo validar el usuario o el código de recuperación.']);
+        }
+        $users[$targetIndex]['password_hash'] = password_hash($password, PASSWORD_DEFAULT);
+        writeFileNamespace('_users', $users);
+        respond(200, ['success' => true]);
+    }
+
+    if ($path === '/admin/users' && $method === 'GET') {
+        requireMasterWithoutDatabase();
+        $query = strtolower(trim((string) ($_GET['q'] ?? '')));
+        $users = readFileNamespace('_users');
+        $dailyCode = getFallbackDailyRecoveryCode();
+        $today = date('Y-m-d');
+        $result = [];
+        foreach (is_array($users) ? $users : [] as $account) {
+            if (!is_array($account) || ($account['role'] ?? '') !== 'cliente') continue;
+            $matches = $query === '' ||
+                str_contains(strtolower((string) ($account['email'] ?? '')), $query) ||
+                str_contains((string) ($account['dni'] ?? ''), $query) ||
+                str_contains(strtolower((string) ($account['name'] ?? '')), $query);
+            if (!$matches) continue;
+            $clientCode = deriveClientRecoveryCode($dailyCode, (string) ($account['id'] ?? ''), $today);
+            $result[] = [
+                'id' => (string) ($account['id'] ?? ''),
+                'name' => (string) ($account['name'] ?? ''),
+                'email' => (string) ($account['email'] ?? ''),
+                'dni' => (string) ($account['dni'] ?? ''),
+                'role' => 'cliente',
+                'recoveryCode' => $clientCode,
+                'formattedRecoveryCode' => "PLT-{$clientCode}",
+            ];
+        }
+        respond(200, ['users' => $result]);
+    }
+
+    if ($path === '/migration/import' && $method === 'POST') {
+        requireMasterWithoutDatabase();
+        $body = requestBody();
+        $records = $body['records'] ?? [];
+        $discardKeys = $body['discardKeys'] ?? [];
+        if (!is_array($records) || !is_array($discardKeys)) {
+            respond(422, ['error' => 'El conjunto de datos de migración no es válido.']);
+        }
+        $namespaceMap = [
+            'platino_citas_v1' => 'appointments',
+            'platino_blocked_slots_v1' => 'blocked_slots',
+            'platino_category_margins_v2' => 'finance',
+            'platino_certified_gemstones' => 'gemstones',
+            'platino_gem_laboratories' => 'laboratories',
+            'platino_home_images_v1' => 'home_images',
+            'platino_announcement_text_v1' => 'announcement',
+            'platino_announcement_active_v1' => 'announcement_active',
+            'platino_inventory_stock_v1' => 'inventory',
+            'platino_nosotros_content_v1' => 'nosotros',
+            'platino_orders_v1' => 'orders',
+            'platino_admin_permissions_v4' => 'permissions',
+            'platino_permission_requests_v4' => 'permission_requests',
+            'platino_reclamaciones_v1' => 'reclamations',
+            'platino_care_config_v2' => 'care_config',
+            'platino_care_clients_v2' => 'care_clients',
+            'platino_password_recovery_logs_v1' => 'recovery_logs',
+            'platino_catalog_products_v1' => 'catalog',
+        ];
+        $consumedKeys = [];
+        foreach ($namespaceMap as $legacyKey => $namespace) {
+            if (array_key_exists($legacyKey, $records)) {
+                writeFileNamespace($namespace, $records[$legacyKey]);
+                $consumedKeys[] = $legacyKey;
+            }
+        }
+        foreach ($discardKeys as $key) {
+            if (is_string($key) && $key !== '') {
+                $consumedKeys[] = $key;
+            }
+        }
+        respond(200, ['success' => true, 'consumedKeys' => array_values(array_unique($consumedKeys)), 'pendingKeys' => []]);
+    }
+
+    if ($path === '/public/orders' && $method === 'POST') {
+        $body = requestBody();
+        $input = $body['order'] ?? null;
+        $user = currentUserWithoutDatabase();
+        if (!is_array($user) && is_array($input)) {
+            $authenticatedUser = $input['authenticatedUser'] ?? null;
+            $fallbackEmail = strtolower(trim((string) (is_array($authenticatedUser)
+                ? ($authenticatedUser['email'] ?? '')
+                : ($input['clientEmail'] ?? ''))));
+            $user = resolveUserFromHeader(null);
+            if (!is_array($user) && $fallbackEmail !== '') {
+                $users = readFileNamespace('_users');
+                foreach (is_array($users) ? $users : [] as $account) {
+                    if (!is_array($account) || strtolower(trim((string) ($account['email'] ?? ''))) !== $fallbackEmail) {
+                        continue;
+                    }
+                    $role = (string) ($account['role'] ?? 'cliente');
+                    if (in_array($role, ['cliente', 'admin_master', 'admin_sede', 'admin'], true)) {
+                        $user = [
+                            'id' => (string) ($account['id'] ?? ''),
+                            'name' => (string) ($account['name'] ?? 'Usuario Platino'),
+                            'email' => $fallbackEmail,
+                            'role' => $role,
+                        ];
+                    }
+                    break;
+                }
+            }
+        }
+        $submittedDocument = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) (is_array($input) ? ($input['clientDni'] ?? '') : '')));
+        $accountDocument = strtoupper(preg_replace('/[^A-Z0-9]/', '', (string) (is_array($user) ? ($user['dni'] ?? '') : '')));
+        $validDni = preg_match('/^\d{8}$/', $submittedDocument) === 1;
+        $validPassport = preg_match('/^[A-Z0-9]{6,20}$/', $submittedDocument) === 1;
+        if (!$validDni && !$validPassport) {
+            respond(422, ['error' => 'Ingresa un DNI válido de 8 dígitos o un pasaporte válido.']);
+        }
+        if ($accountDocument !== '' && !hash_equals($accountDocument, $submittedDocument)) {
+            respond(403, ['error' => 'El DNI o pasaporte ingresado no coincide con la cuenta con la que inició sesión.']);
+        }
+        if (!is_array($user) || !in_array($user['role'] ?? '', ['cliente', 'admin_master', 'admin_sede', 'admin'], true)) {
+            respond(403, ['error' => 'Inicia sesión con tu cuenta para registrar un pedido.']);
+        }
+        if (!is_array($input) || !is_array($input['items'] ?? null) || count($input['items']) < 1) {
+            respond(422, ['error' => 'Los datos del pedido no son válidos.']);
+        }
+        $orders = readFileNamespace('orders') ?: [];
+        if (!is_array($orders)) {
+            $orders = [];
+        }
+        $today = date('Y-m-d');
+        $order = $input;
+        $order['id'] = is_string($input['id'] ?? null) && $input['id'] !== ''
+            ? $input['id']
+            : 'PLT-' . date('Y') . '-' . random_int(1000, 9999);
+        $order['date'] = $today;
+        $order['clientName'] = (string) ($user['name'] ?? $input['clientName'] ?? 'Cliente Platino');
+        $order['clientEmail'] = strtolower((string) ($user['email'] ?? $input['clientEmail'] ?? ''));
+        $order['stage'] = 'pago_pendiente';
+        $order['lastUpdated'] = $today;
+        $order['paymentStatus'] = 'Pendiente de Pago';
+        $order['timeline'] = [['stage' => 'pago_pendiente', 'date' => date(DATE_ATOM), 'note' => 'Pedido registrado.']];
+        array_unshift($orders, $order);
+        writeFileNamespace('orders', $orders);
+        respond(201, ['order' => $order]);
+    }
+
+    if ($path === '/admin/orders/mutate' && $method === 'POST') {
+        $body = requestBody();
+        $action = (string) ($body['action'] ?? '');
+        $orderId = (string) ($body['orderId'] ?? '');
+        $orders = readFileNamespace('orders') ?: [];
+        if (!is_array($orders)) {
+            $orders = [];
+        }
+        if ($action === 'delete') {
+            $orders = array_values(array_filter($orders, static fn($o) => ($o['id'] ?? '') !== $orderId));
+            writeFileNamespace('orders', $orders);
+            respond(200, ['data' => $orders]);
+        }
+
+        $today = date('Y-m-d');
+        foreach ($orders as &$order) {
+            if (($order['id'] ?? '') !== $orderId) {
+                continue;
+            }
+            if ($action === 'update_status') {
+                $newStage = (string) ($body['stage'] ?? $order['stage'] ?? 'pago_pendiente');
+                $order['stage'] = $newStage;
+                if (array_key_exists('adminNotes', $body) && $body['adminNotes'] !== null) {
+                    $order['adminNotes'] = (string) $body['adminNotes'];
+                }
+                if (is_array($body['timeline'] ?? null)) {
+                    $order['timeline'] = $body['timeline'];
+                }
+                $order['lastUpdated'] = $today;
+            } elseif ($action === 'update_payment') {
+                if (!empty($body['paymentStatus'])) {
+                    $order['paymentStatus'] = (string) $body['paymentStatus'];
+                }
+                if (array_key_exists('paymentMethod', $body) && $body['paymentMethod'] !== null) {
+                    $order['paymentMethod'] = (string) $body['paymentMethod'];
+                }
+                if (array_key_exists('paymentNotes', $body) && $body['paymentNotes'] !== null) {
+                    $order['paymentNotes'] = (string) $body['paymentNotes'];
+                }
+                $order['lastUpdated'] = $today;
+            } elseif ($action === 'update_fields') {
+                $fields = $body['fields'] ?? [];
+                if (is_array($fields)) {
+                    unset($fields['id'], $fields['total'], $fields['items'], $fields['clientEmail'], $fields['clientDni']);
+                    $order = array_merge($order, $fields);
+                    $order['lastUpdated'] = $today;
+                }
+            }
+            break;
+        }
+        unset($order);
+
+        writeFileNamespace('orders', $orders);
+        respond(200, ['data' => $orders]);
+    }
+
     if ($path === '/data' && ($method === 'GET' || $method === 'POST' || $method === 'PUT' || $method === 'DELETE')) {
         $namespace = (string) ($_GET['namespace'] ?? '');
         $allowedNamespaces = [
@@ -2319,7 +2693,7 @@ function routeWithoutDatabase(): void
             'laboratories', 'inventory', 'appointments', 'blocked_slots', 'orders',
             'favorites', 'finance', 'nosotros', 'permissions', 'permission_requests',
             'reclamations', 'care_config', 'care_clients', 'recovery_logs', 'educacion',
-            'platino_faqs',
+            'platino_faqs', 'client_profiles', 'admin_passwords',
         ];
         if (!in_array($namespace, $allowedNamespaces, true)) {
             respond(422, ['error' => 'Espacio de datos no válido.']);

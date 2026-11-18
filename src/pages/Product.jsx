@@ -1903,9 +1903,6 @@ export default function Product({ addToCart }) {
                           <span>Miraflores</span>
                         </a>
                       </div>
-                      <p style={{ fontSize: "11.5px", color: "#166534", margin: "10px 0 0 0", fontStyle: "italic", lineHeight: "1.4" }}>
-                        *Para este modelo si no hay tallas pequeñas o intermedias debes tener asesoría en WhatsApp
-                      </p>
                     </div>
                   )}
                 </div>

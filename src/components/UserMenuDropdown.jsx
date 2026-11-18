@@ -394,6 +394,16 @@ export default function UserMenuDropdown() {
                 </li>
                 <li>
                   <Link
+                    to="/mis-pedidos?tab=perfil"
+                    className="user-dropdown-item"
+                    onClick={() => setDropdownOpen(false)}
+                  >
+                    <i className="bi bi-person-lines-fill" style={{ color: "#c5a059" }}></i>
+                    <span>Mi Perfil y Direcciones</span>
+                  </Link>
+                </li>
+                <li>
+                  <Link
                     to="/mis-pedidos"
                     className="user-dropdown-item"
                     onClick={() => setDropdownOpen(false)}

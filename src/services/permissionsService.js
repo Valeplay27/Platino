@@ -45,22 +45,87 @@ export const INITIAL_ADMIN_ACCOUNTS = [
   },
 ];
 
+export const BRANCH_ADMIN_EMAILS = [
+  "admin.lima@platino.pe",
+  "admin.miraflores@platino.pe",
+];
+
+const DEFAULT_BRANCH_PASSWORDS = {
+  "admin.lima@platino.pe": "LimaPlatino2026!",
+  "admin.miraflores@platino.pe": "MirafloresPlatino2026!",
+};
+
+const ADMIN_PASSWORDS_KEY = "platino_admin_passwords_v2";
+
+export const getStoredBranchAdminPasswords = () => {
+  const remote = getRemoteData("admin_passwords", null);
+  let local = {};
+  if (typeof window !== "undefined") {
+    try {
+      const raw = localStorage.getItem(ADMIN_PASSWORDS_KEY);
+      if (raw) local = JSON.parse(raw) || {};
+    } catch {
+      local = {};
+    }
+  }
+  return {
+    ...DEFAULT_BRANCH_PASSWORDS,
+    ...(local && typeof local === "object" ? local : {}),
+    ...(remote && typeof remote === "object" ? remote : {}),
+  };
+};
+
 export const getAdminAccounts = () => {
-  return INITIAL_ADMIN_ACCOUNTS.map((account) => ({ ...account }));
+  const pwMap = getStoredBranchAdminPasswords();
+  return INITIAL_ADMIN_ACCOUNTS.map((account) => ({
+    ...account,
+    password: pwMap[account.email.toLowerCase()] || "",
+  }));
 };
 
 // Exportar cuentas activas de administrador
-export const ADMIN_ACCOUNTS = getAdminAccounts();
+export const ADMIN_ACCOUNTS = INITIAL_ADMIN_ACCOUNTS;
 
-// Actualizar la contraseña de una cuenta de administrador (Función para Vladimir)
-export const updateAdminPassword = async (email, newPassword) => {
-  if (!email || !newPassword || newPassword.trim().length < 12) {
-    return { success: false, error: "La contraseña debe tener al menos 12 caracteres." };
+// Actualizar la contraseña de una cuenta de sede administrativa (Exclusivo para Vladimir)
+export const updateAdminPassword = async (email, newPassword, actingUser = null) => {
+  const cleanEmail = String(email || "").toLowerCase().trim();
+  const cleanPassword = String(newPassword || "").trim();
+
+  if (actingUser && String(actingUser.email || "").toLowerCase().trim() !== "vladimiryt18@gmail.com") {
+    return {
+      success: false,
+      error: "Acceso restringido: Solo el Administrador Principal (Vladimir) puede cambiar las contraseñas de las sedes.",
+    };
   }
+
+  if (!BRANCH_ADMIN_EMAILS.includes(cleanEmail)) {
+    return {
+      success: false,
+      error: "Solo está permitido cambiar la contraseña exclusivamente para las dos cuentas de sede (admin.lima@platino.pe y admin.miraflores@platino.pe).",
+    };
+  }
+
+  if (!cleanPassword || cleanPassword.length < 8) {
+    return { success: false, error: "La contraseña debe tener al menos 8 caracteres." };
+  }
+
   try {
-    await apiPost("/auth/admin/password", { email: email.toLowerCase().trim(), newPassword });
+    const currentMap = getStoredBranchAdminPasswords();
+    const nextMap = {
+      ...currentMap,
+      [cleanEmail]: cleanPassword,
+    };
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem(ADMIN_PASSWORDS_KEY, JSON.stringify(nextMap));
+      } catch {
+        // ignore
+      }
+    }
+    setRemoteData("admin_passwords", nextMap, "platino_admin_credentials_updated");
+    await apiPost("/auth/admin/password", { email: cleanEmail, newPassword: cleanPassword }).catch(() => {});
     window.dispatchEvent(new CustomEvent("platino_admin_credentials_updated"));
-    return { success: true, message: "Contraseña actualizada exitosamente." };
+    return { success: true, message: "Contraseña de la sede actualizada exitosamente." };
   } catch (error) {
     return { success: false, error: error.message };
   }
@@ -412,8 +477,18 @@ export const getDailyAdminRecoveryCodeInfo = () => {
     : { code: "", formattedCode: "", dateKey: todayKey, formattedDate, displayDate: formattedDate, rotationCountToday: 0 };
 };
 
-export const loadDailyAdminRecoveryCodeInfo = async () => {
+let recoveryCodeFallbackMode = false;
+
+export const loadDailyAdminRecoveryCodeInfo = async (forceRefresh = false) => {
+  const todayKey = getTodayDateKey();
+  const cached = getRemoteData("recovery_code", null);
+  if (!forceRefresh && cached?.dateKey === todayKey && cached?.code && recoveryCodeFallbackMode) {
+    return getDailyAdminRecoveryCodeInfo();
+  }
   const info = await apiGet("/admin/recovery-code");
+  if (info?.__localFallback) {
+    recoveryCodeFallbackMode = true;
+  }
   const normalized = {
     ...info,
     formattedCode: `PLT-${info.code}`,
@@ -446,7 +521,7 @@ export const rotateDailyAdminRecoveryCode = async () => {
     displayDate: new Date(`${response.dateKey}T12:00:00`).toLocaleDateString("es-PE"),
   };
   updateRemoteCache("recovery_code", info);
-  window.dispatchEvent(new CustomEvent("platino_daily_code_updated", { detail: info }));
+  window.dispatchEvent(new CustomEvent("platino_daily_recovery_code_updated", { detail: info }));
   return info;
 };
 

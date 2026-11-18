@@ -10,6 +10,7 @@ import {
   CLIENT_ORDER_STAGES,
   getClientStageInfo,
   getClientProgressPercentage,
+  hasPendingOrderMutations,
 } from "../services/ordersService";
 import {
   getPlatinoCareClientByDni, lookupPlatinoCareClientByDni,
@@ -17,6 +18,8 @@ import {
 import { getUserFavorites, removeFromFavorites } from "../services/favoritesService";
 import { formatPrice } from "../data/products";
 import { isItemGemstone } from "../services/gemstonesService";
+import { loadRemoteData } from "../services/remoteData";
+import ClientProfileTab from "../components/ClientProfileTab";
 import "../../styles/orders.css";
 
 export default function ClientOrders({ addToCart }) {
@@ -37,8 +40,23 @@ export default function ClientOrders({ addToCart }) {
   }, [user]);
 
   const [orders, setOrders] = useState(getInitialOrders);
-  const [activeTab, setActiveTab] = useState(() => (tabParam === "favoritos" ? "favoritos" : (tabParam === "care" ? "care" : "activos"))); // 'activos' | 'historial' | 'favoritos' | 'care' | 'todos'
+  const [activeTab, setActiveTab] = useState(() =>
+    tabParam === "perfil"
+      ? "perfil"
+      : tabParam === "favoritos"
+      ? "favoritos"
+      : tabParam === "care"
+      ? "care"
+      : "activos"
+  ); // 'activos' | 'historial' | 'favoritos' | 'care' | 'perfil' | 'todos'
   const [searchCode, setSearchCode] = useState("");
+
+  useEffect(() => {
+    if (tabParam === "perfil") setActiveTab("perfil");
+    else if (tabParam === "favoritos") setActiveTab("favoritos");
+    else if (tabParam === "care") setActiveTab("care");
+    else if (!tabParam && activeTab === "perfil") setActiveTab("activos");
+  }, [tabParam]);
 
   // Estado de Joyas Favoritas del Cliente
   const [favorites, setFavorites] = useState(() => (user ? getUserFavorites(user.email) : []));
@@ -81,15 +99,34 @@ export default function ClientOrders({ addToCart }) {
     setOrders(getInitialOrders());
     const handleUpdate = () => setOrders(getInitialOrders());
     window.addEventListener("orders_updated", handleUpdate);
-    return () => window.removeEventListener("orders_updated", handleUpdate);
-  }, [getInitialOrders]);
+    
+    let active = true;
+    if (user?.email) {
+      loadRemoteData("orders", [])
+        .then(() => {
+          if (!active || hasPendingOrderMutations()) return;
+          setOrders(getOrdersByClientEmail(user.email));
+        })
+        .catch((error) => {
+          console.warn("Could not refresh client orders:", error);
+        });
+    }
+
+    return () => {
+      active = false;
+      window.removeEventListener("orders_updated", handleUpdate);
+    };
+  }, [getInitialOrders, user?.email]);
 
   // Dar el siguiente paso en el proceso (4 fases cliente: Recibido -> En Proceso -> Listo para Entrega -> Entregado)
   const handleAdvanceStep = (orderId) => {
     const currentOrder = orders.find((o) => o.id === orderId);
     if (!currentOrder) return;
     let nextStageId = "diseno_taller";
-    if (currentOrder.stage === "recibido") {
+    if (currentOrder.stage === "cancelado" || currentOrder.stage === "entregado") return;
+    if (currentOrder.stage === "pago_pendiente") {
+      nextStageId = "recibido";
+    } else if (currentOrder.stage === "recibido") {
       nextStageId = "diseno_taller";
     } else if (["diseno_taller", "engaste_pulido", "control_calidad"].includes(currentOrder.stage)) {
       nextStageId = "listo_envio";
@@ -107,7 +144,10 @@ export default function ClientOrders({ addToCart }) {
     const currentOrder = orders.find((o) => o.id === orderId);
     if (!currentOrder) return;
     let prevStageId = "recibido";
-    if (currentOrder.stage === "entregado") {
+    if (currentOrder.stage === "cancelado" || currentOrder.stage === "pago_pendiente") return;
+    if (currentOrder.stage === "recibido") {
+      prevStageId = "pago_pendiente";
+    } else if (currentOrder.stage === "entregado") {
       prevStageId = "listo_envio";
     } else if (currentOrder.stage === "listo_envio") {
       prevStageId = "diseno_taller";
@@ -131,6 +171,8 @@ export default function ClientOrders({ addToCart }) {
   // Obtener texto descriptivo del botón de siguiente paso según la etapa actual
   const getNextActionLabel = (stageId) => {
     switch (stageId) {
+      case "pago_pendiente":
+        return "Confirmar Pago & Pasar a Pedido Confirmado";
       case "recibido":
         return "Avanzar a En Proceso de Fabricación";
       case "diseno_taller":
@@ -175,8 +217,8 @@ export default function ClientOrders({ addToCart }) {
   }, [searchedDniValue]);
 
   // Filtrar pedidos
-  const activeOrders = orders.filter((o) => o.stage !== "entregado");
-  const pastOrders = orders.filter((o) => o.stage === "entregado");
+  const activeOrders = orders.filter((o) => o.stage !== "entregado" && o.stage !== "cancelado");
+  const pastOrders = orders.filter((o) => o.stage === "entregado" || o.stage === "cancelado");
 
   let displayedOrders = orders;
   if (activeTab === "activos") {
@@ -287,6 +329,13 @@ export default function ClientOrders({ addToCart }) {
         {/* Pestañas de Navegación y Búsqueda */}
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "16px", marginBottom: "20px" }}>
           <div className="orders-tabs-nav" style={{ marginBottom: 0 }}>
+            <button
+              className={`orders-tab-item ${activeTab === "perfil" ? "active" : ""}`}
+              onClick={() => setActiveTab("perfil")}
+            >
+              <i className="bi bi-person-lines-fill" style={{ color: "#c5a059" }}></i> Mi Perfil y Direcciones
+            </button>
+
             <button
               className={`orders-tab-item ${activeTab === "activos" ? "active" : ""}`}
               onClick={() => setActiveTab("activos")}
@@ -535,6 +584,8 @@ export default function ClientOrders({ addToCart }) {
               </div>
             )}
           </div>
+        ) : activeTab === "perfil" ? (
+          <ClientProfileTab />
         ) : activeTab === "care" ? (
           <div className="orders-care-tab-content">
             {/* Header Platino Care */}
@@ -1002,9 +1053,11 @@ export default function ClientOrders({ addToCart }) {
         ) : (
           displayedOrders.map((order) => {
             const clientStageInfo = getClientStageInfo(order.stage);
-            const clientStepNum = clientStageInfo.stepNumber || 1;
+            const clientFlowStages = CLIENT_ORDER_STAGES.filter((s) => s.id !== "cancelado");
+            const clientStepNum = Math.max(1, clientFlowStages.findIndex((s) => s.id === clientStageInfo.id) + 1);
             const progressPct = getProgressPercentage(order.stage);
             const isCompleted = order.stage === "entregado";
+            const isCancelled = order.stage === "cancelado";
 
             return (
               <article key={order.id} className="order-card">
@@ -1041,7 +1094,35 @@ export default function ClientOrders({ addToCart }) {
                   </div>
                 </div>
 
-                {/* Línea de Tiempo / Stepper de Fabricación Artesanal (4 Fases Unificadas) */}
+                {/* Línea de Tiempo / Stepper del Pedido */}
+                {isCancelled ? (
+                  <div className="order-stepper-box">
+                    <div
+                      style={{
+                        background: "#fef2f2",
+                        border: "1px solid #fecaca",
+                        borderRadius: "10px",
+                        padding: "14px 16px",
+                        display: "flex",
+                        gap: "12px",
+                        alignItems: "flex-start",
+                        color: "#991b1b",
+                      }}
+                    >
+                      <i className="bi bi-x-octagon-fill" style={{ fontSize: "20px" }}></i>
+                      <div>
+                        <h5 style={{ margin: "0 0 4px", fontSize: "15px", fontWeight: "700" }}>Pedido Cancelado</h5>
+                        <p style={{ margin: 0, fontSize: "13px" }}>
+                          <strong>Motivo:</strong> {order.cancellationReason || "No especificado"}
+                          {order.cancellationDetail ? ` — ${order.cancellationDetail}` : ""}
+                        </p>
+                        {order.cancelledAt && (
+                          <p style={{ margin: "4px 0 0", fontSize: "12px", color: "#b91c1c" }}>Fecha de cancelación: {order.cancelledAt}</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                ) : (
                 <div className="order-stepper-box">
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
                     <div className="order-stepper-title" style={{ margin: 0 }}>
@@ -1059,9 +1140,10 @@ export default function ClientOrders({ addToCart }) {
                       style={{ width: `${progressPct}%` }}
                     ></div>
 
-                    {CLIENT_ORDER_STAGES.map((s) => {
-                      const isStepDone = s.stepNumber < clientStepNum;
-                      const isCurrent = s.stepNumber === clientStepNum;
+                    {clientFlowStages.map((s, sIdx) => {
+                      const nodeNum = sIdx + 1;
+                      const isStepDone = nodeNum < clientStepNum;
+                      const isCurrent = nodeNum === clientStepNum;
 
                       return (
                         <div
@@ -1070,13 +1152,13 @@ export default function ClientOrders({ addToCart }) {
                             isStepDone ? "completed" : ""
                           } ${isCurrent ? "current" : ""}`}
                           onClick={user?.role === "admin" ? () => handleJumpToStep(order.id, s.internalStages[0]) : undefined}
-                          title={`Paso ${s.stepNumber} de 4: ${s.label}`}
+                          title={`Paso ${nodeNum} de ${clientFlowStages.length}: ${s.label}`}
                         >
                           <div className="stepper-circle">
                             {isStepDone ? (
                               <i className="bi bi-check-lg"></i>
                             ) : (
-                              <span>{s.stepNumber}</span>
+                              <span>{nodeNum}</span>
                             )}
                           </div>
                           <span className="stepper-label">{s.shortLabel}</span>
@@ -1105,7 +1187,7 @@ export default function ClientOrders({ addToCart }) {
                       </div>
                       <div>
                         <h5>
-                          Fase Actual: Paso {clientStepNum} de 4 — {clientStageInfo.label}
+                          Fase Actual: Paso {clientStepNum} de {clientFlowStages.length} — {clientStageInfo.label}
                         </h5>
                         <p>{clientStageInfo.description}</p>
                         {["diseno_taller", "engaste_pulido", "control_calidad"].includes(order.stage) && (
@@ -1143,7 +1225,7 @@ export default function ClientOrders({ addToCart }) {
                         <button
                           type="button"
                           className="btn-advance-step"
-                          onClick={() => handleJumpToStep(order.id, "recibido")}
+                          onClick={() => handleJumpToStep(order.id, "pago_pendiente")}
                           style={{ background: "#15803d" }}
                           title="Reiniciar a Paso 1 para seguir probando la secuencia"
                         >
@@ -1165,6 +1247,7 @@ export default function ClientOrders({ addToCart }) {
                     </div>
                   )}
                 </div>
+                )}
 
                 {/* Productos incluidos en la orden */}
                 <div className="order-card-body">
@@ -1574,7 +1657,7 @@ export default function ClientOrders({ addToCart }) {
                         Control de Avance del Pedido
                       </span>
                       <h4 style={{ margin: "2px 0 0", color: "#0f2a24", fontSize: "16px" }}>
-                        Fase: {getClientStageInfo(detailModalOrder.stage).label} (Paso {getClientStageInfo(detailModalOrder.stage).stepNumber} de 4)
+                        Fase: {getClientStageInfo(detailModalOrder.stage).label}{detailModalOrder.stage === "cancelado" ? "" : ` (Paso ${getClientStageInfo(detailModalOrder.stage).stepNumber + 1} de 5)`}
                       </h4>
                     </div>
 

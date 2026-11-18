@@ -63,6 +63,11 @@ import {
   WORKSHOP_BOX_OPTIONS,
   updateOrderWorkshopFields,
   updateOrderStageComment,
+  cancelOrder,
+  restoreOrder,
+  ORDER_FLOW_STAGES,
+  CANCELLATION_REASONS,
+  hasPendingOrderMutations,
 } from "../services/ordersService";
 import { METALS, formatPrice, MASTER_GEM_SHAPES } from "../data/products";
 import {
@@ -106,6 +111,8 @@ import {
   isEmbeddedImage,
 } from "../utils/imageFileName";
 import { getLastViewedProduct } from "../services/recentProducts";
+import { apiGet } from "../services/apiClient";
+import { loadRemoteData, updateRemoteCache } from "../services/remoteData";
 import "../../styles/citas.css";
 import "../../styles/orders.css";
 
@@ -730,6 +737,23 @@ export default function AdminCitas() {
   }, [isRealMaster]);
 
   useEffect(() => {
+    if (!isRealMaster) return undefined;
+    const refreshDailyCode = () => {
+      loadDailyAdminRecoveryCodeInfo()
+        .then(setDailyCodeInfo)
+        .catch((error) => console.error("Could not refresh daily recovery code:", error));
+    };
+    const intervalId = window.setInterval(refreshDailyCode, 60 * 1000);
+    window.addEventListener("focus", refreshDailyCode);
+    document.addEventListener("visibilitychange", refreshDailyCode);
+    return () => {
+      window.clearInterval(intervalId);
+      window.removeEventListener("focus", refreshDailyCode);
+      document.removeEventListener("visibilitychange", refreshDailyCode);
+    };
+  }, [isRealMaster]);
+
+  useEffect(() => {
     setActiveTab(getTabFromLocation());
   }, [getTabFromLocation]);
 
@@ -817,13 +841,11 @@ export default function AdminCitas() {
       }
     };
     const handleCrossTabStorage = (e) => {
-      if (!e.key || e.key.includes("permission") || e.key.includes("admin") || e.key.includes("recovery")) {
+      if (e.key === "platino_sync_ping_v1" || e.key === "platino_local_ns_recovery_code") return;
+      if (!e.key || e.key.includes("permission") || e.key.includes("admin")) {
         setPermissionsMatrix(getPermissionsMatrix());
         setPermissionRequests(getPermissionRequests());
         setAdminAccountsList(getAdminAccounts());
-        if (isRealMaster) {
-          loadDailyAdminRecoveryCodeInfo().then(setDailyCodeInfo).catch((error) => console.error(error));
-        }
         setRecoveryLogs(getPasswordRecoveryLogs());
       }
     };
@@ -1203,8 +1225,42 @@ export default function AdminCitas() {
     };
   }, []);
 
+  useEffect(() => {
+    if (!["pedidos", "finanzas"].includes(activeTab)) return undefined;
+
+    let active = true;
+    const refreshAdminOrders = async () => {
+      // No pisar cambios recién hechos por el admin (pago, etapa, cancelación) mientras se guardan en el servidor
+      if (hasPendingOrderMutations()) return;
+      try {
+        await loadRemoteData("orders", getOrders());
+        if (!active || hasPendingOrderMutations()) return;
+        setOrdersList(getOrders());
+      } catch (error) {
+        console.warn("Could not refresh administrator orders:", error);
+        if (active) setOrdersList(getOrders());
+      }
+    };
+
+    refreshAdminOrders();
+    const refreshInterval = window.setInterval(refreshAdminOrders, 5000);
+    window.addEventListener("focus", refreshAdminOrders);
+    document.addEventListener("visibilitychange", refreshAdminOrders);
+
+    return () => {
+      active = false;
+      window.clearInterval(refreshInterval);
+      window.removeEventListener("focus", refreshAdminOrders);
+      document.removeEventListener("visibilitychange", refreshAdminOrders);
+    };
+  }, [activeTab]);
+
   // Manejadores para actualizar proceso de pedidos (Admin)
   const handleUpdateOrderStage = (orderId, newStage) => {
+    if (newStage === "cancelado") {
+      handleCancelOrder(orderId);
+      return;
+    }
     const success = updateOrderStatus(orderId, newStage);
     if (success) {
       const stageInfo = getOrderStageInfo(newStage);
@@ -1274,6 +1330,38 @@ export default function AdminCitas() {
       setFeedbackMsg(`✓ Pedido ${orderId} eliminado del sistema.`);
       setTimeout(() => setFeedbackMsg(""), 4000);
     }
+  };
+
+  // Modal de cancelación de pedido con motivo
+  const [cancelModal, setCancelModal] = useState(null); // { orderId, reason, detail }
+
+  const handleCancelOrder = (orderId) => {
+    if (ordersList.find((order) => order.id === orderId)?.stage === "cancelado") return;
+    setCancelModal({ orderId, reason: CANCELLATION_REASONS[0], detail: "" });
+  };
+
+  const confirmCancelOrder = () => {
+    if (!cancelModal) return;
+    const { orderId, reason, detail } = cancelModal;
+    const normalizedReason = String(reason || "").trim() || "Otro motivo";
+    const cleanDetail = String(detail || "").trim();
+    if (normalizedReason === "Otro motivo" && !cleanDetail) {
+      alert("Por favor describe el motivo de la cancelación.");
+      return;
+    }
+
+    if (!cancelOrder(orderId, normalizedReason, cleanDetail)) return;
+    setOrdersList(getOrders());
+    setCancelModal(null);
+    setFeedbackMsg(`✓ Pedido ${orderId} cancelado: ${normalizedReason}.`);
+    setTimeout(() => setFeedbackMsg(""), 5000);
+  };
+
+  const handleRestoreOrder = (orderId) => {
+    if (!restoreOrder(orderId)) return;
+    setOrdersList(getOrders());
+    setFeedbackMsg(`✓ Pedido ${orderId} recuperado y devuelto a "Pendiente de Pago".`);
+    setTimeout(() => setFeedbackMsg(""), 5000);
   };
 
   // Control estricto de sede: Cada admin solo ve la información de su propia sede (Lima solo Lima, Miraflores solo Miraflores)
@@ -1698,17 +1786,31 @@ export default function AdminCitas() {
   };
 
   const handleSavePassword = async (email, name) => {
-    if (!newPasswordInput || newPasswordInput.trim().length < 12) {
-      alert("Por favor ingresa una contraseña de al menos 12 caracteres.");
+    if (!isRealMaster) {
+      alert("Acceso denegado: Solo el Administrador Principal (Vladimir) puede cambiar las contraseñas de las sedes.");
       return;
     }
-    const res = await updateAdminPassword(email, newPasswordInput.trim());
+    const cleanTarget = String(email || "").toLowerCase().trim();
+    if (cleanTarget !== "admin.lima@platino.pe" && cleanTarget !== "admin.miraflores@platino.pe") {
+      alert("Solo está permitido cambiar la contraseña exclusivamente para las dos sedes administrativas (admin.lima@platino.pe y admin.miraflores@platino.pe).");
+      return;
+    }
+    if (!newPasswordInput || newPasswordInput.trim().length < 8) {
+      alert("Por favor ingresa una contraseña de al menos 8 caracteres.");
+      return;
+    }
+    const res = await updateAdminPassword(cleanTarget, newPasswordInput.trim(), effectiveUser);
     if (res.success) {
-      setPasswordChangeFeedback(`✓ Contraseña de ${name} actualizada exitosamente.`);
+      const msg = `✓ Contraseña de ${name} (${cleanTarget}) actualizada exitosamente.`;
+      setPasswordChangeFeedback(msg);
+      setFeedbackMsg(msg);
       setEditingPasswordEmail(null);
       setNewPasswordInput("");
       setAdminAccountsList(getAdminAccounts());
-      setTimeout(() => setPasswordChangeFeedback(""), 6000);
+      setTimeout(() => {
+        setPasswordChangeFeedback("");
+        setFeedbackMsg("");
+      }, 6000);
     } else {
       alert(res.error || "No se pudo actualizar la contraseña.");
     }
@@ -2086,8 +2188,13 @@ export default function AdminCitas() {
     let totalFacturado = 0;
     let countPagados = 0;
     let countPendientes = 0;
+    let countCancelados = 0;
 
     (effectiveSedeOrders || []).forEach((order) => {
+      if (order.stage === "cancelado") {
+        countCancelados += 1;
+        return;
+      }
       const orderTotal = Number(order.total) || 0;
       totalFacturado += orderTotal;
       if (order.paymentStatus === "Pagado (100%)") {
@@ -2105,35 +2212,43 @@ export default function AdminCitas() {
       totalFacturado,
       countPagados,
       countPendientes,
-      totalOrders: effectiveSedeOrders.length,
+      countCancelados,
+      totalOrders: effectiveSedeOrders.filter((order) => order.stage !== "cancelado").length,
     };
   }, [effectiveSedeOrders]);
 
   const filteredPaymentOrders = useMemo(() => {
-    return effectiveSedeOrders.filter((order) => {
-      if (paymentStatusFilter === "pagados" && order.paymentStatus !== "Pagado (100%)") {
-        return false;
-      }
-      if (paymentStatusFilter === "pendientes" && order.paymentStatus === "Pagado (100%)") {
-        return false;
-      }
-      if (paymentStatusFilter === "por_validar" && order.paymentStatus !== "Pendiente de Validación") {
-        return false;
-      }
-      if (paymentSearchQuery.trim()) {
-        const q = paymentSearchQuery.trim().toLowerCase();
-        const matchCode = (order.id || "").toLowerCase().includes(q);
-        const matchName = (order.clientName || "").toLowerCase().includes(q);
-        const matchEmail = (order.clientEmail || "").toLowerCase().includes(q);
-        const matchPhone = (order.clientPhone || "").toLowerCase().includes(q);
-        const matchMethod = (order.paymentMethod || "").toLowerCase().includes(q);
-        const matchItem = (order.items || []).some((it) => (it.name || "").toLowerCase().includes(q));
-        if (!matchCode && !matchName && !matchEmail && !matchPhone && !matchMethod && !matchItem) {
+    return effectiveSedeOrders
+      .filter((order) => {
+        if (paymentStatusFilter === "cancelados") {
+          return order.stage === "cancelado";
+        }
+        if (order.stage === "cancelado") {
           return false;
         }
-      }
-      return true;
-    });
+        if (paymentStatusFilter === "pagados" && order.paymentStatus !== "Pagado (100%)") {
+          return false;
+        }
+        if ((paymentStatusFilter === "pendientes" || paymentStatusFilter === "por_validar") && order.paymentStatus === "Pagado (100%)") {
+          return false;
+        }
+        return true;
+      })
+      .filter((order) => {
+        if (paymentSearchQuery.trim()) {
+          const q = paymentSearchQuery.trim().toLowerCase();
+          const matchCode = (order.id || "").toLowerCase().includes(q);
+          const matchName = (order.clientName || "").toLowerCase().includes(q);
+          const matchEmail = (order.clientEmail || "").toLowerCase().includes(q);
+          const matchPhone = (order.clientPhone || "").toLowerCase().includes(q);
+          const matchMethod = (order.paymentMethod || "").toLowerCase().includes(q);
+          const matchItem = (order.items || []).some((it) => (it.name || "").toLowerCase().includes(q));
+          if (!matchCode && !matchName && !matchEmail && !matchPhone && !matchMethod && !matchItem) {
+            return false;
+          }
+        }
+        return true;
+      });
   }, [effectiveSedeOrders, paymentStatusFilter, paymentSearchQuery]);
 
   const handleUpdatePaymentStatus = (orderId, newStatus) => {
@@ -4883,9 +4998,13 @@ export default function AdminCitas() {
                 </tr>
               </thead>
               <tbody>
-                {ADMIN_ACCOUNTS.map((acc) => {
+                {(adminAccountsList || ADMIN_ACCOUNTS).map((acc) => {
                   const isMaster = acc.email === "vladimiryt18@gmail.com";
+                  const isBranchAdmin =
+                    acc.email === "admin.lima@platino.pe" || acc.email === "admin.miraflores@platino.pe";
                   const userPerms = permissionsMatrix[acc.email] || [];
+                  const isEditingThisPw = editingPasswordEmail === acc.email;
+                  const isShowingPw = Boolean(showPasswordMap[acc.email]);
 
                   return (
                     <tr
@@ -4905,47 +5024,203 @@ export default function AdminCitas() {
                         </div>
 
                         {!isMaster && (
-                          <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-                            <button
-                              type="button"
-                              onClick={() => handleBulkSetUserPermissions(acc.email, acc.name, "all")}
-                              style={{
-                                background: "#ecfdf5",
-                                color: "#047857",
-                                border: "1px solid #a7f3d0",
-                                borderRadius: "6px",
-                                padding: "4px 9px",
-                                fontSize: "10.5px",
-                                fontWeight: "700",
-                                cursor: "pointer",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "4px",
-                              }}
-                              title="Conceder todos los permisos a esta sede"
-                            >
-                              <i className="bi bi-check2-all"></i> Habilitar Todo
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleBulkSetUserPermissions(acc.email, acc.name, "revoke")}
-                              style={{
-                                background: "#fff1f2",
-                                color: "#be123c",
-                                border: "1px solid #fecdd3",
-                                borderRadius: "6px",
-                                padding: "4px 9px",
-                                fontSize: "10.5px",
-                                fontWeight: "700",
-                                cursor: "pointer",
-                                display: "inline-flex",
-                                alignItems: "center",
-                                gap: "4px",
-                              }}
-                              title="Revocar todos los permisos de esta sede para que deba solicitarlos nuevamente"
-                            >
-                              <i className="bi bi-x-circle"></i> Revocar Todo
-                            </button>
+                          <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                            <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
+                              <button
+                                type="button"
+                                onClick={() => handleBulkSetUserPermissions(acc.email, acc.name, "all")}
+                                style={{
+                                  background: "#ecfdf5",
+                                  color: "#047857",
+                                  border: "1px solid #a7f3d0",
+                                  borderRadius: "6px",
+                                  padding: "4px 9px",
+                                  fontSize: "10.5px",
+                                  fontWeight: "700",
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                }}
+                                title="Conceder todos los permisos a esta sede"
+                              >
+                                <i className="bi bi-check2-all"></i> Habilitar Todo
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleBulkSetUserPermissions(acc.email, acc.name, "revoke")}
+                                style={{
+                                  background: "#fff1f2",
+                                  color: "#be123c",
+                                  border: "1px solid #fecdd3",
+                                  borderRadius: "6px",
+                                  padding: "4px 9px",
+                                  fontSize: "10.5px",
+                                  fontWeight: "700",
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "4px",
+                                }}
+                                title="Revocar todos los permisos de esta sede para que deba solicitarlos nuevamente"
+                              >
+                                <i className="bi bi-x-circle"></i> Revocar Todo
+                              </button>
+
+                              {isRealMaster && isBranchAdmin && (
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    isEditingThisPw
+                                      ? handleCancelEditPassword()
+                                      : handleStartEditPassword(acc.email)
+                                  }
+                                  style={{
+                                    background: isEditingThisPw ? "#113B3A" : "#fef3c7",
+                                    color: isEditingThisPw ? "#ffffff" : "#92400e",
+                                    border: `1px solid ${isEditingThisPw ? "#113B3A" : "#fde68a"}`,
+                                    borderRadius: "6px",
+                                    padding: "4px 9px",
+                                    fontSize: "10.5px",
+                                    fontWeight: "700",
+                                    cursor: "pointer",
+                                    display: "inline-flex",
+                                    alignItems: "center",
+                                    gap: "4px",
+                                  }}
+                                  title="Cambiar contraseña de acceso de esta sede administrativa (Exclusivo Vladimir)"
+                                >
+                                  <i className="bi bi-key-fill"></i>
+                                  {isEditingThisPw ? "Cerrar" : "Cambiar Contraseña"}
+                                </button>
+                              )}
+                            </div>
+
+                            {/* Visualización rápida de la clave actual de la sede (solo visible para Vladimir) */}
+                            {isRealMaster && isBranchAdmin && acc.password && (
+                              <div
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                  background: "#f8fafc",
+                                  border: "1px solid #e2e8f0",
+                                  borderRadius: "6px",
+                                  padding: "3px 8px",
+                                  fontSize: "11px",
+                                  color: "#334155",
+                                  width: "fit-content",
+                                }}
+                              >
+                                <span style={{ color: "#64748b", fontWeight: "600" }}>Clave:</span>
+                                <code style={{ fontWeight: "700", color: "#0f172a" }}>
+                                  {isShowingPw ? acc.password : "••••••••••••"}
+                                </code>
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleShowPassword(acc.email)}
+                                  style={{ background: "none", border: "none", cursor: "pointer", color: "#475569", padding: "0 2px", fontSize: "12px" }}
+                                  title={isShowingPw ? "Ocultar contraseña" : "Ver contraseña actual"}
+                                >
+                                  <i className={`bi ${isShowingPw ? "bi-eye-slash" : "bi-eye"}`}></i>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyPassword(acc.email, acc.password)}
+                                  style={{ background: "none", border: "none", cursor: "pointer", color: "#047857", padding: "0 2px", fontSize: "11px", fontWeight: "700" }}
+                                  title="Copiar contraseña"
+                                >
+                                  {copiedEmail === acc.email ? "✓ Copiada" : <i className="bi bi-clipboard"></i>}
+                                </button>
+                              </div>
+                            )}
+
+                            {/* Formulario desplegable para asignar nueva contraseña a la sede */}
+                            {isRealMaster && isBranchAdmin && isEditingThisPw && (
+                              <div
+                                style={{
+                                  background: "#fffdf7",
+                                  border: "1.5px solid #e6cfa8",
+                                  borderRadius: "8px",
+                                  padding: "10px",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                  gap: "8px",
+                                  maxWidth: "290px",
+                                }}
+                              >
+                                <div style={{ fontSize: "11px", fontWeight: "800", color: "#0f2a24", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                                  <span>Nueva clave para {acc.email}:</span>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleGeneratePassword(acc.sede)}
+                                    style={{
+                                      background: "#f1f5f9",
+                                      color: "#0f2a24",
+                                      border: "1px solid #cbd5e1",
+                                      borderRadius: "4px",
+                                      padding: "2px 6px",
+                                      fontSize: "10px",
+                                      fontWeight: "700",
+                                      cursor: "pointer",
+                                    }}
+                                    title="Generar contraseña segura automáticamente"
+                                  >
+                                    <i className="bi bi-magic"></i> Sugerir
+                                  </button>
+                                </div>
+                                <input
+                                  type="text"
+                                  value={newPasswordInput}
+                                  onChange={(e) => setNewPasswordInput(e.target.value)}
+                                  placeholder="Mínimo 8 caracteres..."
+                                  style={{
+                                    width: "100%",
+                                    boxSizing: "border-box",
+                                    padding: "6px 9px",
+                                    borderRadius: "6px",
+                                    border: "1px solid #cbd5e1",
+                                    fontSize: "12px",
+                                    fontWeight: "600",
+                                  }}
+                                />
+                                <div style={{ display: "flex", gap: "6px" }}>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleSavePassword(acc.email, acc.name)}
+                                    style={{
+                                      flex: 1,
+                                      background: "#113B3A",
+                                      color: "#ffffff",
+                                      border: "none",
+                                      borderRadius: "6px",
+                                      padding: "6px 10px",
+                                      fontSize: "11px",
+                                      fontWeight: "700",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    <i className="bi bi-check2-circle"></i> Guardar Clave
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={handleCancelEditPassword}
+                                    style={{
+                                      background: "#f1f5f9",
+                                      color: "#475569",
+                                      border: "1px solid #cbd5e1",
+                                      borderRadius: "6px",
+                                      padding: "6px 10px",
+                                      fontSize: "11px",
+                                      fontWeight: "700",
+                                      cursor: "pointer",
+                                    }}
+                                  >
+                                    Cancelar
+                                  </button>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         )}
                       </td>
@@ -5929,6 +6204,87 @@ export default function AdminCitas() {
             </div>
           );
         })()}
+
+        {/* Modal de Cancelación de Pedido con Motivo */}
+        {cancelModal && (
+          <div
+            onClick={() => setCancelModal(null)}
+            style={{ position: "fixed", inset: 0, background: "rgba(15, 23, 42, 0.55)", zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{ background: "#ffffff", borderRadius: "14px", width: "100%", maxWidth: "460px", padding: "24px", boxShadow: "0 20px 50px rgba(0,0,0,0.25)" }}
+            >
+              <h3 style={{ margin: "0 0 4px", fontSize: "18px", color: "#991b1b", display: "flex", alignItems: "center", gap: "8px" }}>
+                <i className="bi bi-x-octagon-fill"></i> Cancelar pedido {cancelModal.orderId}
+              </h3>
+              <p style={{ margin: "0 0 16px", fontSize: "13px", color: "#64748b" }}>
+                El pedido dejará de estar activo y no continuará en el proceso. El cliente verá el motivo en su portal.
+              </p>
+
+              <label style={{ display: "block", fontSize: "12.5px", fontWeight: "700", color: "#334155", marginBottom: "6px" }}>
+                Motivo de la cancelación *
+              </label>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginBottom: "14px" }}>
+                {CANCELLATION_REASONS.map((r) => (
+                  <label
+                    key={r}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "8px",
+                      padding: "8px 10px",
+                      borderRadius: "8px",
+                      border: `1.5px solid ${cancelModal.reason === r ? "#b91c1c" : "#e2e8f0"}`,
+                      background: cancelModal.reason === r ? "#fef2f2" : "#ffffff",
+                      fontSize: "13px",
+                      fontWeight: cancelModal.reason === r ? "700" : "500",
+                      color: "#1e293b",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="cancelReason"
+                      checked={cancelModal.reason === r}
+                      onChange={() => setCancelModal((m) => ({ ...m, reason: r }))}
+                      style={{ accentColor: "#b91c1c" }}
+                    />
+                    {r}
+                  </label>
+                ))}
+              </div>
+
+              <label style={{ display: "block", fontSize: "12.5px", fontWeight: "700", color: "#334155", marginBottom: "6px" }}>
+                Detalle {cancelModal.reason === "Otro motivo" ? "*" : "(opcional)"}
+              </label>
+              <textarea
+                rows={3}
+                value={cancelModal.detail}
+                onChange={(e) => setCancelModal((m) => ({ ...m, detail: e.target.value }))}
+                placeholder="Ej. El cliente decidió no continuar con la compra."
+                style={{ width: "100%", boxSizing: "border-box", padding: "10px 12px", borderRadius: "8px", border: "1.5px solid #cbd5e1", fontSize: "13px", resize: "vertical", marginBottom: "18px", fontFamily: "inherit" }}
+              />
+
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "10px" }}>
+                <button
+                  type="button"
+                  onClick={() => setCancelModal(null)}
+                  style={{ background: "#f1f5f9", color: "#334155", border: "1px solid #cbd5e1", padding: "9px 16px", borderRadius: "8px", fontWeight: "700", fontSize: "13px", cursor: "pointer" }}
+                >
+                  Volver
+                </button>
+                <button
+                  type="button"
+                  onClick={confirmCancelOrder}
+                  style={{ background: "#b91c1c", color: "#ffffff", border: "none", padding: "9px 16px", borderRadius: "8px", fontWeight: "700", fontSize: "13px", cursor: "pointer" }}
+                >
+                  Confirmar Cancelación
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Feedback Alert si hubo cambios */}
         {feedbackMsg && (
@@ -12059,7 +12415,7 @@ export default function AdminCitas() {
                     >
                       <span style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
                         <i className={`bi ${stg.icon}`} style={{ color: isActive ? "#C6AC7F" : stg.color }}></i>
-                        <span>{stg.stepNumber}. {stg.shortLabel}</span>
+                        <span>{stg.id === "cancelado" ? "" : `${stg.stepNumber + 1}. `}{stg.shortLabel}</span>
                       </span>
                       <span
                         style={{
@@ -12305,9 +12661,10 @@ export default function AdminCitas() {
                   const isExpanded = Boolean(expandedOrders[order.id]);
                   const mainProduct = order.items?.[0];
 
-                  const currentIdx = ORDER_STAGES.findIndex((s) => s.id === order.stage);
-                  const prevStage = currentIdx > 0 ? ORDER_STAGES[currentIdx - 1] : null;
-                  const nextStage = currentIdx >= 0 && currentIdx < ORDER_STAGES.length - 1 ? ORDER_STAGES[currentIdx + 1] : null;
+                  const isCancelled = order.stage === "cancelado";
+                  const currentIdx = ORDER_FLOW_STAGES.findIndex((s) => s.id === order.stage);
+                  const prevStage = !isCancelled && currentIdx > 0 ? ORDER_FLOW_STAGES[currentIdx - 1] : null;
+                  const nextStage = !isCancelled && currentIdx >= 0 && currentIdx < ORDER_FLOW_STAGES.length - 1 ? ORDER_FLOW_STAGES[currentIdx + 1] : null;
 
                   return (
                     <article
@@ -12476,7 +12833,7 @@ export default function AdminCitas() {
                               }}
                             >
                               <i className="bi bi-eye" style={{ color: "#113B3A", marginRight: "3px" }}></i>
-                              Cliente ve: <strong>Paso {clientStageInfo.stepNumber}/4 ({clientStageInfo.shortLabel})</strong>
+                              Cliente ve: <strong>{clientStageInfo.id === "cancelado" ? "Pedido Cancelado" : `Paso ${clientStageInfo.stepNumber + 1}/5 (${clientStageInfo.shortLabel})`}</strong>
                             </span>
                           </div>
 
@@ -12529,11 +12886,66 @@ export default function AdminCitas() {
                           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                             <i className="bi bi-sliders2" style={{ color: "#113B3A", fontSize: "16px" }}></i>
                             <span style={{ fontSize: "13px", fontWeight: "800", color: "#113B3A", textTransform: "uppercase", letterSpacing: "0.04em" }}>
-                              Progreso de Fabricación en Taller (Paso {currentStageInfo.stepNumber} de 6)
+                              {isCancelled
+                                ? "Pedido Cancelado"
+                                : `Progreso del Pedido (Paso ${Math.max(1, currentIdx + 1)} de ${ORDER_FLOW_STAGES.length})`}
                             </span>
                           </div>
 
+                          {isCancelled && (
+                            <div
+                              style={{
+                                flexBasis: "100%",
+                                background: "#fef2f2",
+                                border: "1px solid #fecaca",
+                                borderRadius: "8px",
+                                padding: "10px 14px",
+                                fontSize: "12.5px",
+                                color: "#991b1b",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                flexWrap: "wrap",
+                                gap: "10px",
+                              }}
+                            >
+                              <div style={{ display: "flex", alignItems: "flex-start", gap: "8px" }}>
+                                <i className="bi bi-x-octagon-fill" style={{ fontSize: "15px", marginTop: "1px" }}></i>
+                                <div>
+                                  <strong>Motivo:</strong> {order.cancellationReason || "No especificado"}
+                                  {order.cancellationDetail ? ` — ${order.cancellationDetail}` : ""}
+                                  {order.cancelledAt ? (
+                                    <span style={{ display: "block", fontSize: "11.5px", color: "#b91c1c", marginTop: "2px" }}>
+                                      Cancelado el {order.cancelledAt}{order.cancelledBy ? ` por ${order.cancelledBy}` : ""}
+                                    </span>
+                                  ) : null}
+                                </div>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => handleRestoreOrder(order.id)}
+                                style={{
+                                  background: "#113B3A",
+                                  color: "#ffffff",
+                                  border: "none",
+                                  padding: "7px 14px",
+                                  borderRadius: "7px",
+                                  fontSize: "12px",
+                                  fontWeight: "700",
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "6px",
+                                }}
+                                title="Recuperar este pedido y devolverlo a Pendiente de Pago"
+                              >
+                                <i className="bi bi-arrow-counterclockwise"></i> Recuperar Pedido
+                              </button>
+                            </div>
+                          )}
+
                           {/* Botones de Acción de Avance / Retroceso + Selector */}
+                          {!isCancelled && (
                           <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
                             {prevStage && (
                               <button
@@ -12576,9 +12988,9 @@ export default function AdminCitas() {
                                 outline: "none",
                               }}
                             >
-                              {ORDER_STAGES.map((stg) => (
+                              {ORDER_FLOW_STAGES.map((stg, stgIdx) => (
                                 <option key={stg.id} value={stg.id}>
-                                  Paso {stg.stepNumber}: {stg.label}
+                                  Paso {stgIdx + 1}: {stg.label}
                                 </option>
                               ))}
                             </select>
@@ -12624,10 +13036,35 @@ export default function AdminCitas() {
                                 <i className="bi bi-patch-check-fill"></i> Joya Entregada
                               </span>
                             )}
+
+                            {order.stage !== "entregado" && (
+                              <button
+                                type="button"
+                                onClick={() => handleCancelOrder(order.id)}
+                                style={{
+                                  background: "#fef2f2",
+                                  color: "#b91c1c",
+                                  border: "1px solid #fecaca",
+                                  padding: "7px 13px",
+                                  borderRadius: "7px",
+                                  fontSize: "12.5px",
+                                  fontWeight: "700",
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: "5px",
+                                }}
+                                title="Cancelar pedido e indicar el motivo"
+                              >
+                                <i className="bi bi-x-circle"></i> Cancelar Pedido
+                              </button>
+                            )}
                           </div>
+                          )}
                         </div>
 
-                        {/* Nodos Interactivos de las 6 Fases */}
+                        {/* Nodos Interactivos de las Fases */}
+                        {!isCancelled && (
                         <div
                           style={{
                             display: "grid",
@@ -12635,7 +13072,7 @@ export default function AdminCitas() {
                             gap: "8px",
                           }}
                         >
-                          {ORDER_STAGES.map((stg, idx) => {
+                          {ORDER_FLOW_STAGES.map((stg, idx) => {
                             const isCurrent = order.stage === stg.id;
                             const isCompleted = currentIdx > idx;
                             return (
@@ -12679,7 +13116,7 @@ export default function AdminCitas() {
                                       textTransform: "uppercase",
                                     }}
                                   >
-                                    Fase {stg.stepNumber}
+                                    Fase {idx + 1}
                                   </span>
                                   {isCompleted && <i className="bi bi-check-circle-fill" style={{ color: "#16a34a", fontSize: "13px" }}></i>}
                                   {isCurrent && (
@@ -12705,6 +13142,7 @@ export default function AdminCitas() {
                             );
                           })}
                         </div>
+                        )}
 
                         {/* FASE 5: Programación de Fecha y Hora Aproximada de Entrega (Visible para el Cliente) */}
                         <div
@@ -13366,7 +13804,7 @@ export default function AdminCitas() {
                   onClick={() => setPaymentStatusFilter("todos")}
                   className={`payment-filter-btn ${paymentStatusFilter === "todos" ? "active" : ""}`}
                 >
-                  Todos ({effectiveSedeOrders.length})
+                  Todos ({paymentsKpis.totalOrders})
                 </button>
                 <button
                   type="button"
@@ -13383,6 +13821,19 @@ export default function AdminCitas() {
                 >
                   <i className="bi bi-hourglass-split"></i>
                   Por Validar ({paymentsKpis.countPendientes})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPaymentStatusFilter("cancelados")}
+                  className={`payment-filter-btn btn-cancelados ${paymentStatusFilter === "cancelados" ? "active" : ""}`}
+                  style={
+                    paymentStatusFilter === "cancelados"
+                      ? { background: "#b91c1c", color: "#ffffff", borderColor: "#b91c1c" }
+                      : { color: "#b91c1c", borderColor: "#fecaca", background: "#fef2f2" }
+                  }
+                >
+                  <i className="bi bi-x-octagon-fill"></i>
+                  Cancelados ({paymentsKpis.countCancelados})
                 </button>
               </div>
 
@@ -13410,13 +13861,22 @@ export default function AdminCitas() {
             ) : (
               <div className="payment-orders-list">
                 {filteredPaymentOrders.map((order) => {
-                  const isPaid = order.paymentStatus === "Pagado (100%)";
-                  const currentStatusConfig = PAYMENT_STATUSES.find((s) => s.id === order.paymentStatus) || {
-                    label: order.paymentStatus || "Por Validar",
-                    color: isPaid ? "#15803d" : "#b45309",
-                    bgColor: isPaid ? "#dcfce7" : "#fef3c7",
-                    icon: isPaid ? "bi-check-circle-fill" : "bi-clock-history",
-                  };
+                  const isCancelledOrder = order.stage === "cancelado";
+                  const effectivePaymentStatus = order.paymentStatus || "Pendiente de Pago";
+                  const isPaid = !isCancelledOrder && effectivePaymentStatus === "Pagado (100%)";
+                  const currentStatusConfig = isCancelledOrder
+                    ? {
+                        label: "Pedido Cancelado",
+                        color: "#b91c1c",
+                        bgColor: "#fef2f2",
+                        icon: "bi-x-octagon-fill",
+                      }
+                    : PAYMENT_STATUSES.find((s) => s.id === effectivePaymentStatus) || {
+                        label: effectivePaymentStatus,
+                        color: isPaid ? "#15803d" : "#b91c1c",
+                        bgColor: isPaid ? "#dcfce7" : "#fee2e2",
+                        icon: isPaid ? "bi-check-circle-fill" : "bi-x-circle-fill",
+                      };
 
                   const cleanPhone = (order.clientPhone || "").replace(/[^0-9]/g, "");
                   const whatsappLink = cleanPhone ? `https://wa.me/${cleanPhone}?text=Hola%20${encodeURIComponent(order.clientName || "Cliente")},%20te%20saludamos%20de%20Platino%20sobre%20tu%20pedido%20${encodeURIComponent(order.id)}` : null;
@@ -13531,106 +13991,181 @@ export default function AdminCitas() {
                             </span>
                           </div>
 
-                          {/* Control de Validación de Pago */}
-                          <div className="payment-control-group">
-                            <div className="payment-control-lbl-row">
-                              <label className="payment-control-label">
-                                Estado del Pago:
-                              </label>
-                              {!isPaid && (
-                                <button
-                                  type="button"
-                                  onClick={() => handleUpdatePaymentStatus(order.id, "Pagado (100%)")}
-                                  className="payment-quick-validate-btn"
-                                  title="Validar el pago al 100% de inmediato"
-                                >
-                                  <i className="bi bi-check2"></i> Validar Pago
-                                </button>
-                              )}
-                            </div>
-                            <select
-                              value={order.paymentStatus || "Pendiente de Validación"}
-                              onChange={(e) => handleUpdatePaymentStatus(order.id, e.target.value)}
-                              className={`payment-status-select ${isPaid ? "paid" : "pending"}`}
+                          {isCancelledOrder ? (
+                            <div
+                              style={{
+                                background: "#fef2f2",
+                                border: "1.5px solid #fecaca",
+                                borderRadius: "10px",
+                                padding: "14px",
+                                display: "flex",
+                                flexDirection: "column",
+                                gap: "10px",
+                              }}
                             >
-                              {PAYMENT_STATUSES.map((st) => (
-                                <option key={st.id} value={st.id}>
-                                  {st.label}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Control de Medio de Pago */}
-                          <div className="payment-control-group">
-                            <label className="payment-control-label">
-                              Medio de Pago Utilizado:
-                            </label>
-                            <select
-                              value={order.paymentMethod || "BCP"}
-                              onChange={(e) => handleUpdatePaymentMethod(order.id, e.target.value)}
-                              className="payment-method-select"
-                            >
-                              {PAYMENT_METHODS.map((pm) => (
-                                <option key={pm} value={pm}>
-                                  {pm}
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          {/* Notas de Comprobante / N° de Operación */}
-                          <div className="payment-voucher-box">
-                            {activeEditingPaymentNoteId === order.id ? (
-                              <div>
-                                <label className="payment-voucher-label">
-                                  N° de Operación o Referencia de Voucher:
-                                </label>
-                                <input
-                                  type="text"
-                                  value={editingPaymentNotes[order.id] !== undefined ? editingPaymentNotes[order.id] : (order.paymentNotes || "")}
-                                  onChange={(e) => setEditingPaymentNotes({ ...editingPaymentNotes, [order.id]: e.target.value })}
-                                  placeholder="Ej: BCP N° 492019 / Op. Interbank / IziPay / Efectivo"
-                                  className="payment-voucher-input"
-                                />
-                                <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
-                                  <button
-                                    type="button"
-                                    onClick={() => setActiveEditingPaymentNoteId(null)}
-                                    className="payment-voucher-cancel-btn"
-                                  >
-                                    Cancelar
-                                  </button>
-                                  <button
-                                    type="button"
-                                    onClick={() => handleSavePaymentNotes(order.id)}
-                                    className="payment-voucher-save-btn"
-                                  >
-                                    Guardar
-                                  </button>
+                              <div style={{ fontSize: "13px", color: "#991b1b", lineHeight: "1.45" }}>
+                                <div style={{ fontWeight: "800", marginBottom: "4px", display: "flex", alignItems: "center", gap: "6px" }}>
+                                  <i className="bi bi-x-octagon-fill"></i> Pedido Cancelado
                                 </div>
+                                <div>
+                                  <strong>Motivo:</strong> {order.cancellationReason || "No especificado"}
+                                  {order.cancellationDetail ? ` — ${order.cancellationDetail}` : ""}
+                                </div>
+                                {order.cancelledAt && (
+                                  <div style={{ fontSize: "11.5px", color: "#b91c1c", marginTop: "3px" }}>
+                                    Fecha de cancelación: {order.cancelledAt}
+                                  </div>
+                                )}
                               </div>
-                            ) : (
-                              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px" }}>
-                                <span style={{ color: "#61736a" }}>
-                                  Ref / Voucher:{" "}
-                                  <strong style={{ color: "#1a382d" }}>
-                                    {order.paymentNotes || "Sin registrar"}
-                                  </strong>
-                                </span>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setEditingPaymentNotes({ ...editingPaymentNotes, [order.id]: order.paymentNotes || "" });
-                                    setActiveEditingPaymentNoteId(order.id);
-                                  }}
-                                  className="payment-voucher-edit-btn"
+
+                              <button
+                                type="button"
+                                onClick={() => handleRestoreOrder(order.id)}
+                                style={{
+                                  background: "#113B3A",
+                                  color: "#ffffff",
+                                  border: "none",
+                                  padding: "9px 14px",
+                                  borderRadius: "8px",
+                                  fontSize: "12.5px",
+                                  fontWeight: "700",
+                                  cursor: "pointer",
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  justifyContent: "center",
+                                  gap: "6px",
+                                }}
+                                title="Recuperar este pedido y devolverlo a Pendiente de Pago"
+                              >
+                                <i className="bi bi-arrow-counterclockwise"></i> Recuperar Pedido
+                              </button>
+                            </div>
+                          ) : (
+                            <>
+                              {/* Control de Validación de Pago */}
+                              <div className="payment-control-group">
+                                <div className="payment-control-lbl-row" style={{ gap: "6px", flexWrap: "wrap" }}>
+                                  <label className="payment-control-label">
+                                    Estado del Pago:
+                                  </label>
+                                  <div style={{ display: "inline-flex", alignItems: "center", gap: "6px" }}>
+                                    {!isPaid && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleUpdatePaymentStatus(order.id, "Pagado (100%)")}
+                                        className="payment-quick-validate-btn"
+                                        title="Validar el pago al 100% de inmediato"
+                                      >
+                                        <i className="bi bi-check2"></i> Validar Pago
+                                      </button>
+                                    )}
+                                    <button
+                                      type="button"
+                                      onClick={() => handleCancelOrder(order.id)}
+                                      style={{
+                                        background: "#fef2f2",
+                                        color: "#b91c1c",
+                                        border: "1px solid #fecaca",
+                                        padding: "4px 10px",
+                                        borderRadius: "6px",
+                                        fontSize: "11.5px",
+                                        fontWeight: "700",
+                                        cursor: "pointer",
+                                        display: "inline-flex",
+                                        alignItems: "center",
+                                        gap: "4px",
+                                      }}
+                                      title="Cancelar este pedido e indicar el motivo"
+                                    >
+                                      <i className="bi bi-x-circle"></i> Cancelar Pedido
+                                    </button>
+                                  </div>
+                                </div>
+                                <select
+                                  value={effectivePaymentStatus}
+                                  onChange={(e) => handleUpdatePaymentStatus(order.id, e.target.value)}
+                                  className={`payment-status-select ${isPaid ? "paid" : "pending"}`}
                                 >
-                                  {order.paymentNotes ? "Modificar" : "+ Registrar Ref"}
-                                </button>
+                                  {PAYMENT_STATUSES.map((st) => (
+                                    <option key={st.id} value={st.id}>
+                                      {st.label}
+                                    </option>
+                                  ))}
+                                </select>
                               </div>
-                            )}
-                          </div>
+
+                              {/* Control de Medio de Pago */}
+                              <div className="payment-control-group">
+                                <label className="payment-control-label">
+                                  Medio de Pago Utilizado:
+                                </label>
+                                <select
+                                  value={order.paymentMethod || "BCP"}
+                                  onChange={(e) => handleUpdatePaymentMethod(order.id, e.target.value)}
+                                  className="payment-method-select"
+                                >
+                                  {PAYMENT_METHODS.map((pm) => (
+                                    <option key={pm} value={pm}>
+                                      {pm}
+                                    </option>
+                                  ))}
+                                </select>
+                              </div>
+
+                              {/* Notas de Comprobante / N° de Operación */}
+                              <div className="payment-voucher-box">
+                                {activeEditingPaymentNoteId === order.id ? (
+                                  <div>
+                                    <label className="payment-voucher-label">
+                                      N° de Operación o Referencia de Voucher:
+                                    </label>
+                                    <input
+                                      type="text"
+                                      value={editingPaymentNotes[order.id] !== undefined ? editingPaymentNotes[order.id] : (order.paymentNotes || "")}
+                                      onChange={(e) => setEditingPaymentNotes({ ...editingPaymentNotes, [order.id]: e.target.value })}
+                                      placeholder="Ej: BCP N° 492019 / Op. Interbank / IziPay / Efectivo"
+                                      className="payment-voucher-input"
+                                    />
+                                    <div style={{ display: "flex", justifyContent: "flex-end", gap: "6px" }}>
+                                      <button
+                                        type="button"
+                                        onClick={() => setActiveEditingPaymentNoteId(null)}
+                                        className="payment-voucher-cancel-btn"
+                                      >
+                                        Cancelar
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleSavePaymentNotes(order.id)}
+                                        className="payment-voucher-save-btn"
+                                      >
+                                        Guardar
+                                      </button>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "12px" }}>
+                                    <span style={{ color: "#61736a" }}>
+                                      Ref / Voucher:{" "}
+                                      <strong style={{ color: "#1a382d" }}>
+                                        {order.paymentNotes || "Sin registrar"}
+                                      </strong>
+                                    </span>
+                                    <button
+                                      type="button"
+                                      onClick={() => {
+                                        setEditingPaymentNotes({ ...editingPaymentNotes, [order.id]: order.paymentNotes || "" });
+                                        setActiveEditingPaymentNoteId(order.id);
+                                      }}
+                                      className="payment-voucher-edit-btn"
+                                    >
+                                      {order.paymentNotes ? "Modificar" : "+ Registrar Ref"}
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </>
+                          )}
                         </div>
                       </div>
                     </article>

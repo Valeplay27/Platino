@@ -10,6 +10,11 @@ import {
   calculateShippingCost
 } from '../data/peruLocations'
 import { validatePromotionCode } from '../services/promotionsService'
+import {
+  getClientProfile,
+  addClientAddress,
+  updateClientPersonalData,
+} from '../services/clientProfileService'
 import '../../styles/checkout.css'
 
 function Checkout({ cart, clearCart }) {
@@ -17,20 +22,29 @@ function Checkout({ cart, clearCart }) {
   const navigate = useNavigate()
   const location = useLocation()
 
-  const [name, setName] = useState(user?.name || '')
-  const [dni, setDni] = useState(user?.dni || '')
+  const initialProfile = getClientProfile(user)
+  const initialDefaultAddr = (initialProfile.addresses || []).find((a) => a.isDefault) || (initialProfile.addresses || [])[0] || null
+
+  const [savedAddresses, setSavedAddresses] = useState(() => initialProfile.addresses || [])
+  const [selectedAddressId, setSelectedAddressId] = useState(() => initialDefaultAddr?.id || '')
+  const [saveAddressToProfile, setSaveAddressToProfile] = useState(true)
+
+  const [name, setName] = useState(initialProfile.name || user?.name || '')
+  const [dni, setDni] = useState(initialProfile.dni || user?.dni || '')
   const [email, setEmail] = useState(user?.email || '')
-  const [phone, setPhone] = useState(user?.phone || '+51 912 345 678')
+  const [phone, setPhone] = useState(initialProfile.phone || user?.phone || '+51 912 345 678')
+  const [dniError, setDniError] = useState('')
   const [deliveryType, setDeliveryType] = useState(() => location.state?.deliveryType || 'recojo_sede')
   const [sedeRecojo, setSedeRecojo] = useState(() => location.state?.sedeRecojo || 'Sede Miraflores - Av. Larco 345 (Multicentro)')
-  const [shippingAddress, setShippingAddress] = useState(() => location.state?.shippingAddress || '')
-  const [selectedDepartment, setSelectedDepartment] = useState(() => location.state?.department || 'Lima')
+  const [shippingAddress, setShippingAddress] = useState(() => location.state?.shippingAddress || initialDefaultAddr?.address || '')
+  const [selectedDepartment, setSelectedDepartment] = useState(() => location.state?.department || initialDefaultAddr?.department || 'Lima')
   const [selectedProvince, setSelectedProvince] = useState(() => {
     if (location.state?.province) return location.state.province
-    const provs = PERU_DEPARTMENTS_AND_PROVINCES[location.state?.department || 'Lima'] || []
+    if (initialDefaultAddr?.province) return initialDefaultAddr.province
+    const provs = PERU_DEPARTMENTS_AND_PROVINCES[location.state?.department || initialDefaultAddr?.department || 'Lima'] || []
     return provs[0] || 'Lima'
   })
-  const [selectedDistrict, setSelectedDistrict] = useState(() => location.state?.district || '')
+  const [selectedDistrict, setSelectedDistrict] = useState(() => location.state?.district || initialDefaultAddr?.district || '')
 
   const paymentMethod = 'BCP'
   const [isProcessing, setIsProcessing] = useState(false)
@@ -39,11 +53,38 @@ function Checkout({ cart, clearCart }) {
 
   useEffect(() => {
     if (!user) return
-    if (user.name) setName((prev) => prev || user.name)
-    if (user.dni) setDni((prev) => prev || user.dni)
+    const prof = getClientProfile(user)
+    setSavedAddresses(prof.addresses || [])
+    if (prof.name) setName((prev) => prev || prof.name)
+    if (prof.dni) setDni((prev) => prev || prof.dni)
     if (user.email) setEmail((prev) => prev || user.email)
-    if (user.phone) setPhone((prev) => (prev === '+51 912 345 678' || !prev ? user.phone : prev))
+    if (prof.phone) setPhone((prev) => (prev === '+51 912 345 678' || !prev ? prof.phone : prev))
+
+    const defAddr = (prof.addresses || []).find((a) => a.isDefault) || (prof.addresses || [])[0]
+    if (defAddr && !shippingAddress) {
+      setSelectedAddressId(defAddr.id)
+      setShippingAddress(defAddr.address || '')
+      setSelectedDepartment(defAddr.department || 'Lima')
+      setSelectedProvince(defAddr.province || 'Lima')
+      setSelectedDistrict(defAddr.district || '')
+    }
   }, [user])
+
+  const handleSelectSavedAddress = (addr) => {
+    if (!addr) {
+      setSelectedAddressId('')
+      setShippingAddress('')
+      setSelectedDistrict('')
+      return
+    }
+    setSelectedAddressId(addr.id)
+    setShippingAddress(addr.address || '')
+    const dept = addr.department || 'Lima'
+    setSelectedDepartment(dept)
+    const provs = PERU_DEPARTMENTS_AND_PROVINCES[dept] || []
+    setSelectedProvince(addr.province || provs[0] || '')
+    setSelectedDistrict(addr.district || '')
+  }
 
   const [promoCodeInput, setPromoCodeInput] = useState('')
   const [appliedPromo, setAppliedPromo] = useState(null)
@@ -100,6 +141,21 @@ function Checkout({ cart, clearCart }) {
       alert('Tu bolsa de compras está vacía.')
       return
     }
+    const accountDocument = String(user?.dni || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+    const submittedDocument = String(dni || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '')
+    const validDni = /^\d{8}$/.test(submittedDocument)
+    const validPassport = /^[A-Z0-9]{6,20}$/.test(submittedDocument)
+    if (!validDni && !validPassport) {
+      setDniError('Ingresa un DNI válido de 8 dígitos o un pasaporte válido.')
+      alert('Ingresa un DNI válido de 8 dígitos o un pasaporte válido.')
+      return
+    }
+    if (accountDocument && submittedDocument !== accountDocument) {
+      setDniError('El DNI o pasaporte ingresado no coincide con la cuenta con la que inició sesión.')
+      alert('El DNI o pasaporte ingresado no coincide con la cuenta con la que inició sesión.')
+      return
+    }
+    setDniError('')
     const gemstones = getStoredGemstones()
     const unavailableGem = cart.find((item) => {
       if (!item.isGemstone) return false
@@ -136,6 +192,14 @@ function Checkout({ cart, clearCart }) {
       : ''
 
     const orderPayload = {
+      authenticatedUser: user ? {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        dni: user.dni,
+        role: user.role,
+        adminType: user.adminType,
+      } : null,
       clientName: name.trim() || 'Cliente Platino',
       clientDni: dni.trim(),
       clientEmail: email.trim().toLowerCase() || (user?.email || 'cliente@platino.pe'),
@@ -182,6 +246,31 @@ function Checkout({ cart, clearCart }) {
     }
 
     try {
+      if (user?.email) {
+        try {
+          updateClientPersonalData(user, { name, phone, dni })
+          if (deliveryType === 'envio_domicilio' && saveAddressToProfile && shippingAddress.trim() && selectedDistrict.trim()) {
+            const alreadySaved = savedAddresses.some(
+              (a) =>
+                String(a.address || '').trim().toLowerCase() === shippingAddress.trim().toLowerCase() &&
+                String(a.district || '').trim().toLowerCase() === selectedDistrict.trim().toLowerCase()
+            )
+            if (!alreadySaved) {
+              addClientAddress(user, {
+                label: 'Casa',
+                address: shippingAddress.trim(),
+                department: selectedDepartment,
+                province: selectedProvince,
+                district: selectedDistrict.trim(),
+                isDefault: savedAddresses.length === 0,
+              })
+            }
+          }
+        } catch {
+          // non-fatal
+        }
+      }
+
       await createOrder(orderPayload);
 
       if (typeof clearCart === 'function') {
@@ -382,14 +471,28 @@ function Checkout({ cart, clearCart }) {
           </label>
 
           <label className="field">
-            Documento de Identidad (DNI / Carnet de Extranjería) *
+            Documento de identidad (DNI peruano o pasaporte) *
             <input
               required
               type="text"
-              placeholder="Ej. 71234567 (para validar tu cobertura Platino Care)"
+              maxLength={20}
+              placeholder="Ej. DNI 71234567 o pasaporte AB123456"
               value={dni}
-              onChange={(e) => setDni(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value.trim()
+                setDni(/^\d*$/.test(value)
+                  ? value.replace(/\D/g, '').slice(0, 8)
+                  : value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 20))
+                setDniError('')
+              }}
+              aria-invalid={Boolean(dniError)}
+              style={dniError ? { borderColor: '#dc2626' } : undefined}
             />
+            {dniError && (
+              <span style={{ color: '#dc2626', fontSize: '12.5px', marginTop: '6px', display: 'block' }}>
+                {dniError}
+              </span>
+            )}
           </label>
 
           <label className="field">
@@ -438,6 +541,72 @@ function Checkout({ cart, clearCart }) {
             </label>
           ) : (
             <>
+              {/* Selector de Direcciones Guardadas del Perfil */}
+              <div
+                style={{
+                  background: '#fbfaf7',
+                  border: '1px solid #e5dec9',
+                  borderRadius: '10px',
+                  padding: '12px 14px',
+                  marginBottom: '12px',
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: savedAddresses.length > 0 ? '10px' : '0', flexWrap: 'wrap', gap: '8px' }}>
+                  <span style={{ fontSize: '12.5px', fontWeight: '800', color: '#0f2a24', display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
+                    <i className="bi bi-bookmark-star-fill" style={{ color: '#c5a059' }}></i>
+                    {savedAddresses.length > 0 ? 'Mis Direcciones Guardadas:' : 'Libreta de Direcciones:'}
+                  </span>
+                  <Link
+                    to="/mis-pedidos?tab=perfil"
+                    style={{ fontSize: '12px', fontWeight: '700', color: '#0f2a24', textDecoration: 'underline' }}
+                  >
+                    {savedAddresses.length > 0 ? 'Gestionar mis direcciones →' : '+ Guardar direcciones en Mi Perfil →'}
+                  </Link>
+                </div>
+
+                {savedAddresses.length > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: '8px' }}>
+                    {savedAddresses.map((addr) => {
+                      const isSelected = selectedAddressId === addr.id
+                      return (
+                        <button
+                          key={addr.id}
+                          type="button"
+                          onClick={() => handleSelectSavedAddress(addr)}
+                          style={{
+                            textAlign: 'left',
+                            padding: '10px 12px',
+                            borderRadius: '8px',
+                            border: isSelected ? '2px solid #0f2a24' : '1px solid #cbd5e1',
+                            background: isSelected ? '#edf5f0' : '#ffffff',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '2px',
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <strong style={{ fontSize: '12px', color: '#0f2a24' }}>
+                              <i className="bi bi-geo-alt-fill" style={{ color: '#c5a059', marginRight: '4px' }}></i>
+                              {addr.label || 'Casa'}
+                            </strong>
+                            {addr.isDefault && (
+                              <span style={{ fontSize: '10px', fontWeight: '800', color: '#166534', background: '#dcfce7', padding: '1px 6px', borderRadius: '10px' }}>
+                                Principal
+                              </span>
+                            )}
+                          </div>
+                          <span style={{ fontSize: '12px', color: '#1e293b', fontWeight: '600' }}>{addr.address}</span>
+                          <span style={{ fontSize: '11px', color: '#64748b' }}>
+                            {addr.district}, {addr.province} ({addr.department})
+                          </span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+              </div>
+
               {/* 1. Dirección exacta con Buscador Asistido Google Maps */}
               <label className="field" style={{ margin: '8px 0 14px' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '6px' }}>
@@ -511,6 +680,27 @@ function Checkout({ cart, clearCart }) {
                   />
                 </label>
               </div>
+
+              <label
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '12.5px',
+                  fontWeight: '600',
+                  color: '#0f2a24',
+                  cursor: 'pointer',
+                  marginBottom: '12px',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={saveAddressToProfile}
+                  onChange={(e) => setSaveAddressToProfile(e.target.checked)}
+                  style={{ accentColor: '#0f2a24', width: '15px', height: '15px' }}
+                />
+                <span>Guardar esta dirección en mi perfil para futuras compras</span>
+              </label>
 
               {/* Tarifa de Envío Informativa */}
               <div

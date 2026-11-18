@@ -6,8 +6,12 @@ const SYNC_PING_KEY = "platino_sync_ping_v1";
 const IDB_NAME = "platino_storage_db_v1";
 const IDB_STORE = "namespaces";
 
-const cache = new Map();
+const cache =
+  typeof window !== "undefined"
+    ? (window.__PLATINO_NS_CACHE__ ||= new Map())
+    : new Map();
 const pendingWrites = new Map();
+const writeVersions = new Map();
 
 const NAMESPACE_EVENTS = {
   catalog: "catalog_updated",
@@ -263,17 +267,21 @@ function broadcastNamespaceChange(namespace, cacheKey, value, eventName = null) 
 // 3. API PÚBLICA DE REMOTEDATA
 // ========================================================
 export const loadRemoteData = async (namespace, fallback, cacheKey = namespace) => {
+  const startVer = writeVersions.get(cacheKey) || 0;
+
   // 1. Verificar primero copia local en localStorage e IndexedDB y tomar la más reciente
   const localEnv = readLocalEnvelope(cacheKey);
   const idbEnv = await readIdbEnvelope(cacheKey);
 
-  let localVal = undefined;
-  if (idbEnv && localEnv) {
-    localVal = (idbEnv.__ts || 0) >= (localEnv.__ts || 0) ? idbEnv.data : localEnv.data;
-  } else if (idbEnv) {
-    localVal = idbEnv.data;
-  } else if (localEnv) {
-    localVal = localEnv.data;
+  let localVal = cache.has(cacheKey) ? cache.get(cacheKey) : undefined;
+  if (localVal === undefined) {
+    if (idbEnv && localEnv) {
+      localVal = (idbEnv.__ts || 0) >= (localEnv.__ts || 0) ? idbEnv.data : localEnv.data;
+    } else if (idbEnv) {
+      localVal = idbEnv.data;
+    } else if (localEnv) {
+      localVal = localEnv.data;
+    }
   }
 
   if (localVal !== undefined && !cache.has(cacheKey)) {
@@ -288,34 +296,42 @@ export const loadRemoteData = async (namespace, fallback, cacheKey = namespace) 
     console.warn(`Error loading remote namespace ${namespace}, using local cache:`, err);
   }
 
+  // Si hubo una escritura local mientras la petición GET estaba en vuelo, respetar el estado local actual
+  if ((writeVersions.get(cacheKey) || 0) !== startVer && cache.has(cacheKey)) {
+    return cache.get(cacheKey);
+  }
+
   const remoteVal = response?.data;
   const dirty = isNamespaceDirty(cacheKey);
+  const latestLocal = cache.has(cacheKey) ? cache.get(cacheKey) : localVal;
 
   let finalValue;
-  if (dirty && localVal !== undefined && localVal !== null) {
+  if (dirty && latestLocal !== undefined && latestLocal !== null) {
     // Hay cambios locales pendientes de sincronizar al servidor
-    finalValue = localVal;
-    persistNamespace(namespace, localVal, cacheKey).catch(() => {});
+    finalValue = latestLocal;
+    persistNamespace(namespace, latestLocal, cacheKey).catch(() => {});
   } else if (remoteVal !== null && remoteVal !== undefined) {
     // Si el servidor devolvió un catálogo, imágenes o favoritos vacíos pero localmente hay guardados recientes, preservar los locales
     const isRemoteCatalogEmpty =
-      namespace === "catalog" && Array.isArray(remoteVal) && remoteVal.length === 0 && Array.isArray(localVal) && localVal.length > 0;
+      namespace === "catalog" && Array.isArray(remoteVal) && remoteVal.length === 0 && Array.isArray(latestLocal) && latestLocal.length > 0;
     const isRemoteHomeEmpty =
-      namespace === "home_images" && (!remoteVal || Object.keys(remoteVal).length === 0) && localVal && Object.keys(localVal).length > 0;
+      namespace === "home_images" && (!remoteVal || Object.keys(remoteVal).length === 0) && latestLocal && Object.keys(latestLocal).length > 0;
     const isRemoteFavoritesEmpty =
-      namespace === "favorites" && Array.isArray(remoteVal) && remoteVal.length === 0 && Array.isArray(localVal) && localVal.length > 0;
+      namespace === "favorites" && Array.isArray(remoteVal) && remoteVal.length === 0 && Array.isArray(latestLocal) && latestLocal.length > 0;
+    const isRemoteOrdersEmpty =
+      namespace === "orders" && Array.isArray(remoteVal) && remoteVal.length === 0 && Array.isArray(latestLocal) && latestLocal.length > 0;
 
-    if (isRemoteCatalogEmpty || isRemoteHomeEmpty || isRemoteFavoritesEmpty) {
-      finalValue = localVal;
-      persistNamespace(namespace, localVal, cacheKey).catch(() => {});
+    if (isRemoteCatalogEmpty || isRemoteHomeEmpty || isRemoteFavoritesEmpty || isRemoteOrdersEmpty) {
+      finalValue = latestLocal;
+      persistNamespace(namespace, latestLocal, cacheKey).catch(() => {});
     } else {
       finalValue = remoteVal;
       writeLocalNamespace(cacheKey, remoteVal);
     }
-  } else if (localVal !== undefined && localVal !== null) {
+  } else if (latestLocal !== undefined && latestLocal !== null) {
     // El servidor devolvió null (BD vacía), pero hay datos guardados localmente: usarlos y subirlos al servidor
-    finalValue = localVal;
-    persistNamespace(namespace, localVal, cacheKey).catch(() => {});
+    finalValue = latestLocal;
+    persistNamespace(namespace, latestLocal, cacheKey).catch(() => {});
   } else {
     finalValue = fallback;
   }
@@ -325,13 +341,14 @@ export const loadRemoteData = async (namespace, fallback, cacheKey = namespace) 
   return finalValue;
 };
 
-const persistNamespace = (namespace, value, cacheKey = namespace) => {
+const persistNamespace = (namespace, value, cacheKey = namespace, versionAtStart = null) => {
+  const ver = versionAtStart ?? (writeVersions.get(cacheKey) || 0);
   const previous = pendingWrites.get(cacheKey) || Promise.resolve();
   const next = previous
     .catch(() => {})
     .then(async () => {
       const res = await apiPut(`/data?namespace=${encodeURIComponent(namespace)}`, { data: value });
-      if (!res?.__localFallback) {
+      if (!res?.__localFallback && (writeVersions.get(cacheKey) || 0) === ver) {
         markDirty(cacheKey, false);
       }
       return res;
@@ -374,12 +391,14 @@ export const getRemoteData = (namespace, fallback, cacheKey = namespace) => {
 };
 
 export const setRemoteData = (namespace, value, eventName = null, eventDetail = undefined, cacheKey = namespace) => {
+  const nextVer = (writeVersions.get(cacheKey) || 0) + 1;
+  writeVersions.set(cacheKey, nextVer);
   cache.set(cacheKey, value);
   markDirty(cacheKey, true);
   writeLocalNamespace(cacheKey, value);
   dispatchNamespaceEvents(namespace, cacheKey, value, eventName, eventDetail);
   broadcastNamespaceChange(namespace, cacheKey, value, eventName);
-  return persistNamespace(namespace, value, cacheKey);
+  return persistNamespace(namespace, value, cacheKey, nextVer);
 };
 
 export const updateRemoteCache = (cacheKey, value, eventName = null, eventDetail = undefined) => {

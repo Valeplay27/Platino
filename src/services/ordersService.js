@@ -1,11 +1,22 @@
 // Servicio de gestión de pedidos, seguimiento de taller y sincronización Cliente-Admin para Platino Perú
-import { getRemoteData, updateRemoteCache } from "./remoteData";
-import { apiPost } from "./apiClient";
+import { getRemoteData, setRemoteData, updateRemoteCache } from "./remoteData";
+import { apiGet, apiPost } from "./apiClient";
 import { decrementGemstoneStock, isItemGemstone } from "./gemstonesService";
 import { decrementProductStock } from "./inventoryService";
 import { recordPromotionUsage } from "./promotionsService";
 
 export const ORDER_STAGES = [
+  {
+    id: "pago_pendiente",
+    label: "Pago Pendiente",
+    shortLabel: "Pago Pendiente",
+    description: "Pedido registrado. En espera de la confirmación del pago para iniciar la fabricación.",
+    icon: "bi-hourglass-split",
+    stepNumber: 0,
+    color: "#b45309",
+    bgColor: "#fef3c7",
+    badgeClass: "badge-pago-pendiente",
+  },
   {
     id: "recibido",
     label: "Pedido Confirmado",
@@ -72,6 +83,31 @@ export const ORDER_STAGES = [
     bgColor: "#f0fdf4",
     badgeClass: "badge-entregado",
   },
+  {
+    id: "cancelado",
+    label: "Pedido Cancelado",
+    shortLabel: "Cancelado",
+    description: "Pedido cancelado. Ya no continuará en fabricación ni se considerará activo.",
+    icon: "bi-x-circle-fill",
+    stepNumber: 7,
+    color: "#b91c1c",
+    bgColor: "#fef2f2",
+    badgeClass: "badge-cancelado",
+  },
+];
+
+// Flujo secuencial real del pedido (sin "cancelado", que es un estado terminal aparte)
+export const ORDER_FLOW_STAGES = ORDER_STAGES.filter((s) => s.id !== "cancelado");
+
+// Motivos estándar de cancelación
+export const CANCELLATION_REASONS = [
+  "Decisión del cliente",
+  "Pago no realizado / no confirmado",
+  "Pedido duplicado",
+  "Stock no disponible",
+  "Datos de entrega incorrectos",
+  "Cambio por otro producto",
+  "Otro motivo",
 ];
 
 // Etapas unificadas visibles para el CLIENTE (4 pasos):
@@ -80,6 +116,18 @@ export const ORDER_STAGES = [
 // 3. Listo para entrega
 // 4. Entregado
 export const CLIENT_ORDER_STAGES = [
+  {
+    id: "pago_pendiente",
+    label: "Pago Pendiente",
+    shortLabel: "Pago Pendiente",
+    description: "Tu pedido fue registrado. Te enviaremos los datos de pago por WhatsApp; al confirmarlo iniciamos la fabricación.",
+    icon: "bi-hourglass-split",
+    stepNumber: 0,
+    color: "#b45309",
+    bgColor: "#fef3c7",
+    badgeClass: "badge-pago-pendiente",
+    internalStages: ["pago_pendiente"],
+  },
   {
     id: "recibido",
     label: "Pedido Confirmado",
@@ -128,32 +176,45 @@ export const CLIENT_ORDER_STAGES = [
     badgeClass: "badge-entregado",
     internalStages: ["entregado"],
   },
+  {
+    id: "cancelado",
+    label: "Pedido Cancelado",
+    shortLabel: "Cancelado",
+    description: "El pedido fue cancelado y no continuará en fabricación.",
+    icon: "bi-x-circle-fill",
+    stepNumber: 5,
+    color: "#b91c1c",
+    bgColor: "#fef2f2",
+    badgeClass: "badge-cancelado",
+    internalStages: ["cancelado"],
+  },
 ];
 
 export const getClientStageInfo = (internalStageId) => {
-  if (internalStageId === "recibido") return CLIENT_ORDER_STAGES[0];
-  if (["diseno_taller", "engaste_pulido", "control_calidad"].includes(internalStageId)) return CLIENT_ORDER_STAGES[1];
-  if (internalStageId === "listo_envio") return CLIENT_ORDER_STAGES[2];
-  if (internalStageId === "entregado") return CLIENT_ORDER_STAGES[3];
-  return CLIENT_ORDER_STAGES[0];
+  const found = CLIENT_ORDER_STAGES.find((s) => s.internalStages.includes(internalStageId));
+  return found || CLIENT_ORDER_STAGES[0];
 };
 
 export const getClientProgressPercentage = (internalStageId) => {
   switch (internalStageId) {
+    case "cancelado":
+      return 0;
+    case "pago_pendiente":
+      return 0;
     case "recibido":
       return 25;
     case "diseno_taller":
-      return 45;
+      return 40;
     case "engaste_pulido":
-      return 60;
+      return 50;
     case "control_calidad":
-      return 75;
+      return 60;
     case "listo_envio":
-      return 90;
+      return 75;
     case "entregado":
       return 100;
     default:
-      return 25;
+      return 0;
   }
 };
 
@@ -382,11 +443,16 @@ export const getOrderSedeId = (order) => {
 // Obtener todos los pedidos
 export const getOrders = () => {
   const parsed = getRemoteData("orders", null);
-  const sourceList = Array.isArray(parsed) && parsed.length > 0 ? parsed : INITIAL_ORDERS;
+  const sourceList = Array.isArray(parsed) ? parsed : INITIAL_ORDERS;
   return sourceList
     .filter((order) => order && typeof order === "object")
     .map((order) => ({
       ...order,
+      stage: order.stage || "pago_pendiente",
+      paymentStatus:
+        order.stage === "pago_pendiente"
+          ? "Pendiente de Pago"
+          : order.paymentStatus || "Pendiente de Pago",
       sedeId: getOrderSedeId(order),
       paymentMethod: PAYMENT_METHODS.includes(order.paymentMethod)
         ? order.paymentMethod
@@ -409,15 +475,34 @@ export const getOrders = () => {
     }));
 };
 
-const mutateOrderOnServer = (payload) => {
-  apiPost("/admin/orders/mutate", payload)
-    .then(({ data }) => {
-      if (Array.isArray(data)) updateRemoteCache("orders", data, "orders_updated");
-    })
+// Cola secuencial de cambios hacia el servidor. Mientras haya cambios pendientes (o recién enviados),
+// el refresco periódico del panel NO debe sobrescribir el estado local con datos viejos del servidor.
+let orderMutationQueue = Promise.resolve();
+let pendingOrderMutations = 0;
+let lastOrderMutationAt = 0;
+
+export const hasPendingOrderMutations = () =>
+  pendingOrderMutations > 0 || Date.now() - lastOrderMutationAt < 8000;
+
+const mutateOrderOnServer = (_payload, fullOrdersSnapshot = null) => {
+  pendingOrderMutations += 1;
+  lastOrderMutationAt = Date.now();
+
+  const snapshot = Array.isArray(fullOrdersSnapshot) ? fullOrdersSnapshot : getOrders();
+  const writePromise = Promise.resolve(setRemoteData("orders", snapshot, "orders_updated"));
+
+  orderMutationQueue = orderMutationQueue
+    .catch(() => {})
+    .then(() => writePromise)
     .catch((error) => {
       console.error("Could not persist order update on the API:", error);
-      window.dispatchEvent(new CustomEvent("platino_api_error", { detail: { namespace: "orders", message: error.message } }));
+    })
+    .finally(() => {
+      pendingOrderMutations = Math.max(0, pendingOrderMutations - 1);
+      lastOrderMutationAt = Date.now();
     });
+
+  return orderMutationQueue;
 };
 
 // Obtener pedidos de un cliente por su correo
@@ -434,13 +519,15 @@ export const advanceOrderStep = (orderId) => {
   const order = all.find((o) => o.id === orderId);
   if (!order) return null;
 
-  const currentIdx = ORDER_STAGES.findIndex((s) => s.id === order.stage);
-  if (currentIdx === -1 || currentIdx >= ORDER_STAGES.length - 1) {
-    return ORDER_STAGES[ORDER_STAGES.length - 1];
+  const currentIdx = ORDER_FLOW_STAGES.findIndex((s) => s.id === order.stage);
+  if (order.stage === "cancelado") return null;
+  if (currentIdx === -1 || currentIdx >= ORDER_FLOW_STAGES.length - 1) {
+    return ORDER_FLOW_STAGES[ORDER_FLOW_STAGES.length - 1];
   }
 
-  const nextStage = ORDER_STAGES[currentIdx + 1];
+  const nextStage = ORDER_FLOW_STAGES[currentIdx + 1];
   const autoNotes = {
+    recibido: "Pago confirmado. Pedido validado y en espera de asignación de maestro joyero.",
     diseno_taller: "Diseño 3D CAD aprobado por el cliente. Fundición iniciada en crisol del taller central.",
     engaste_pulido: "Montura fundida con éxito. Maestro engastador montando diamantes y realizando pulido fino.",
     control_calidad: "Engaste completado. La joya ingresó a laboratorio para inspección gemológica y certificado GIA.",
@@ -459,10 +546,11 @@ export const stepBackOrderStep = (orderId) => {
   const order = all.find((o) => o.id === orderId);
   if (!order) return null;
 
-  const currentIdx = ORDER_STAGES.findIndex((s) => s.id === order.stage);
-  if (currentIdx <= 0) return ORDER_STAGES[0];
+  const currentIdx = ORDER_FLOW_STAGES.findIndex((s) => s.id === order.stage);
+  if (order.stage === "cancelado") return null;
+  if (currentIdx <= 0) return ORDER_FLOW_STAGES[0];
 
-  const prevStage = ORDER_STAGES[currentIdx - 1];
+  const prevStage = ORDER_FLOW_STAGES[currentIdx - 1];
   updateOrderStatus(orderId, prevStage.id, `Regresado a fase de ${prevStage.label} para ajustes adicionales.`);
   return prevStage;
 };
@@ -514,24 +602,41 @@ export const updateOrderStatus = (orderId, newStage, adminNotes = null) => {
     });
   }
 
+  const nextPaymentStatus =
+    newStage === "pago_pendiente" && currentOrder.paymentStatus === "Pagado (100%)"
+      ? "Pendiente de Pago"
+      : currentOrder.paymentStatus;
+
   all[index] = {
     ...currentOrder,
     stage: newStage,
+    paymentStatus: nextPaymentStatus,
     adminNotes: updatedNotes,
     lastUpdated: now.toISOString().split("T")[0],
     timeline,
   };
 
-  updateRemoteCache("orders", all, "orders_updated");
-  mutateOrderOnServer({ action: "update_status", orderId, stage: newStage, adminNotes: updatedNotes, timeline });
+  mutateOrderOnServer(
+    {
+      action: "update_fields",
+      orderId,
+      fields: {
+        stage: newStage,
+        paymentStatus: nextPaymentStatus,
+        adminNotes: updatedNotes,
+        timeline,
+      },
+    },
+    all
+  );
   return true;
 };
 
 export const PAYMENT_STATUSES = [
-  { id: "Pagado (100%)", label: "Pagado (100%)", color: "#15803d", bgColor: "#dcfce7", icon: "bi-check-circle-fill" },
+  { id: "Pendiente de Pago", label: "Pendiente de Pago", color: "#b91c1c", bgColor: "#fee2e2", icon: "bi-x-circle-fill" },
   { id: "Pendiente de Validación", label: "Pendiente de Validación", color: "#b45309", bgColor: "#fef3c7", icon: "bi-hourglass-split" },
   { id: "Pago Parcial (50%)", label: "Pago Parcial (50%)", color: "#1d4ed8", bgColor: "#dbeafe", icon: "bi-pie-chart-fill" },
-  { id: "Pendiente de Pago", label: "Pendiente de Pago", color: "#b91c1c", bgColor: "#fee2e2", icon: "bi-x-circle-fill" },
+  { id: "Pagado (100%)", label: "Pagado (100%)", color: "#15803d", bgColor: "#dcfce7", icon: "bi-check-circle-fill" },
 ];
 
 export const PAYMENT_METHODS = [
@@ -647,22 +752,58 @@ export const updateOrderPayment = (orderId, paymentStatus, paymentMethod = null,
   const nextMethod = paymentMethod !== null ? paymentMethod : currentOrder.paymentMethod;
   const nextNotes = paymentNotes !== null ? paymentNotes : (currentOrder.paymentNotes || "");
 
+  const now = new Date();
+  const todayStr = now.toISOString().split("T")[0];
+  const formattedDate = `${todayStr} ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
+
+  const isPaymentConfirmed = nextStatus === "Pagado (100%)" || nextStatus === "Pago Parcial (50%)";
+  const isPaymentPending = nextStatus === "Pendiente de Pago" || nextStatus === "Pendiente de Validación";
+
+  let nextStage = currentOrder.stage;
+  let nextAdminNotes = currentOrder.adminNotes;
+  const timeline = Array.isArray(currentOrder.timeline) ? [...currentOrder.timeline] : [];
+
+  if (isPaymentConfirmed && currentOrder.stage === "pago_pendiente") {
+    nextStage = "recibido";
+    nextAdminNotes = "Pago confirmado. Pedido validado y en espera de asignación de maestro joyero.";
+    if (!timeline.some((t) => t.stage === "recibido")) {
+      timeline.push({
+        stage: "recibido",
+        date: formattedDate,
+        note: nextAdminNotes,
+      });
+    }
+  } else if (isPaymentPending && currentOrder.stage === "recibido") {
+    nextStage = "pago_pendiente";
+    nextAdminNotes = "Pedido en espera de confirmación del pago.";
+  }
+
   all[index] = {
     ...currentOrder,
+    stage: nextStage,
+    adminNotes: nextAdminNotes,
+    timeline,
     paymentStatus: nextStatus,
     paymentMethod: nextMethod,
     paymentNotes: nextNotes,
-    lastUpdated: new Date().toISOString().split("T")[0],
+    lastUpdated: todayStr,
   };
 
-  updateRemoteCache("orders", all, "orders_updated");
-  mutateOrderOnServer({
-    action: "update_payment",
-    orderId,
-    paymentStatus: nextStatus,
-    paymentMethod: nextMethod,
-    paymentNotes: nextNotes,
-  });
+  mutateOrderOnServer(
+    {
+      action: "update_fields",
+      orderId,
+      fields: {
+        stage: nextStage,
+        adminNotes: nextAdminNotes,
+        timeline,
+        paymentStatus: nextStatus,
+        paymentMethod: nextMethod,
+        paymentNotes: nextNotes,
+      },
+    },
+    all
+  );
   return true;
 };
 
@@ -691,19 +832,19 @@ export const createOrder = async (orderData = {}) => {
     district: orderData.district || "",
     shippingCost: Number(orderData.shippingCost || 0),
     subtotal: Number(orderData.subtotal || orderData.total || 0),
-    stage: orderData.stage || "recibido",
+    stage: orderData.stage || "pago_pendiente",
     estimatedCompletion: orderData.estimatedCompletion || "15 días hábiles",
-    adminNotes: orderData.adminNotes || "Pedido ingresado al sistema. En espera de asignación de maestro joyero.",
+    adminNotes: orderData.adminNotes || "Pedido registrado. En espera de confirmación del pago.",
     lastUpdated: todayStr,
-    paymentStatus: orderData.paymentStatus || "Pagado (100%)",
+    paymentStatus: orderData.paymentStatus || "Pendiente de Pago",
     paymentMethod: orderData.paymentMethod || "BCP",
     total: orderData.total || 0,
     items: orderData.items || [],
     timeline: orderData.timeline || [
       {
-        stage: "recibido",
+        stage: "pago_pendiente",
         date: `${todayStr} ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
-        note: "Pedido confirmado y registrado en el taller de orfebrería.",
+        note: "Pedido registrado. En espera de confirmación del pago.",
       },
     ],
     ...orderData,
@@ -711,10 +852,35 @@ export const createOrder = async (orderData = {}) => {
 
   try {
     const res = await apiPost("/public/orders", { order: fallbackOrder });
-    const createdOrder = res?.order || res?.data?.order || res?.data || fallbackOrder;
-    const currentOrders = getOrders();
-    const nextOrders = [createdOrder, ...currentOrders.filter((o) => o.id !== createdOrder.id)];
-    updateRemoteCache("orders", nextOrders, "orders_updated");
+    const rawCreated = res?.order || res?.data?.order || res?.data || fallbackOrder;
+    const createdOrder = {
+      ...rawCreated,
+      stage: orderData.stage || "pago_pendiente",
+      paymentStatus: orderData.paymentStatus || "Pendiente de Pago",
+    };
+
+    let nextOrders = [];
+    if (!res?.__localFallback) {
+      try {
+        const persisted = await apiGet("/data?namespace=orders");
+        if (Array.isArray(persisted?.data)) {
+          nextOrders = persisted.data.map((o) =>
+            o.id === createdOrder.id ? { ...o, stage: createdOrder.stage, paymentStatus: createdOrder.paymentStatus } : o
+          );
+        }
+      } catch (error) {
+        console.warn("The order was created, but the client list could not be refreshed:", error);
+      }
+    }
+
+    if (nextOrders.length === 0) {
+      const currentOrders = getOrders();
+      nextOrders = [createdOrder, ...currentOrders.filter((o) => o.id !== createdOrder.id)];
+    } else if (!nextOrders.some((order) => order.id === createdOrder.id)) {
+      nextOrders = [createdOrder, ...nextOrders.filter((order) => order.id !== createdOrder.id)];
+    }
+    lastOrderMutationAt = Date.now();
+    setRemoteData("orders", nextOrders, "orders_updated");
 
     // Disminuir stock en catálogo de gemas y control de inventario
     if (Array.isArray(createdOrder.items || fallbackOrder.items)) {
@@ -735,28 +901,10 @@ export const createOrder = async (orderData = {}) => {
 
     return createdOrder;
   } catch (error) {
-    console.warn("Could not post order to server, using local fallback:", error);
-    const currentOrders = getOrders();
-    const nextOrders = [fallbackOrder, ...currentOrders.filter((o) => o.id !== fallbackOrder.id)];
-    updateRemoteCache("orders", nextOrders, "orders_updated");
-
-    // Disminuir stock en catálogo de gemas y control de inventario (fallback)
-    if (Array.isArray(fallbackOrder.items)) {
-      fallbackOrder.items.forEach((item) => {
-        const isGem = isItemGemstone(item);
-        if (isGem) {
-          decrementGemstoneStock(item, item.quantity || 1);
-        } else if (item.size && item.size !== "Estándar" && item.size !== "asesor") {
-          decrementProductStock(item.id, "dama", item.size, item.quantity || 1, sedeId);
-        }
-      });
-    }
-
-    if (fallbackOrder.promoCode) {
-      recordPromotionUsage(fallbackOrder.promoCode);
-    }
-
-    return fallbackOrder;
+    console.error("Could not create the order:", error);
+    throw error instanceof Error
+      ? error
+      : new Error("No se pudo registrar el pedido. Inténtalo nuevamente.");
   }
 };
 
@@ -764,8 +912,7 @@ export const createOrder = async (orderData = {}) => {
 export const deleteOrder = (orderId) => {
   const all = getOrders();
   const filtered = all.filter((o) => o.id !== orderId);
-  updateRemoteCache("orders", filtered, "orders_updated");
-  mutateOrderOnServer({ action: "delete", orderId });
+  mutateOrderOnServer({ action: "delete", orderId }, filtered);
   return true;
 };
 
@@ -827,8 +974,109 @@ export const updateOrderWorkshopFields = (orderId, partialFields) => {
     lastUpdated: new Date().toISOString().split("T")[0],
   };
 
-  updateRemoteCache("orders", all, "orders_updated");
-  mutateOrderOnServer({ action: "update_fields", orderId, fields: partialFields });
+  mutateOrderOnServer({ action: "update_fields", orderId, fields: partialFields }, all);
+  return true;
+};
+
+export const cancelOrder = (orderId, reason, detail = "") => {
+  const all = getOrders();
+  const index = all.findIndex((order) => order.id === orderId);
+  if (index === -1) return false;
+
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
+  const cleanReason = String(reason || "").trim() || "Motivo no especificado";
+  const cleanDetail = String(detail || "").trim();
+  const cancellationNote = `Pedido cancelado. Motivo: ${cleanReason}${cleanDetail ? ` — ${cleanDetail}` : ""}.`;
+
+  const updatedTimeline = [
+    ...(Array.isArray(all[index].timeline) ? all[index].timeline : []),
+    {
+      stage: "cancelado",
+      date: `${today} ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
+      note: cancellationNote,
+    },
+  ];
+
+  all[index] = {
+    ...all[index],
+    stage: "cancelado",
+    adminNotes: cancellationNote,
+    cancellationReason: cleanReason,
+    cancellationDetail: cleanDetail,
+    cancelledAt: today,
+    cancelledBy: "Administrador",
+    lastUpdated: today,
+    timeline: updatedTimeline,
+  };
+
+  mutateOrderOnServer(
+    {
+      action: "update_fields",
+      orderId,
+      fields: {
+        stage: "cancelado",
+        cancellationReason: cleanReason,
+        cancellationDetail: cleanDetail,
+        cancelledAt: today,
+        cancelledBy: "Administrador",
+        adminNotes: cancellationNote,
+        timeline: updatedTimeline,
+      },
+    },
+    all
+  );
+  return true;
+};
+
+export const restoreOrder = (orderId) => {
+  const all = getOrders();
+  const index = all.findIndex((order) => order.id === orderId);
+  if (index === -1) return false;
+
+  const now = new Date();
+  const today = now.toISOString().split("T")[0];
+  const restoreNote = "Pedido recuperado y reactivado en estado Pendiente de Pago.";
+
+  const updatedTimeline = [
+    ...(Array.isArray(all[index].timeline) ? all[index].timeline.filter((t) => t.stage !== "cancelado") : []),
+    {
+      stage: "pago_pendiente",
+      date: `${today} ${now.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`,
+      note: restoreNote,
+    },
+  ];
+
+  all[index] = {
+    ...all[index],
+    stage: "pago_pendiente",
+    paymentStatus: "Pendiente de Pago",
+    adminNotes: restoreNote,
+    cancellationReason: null,
+    cancellationDetail: null,
+    cancelledAt: null,
+    cancelledBy: null,
+    lastUpdated: today,
+    timeline: updatedTimeline,
+  };
+
+  mutateOrderOnServer(
+    {
+      action: "update_fields",
+      orderId,
+      fields: {
+        stage: "pago_pendiente",
+        paymentStatus: "Pendiente de Pago",
+        cancellationReason: null,
+        cancellationDetail: null,
+        cancelledAt: null,
+        cancelledBy: null,
+        adminNotes: restoreNote,
+        timeline: updatedTimeline,
+      },
+    },
+    all
+  );
   return true;
 };
 
@@ -857,7 +1105,6 @@ export const updateOrderStageComment = (orderId, stageId, commentText) => {
     lastUpdated: new Date().toISOString().split("T")[0],
   };
 
-  updateRemoteCache("orders", all, "orders_updated");
-  mutateOrderOnServer({ action: "update_fields", orderId, fields: updates });
+  mutateOrderOnServer({ action: "update_fields", orderId, fields: updates }, all);
   return true;
 };

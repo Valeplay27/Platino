@@ -32,6 +32,7 @@ export default function AuthModal() {
 
   // Campos Register (DNI obligatorio y único)
   const [regName, setRegName] = useState("");
+  const [regDocumentType, setRegDocumentType] = useState("dni");
   const [regDni, setRegDni] = useState("");
   const [regEmail, setRegEmail] = useState("");
   const [regPhone, setRegPhone] = useState("");
@@ -52,7 +53,9 @@ export default function AuthModal() {
   if (!isAuthModalOpen) return null;
 
   // Detectar en vivo si el DNI ingresado en el registro (8 dígitos) ya existe en la página
-  const cleanRegDni = regDni.replace(/\D/g, "").trim();
+  const cleanRegDni = regDocumentType === "dni"
+    ? regDni.replace(/\D/g, "").trim()
+    : regDni.toUpperCase().replace(/[^A-Z0-9]/g, "").trim();
   const duplicateDniUser = null;
 
 
@@ -104,8 +107,16 @@ export default function AuthModal() {
     setErrorMessage("");
     setSuccessMessage("");
 
-    if (!cleanRegDni || cleanRegDni.length !== 8) {
-      setErrorMessage("El DNI es obligatorio para registrarse y debe contener exactamente 8 dígitos numéricos.");
+    const validDocument =
+      regDocumentType === "dni"
+        ? /^\d{8}$/.test(cleanRegDni)
+        : /^[A-Z0-9]{6,20}$/.test(cleanRegDni);
+    if (!validDocument) {
+      setErrorMessage(
+        regDocumentType === "dni"
+          ? "El DNI es obligatorio y debe contener exactamente 8 dígitos."
+          : "El pasaporte debe contener entre 6 y 20 caracteres alfanuméricos."
+      );
       return;
     }
 
@@ -155,6 +166,17 @@ export default function AuthModal() {
 
     if (!forgotIdentifier.trim()) {
       setErrorMessage("Ingresa tu número de DNI (8 dígitos) o correo electrónico registrado.");
+      return;
+    }
+    const cleanIdent = forgotIdentifier.trim().toLowerCase();
+    if (
+      cleanIdent === "admin.lima@platino.pe" ||
+      cleanIdent === "admin.miraflores@platino.pe" ||
+      cleanIdent === "vladimiryt18@gmail.com"
+    ) {
+      setErrorMessage(
+        "Las contraseñas de las sedes administrativas (Lima Centro y Miraflores) no pueden modificarse por este medio; solo el Administrador Principal (Vladimir) puede cambiarlas desde la Matriz de Permisos."
+      );
       return;
     }
     if (!forgotAdminCode.trim()) {
@@ -394,7 +416,7 @@ export default function AuthModal() {
           <div>
             <h2 className="auth-title">Crear una cuenta</h2>
             <p className="auth-subtitle">
-              El registro con DNI es obligatorio y único por cliente en Platino Perú.
+              Regístrate con tu DNI peruano o pasaporte, según corresponda.
             </p>
 
             {errorMessage && (
@@ -404,25 +426,42 @@ export default function AuthModal() {
             )}
 
             <form onSubmit={handleRegisterSubmit}>
+              <div className="auth-field-group">
+                <label className="auth-field-label">Tipo de documento *</label>
+                <select
+                  className="auth-input"
+                  value={regDocumentType}
+                  onChange={(e) => {
+                    setRegDocumentType(e.target.value);
+                    setRegDni("");
+                    setErrorMessage("");
+                  }}
+                >
+                  <option value="dni">DNI peruano</option>
+                  <option value="passport">Pasaporte</option>
+                </select>
+              </div>
               {/* Campo Obligatorio: DNI con validación de duplicado en tiempo real */}
               <div className="auth-field-group">
                 <label className="auth-field-label" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                  <span>DNI (Documento de Identidad) *</span>
-                  <span style={{ fontSize: "11px", color: cleanRegDni.length === 8 ? (duplicateDniUser ? "#dc2626" : "#15803d") : "#64748b", fontWeight: "700" }}>
-                    {cleanRegDni.length}/8 dígitos
+                  <span>{regDocumentType === "dni" ? "DNI peruano *" : "Número de pasaporte *"}</span>
+                  <span style={{ fontSize: "11px", color: cleanRegDni.length > 0 ? "#15803d" : "#64748b", fontWeight: "700" }}>
+                    {regDocumentType === "dni" ? `${cleanRegDni.length}/8 dígitos` : `${cleanRegDni.length}/6-20 caracteres`}
                   </span>
                 </label>
                 <div className="auth-input-wrapper">
                   <i className="bi bi-person-vcard auth-input-icon"></i>
                   <input
                     type="text"
-                    inputMode="numeric"
-                    maxLength={8}
+                    inputMode={regDocumentType === "dni" ? "numeric" : "text"}
+                    maxLength={regDocumentType === "dni" ? 8 : 20}
                     className="auth-input"
-                    placeholder="Ej. 45892104 (8 dígitos obligatorios)"
+                    placeholder={regDocumentType === "dni" ? "Ej. 45892104" : "Ej. AB123456"}
                     value={regDni}
                     onChange={(e) => {
-                      const val = e.target.value.replace(/\D/g, "").slice(0, 8);
+                      const val = regDocumentType === "dni"
+                        ? e.target.value.replace(/\D/g, "").slice(0, 8)
+                        : e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 20);
                       setRegDni(val);
                       if (errorMessage) setErrorMessage("");
                     }}

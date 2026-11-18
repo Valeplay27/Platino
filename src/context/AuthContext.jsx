@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { AuthContext } from "./authContextDef";
 import { apiGet, apiPost } from "../services/apiClient";
 import { isMasterAdmin as checkMasterAdmin } from "../services/permissionsService";
+import { getClientProfile } from "../services/clientProfileService";
 
 const LOCAL_SESSION_KEY = "platino_local_api_session_v1";
 
@@ -32,16 +33,17 @@ function mapApiUser(user) {
   if (!user) return null;
   const master = user.role === "admin_master" || user.email?.toLowerCase() === "vladimiryt18@gmail.com";
   const isAdmin = master || user.role === "admin_sede" || user.role === "admin";
+  const savedProfile = getClientProfile(user);
   return {
     id: user.id,
-    name: user.name,
+    name: savedProfile.name || user.name,
     email: user.email,
-    dni: user.dni || "",
+    dni: savedProfile.dni || user.dni || "",
     role: isAdmin ? "admin" : "cliente",
     adminType: master ? "master" : isAdmin ? "sede" : null,
     sede: master ? "global" : user.sede || user.sede_id || null,
     sedeLabel: master ? "Todas las Sedes (Global)" : user.sedeLabel || null,
-    phone: user.phone || "",
+    phone: savedProfile.phone || user.phone || "",
     avatarBadge: master ? "👑" : isAdmin ? "🏛️" : null,
     title: master ? "Super Administrador Principal" : isAdmin ? "Administrador Sede" : "Cliente Platino",
   };
@@ -80,6 +82,14 @@ export function AuthProvider({ children }) {
     };
   }, []);
 
+  useEffect(() => {
+    const syncProfile = () => {
+      setUser((prev) => (prev ? mapApiUser(prev) : null));
+    };
+    window.addEventListener("platino_profile_updated", syncProfile);
+    return () => window.removeEventListener("platino_profile_updated", syncProfile);
+  }, []);
+
   const openAuthModal = (view = "login") => {
     setModalInitialView(view);
     setIsAuthModalOpen(true);
@@ -102,8 +112,11 @@ export function AuthProvider({ children }) {
   };
 
   const register = async ({ name, dni, email, password, phone = "" }) => {
-    if (!dni || String(dni).replace(/\D/g, "").length !== 8) {
-      return { success: false, code: "INVALID_DNI", error: "El DNI debe contener exactamente 8 dígitos." };
+    const document = String(dni || "").trim().toUpperCase();
+    const isDni = /^\d{8}$/.test(document);
+    const isPassport = /^[A-Z0-9]{6,20}$/.test(document);
+    if (!isDni && !isPassport) {
+      return { success: false, code: "INVALID_DOCUMENT", error: "Ingresa un DNI peruano de 8 dígitos o un pasaporte válido." };
     }
     if (!password || password.length < 12) {
       return { success: false, error: "La contraseña debe tener al menos 12 caracteres." };
@@ -111,7 +124,7 @@ export function AuthProvider({ children }) {
     try {
       const { user: account } = await apiPost("/auth/register", {
         name: name.trim(),
-        dni: String(dni).replace(/\D/g, ""),
+        dni: document,
         email: email.trim().toLowerCase(),
         password,
         phone: phone.trim(),
